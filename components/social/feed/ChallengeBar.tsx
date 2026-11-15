@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
 import { notify } from "@/components/social/notify";
+import { haptics } from "@/lib/native/haptics";
 import { colors } from "@/theme";
 
 import { challengeStatus, legitShare } from "./feedLogic";
@@ -24,8 +25,10 @@ export function ChallengeBar({
 }) {
   const vote = useMutation(socialApi.challenges.vote);
   const share = legitShare(challenge.legit, challenge.notLegit);
-  const cast = (legit: boolean) =>
+  const cast = (legit: boolean) => {
+    haptics.select();
     vote({ challengeId: challenge.challengeId, legit }).catch((error) => notify(errorMessage(error)));
+  };
 
   return (
     <View style={styles.box}>
