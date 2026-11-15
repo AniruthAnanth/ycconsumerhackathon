@@ -9,7 +9,7 @@ import { useShareInvite } from "./useShareInvite";
 type Props = {
   leagueId: Id<"leagues"> | null | undefined;
   label?: string;
-  /** primary: the screen's filled button. outlined: a full pill. compact: a small pill that sits in a row. */
+  /** primary: the screen's filled button. outlined: a full pill. compact: a small centred pill with room around it. */
   variant?: "primary" | "outlined" | "compact";
 };
 
@@ -31,6 +31,6 @@ export function InviteButton({ leagueId, label = "Invite friends", variant = "ou
 
 const styles = StyleSheet.create({
   block: { gap: spacing.xs },
-  compact: { alignSelf: "flex-start", gap: spacing.xs },
+  compact: { alignSelf: "center", margin: spacing.lg, gap: spacing.xs },
   error: { fontSize: font.meta, color: colors.danger },
 });
