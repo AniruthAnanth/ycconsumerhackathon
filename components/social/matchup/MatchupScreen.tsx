@@ -30,7 +30,7 @@ export default function MatchupScreen() {
     return (
       <>
         <ScreenState message="No matchup this week" />
-        <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />
+        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
       </>
     );
 
@@ -42,7 +42,7 @@ export default function MatchupScreen() {
         vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined}
       />
       <ChallengeButton />
-      <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />
+      <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
     </ScrollView>
   );
 }

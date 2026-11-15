@@ -1,4 +1,3 @@
-import { formatClock } from "@/lib/taskText";
 
 import type { TaskRow } from "../contract";
 
@@ -24,14 +23,15 @@ export function possiblePoints(rows: { mine?: Pick<TaskRow, "points">; theirs?: 
 }
 
 /** The grey line under a task title. A held task has its points on hold while the league votes on a challenge. */
-export function statusLine(task: Pick<TaskRow, "status" | "verifiedAt" | "dueLabel">) {
+export function statusLine(task: Pick<TaskRow, "status" | "dueLabel">) {
   switch (task.status) {
     case "verified":
-      return task.verifiedAt === undefined ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
+      // No time: beside the score a clock time truncated on a phone, and the check says enough.
+      return "Verified";
     case "open":
       return task.dueLabel;
     case "held":
-      return "Under review";
+      return "Up for veto";
     case "failed":
       return "Not verified";
   }
