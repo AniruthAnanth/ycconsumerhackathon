@@ -13,7 +13,7 @@ type Props = {
   onChange: (key: BoardKey) => void;
 };
 
-/** TopTabs, but scrollable: fourteen boards do not fit across a phone. */
+/** TopTabs, but scrollable: fifteen boards do not fit across a phone. */
 export function BoardPicker({ active, onChange }: Props) {
   const scroll = useRef<ScrollViewInstance>(null);
   const tabX = useRef<Partial<Record<BoardKey, number>>>({});
