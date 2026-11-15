@@ -32,9 +32,9 @@ import {
   type CheckInTask,
   type NudgeKind,
   type Rival,
+  arrivalPlace,
   arrivalText,
   eveningText,
-  hasArrived,
   lastDayText,
   mayText,
   pacificClock,
@@ -73,6 +73,8 @@ export const prompt = query({
     /** Where the phone is, when the player has allowed location. */
     lat: v.optional(v.number()),
     lng: v.optional(v.number()),
+    /** What the phone's reverse geocoder calls where it is: a gym stands in for a Body task's missing pin. */
+    placeName: v.optional(v.string()),
   },
   returns: v.union(
     v.null(),
@@ -93,7 +95,7 @@ export const prompt = query({
       }),
     }),
   ),
-  handler: async (ctx, { leagueId, now, lat, lng }) => {
+  handler: async (ctx, { leagueId, now, lat, lng, placeName }) => {
     const me = await requireUser(ctx);
     const week = await weekInPlay(ctx, leagueId, now);
     if (week === null || !(await isMember(ctx, leagueId, me._id))) return null;
@@ -105,6 +107,7 @@ export const prompt = query({
       week: { endsAt: week.endsAt, settled: week.status === "settled" },
       tasks,
       coords: isValidLatLng(here) ? here : undefined,
+      placeName,
     });
     if (checkIn === null) return null;
 
@@ -122,19 +125,21 @@ export const prompt = query({
 
 /**
  * The app calls this when the prompt tells the player they have arrived at a task's pinned
- * place. The photo is still required; arriving only makes it easy to send. The arrival is kept
+ * place, or at a gym with a Body task that pins no place. The photo is still required; arriving only makes it easy to send. The arrival is kept
  * because a texted photo carries no GPS (Keiki reads recentArrival so it can still count for a
  * location task), and a player who plays by text is told a reply is enough.
  */
 export const recordArrival = mutation({
-  args: { taskId: v.id("tasks"), lat: v.number(), lng: v.number() },
+  args: { taskId: v.id("tasks"), lat: v.number(), lng: v.number(), placeName: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, { taskId, lat, lng }) => {
+  handler: async (ctx, { taskId, lat, lng, placeName }) => {
     const me = await requireUser(ctx);
     const task = await ctx.db.get("tasks", taskId);
-    // Only what the prompt could have shown: the caller's own open task, with the phone at its pin.
+    // Only what the prompt could have shown: the caller's own open task, with the phone at its pin
+    // or at a gym.
     if (task === null || task.userId !== me._id || task.status !== "open") return null;
-    if (task.place === undefined || !hasArrived({ lat, lng }, task.place)) return null;
+    const arrivedAt = arrivalPlace({ task, phone: { lat, lng }, placeName });
+    if (arrivedAt === null) return null;
 
     const now = Date.now();
     const last = await arrivalAt(ctx, me._id, taskId);
@@ -145,7 +150,7 @@ export const recordArrival = mutation({
     // task per day is an invitation; more is a nag.
     const sentToday = await sentOn(ctx, me._id, pacificClock(now).day);
     if (!sentToday.some((sent) => sent.kind === "arrival" && sent.taskId === taskId)) {
-      await sendText(ctx, me._id, "arrival", arrivalText(task.place.name), taskId);
+      await sendText(ctx, me._id, "arrival", arrivalText(arrivedAt), taskId);
     }
     return null;
   },

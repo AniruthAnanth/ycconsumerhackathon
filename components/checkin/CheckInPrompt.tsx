@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { Component, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { api } from "@/convex/_generated/api";
@@ -10,6 +10,7 @@ import { useDevFlags } from "@/lib/devFlags";
 import { CheckInPromptRow } from "./CheckInPromptRow";
 import { arrivalKey } from "./coords";
 import { useForegroundCoords } from "./useForegroundCoords";
+import { usePlaceName } from "./usePlaceName";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -43,12 +44,39 @@ function useOverridePlace(leagueId: Id<"leagues"> | null) {
 
 /** The single line at the top of the Roster tab that asks the player to check in. Renders nothing when there is nothing to ask. */
 export function CheckInPrompt({ leagueId }: { leagueId: Id<"leagues"> | null }) {
+  return (
+    // Keyed by league so a failure in one league does not hide the prompt in the next.
+    <HideOnError key={leagueId}>
+      <Prompt leagueId={leagueId} />
+    </HideOnError>
+  );
+}
+
+/**
+ * The prompt is mounted in the Roster tab, which another module owns. A failed
+ * query throws while rendering, and without a boundary of its own it would take
+ * the whole lineup down with it; losing one line is the right price instead.
+ */
+class HideOnError extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+function Prompt({ leagueId }: { leagueId: Id<"leagues"> | null }) {
   const router = useRouter();
   const now = useMinuteClock();
   const overridePlace = useOverridePlace(leagueId);
   const coords = useForegroundCoords(overridePlace);
+  const placeName = usePlaceName(coords);
   const recordArrival = useMutation(api.checkins.recordArrival);
-  const result = useQuery(api.checkins.prompt, leagueId ? { leagueId, now, ...(coords ?? {}) } : "skip");
+  const result = useQuery(api.checkins.prompt, leagueId ? { leagueId, now, ...(coords ?? {}), placeName } : "skip");
 
   // useQuery is undefined while a new `now` or new coordinates load. Without
   // the last answer the row would blink out every minute. It is only reused for
@@ -69,8 +97,8 @@ export function CheckInPrompt({ leagueId }: { leagueId: Id<"leagues"> | null }) 
     if (recorded.current === key) return;
     recorded.current = key;
     // Fire and forget: a failed report must never break the row.
-    recordArrival({ taskId: arrivedTaskId, lat, lng }).catch(() => {});
-  }, [arrivedTaskId, lat, lng, recordArrival]);
+    recordArrival({ taskId: arrivedTaskId, lat, lng, placeName }).catch(() => {});
+  }, [arrivedTaskId, lat, lng, placeName, recordArrival]);
 
   if (!prompt) return null;
   return (
