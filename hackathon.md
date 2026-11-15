@@ -12,20 +12,20 @@ This page says how Convex, Capy and Revyl were each used, with the file to open 
 
 ## The numbers
 
-Counted on `main` at commit `d71de2e`, 1:21 PM Pacific on November 15, 2026. The first commit landed at 11:46 AM.
+Counted on `main` at commit `a5a0f89`, 2:17 PM Pacific on November 15, 2026. The first commit landed at 11:46 AM.
 
 | | Count | Where |
 | --- | --- | --- |
-| Capy threads | 26: one Captain and a crew of 25 | |
-| Subagents started by those threads | 123 | |
-| Pull requests | 317 opened, 309 merged, 3 closed unmerged, in 93 minutes | every one opened by a crew thread |
-| Time from opening a pull request to merging it | 1.7 minutes at the median, 4.2 at the 90th percentile | `.github/workflows/ci.yml` gates each one |
+| Capy threads | 27: one Captain and a crew of 26 | |
+| Subagents started by those threads | 138 | |
+| Pull requests | 394 opened, 388 merged, 5 closed unmerged, in 149 minutes | every one opened by a crew thread |
+| Time from opening a pull request to merging it | 1.6 minutes at the median, 4.1 at the 90th percentile | `.github/workflows/ci.yml` gates each one |
 | Convex tables and indexes | 23 and 38 | `convex/schema.ts` |
-| Convex public functions | 62: 23 queries, 32 mutations, 7 actions | `convex/*.ts` |
-| Convex internal functions | 72 | `convex/*.ts` |
+| Convex public functions | 60: 23 queries, 30 mutations, 7 actions | `convex/*.ts` |
+| Convex internal functions | 70 | `convex/*.ts` |
 | HTTP actions and cron jobs | 3 and 2 | `convex/http.ts`, `convex/crons.ts` |
-| Tests | 1,330 in 101 files | `npm test` |
-| Device acceptance checks | 8 defined; none marked run in the file at this commit | `docs/demo/ACCEPTANCE.md` |
+| Tests | 1,326 in 105 files | `npm test` |
+| Device acceptance checks | 8 defined: 6 pass, 1 passes in the browser build but is blocked on the cloud iPhone, 1 waits on the owner's real phone | `docs/demo/ACCEPTANCE.md` |
 
 ## Convex
 
