@@ -71,7 +71,10 @@ export async function askJson<T>(request: JsonRequest): Promise<T> {
           ...(request.imageUrls ?? []).map((url) => ({
             type: "input_image" as const,
             image_url: url,
-            detail: "auto" as const,
+            // "high" scales any photo down to a fixed budget of about 3,000 tokens. The default
+            // reads a phone photo at full size: 14,000 tokens for 12 megapixels, and a hard
+            // error ("requires 47628 patches") for a 48 megapixel one.
+            detail: "high" as const,
           })),
         ],
       },
@@ -256,6 +259,10 @@ const JUDGEMENT_SCHEMA = {
 /**
  * Asks the vision model what a proof shows. This is the model's opinion only:
  * lib/verdict.ts applies the thresholds and the distance rule to it.
+ *
+ * Returns null when the model refuses the media itself (a corrupt or
+ * unsupported file), which is the player's problem to fix by retaking the
+ * shot. Every other failure throws, because it is ours.
  */
 export async function judgeProof(input: {
   taskTitle: string;
@@ -266,7 +273,7 @@ export async function judgeProof(input: {
   fromVideo: boolean;
   gesture?: string;
   placeName?: string;
-}): Promise<Judgement> {
+}): Promise<Judgement | null> {
   const lines = [`Task: ${input.taskTitle}`, `Roster slot: ${input.slot}`];
   if (input.gesture) lines.push(`Required gesture: ${input.gesture}`);
   if (input.placeName) lines.push(`Place the player must be at: ${input.placeName}`);
@@ -279,5 +286,12 @@ export async function judgeProof(input: {
     text: lines.join("\n"),
     imageUrls: input.imageUrls,
     schema: JUDGEMENT_SCHEMA,
+  }).catch((error) => {
+    // HTTP 400 on this call means the request was well formed but the image was not.
+    if (error instanceof OpenAI.APIError && error.status === 400) {
+      console.warn("The model could not read a proof:", error.message);
+      return null;
+    }
+    throw error;
   });
 }

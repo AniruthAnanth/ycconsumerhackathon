@@ -115,21 +115,23 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
     };
   }
 
-  const verdict = (await rejectionBeforeJudging(ctx, submission, rules, imageTypes)) ??
-    decideVerdict(
-      await judgeProof({
-        taskTitle: task.title,
-        slot: task.slot,
-        imageUrls: await imageUrls(ctx, imageIds),
-        fromVideo: submission.mediaType === "video",
-        gesture,
-        placeName: rules.location?.placeName,
-      }).catch((error) => {
-        console.error("judgeProof failed:", error instanceof Error ? error.message : error);
-        throw new ConvexError("The referee couldn't be reached. Try again in a moment.");
-      }),
-      rules,
-    );
+  let verdict = await rejectionBeforeJudging(ctx, submission, rules, imageTypes);
+  if (verdict === null) {
+    const judgement = await judgeProof({
+      taskTitle: task.title,
+      slot: task.slot,
+      imageUrls: await imageUrls(ctx, imageIds),
+      fromVideo: submission.mediaType === "video",
+      gesture,
+      placeName: rules.location?.placeName,
+    }).catch((error) => {
+      console.error("judgeProof failed:", error instanceof Error ? error.message : error);
+      throw new ConvexError("The referee couldn't be reached. Try again in a moment.");
+    });
+    verdict = judgement
+      ? decideVerdict(judgement, rules)
+      : rejectWithoutJudging("That shot couldn't be read. Take it again.");
+  }
 
   await ctx.runMutation(internal.proofs.record, {
     taskId: submission.taskId,
