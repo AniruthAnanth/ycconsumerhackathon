@@ -45,8 +45,17 @@ export function DemoControls() {
 
   return (
     <Screen scroll>
-      {/* Opened by a link rather than the week label, there is no screen to go back to. */}
-      <Header title="Demo controls" onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+      <Header
+        title="Demo controls"
+        onBack={() => {
+          // Roster's week label is the only way in, so Back always lands on Roster, on a fresh set
+          // of tabs. Going back one screen is not enough: after Switch Player or Reset Seed the
+          // screen underneath can be one the first player left behind, such as their Voice Draft.
+          // Dismiss, then replace, is how the contacts step leaves too (app/contacts.tsx).
+          if (router.canDismiss()) router.dismissAll();
+          router.replace("/");
+        }}
+      />
 
       <SectionLabel left="LEAGUE" />
       <ActionRow
