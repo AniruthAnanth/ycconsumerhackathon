@@ -126,7 +126,7 @@ const watchHtml = `<style>
 <div class="wscreen"><span class="time">9:41</span>
 <div class="card"><div class="app"><span class="ico"></span>MESSAGES</div>
 <div class="from">Lineup</div>
-<div class="body"><b>QUICK-TIME DROP:</b> 10 <span class="nb">push-ups</span>, three fingers up. 15:00 left. Reply with a photo for +30.</div></div>
+<div class="body"><b>Quick-time:</b> 20 <span class="nb">push-ups</span> in the next 2 hours, three fingers up in the photo. +40. Reply with a photo.</div></div>
 <div class="btns"><span>Dismiss</span><span class="pri">Reply</span></div>
 <div class="dots"><span></span><span></span></div></div></div></div>`;
 
@@ -175,10 +175,10 @@ for (const s of slides) {
 const watchOut = join(resolve(outDir), "watch-concept.png");
 raster(
   page(
-    "Drops land on your wrist.",
-    "Quick-time drops and verdicts arrive as iMessage notifications through Keiki.",
+    "Drops reach your wrist by text",
+    "This is a concept image; Lineup has no watch app and sends iMessage texts through Keiki.",
     watchHtml,
-    "Concept. No native watch app: notifications mirror from iPhone.",
+    "Concept. Rendered from HTML, not captured from a watch.",
   ),
   watchOut,
 );
