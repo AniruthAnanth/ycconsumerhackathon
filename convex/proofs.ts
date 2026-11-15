@@ -23,6 +23,7 @@ import { judgeProof } from "./ai";
 import { requireUser } from "./lib/auth";
 import { MAX_CLIP_SECONDS, clipSeconds, isClipTooLong } from "./lib/clip";
 import { distanceMeters, isValidLatLng } from "./lib/geo";
+import { verdictReached } from "./lib/notificationContent";
 import {
   decideVerdict,
   locationProblem,
@@ -293,6 +294,13 @@ export const record = internalMutation({
       caption,
       via: args.via,
       createdAt: Date.now(),
+    });
+    // The prover hears the call, pass or fail, on a phone where the app is closed: a proof
+    // texted to the league agent, or one the referee was still judging when they left. Scheduled
+    // rather than called, like the follow-ups below, so a push can never undo a proof.
+    await ctx.scheduler.runAfter(0, internal.push.send, {
+      userId: args.userId,
+      notification: verdictReached({ taskId: task._id, title: task.title, points: task.points, pass, reason }),
     });
     if (pass) {
       await ctx.db.patch("tasks", task._id, { status: "verified" });
