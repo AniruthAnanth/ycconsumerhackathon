@@ -72,7 +72,16 @@ export type Task = {
   upNext: boolean;
 };
 
-export type Roster = { locked: boolean; weekStart: number; total: number; rows: Task[] };
+export type Roster = {
+  locked: boolean;
+  weekStart: number;
+  /** The rows' scores plus bonusPoints: the same number the League and Matchup tabs show. */
+  total: number;
+  bonusPoints: number;
+  /** A short name for each part of bonusPoints, such as "2 slots cleared" or "Streak". */
+  bonusLabels: string[];
+  rows: Task[];
+};
 
 export type Standing = {
   rank: number;
