@@ -13,6 +13,7 @@ import {
   type Pairing,
   type Result,
 } from "./schedule";
+import { weekPairings } from "./week";
 
 const SIX = ["a", "b", "c", "d", "e", "f"];
 
@@ -68,7 +69,7 @@ describe("resolveSettings", () => {
     ).toEqual({ payout: "season", seasonWeeks: 12, format: "bracket" });
     expect(resolveSettings({ seasonWeeks: 0 }).seasonWeeks).toBe(8);
     expect(resolveSettings({ seasonWeeks: 2.5 }).seasonWeeks).toBe(8);
-    expect(resolveSettings({ seasonWeeks: 500 }).seasonWeeks).toBe(52);
+    expect(resolveSettings({ seasonWeeks: 500 }).seasonWeeks).toBe(8);
   });
 });
 
@@ -220,6 +221,19 @@ describe("seasonTable", () => {
     );
     expect(table.map((row) => row.id)).toEqual(["a", "b"]);
     expect(table[0]).toMatchObject({ wins: 1, pointsFor: 40 });
+  });
+});
+
+describe("the default league", () => {
+  it("is paired exactly as before formats existed, for every league size", () => {
+    // weekPairings is what leagues.ts called until it switched to scheduleFor.
+    for (let size = 0; size <= 9; size++) {
+      const members = Array.from({ length: size }, (_, i) => "m" + i);
+      for (let week = 1; week <= DEFAULT_SETTINGS.seasonWeeks; week++) {
+        const stored = withStandIns(scheduleFor("round_robin", members, week, []), members);
+        expect(stored.map(({ a, b }) => [a, b])).toEqual(weekPairings(members, week));
+      }
+    }
   });
 });
 

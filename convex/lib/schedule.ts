@@ -33,15 +33,20 @@ export const DEFAULT_SETTINGS: LeagueSettings = {
 
 export const MAX_SEASON_WEEKS = 52;
 
+/** A season is a whole number of weeks, from one to a year. */
+export function isSeasonLength(weeks: number): boolean {
+  return Number.isInteger(weeks) && weeks >= 1 && weeks <= MAX_SEASON_WEEKS;
+}
+
 /** Fills in the defaults for whatever a leagues row leaves unset. */
 export function resolveSettings(stored: Partial<LeagueSettings>): LeagueSettings {
   const weeks = stored.seasonWeeks;
-  const validWeeks = weeks !== undefined && Number.isInteger(weeks) && weeks >= 1;
   return {
     payout: stored.payout ?? DEFAULT_SETTINGS.payout,
-    seasonWeeks: validWeeks
-      ? Math.min(weeks, MAX_SEASON_WEEKS)
-      : DEFAULT_SETTINGS.seasonWeeks,
+    seasonWeeks:
+      weeks !== undefined && isSeasonLength(weeks)
+        ? weeks
+        : DEFAULT_SETTINGS.seasonWeeks,
     format: stored.format ?? DEFAULT_SETTINGS.format,
   };
 }
