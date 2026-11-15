@@ -36,6 +36,8 @@ export type Standing = { userId: string; name: string; points: number; slotsClea
 
 export type CardKind = "champion" | "best_proof" | "comeback" | "fastest" | "your_week";
 export type Card = { kind: CardKind; title: string; subtitle: string; stat: string; media?: Media };
+/** A card as the app receives it: the stored file swapped for a URL it can show. */
+type ServedCard = Omit<Card, "media"> & { mediaUrl?: string; mediaType?: Media["mediaType"] };
 
 // ---- Rules (pure) -----------------------------------------------------------------------------
 
@@ -252,7 +254,7 @@ export const get = query({
 
     return {
       cards: await Promise.all(
-        cards.map(async ({ media, ...card }) => {
+        cards.map(async ({ media, ...card }): Promise<ServedCard> => {
           const mediaUrl = media ? await ctx.storage.getUrl(media.storageId) : null;
           return mediaUrl && media ? { ...card, mediaUrl, mediaType: media.mediaType } : card;
         }),

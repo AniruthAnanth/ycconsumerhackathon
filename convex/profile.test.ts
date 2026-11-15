@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment edge-runtime
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { api } from "./_generated/api";
+import schema from "./schema";
 
 import { bestSlot, calendarDay, completionRate, fastestResponseSec, pointsByWeek, streaks } from "./profile";
+
+const modules = import.meta.glob("./**/*.ts");
 
 const DAY = 24 * 60 * 60 * 1000;
 // Monday 9 Nov 2026 00:00 in Los Angeles (PST, UTC-8).
@@ -112,5 +120,91 @@ describe("fastestResponseSec", () => {
   });
   it("is undefined for a player who never answered a drop", () => {
     expect(fastestResponseSec([])).toBeUndefined();
+  });
+});
+
+describe("profile.get", () => {
+  // Thursday of the week that starts at WEEK.
+  const NOW = WEEK + 3 * DAY + 12 * 60 * 60 * 1000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("derives every number from the player's tasks, proofs and drops", async () => {
+    const t = convexTest(schema, modules);
+    const { maya, viewer } = await t.run(async (ctx) => {
+      const maya = await ctx.db.insert("users", { name: "Maya" });
+      const viewer = await ctx.db.insert("users", { name: "Sam" });
+      const leagueId = await ctx.db.insert("leagues", {
+        name: "YC", inviteCode: "YC", stakeUsd: 5, visibility: "private", maxMembers: 8, createdBy: maya,
+      });
+      const dropId = await ctx.db.insert("drops", {
+        leagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40, sealed: false,
+        opensAt: WEEK + 2 * DAY, closesAt: WEEK + 2 * DAY + 7_200_000, status: "closed",
+      });
+      const task = async (
+        weekStart: number,
+        slot: "body" | "mind" | "chores",
+        points: number,
+        provedAt: number | null,
+        extra: { dropId?: typeof dropId; status?: "held" } = {},
+      ) => {
+        const taskId = await ctx.db.insert("tasks", {
+          userId: maya, weekStart, slot, title: slot, points, proofType: "photo",
+          status: extra.status ?? (provedAt === null ? "open" : "verified"),
+          source: extra.dropId ? "drop" : "draft", ...(extra.dropId ? { dropId: extra.dropId } : {}),
+        });
+        if (provedAt !== null) {
+          await ctx.db.insert("proofs", {
+            taskId, userId: maya, weekStart, mediaType: "photo", pass: true, confidence: 0.9,
+            reason: "ok", highlight: 5, caption: "ok", via: "app", createdAt: provedAt,
+          });
+        }
+      };
+      // Last week: two days in a row, 70 points.
+      await task(WEEK - 7 * DAY, "body", 30, WEEK - 7 * DAY + 1);
+      await task(WEEK - 7 * DAY, "body", 40, WEEK - 6 * DAY + 1);
+      // This week: Tuesday, Wednesday (a quick-time drop answered in 42 seconds) and Thursday.
+      await task(WEEK, "mind", 50, WEEK + DAY + 1);
+      await task(WEEK, "body", 40, WEEK + 2 * DAY + 42_000, { dropId });
+      await task(WEEK, "body", 20, WEEK + 3 * DAY + 1);
+      // Not counted: one still open, and one whose proof is under challenge.
+      await task(WEEK, "chores", 25, null);
+      await task(WEEK, "chores", 25, WEEK + 3 * DAY + 2, { status: "held" });
+      return { maya, viewer };
+    });
+
+    const profile = await t
+      .withIdentity({ subject: viewer + "|test-session" })
+      .query(api.profile.get, { userId: maya });
+
+    expect(profile).toEqual({
+      name: "Maya",
+      totalPoints: 180,
+      tasksCompleted: 5,
+      completionRate: 5 / 7,
+      bestSlot: "body",
+      currentStreak: 3,
+      longestStreak: 3,
+      bestWeek: 110,
+      fastestQuickTimeSec: 42,
+    });
+  });
+
+  it("returns zeros, not errors, for a player who has not started", async () => {
+    const t = convexTest(schema, modules);
+    const rookie = await t.run((ctx) => ctx.db.insert("users", {}));
+    const profile = await t
+      .withIdentity({ subject: rookie + "|test-session" })
+      .query(api.profile.get, { userId: rookie });
+    expect(profile).toEqual({
+      name: "Player", totalPoints: 0, tasksCompleted: 0, completionRate: 0, bestSlot: null,
+      currentStreak: 0, longestStreak: 0, bestWeek: 0,
+    });
   });
 });
