@@ -318,10 +318,13 @@ export default defineSchema({
       v.literal("evening"),
       v.literal("last_day"),
       v.literal("rival_passed"),
+      v.literal("arrival"),
     ),
     day: v.string(), // the calendar day in Los Angeles, "2026-11-15"
     text: v.string(),
     sentAt: v.number(),
+    // Set on an arrival text, which goes out at most once per task per day.
+    taskId: v.optional(v.id("tasks")),
   }).index("by_user_day", ["userId", "day"]),
 
   // Each member's league points the last time convex/checkins.ts looked, so
@@ -332,4 +335,16 @@ export default defineSchema({
     userId: v.id("users"),
     points: v.number(),
   }).index("by_league_user", ["leagueId", "userId"]),
+
+  // Where a player was when the app told them they had arrived at a task's
+  // pinned place (convex/checkins.ts). One row per player and task, moved
+  // forward on every arrival. A text carries no GPS, so this is the location
+  // evidence for a photo texted from that place.
+  arrivals: defineTable({
+    userId: v.id("users"),
+    taskId: v.id("tasks"),
+    lat: v.number(),
+    lng: v.number(),
+    at: v.number(),
+  }).index("by_user_task", ["userId", "taskId"]),
 });
