@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BOARDS, parseBoardKey } from "./boards";
-import { formatUsd, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle } from "./format";
+import { formatUsd, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle } from "./format";
 import type { BoardRow } from "./types";
 
 const row = (overrides: Partial<BoardRow>): BoardRow => ({
@@ -59,7 +59,11 @@ describe("placeLabel", () => {
     expect(placeLabel([row({}), row({ rank: 2, isMe: true, gapLabel: "15 behind Maya" })])).toBe("2nd · 15 behind Maya");
   });
 
-  it("is just the place for the leader", () => {
+  it("shows the leader's lead the same way", () => {
+    expect(placeLabel([row({ isMe: true, gapLabel: "15 ahead of Sam" })])).toBe("1st · 15 ahead of Sam");
+  });
+
+  it("is just the place when there is no gap", () => {
     expect(placeLabel([row({ isMe: true })])).toBe("1st");
   });
 
@@ -81,11 +85,21 @@ describe("projection text", () => {
   });
 });
 
+describe("hourStart", () => {
+  it("rounds down to the hour", () => {
+    const hour = Date.UTC(2026, 10, 15, 20);
+    expect(hourStart(hour + 59 * 60_000 + 999)).toBe(hour);
+    expect(hourStart(hour)).toBe(hour);
+  });
+});
+
 describe("boards", () => {
-  it("lists fourteen distinct boards starting with This Week", () => {
-    expect(BOARDS).toHaveLength(14);
-    expect(new Set(BOARDS.map((board) => board.key)).size).toBe(14);
+  it("lists fifteen distinct boards starting with This Week, Global All-Time after Global", () => {
+    expect(BOARDS).toHaveLength(15);
+    expect(new Set(BOARDS.map((board) => board.key)).size).toBe(15);
     expect(BOARDS[0]).toEqual({ key: "week", label: "This Week" });
+    const keys = BOARDS.map((board) => board.key);
+    expect(keys[keys.indexOf("global") + 1]).toBe("globalAllTime");
   });
 
   it("parses a route param only when it names a board", () => {
