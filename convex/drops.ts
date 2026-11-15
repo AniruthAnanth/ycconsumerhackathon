@@ -12,8 +12,9 @@
  * A mystery envelope is delivered already open; a group session opens when check-in does.
  *
  * Points live on the task row: standings sum tasks.points, so a bonus is written there the
- * moment it is earned and is never added again at read time. The numbers and the wording of
- * every text are in lib/dropRules.ts.
+ * moment it is earned and is never added again at read time. The scoring formulas are in
+ * lib/scoring.ts with every other scoring rule; what a drop asks for, how long it lasts and the
+ * wording of every text are in lib/dropRules.ts.
  */
 import { ConvexError, type Infer, v } from "convex/values";
 
@@ -32,14 +33,12 @@ import { askJson } from "./ai";
 import { requireUser } from "./lib/auth";
 import {
   clampMysteryPoints,
-  clampWager,
   firstFinisher,
   GROUP_CHECK_IN_WINDOW_MS,
   GROUP_REMINDER_LEAD_MS,
   GROUP_SESSION_POINTS,
   groupAnnouncementText,
   groupReminderText,
-  groupSessionPoints,
   groupWrapUpText,
   HEADCOUNT_INSTRUCTIONS,
   HEADCOUNT_SCHEMA,
@@ -47,17 +46,17 @@ import {
   MYSTERY_MEMORY_QUERY,
   MYSTERY_SCHEMA,
   MYSTERY_WINDOW_MS,
-  mysteryLossPoints,
   mysteryPrompt,
   mysteryText,
-  mysteryWinPoints,
+  othersPresent,
   parseMystery,
   pickFallbackMystery,
   pickQuickTime,
   QUICK_TIME_WINDOW_MS,
-  quickTimePoints,
   quickTimeText,
 } from "./lib/dropRules";
+import { clampWager, groupSessionScore, mysteryScore, quickTimeScore } from "./lib/scoring";
+import { weekStartOf } from "./lib/week";
 import { searchMemories } from "./memory";
 import { place, slot } from "./schema";
 
@@ -130,7 +129,7 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
   if (drop.kind === "mystery") {
     if (drop.userId !== me) return null;
     // Sealed, an envelope shows its slot and what it pays, and nothing about the task.
-    if (drop.sealed) return { ...banner, title: SEALED_TITLE, points: mysteryWinPoints(drop.points, 0) };
+    if (drop.sealed) return { ...banner, title: SEALED_TITLE, points: mysteryScore(drop.points, 0, true) };
   }
   const myTask = (await tasksOf(ctx, drop._id)).find((task) => task.userId === me);
   if (drop.kind === "group") {
@@ -323,12 +322,12 @@ async function openEnvelope(
   requestedWager: number | undefined,
 ): Promise<void> {
   const drop = await sealedEnvelope(ctx, userId, dropId);
-  const weekStart = await currentWeekStart(ctx, drop.leagueId);
+  const weekStart = weekStartOf(Date.now());
   // An over-sized wager is cut down rather than refused, so "OPEN 80" by text still opens.
-  const wager = clampWager(requestedWager, await bankedPoints(ctx, drop.leagueId, userId, weekStart));
+  const wager = clampWager(requestedWager ?? 0, await bankedPoints(ctx, drop.leagueId, userId, weekStart));
   await ctx.db.patch("drops", dropId, { sealed: false, wager });
   // Priced for success now. If the envelope closes unfinished, close() turns this negative.
-  await giveTask(ctx, drop, userId, weekStart, mysteryWinPoints(drop.points, wager));
+  await giveTask(ctx, drop, userId, weekStart, mysteryScore(drop.points, wager, true));
 }
 
 /** A passed envelope is closed still sealed: no task was ever created, so nothing is scored. */
@@ -482,7 +481,7 @@ async function joinGroupSession(ctx: MutationCtx, userId: Id<"users">, dropId: I
   if ((await rsvpsOf(ctx, dropId)).some((rsvp) => rsvp.userId === userId)) return;
   await ctx.db.insert("rsvps", { dropId, userId, checkedIn: false });
   // Check-in already opened, so this attendee missed the tasks openDrop handed out.
-  if (drop.status === "open") await giveTask(ctx, drop, userId, await currentWeekStart(ctx, drop.leagueId));
+  if (drop.status === "open") await giveTask(ctx, drop, userId, weekStartOf(Date.now()));
 }
 
 /**
@@ -556,7 +555,8 @@ export const openDrop = internalMutation({
     if (drop === null || drop.status !== "scheduled") return null;
     await ctx.db.patch("drops", dropId, { status: "open" });
 
-    const weekStart = await currentWeekStart(ctx, drop.leagueId);
+    // Tasks are keyed by (userId, weekStart): a drop's tasks belong to the week it opens in.
+    const weekStart = weekStartOf(Date.now());
     if (drop.kind === "group") {
       const startsInMs = drop.opensAt - Date.now();
       for (const { userId } of await rsvpsOf(ctx, dropId)) {
@@ -630,7 +630,7 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
     if (task.status !== "open") continue;
     // A missed quick-time drop simply scores nothing. An envelope that was opened and not
     // finished costs points, and standings count the negative points of a failed task.
-    const points = drop.kind === "mystery" ? mysteryLossPoints(drop.wager ?? 0) : task.points;
+    const points = drop.kind === "mystery" ? mysteryScore(drop.points, drop.wager ?? 0, false) : task.points;
     await ctx.db.patch("tasks", task._id, { status: "failed", points });
   }
 
@@ -644,7 +644,7 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
     groupWrapUpText({
       title: drop.title,
       checkedIn,
-      points: groupSessionPoints(drop.points, checkedIn, drop.headcount),
+      points: groupSessionScore(drop.points, othersPresent(checkedIn, drop.headcount)),
       photoUrl: drop.groupPhotoId === undefined ? null : await ctx.storage.getUrl(drop.groupPhotoId),
     }),
   );
@@ -663,7 +663,7 @@ async function reprice(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
     // A check-in is a verified task. Everyone present is worth the same, and that number
     // rises for all of them each time another attendee checks in or a fuller photo is counted.
     const present = (await tasksOf(ctx, drop._id)).filter((task) => task.status === "verified");
-    const points = groupSessionPoints(drop.points, present.length, drop.headcount);
+    const points = groupSessionScore(drop.points, othersPresent(present.length, drop.headcount));
     for (const task of present) {
       if (task.points !== points) await ctx.db.patch("tasks", task._id, { points });
     }
@@ -681,7 +681,7 @@ async function reprice(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   }
   const first = firstFinisher(finishers);
   for (const { task } of finishers) {
-    const points = quickTimePoints(drop.points, task._id === first?.task._id);
+    const points = quickTimeScore(drop.points, task._id === first?.task._id);
     if (task.points !== points) await ctx.db.patch("tasks", task._id, { points });
   }
 }
@@ -768,18 +768,6 @@ async function membership(
     .first();
 }
 
-/**
- * Tasks are keyed by (userId, weekStart), and weekStart equals weeks.startsAt for every league,
- * so a drop's tasks take the start of the league's newest week.
- */
-async function currentWeekStart(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<number> {
-  const weeks = await ctx.db
-    .query("weeks")
-    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-    .take(MAX_ROWS);
-  if (weeks.length === 0) throw new ConvexError("This league has no week to play in yet");
-  return Math.max(...weeks.map((week) => week.startsAt));
-}
 
 // ─── Texts ───────────────────────────────────────────────────────────────────────────────────
 

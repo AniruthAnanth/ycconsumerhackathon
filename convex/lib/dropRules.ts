@@ -1,16 +1,17 @@
 /**
- * Drop rules: the numbers and the wording behind the three bonus features that sit on top of a
- * week's lineup (SPEC.md section 2 for scoring, section 7 for the texts).
+ * Drop rules: what each of the three bonus features asks of a player, how long it lasts, and
+ * the wording of every text it sends (SPEC.md section 7). What a drop is worth is decided in
+ * lib/scoring.ts, next to every other scoring rule.
  *
  *   quick-time drop   a short task for the whole league; the first finisher gets a bonus
  *   mystery task      a sealed daily task one player opens (with an optional wager) or passes
  *   group session     a member-made meetup; every extra attendee raises everyone's score
  *
  * Everything here is pure, so each rule is tested without a database. convex/drops.ts owns the
- * rows and calls these to price a task, which keeps every rule in exactly one place.
+ * rows and calls these, which keeps every rule in exactly one place.
  */
-
-export type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
+import type { Slot } from "./scoring";
+import { clockLabel, weekdayLabel } from "./week";
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -43,7 +44,6 @@ export function spokenDuration(ms: number): string {
 // ─── Quick-time drops ────────────────────────────────────────────────────────────────────────
 
 export const QUICK_TIME_WINDOW_MS = 2 * HOUR_MS;
-export const FIRST_FINISHER_BONUS = 10;
 
 export type DropIdea = { title: string; slot: Slot; points: number };
 
@@ -70,11 +70,6 @@ export function pickQuickTime(random: () => number = Math.random): DropIdea & { 
   return { ...pick(QUICK_TIME_IDEAS, random), gesture: pick(GESTURES, random) };
 }
 
-/** The drop's own points, plus +10 for whoever finished first. */
-export function quickTimePoints(dropPoints: number, isFirstFinisher: boolean): number {
-  return dropPoints + (isFirstFinisher ? FIRST_FINISHER_BONUS : 0);
-}
-
 /** Earliest verified proof wins; a tie goes to whoever comes first in the list. */
 export function firstFinisher<T extends { verifiedAt: number }>(finishers: readonly T[]): T | undefined {
   return finishers.reduce<T | undefined>(
@@ -93,8 +88,6 @@ export function quickTimeText(drop: { title: string; points: number; gesture: st
 export const MYSTERY_WINDOW_MS = 16 * HOUR_MS;
 /** A mystery pays double, so a base of 15 to 30 is the "30 to 60 points" the morning text promises. */
 export const MYSTERY_BASE_POINTS = { min: 15, max: 30 } as const;
-export const MYSTERY_FAIL_PENALTY = 20;
-export const MAX_WAGER = 50;
 
 /** Used when the model or memory is unavailable, so a morning never passes without an envelope. */
 export const MYSTERY_FALLBACKS: readonly DropIdea[] = [
@@ -154,22 +147,6 @@ export function clampMysteryPoints(points: number): number {
   return clamp(Math.round(points), MYSTERY_BASE_POINTS.min, MYSTERY_BASE_POINTS.max);
 }
 
-/** A wager is whole points, at most 50, and never more than the player has to lose. */
-export function clampWager(requested: number | undefined, ownPoints: number): number {
-  if (requested === undefined || !Number.isFinite(requested)) return 0;
-  return clamp(Math.floor(requested), 0, Math.max(0, Math.min(MAX_WAGER, Math.floor(ownPoints))));
-}
-
-/** Completed: double points, and the wager comes back doubled, which nets the wager on top. */
-export function mysteryWinPoints(basePoints: number, wager: number): number {
-  return 2 * basePoints + wager;
-}
-
-/** Accepted and not completed: minus 20, and the wager is lost. A passed envelope costs nothing. */
-export function mysteryLossPoints(wager: number): number {
-  return -(MYSTERY_FAIL_PENALTY + wager);
-}
-
 export function mysteryText(slot: Slot): string {
   const range = `${2 * MYSTERY_BASE_POINTS.min} to ${2 * MYSTERY_BASE_POINTS.max}`;
   return `Mystery task: ${SLOT_LABEL[slot]}, ${range} points. Reply OPEN or PASS.`;
@@ -178,23 +155,19 @@ export function mysteryText(slot: Slot): string {
 // ─── Group sessions ──────────────────────────────────────────────────────────────────────────
 
 export const GROUP_SESSION_POINTS = 30;
-export const GROUP_BONUS_PER_ATTENDEE = 5;
-export const GROUP_BONUS_CAP = 25;
 /** Check-in opens, and the reminder goes out, this long before the start. */
 export const GROUP_REMINDER_LEAD_MS = 30 * MINUTE_MS;
 /** Check-in stays open this long after the start, then the session is settled. */
 export const GROUP_CHECK_IN_WINDOW_MS = 2 * HOUR_MS;
 
 /**
- * Base points plus +5 per other attendee, capped at +25. An attendee only counts once they have
- * checked in at the place AND the group photo shows that many people: `headcount` is the number
- * the model counted, so friends cannot farm the bonus with check-ins nobody can see. Until a
- * photo has been counted the session is worth its base points.
+ * How many other attendees a checked-in player is paid a bonus for. An attendee counts once they
+ * have checked in at the place AND the group photo shows that many people: headcount is the
+ * number the model counted in the fullest check-in photo, so friends cannot farm the bonus with
+ * check-ins nobody can see. Until a photo has been counted, nobody else counts.
  */
-export function groupSessionPoints(basePoints: number, checkedIn: number, headcount: number | undefined): number {
-  const present = Math.min(checkedIn, headcount ?? 1);
-  const others = Math.max(0, present - 1);
-  return basePoints + Math.min(GROUP_BONUS_CAP, others * GROUP_BONUS_PER_ATTENDEE);
+export function othersPresent(checkedIn: number, headcount: number | undefined): number {
+  return Math.max(0, Math.min(checkedIn, headcount ?? 1) - 1);
 }
 
 export const HEADCOUNT_INSTRUCTIONS = [
@@ -210,14 +183,9 @@ export const HEADCOUNT_SCHEMA = {
   properties: { people: { type: "integer" } },
 } as const;
 
-/** "Sat 7:00 AM" in the league's home time zone, which is also the zone a week is defined in. */
+/** "Sat 7:00 AM" in Pacific time, the zone a Lineup week is defined in. */
 export function sessionTime(startsAt: number): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(startsAt));
+  return `${weekdayLabel(startsAt)} ${clockLabel(startsAt)}`;
 }
 
 export function groupAnnouncementText(s: { creator: string; title: string; placeName: string; startsAt: number }): string {
