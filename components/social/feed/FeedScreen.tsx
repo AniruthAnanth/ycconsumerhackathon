@@ -1,15 +1,15 @@
 import { useQuery } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Entrance } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
-import { Divider, OutlinedPillButton, Screen } from "@/components/ui";
+import { Divider, Icon, type IconName, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { useNow } from "@/lib/useNow";
-import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing } from "@/theme";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
@@ -18,6 +18,16 @@ import { FocusFlash } from "./FocusFlash";
 import { ProofPost } from "./ProofPost";
 
 const PostDivider = () => <Divider inset={SCREEN_MARGIN} />;
+
+/** One quiet text link in the shortcut row: the side features stay a tap away without leading the Feed. */
+function Shortcut({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={spacing.xs} style={styles.shortcut}>
+      <Icon name={icon} size={font.meta} color={colors.textMuted} />
+      <Text style={styles.shortcutText}>{label}</Text>
+    </Pressable>
+  );
+}
 
 /**
  * FEED tab: the league's verified proofs, newest first. It is also where the
@@ -70,17 +80,9 @@ export function FeedScreen() {
         ListHeaderComponent={
           <>
           <View style={styles.shortcuts}>
-            <View style={styles.shortcutRow}>
-              <OutlinedPillButton label="Week Wrapped" onPress={() => router.push("/wrapped")} style={styles.shortcut} />
-              <OutlinedPillButton label="Connect Canvas" onPress={() => router.push("/canvas")} style={styles.shortcut} />
-            </View>
-            {/* On its own line: three labels this long do not fit side by side on a phone, and as a
-                floating button it sat on top of the second post's points. */}
-            <OutlinedPillButton
-              label="+ Group Session"
-              accessibilityLabel="Start a group session"
-              onPress={() => router.push("/group/new")}
-            />
+            <Shortcut icon="sparkles-outline" label="Week Wrapped" onPress={() => router.push("/wrapped")} />
+            <Shortcut icon="school-outline" label="Connect Canvas" onPress={() => router.push("/canvas")} />
+            <Shortcut icon="people-outline" label="Group session" onPress={() => router.push("/group/new")} />
           </View>
           <UpForVeto board={board} leagueId={leagueId} myUserId={myUserId} now={now} />
           </>
@@ -93,13 +95,13 @@ export function FeedScreen() {
 
 const styles = StyleSheet.create({
   shortcuts: {
-    gap: spacing.md,
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: SCREEN_MARGIN,
-    paddingVertical: spacing.md,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  shortcutRow: { flexDirection: "row", gap: spacing.md },
-  shortcut: { flex: 1 },
+  shortcut: { minHeight: layout.rowMin, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  shortcutText: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.label },
   empty: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center", paddingVertical: spacing.xxl },
 });
