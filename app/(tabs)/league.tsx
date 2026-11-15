@@ -9,6 +9,7 @@ import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
 import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
+import { PayBanner } from "@/components/roster/PayBanner";
 import { useNow } from "@/lib/useNow";
 import { OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
@@ -20,27 +21,29 @@ export { TabError as ErrorBoundary } from "@/components/social/RouteError";
 /** LEAGUE: the pot, the standings table, payouts once settled, and the invite code. */
 export default function LeagueScreen() {
   const router = useRouter();
-  const { leagueId } = useCurrentLeague();
+  const { me, leagueId, membership } = useCurrentLeague();
   const now = useNow(60_000);
   const args = leagueId ? { leagueId } : "skip";
   const pot = useQuery(backend.standings.pot, args);
   const table = useQuery(backend.standings.table, args);
   const league = useQuery(backend.leagues.get, args);
-  const me = useQuery(backend.users.me, leagueId ? {} : "skip");
+
+  const owesBuyIn = membership !== undefined && !membership.paid && membership.stakeUsd > 0;
 
   if (!leagueId || !pot || !table || !league || !me) return <Screen edges={["bottom"]}>{null}</Screen>;
 
   return (
     <Screen edges={["bottom"]} scroll>
+      {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       <PotSummary pot={pot} now={now} />
       <LeaderboardsStrip leagueId={leagueId} />
       <StandingsTable
         rows={table}
-        viewerId={me.actingAs?._id ?? me._id}
+        viewerId={me._id}
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
       <SeasonLink leagueId={leagueId} />
-      {pot.payouts ? <PayoutRows payouts={pot.payouts} /> : null}
+      {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
       <PlayByTextRow />
       <LeagueDetails league={league} pot={pot} now={now} />
       <View style={styles.actions}>

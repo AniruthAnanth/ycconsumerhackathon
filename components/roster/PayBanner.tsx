@@ -42,7 +42,7 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
 }
 
 const SUBTITLE = {
-  idle: "Unpaid players can't win the pot",
+  idle: undefined,
   opening: "Opening checkout...",
   failed: "Checkout didn't open. Tap to try again.",
 } as const;

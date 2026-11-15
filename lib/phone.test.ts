@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectContactPhones, inviteesFrom, MAX_CONTACT_PHONES, MAX_INVITEES, toE164 } from "./phone";
+import { collectContactPhones, inviteesFrom, MAX_CONTACT_PHONES, MAX_INVITEES, phoneHint, toE164 } from "./phone";
 
 describe("toE164", () => {
   it("adds the default country code to a ten-digit number", () => {
@@ -29,6 +29,25 @@ describe("toE164", () => {
     expect(toE164("call me")).toBeNull();
     expect(toE164("555-0100")).toBeNull();
     expect(toE164("+1234567890123456")).toBeNull();
+  });
+});
+
+describe("phoneHint", () => {
+  it("says nothing while the field has no digit", () => {
+    expect(phoneHint("")).toBeNull();
+    expect(phoneHint("   ")).toBeNull();
+    expect(phoneHint("+")).toBeNull();
+  });
+
+  it("asks for ten digits once a malformed number has been started", () => {
+    expect(phoneHint("4")).toBe("Enter a 10-digit phone number");
+    expect(phoneHint("12345")).toBe("Enter a 10-digit phone number");
+    expect(phoneHint("415 555")).toBe("Enter a 10-digit phone number");
+  });
+
+  it("says nothing about a number toE164 accepts", () => {
+    expect(phoneHint("(415) 555-0100")).toBeNull();
+    expect(phoneHint("+44 20 7946 0958")).toBeNull();
   });
 });
 
