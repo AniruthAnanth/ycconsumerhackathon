@@ -16,6 +16,8 @@ import type * as http from "../http.js";
 import type * as keiki from "../keiki.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_dropRules from "../lib/dropRules.js";
+import type * as lib_settlement from "../lib/settlement.js";
+import type * as profile from "../profile.js";
 import type * as whop from "../whop.js";
 
 import type {
@@ -33,6 +35,8 @@ declare const fullApi: ApiFromModules<{
   keiki: typeof keiki;
   "lib/auth": typeof lib_auth;
   "lib/dropRules": typeof lib_dropRules;
+  "lib/settlement": typeof lib_settlement;
+  profile: typeof profile;
   whop: typeof whop;
 }>;
 
