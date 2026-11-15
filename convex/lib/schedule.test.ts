@@ -1,0 +1,346 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  bracketFor,
+  DEFAULT_SETTINGS,
+  isFinalWeek,
+  resolveSettings,
+  scheduleFor,
+  seasonOf,
+  seasonTable,
+  type Pairing,
+  type Result,
+} from "./schedule";
+
+const SIX = ["a", "b", "c", "d", "e", "f"];
+
+/** "a-b" with the two ids in alphabetical order, so sides don't matter. */
+function pairKey(pairing: Pairing<string>): string {
+  return [pairing.a, pairing.b].sort().join("-");
+}
+
+function allPairs(ids: string[]): string[] {
+  return ids.flatMap((x, i) => ids.slice(i + 1).map((y) => x + "-" + y)).sort();
+}
+
+/**
+ * Plays weeks from..to with the higher "strength" winning every match, which
+ * makes the table a b c d e f for SIX.
+ */
+function play(
+  format: "round_robin" | "double_round_robin" | "bracket",
+  ids: string[],
+  from: number,
+  to: number,
+  earlier: Result<string>[] = [],
+  seasonWeeks = 8,
+): Result<string>[] {
+  const strength = (id: string) => 100 - id.charCodeAt(0);
+  const results = [...earlier];
+  for (let week = from; week <= to; week++) {
+    for (const pairing of scheduleFor(format, ids, week, results, seasonWeeks)) {
+      results.push({
+        ...pairing,
+        week,
+        scoreA: strength(pairing.a),
+        scoreB: strength(pairing.b),
+      });
+    }
+  }
+  return results;
+}
+
+describe("resolveSettings", () => {
+  it("keeps the original behaviour when a league stores no settings", () => {
+    expect(resolveSettings({})).toEqual({
+      payout: "weekly",
+      seasonWeeks: 8,
+      format: "round_robin",
+    });
+    expect(resolveSettings({})).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("keeps what the creator chose and repairs an impossible season length", () => {
+    expect(
+      resolveSettings({ payout: "season", seasonWeeks: 12, format: "bracket" }),
+    ).toEqual({ payout: "season", seasonWeeks: 12, format: "bracket" });
+    expect(resolveSettings({ seasonWeeks: 0 }).seasonWeeks).toBe(8);
+    expect(resolveSettings({ seasonWeeks: 2.5 }).seasonWeeks).toBe(8);
+    expect(resolveSettings({ seasonWeeks: 500 }).seasonWeeks).toBe(52);
+  });
+});
+
+describe("seasonOf", () => {
+  it("rolls a league into a new season after seasonWeeks", () => {
+    expect(seasonOf(1, 8)).toEqual({ number: 1, firstWeek: 1, lastWeek: 8 });
+    expect(seasonOf(8, 8)).toEqual({ number: 1, firstWeek: 1, lastWeek: 8 });
+    expect(seasonOf(9, 8)).toEqual({ number: 2, firstWeek: 9, lastWeek: 16 });
+  });
+
+  it("marks the week a season payout settles", () => {
+    expect(isFinalWeek(7, 8)).toBe(false);
+    expect(isFinalWeek(8, 8)).toBe(true);
+    expect(isFinalWeek(16, 8)).toBe(true);
+  });
+});
+
+describe("round robin", () => {
+  it("has everyone meet exactly once in a cycle and play once a week", () => {
+    const met: string[] = [];
+    for (let week = 1; week <= 5; week++) {
+      const pairings = scheduleFor("round_robin", SIX, week, []);
+      expect(pairings.flatMap((p) => [p.a, p.b]).sort()).toEqual(SIX);
+      met.push(...pairings.map(pairKey));
+    }
+    expect(met.sort()).toEqual(allPairs(SIX));
+  });
+
+  it("gives an odd league one bye a week, shared evenly", () => {
+    const five = SIX.slice(0, 5);
+    const byes: string[] = [];
+    const met: string[] = [];
+    for (let week = 1; week <= 5; week++) {
+      const pairings = scheduleFor("round_robin", five, week, []);
+      expect(pairings).toHaveLength(2);
+      const playing = pairings.flatMap((p) => [p.a, p.b]);
+      byes.push(...five.filter((id) => !playing.includes(id)));
+      met.push(...pairings.map(pairKey));
+    }
+    expect(byes.sort()).toEqual(five);
+    expect(met.sort()).toEqual(allPairs(five));
+  });
+
+  it("starts the rotation again when the season outlasts one cycle", () => {
+    expect(scheduleFor("round_robin", SIX, 6, [])).toEqual(
+      scheduleFor("round_robin", SIX, 1, []),
+    );
+  });
+
+  it("does not depend on the order the members were loaded in", () => {
+    const shuffled = ["d", "a", "f", "c", "b", "e", "a"];
+    for (let week = 1; week <= 8; week++) {
+      expect(scheduleFor("round_robin", shuffled, week, [])).toEqual(
+        scheduleFor("round_robin", SIX, week, []),
+      );
+    }
+  });
+
+  it("pairs nobody in a league of one, and the only two in a league of two", () => {
+    expect(scheduleFor("round_robin", [], 1, [])).toEqual([]);
+    expect(scheduleFor("round_robin", ["a"], 1, [])).toEqual([]);
+    expect(scheduleFor("round_robin", ["b", "a"], 3, [])).toEqual([
+      { a: "a", b: "b" },
+    ]);
+  });
+
+  it("restarts the schedule in the league's next season", () => {
+    expect(scheduleFor("round_robin", SIX, 9, [], 8)).toEqual(
+      scheduleFor("round_robin", SIX, 1, [], 8),
+    );
+  });
+});
+
+describe("double round robin", () => {
+  it("plays the return leg with the sides swapped", () => {
+    for (let week = 1; week <= 5; week++) {
+      const first = scheduleFor("double_round_robin", SIX, week, [], 10);
+      const second = scheduleFor("double_round_robin", SIX, week + 5, [], 10);
+      expect(second).toEqual(first.map(({ a, b }) => ({ a: b, b: a })));
+    }
+  });
+
+  it("has everyone meet exactly twice over two cycles", () => {
+    const met: string[] = [];
+    for (let week = 1; week <= 10; week++) {
+      met.push(
+        ...scheduleFor("double_round_robin", SIX, week, [], 10).map(pairKey),
+      );
+    }
+    expect(met.sort()).toEqual([...allPairs(SIX), ...allPairs(SIX)].sort());
+  });
+
+  it("shares its first leg with the single round robin", () => {
+    for (let week = 1; week <= 5; week++) {
+      expect(scheduleFor("double_round_robin", SIX, week, [])).toEqual(
+        scheduleFor("round_robin", SIX, week, []),
+      );
+    }
+  });
+});
+
+describe("seasonTable", () => {
+  it("counts wins, losses, ties and points, best first", () => {
+    const table = seasonTable(
+      ["a", "b", "c"],
+      [
+        { week: 1, a: "a", b: "b", scoreA: 120, scoreB: 80 },
+        { week: 2, a: "c", b: "a", scoreA: 90, scoreB: 90 },
+        { week: 3, a: "b", b: "c", scoreA: 70, scoreB: 100 },
+      ],
+    );
+    expect(table).toEqual([
+      { id: "a", wins: 1, losses: 0, ties: 1, pointsFor: 210, pointsAgainst: 170 },
+      { id: "c", wins: 1, losses: 0, ties: 1, pointsFor: 190, pointsAgainst: 160 },
+      { id: "b", wins: 0, losses: 2, ties: 0, pointsFor: 150, pointsAgainst: 220 },
+    ]);
+  });
+
+  it("leaves out a week that is still being played", () => {
+    const table = seasonTable(
+      ["a", "b"],
+      [{ week: 1, a: "a", b: "b", scoreA: 10, scoreB: 50, live: true }],
+    );
+    expect(table.map((row) => row.wins + row.losses + row.pointsFor)).toEqual([
+      0, 0,
+    ]);
+  });
+
+  it("lists a member with no results and ignores one who has left", () => {
+    const table = seasonTable(
+      ["a", "b"],
+      [{ week: 1, a: "a", b: "gone", scoreA: 40, scoreB: 10 }],
+    );
+    expect(table.map((row) => row.id)).toEqual(["a", "b"]);
+    expect(table[0]).toMatchObject({ wins: 1, pointsFor: 40 });
+  });
+});
+
+describe("bracket", () => {
+  it("plays a round robin until the bracket's first week", () => {
+    for (let week = 1; week <= 5; week++) {
+      expect(scheduleFor("bracket", SIX, week, [])).toEqual(
+        scheduleFor("round_robin", SIX, week, []),
+      );
+    }
+  });
+
+  it("seeds six players by the table and gives the top two a bye", () => {
+    const regular = play("bracket", SIX, 1, 5);
+    const bracket = bracketFor(SIX, 6, regular);
+
+    expect(bracket?.seeds).toEqual(SIX);
+    expect(bracket?.firstWeek).toBe(6);
+    expect(bracket?.projected).toBe(false);
+    expect(bracket?.rounds.map((round) => [round.week, round.name])).toEqual([
+      [6, "Quarterfinals"],
+      [7, "Semifinals"],
+      [8, "Final"],
+    ]);
+    expect(
+      bracket?.rounds[0].matches.map((m) => [m.seedA, m.seedB, m.bye]),
+    ).toEqual([
+      [1, null, true],
+      [4, 5, false],
+      [2, null, true],
+      [3, 6, false],
+    ]);
+    // Seeds 1 and 2 sit the first round out.
+    expect(scheduleFor("bracket", SIX, 6, regular)).toEqual([
+      { a: "d", b: "e" },
+      { a: "c", b: "f" },
+    ]);
+  });
+
+  it("advances winners a round a week and pairs the eliminated", () => {
+    const throughQuarters = play("bracket", SIX, 1, 6);
+    expect(scheduleFor("bracket", SIX, 7, throughQuarters)).toEqual([
+      { a: "a", b: "d" },
+      { a: "b", b: "c" },
+      { a: "e", b: "f" }, // consolation: both lost in week 6
+    ]);
+
+    const throughSemis = play("bracket", SIX, 7, 7, throughQuarters);
+    expect(scheduleFor("bracket", SIX, 8, throughSemis)).toEqual([
+      { a: "a", b: "b" },
+      { a: "c", b: "d" },
+      { a: "e", b: "f" },
+    ]);
+
+    const season = play("bracket", SIX, 8, 8, throughSemis);
+    const bracket = bracketFor(SIX, 8, season);
+    expect(bracket?.champion).toBe("a");
+    expect(bracket?.rounds[2].matches[0]).toMatchObject({
+      a: "a",
+      b: "b",
+      seedA: 1,
+      seedB: 2,
+      winner: "a",
+    });
+  });
+
+  it("needs no byes when the count is a power of two", () => {
+    const four = SIX.slice(0, 4);
+    const regular = play("bracket", four, 1, 6);
+    const bracket = bracketFor(four, 7, regular);
+    expect(bracket?.rounds.map((round) => round.name)).toEqual([
+      "Semifinals",
+      "Final",
+    ]);
+    expect(scheduleFor("bracket", four, 7, regular)).toEqual([
+      { a: "a", b: "d" },
+      { a: "b", b: "c" },
+    ]);
+  });
+
+  it("sends the better seed through a tied match", () => {
+    const regular = play("bracket", SIX, 1, 5);
+    const tied: Result<string>[] = [
+      ...regular,
+      { week: 6, a: "e", b: "d", scoreA: 77, scoreB: 77 },
+      { week: 6, a: "c", b: "f", scoreA: 10, scoreB: 90 },
+    ];
+    const bracket = bracketFor(SIX, 7, tied);
+    expect(bracket?.rounds[0].matches[1]).toMatchObject({
+      a: "d",
+      b: "e",
+      scoreA: 77,
+      scoreB: 77,
+      winner: "d",
+    });
+    // The sixth seed's upset stands.
+    expect(bracket?.rounds[1].matches[1]).toMatchObject({ a: "b", b: "f" });
+  });
+
+  it("shows a live round's scores without advancing anyone", () => {
+    const regular = play("bracket", SIX, 1, 5);
+    const live: Result<string>[] = [
+      ...regular,
+      { week: 6, a: "d", b: "e", scoreA: 30, scoreB: 5, live: true },
+    ];
+    const bracket = bracketFor(SIX, 6, live);
+    expect(bracket?.rounds[0].matches[1]).toMatchObject({
+      scoreA: 30,
+      scoreB: 5,
+      winner: null,
+    });
+    expect(bracket?.rounds[1].matches[0]).toMatchObject({ a: "a", b: null });
+    // Next week's semifinals aren't known yet.
+    expect(scheduleFor("bracket", SIX, 7, live)).toEqual([]);
+  });
+
+  it("is only a projection while the regular season is being played", () => {
+    const bracket = bracketFor(SIX, 3, play("bracket", SIX, 1, 2));
+    expect(bracket?.projected).toBe(true);
+    expect(bracket?.champion).toBeNull();
+  });
+
+  it("takes only the top seeds when the season is too short for everyone", () => {
+    // Two weeks leave room for two rounds, so four of the six qualify.
+    const bracket = bracketFor(SIX, 1, [], 2);
+    expect(bracket?.firstWeek).toBe(1);
+    expect(bracket?.rounds[0].matches.map((m) => [m.a, m.b])).toEqual([
+      ["a", "d"],
+      ["b", "c"],
+    ]);
+    // The two who missed out play each other.
+    expect(scheduleFor("bracket", SIX, 1, [], 2)).toContainEqual({
+      a: "e",
+      b: "f",
+    });
+  });
+
+  it("has no bracket for a league of one", () => {
+    expect(bracketFor(["a"], 8, [])).toBeNull();
+    expect(scheduleFor("bracket", ["a"], 8, [])).toEqual([]);
+  });
+});
