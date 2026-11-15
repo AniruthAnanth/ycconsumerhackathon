@@ -254,6 +254,59 @@ describe("seed.reset", () => {
     expect(after).toMatchObject({ tasks: before.tasks, proofs: before.proofs, reactions: before.reactions });
   });
 
+  test("keeps Quick Match out of the demo league, with a public league to land in at $20 and $5", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+    const demo = await league(t);
+    const guestId = await t.run((ctx) => ctx.db.insert("users", { name: "Guest", phone: "+14155550199" }));
+    const guest = await signedInAs(t, guestId);
+
+    const twenty = await guest.mutation(api.leagues.quickMatch, { stakeUsd: 20 });
+    const five = await guest.mutation(api.leagues.quickMatch, { stakeUsd: 5 });
+
+    const membersOf = (leagueId: Id<"leagues">) =>
+      t.run((ctx) =>
+        ctx.db
+          .query("memberships")
+          .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+          .collect(),
+      );
+    expect(demo.visibility).toBe("private");
+    expect(await membersOf(demo._id)).toHaveLength(6);
+    expect(await t.run((ctx) => ctx.db.get("leagues", twenty.leagueId))).toMatchObject({
+      name: "Open League",
+      stakeUsd: 20,
+      visibility: "public",
+    });
+    expect(await t.run((ctx) => ctx.db.get("leagues", five.leagueId))).toMatchObject({
+      name: "Five Dollar League",
+      stakeUsd: 5,
+      visibility: "public",
+    });
+
+    // The seeded players' lineups score there too, so the guest joins a table in play and has
+    // somebody to face.
+    const table = await guest.query(api.standings.table, { leagueId: twenty.leagueId });
+    expect(table.map((row) => [row.name, row.points, row.paid])).toEqual([
+      ["Priya Shah", 195, false],
+      ["Jordan Lee", 120, false],
+      ["Ava Kim", 60, false],
+      ["Guest", 0, false],
+    ]);
+    expect(await guest.query(api.standings.matchup, { leagueId: twenty.leagueId })).not.toBeNull();
+
+    // The invite code still gets a player into the demo league, and a reset empties the open
+    // leagues of guests like it does the demo league.
+    await guest.mutation(api.leagues.joinByCode, { inviteCode: "YCHACK" });
+    expect(await membersOf(demo._id)).toHaveLength(7);
+    await reset(t);
+    expect(await membersOf(demo._id)).toHaveLength(6);
+    expect(await membersOf(twenty.leagueId)).toHaveLength(3);
+    expect(await membersOf(five.leagueId)).toHaveLength(3);
+    const me = await guest.query(api.users.me, {});
+    expect(me?.leagues).toEqual([]);
+  });
+
   test("puts a player who joined back out, without touching their own tasks", async () => {
     const t = convexTest(schema, modules);
     await reset(t);
