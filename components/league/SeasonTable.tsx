@@ -22,8 +22,9 @@ type Props = {
 const RANK_WIDTH = 24;
 const RECORD_WIDTH = 56;
 const AVATAR_SIZE = 32;
-// Matches the shared Score box, so the PF header sits over the figures.
-const POINTS_WIDTH = 48;
+// Fixed, because the shared Score box grows with its figure: a 6-character
+// total in one row would push that row's record left of the other rows'.
+const POINTS_WIDTH = 72;
 
 /** The season standings: rank, player, record and points for, one dense row each. */
 export function SeasonTable({ rows, meId, onPlayerPress }: Props) {
@@ -33,7 +34,7 @@ export function SeasonTable({ rows, meId, onPlayerPress }: Props) {
         <Text style={[styles.headerLabel, styles.rank]}>RK</Text>
         <Text style={[styles.headerLabel, styles.player]}>PLAYER</Text>
         <Text style={[styles.headerLabel, styles.record]}>W-L</Text>
-        <Text style={[styles.headerLabel, styles.points]}>PF</Text>
+        <Text style={[styles.headerLabel, styles.pointsHeader]}>PF</Text>
       </View>
       {rows.map((row) => (
         <View key={row.userId}>
@@ -60,7 +61,9 @@ function TableRow({ row, isMe, onPress }: { row: SeasonTableRow; isMe: boolean; 
         </Text>
       </View>
       <Text style={[styles.recordValue, styles.record]}>{recordText(row)}</Text>
-      <Score value={row.pointsFor} />
+      <View style={styles.points}>
+        <Score value={row.pointsFor} />
+      </View>
     </View>
   );
   if (!onPress) return content;
@@ -91,7 +94,8 @@ const styles = StyleSheet.create({
   rank: { width: RANK_WIDTH },
   player: { flex: 1 },
   playerCell: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  points: { minWidth: POINTS_WIDTH, textAlign: "right" },
+  points: { width: POINTS_WIDTH, alignItems: "flex-end" },
+  pointsHeader: { width: POINTS_WIDTH, textAlign: "right" },
   record: { width: RECORD_WIDTH, textAlign: "right", marginRight: spacing.md },
   rankValue: { fontSize: font.body, fontWeight: "700", color: colors.textMuted },
   name: { flex: 1, fontSize: font.title, fontWeight: "600", color: colors.text },
