@@ -16,7 +16,7 @@ import { ConvexError } from "convex/values";
 
 import { env } from "./_generated/server";
 import type { DraftTask } from "./lib/lineupRules";
-import type { Judgement } from "./lib/verdict";
+import { CLOSE_CALL_CONFIDENCE, PASS_CONFIDENCE, type Judgement } from "./lib/verdict";
 
 // The owner's choice for every text and vision call.
 const MODEL = "gpt-6-luna";
@@ -234,9 +234,9 @@ How to call it:
 - Fail a photo that shows something unrelated to the task, that contradicts it, or that is too dark or blurred to tell what it shows.
 - confidence is how sure you are that the player really did the task, from 0 to 1:
   - 0.85 to 1: what is visible fits the task directly. This is the normal score for an honest proof.
-  - 0.6 to 0.75: related but thin. It could be this task, and could as easily be something else.
-  - under 0.6: unrelated, contradictory or unreadable.
-  pass is true only when confidence is at least 0.6.
+  - ${PASS_CONFIDENCE} to ${CLOSE_CALL_CONFIDENCE}: related but thin. It could be this task, and could as easily be something else.
+  - under ${PASS_CONFIDENCE}: unrelated, contradictory or unreadable.
+  pass is true only when confidence is at least ${PASS_CONFIDENCE}.
 - reason is the call the whole league will read: one sentence of at most 16 words that names what is actually visible and why it does or does not match. Like "Barbell rack and mirror visible, matches leg day." or "That's a cat chasing a lizard, not leg day." Never mention confidence, rules or GPS.
 - highlight is 1 to 10: how impressive or entertaining this proof would be in the league feed. Most proofs are 3 to 6.
 - caption is a short, dry feed caption of at most eight words. No hashtags, no emoji.
