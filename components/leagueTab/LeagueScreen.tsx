@@ -13,7 +13,7 @@ import { NotificationSettings } from "@/components/notifications/NotificationSet
 import { Entrance } from "@/components/motion";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { useNow } from "@/lib/useNow";
-import { OutlinedPillButton, Screen } from "@/components/ui";
+import { OutlinedPillButton, Screen, useTabBarInset } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend, type Pot } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -31,6 +31,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   const router = useRouter();
   const { me, leagueId, membership } = useCurrentLeague();
   const now = useNow(60_000);
+  const bottomInset = useTabBarInset();
   const args = leagueId ? { leagueId } : "skip";
   const pot = useQuery(backend.standings.pot, args);
   const table = useQuery(backend.standings.table, args);
@@ -40,10 +41,10 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
 
   const owesBuyIn = membership !== undefined && !membership.paid && membership.stakeUsd > 0;
 
-  if (!leagueId || !pot || !table || !league || !me) return <Screen edges={["bottom"]}>{null}</Screen>;
+  if (!leagueId || !pot || !table || !league || !me) return <Screen edges={[]}>{null}</Screen>;
 
   return (
-    <Screen edges={["bottom"]} scroll>
+    <Screen edges={[]} scroll bottomInset={bottomInset}>
       {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       <Entrance>{escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />}</Entrance>
       <Entrance index={1}>
