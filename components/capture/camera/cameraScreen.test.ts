@@ -12,6 +12,7 @@ describe("cameraScreen", () => {
       askPermission: false,
       unavailable: false,
       samples: false,
+      samplesOnly: false,
     });
   });
 
@@ -25,6 +26,17 @@ describe("cameraScreen", () => {
 
   it("offers samples while the flag is on", () => {
     expect(cameraScreen({ sampleMedia: true, permission: denied, cameraFailed: false }).samples).toBe(true);
+  });
+
+  it("leads with the samples instead of the permission prompt while the flag is on and no camera runs", () => {
+    expect(cameraScreen({ sampleMedia: true, permission: denied, cameraFailed: false })).toMatchObject({
+      askPermission: false,
+      samplesOnly: true,
+    });
+  });
+
+  it("keeps the live camera primary when the flag is on and the camera runs", () => {
+    expect(cameraScreen({ sampleMedia: true, permission: granted, cameraFailed: false }).samplesOnly).toBe(false);
   });
 
   it("asks for permission only once it is known to be missing", () => {
