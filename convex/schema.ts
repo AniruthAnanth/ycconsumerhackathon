@@ -81,6 +81,10 @@ export default defineSchema({
     // Demo control "Switch Player": requireUser resolves this device to the
     // seeded player named here.
     demoActAs: v.optional(v.id("users")),
+    // Playing by text is opt-in. True once this account's phone has texted
+    // the league number or the player turned it on in the app; keiki.send
+    // texts nobody else. Unset means they were never asked.
+    keikiOptIn: v.optional(v.boolean()),
     createdAt: v.optional(v.number()),
   })
     .index("email", ["email"]) // looked up by Convex Auth under this exact name
