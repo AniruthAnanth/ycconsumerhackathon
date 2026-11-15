@@ -21,6 +21,9 @@ export function VoiceDraftScreen() {
 
   const showsLineup = state.phase === "review" || state.phase === "locking";
   const showsTyped = state.phase === "idle" && (sampleVoice || state.micUnavailable);
+  // Only a refused lock leaves an error on the reviewed lineup. The player needs a way on from
+  // it, because after joining the back arrow leads to Join again, not to Roster.
+  const lockRefused = state.phase === "review" && state.error !== null;
 
   return (
     <Screen>
@@ -70,6 +73,11 @@ export function VoiceDraftScreen() {
         <View style={styles.footer}>
           {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
           <Button label="Lock Lineup" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
+          {lockRefused ? (
+            <Pressable accessibilityRole="button" style={styles.leave} onPress={() => router.replace("/(tabs)")} hitSlop={8}>
+              <Text style={styles.redo}>Go to Roster</Text>
+            </Pressable>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Screen>
@@ -84,5 +92,6 @@ const styles = StyleSheet.create({
   lineup: { paddingTop: spacing.md },
   footer: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
   error: { fontSize: font.body, color: colors.danger },
+  leave: { alignSelf: "center", paddingVertical: spacing.xs },
   redo: { fontSize: font.title, color: colors.accent },
 });
