@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
+import { Entrance } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
 import { Divider, OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
@@ -33,7 +34,11 @@ export function FeedScreen() {
       <FlatList
         data={feed}
         keyExtractor={(item) => item.proofId}
-        renderItem={({ item }) => <ProofPost item={item} leagueId={leagueId} memberCount={memberCount} myUserId={myUserId} now={now} />}
+        renderItem={({ item, index }) => (
+          <Entrance index={index}>
+            <ProofPost item={item} leagueId={leagueId} memberCount={memberCount} myUserId={myUserId} now={now} />
+          </Entrance>
+        )}
         ItemSeparatorComponent={Divider}
         ListHeaderComponent={
           <View style={styles.shortcuts}>
