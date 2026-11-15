@@ -24,6 +24,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireSignedInUser } from "./lib/auth";
+import { seedDemoReferrals } from "./referrals";
 import { scheduleFor } from "./lib/schedule";
 import { quickTimeScore, type Slot } from "./lib/scoring";
 import { SEED_AVATARS, SEED_PHOTOS, type SeedPhotoKey } from "./lib/seedPhotos";
@@ -616,6 +617,8 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   for (const playerId of playerIds) await clearPlayer(ctx, playerId);
   // Maya is connected to the demo Canvas school, so a Canvas proof can be shown without a token.
   await ctx.runMutation(internal.canvas.seedDemoConnection, { userId: playerIds[0] });
+  // Sam brought Ava and Leo onto Lineup, so his Profile shows the Recruiter badge (convex/referrals.ts).
+  await seedDemoReferrals(ctx, playerIds[5], [playerIds[4], playerIds[3]], leagueId);
 
   // The schedule seats members around a table, alternately from its two ends in the order they
   // joined, and moves all but the first up one seat a week. This is the table that is back in
