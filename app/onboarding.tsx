@@ -8,7 +8,7 @@ import { errorMessage } from "@/components/join/errorMessage";
 import { FormBody } from "@/components/join/FormBody";
 import { Button, Header, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { toE164 } from "@/lib/phone";
+import { phoneHint, toE164 } from "@/lib/phone";
 import { spacing } from "@/theme";
 
 export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
@@ -24,6 +24,7 @@ export default function OnboardingScreen() {
 
   const trimmedName = name.trim();
   const e164 = toE164(phone);
+  const hint = phoneHint(phone);
 
   async function submit() {
     if (!trimmedName || !e164) return;
@@ -46,7 +47,10 @@ export default function OnboardingScreen() {
           <TextField
             label="Name"
             value={name}
-            onChangeText={setName}
+            onChangeText={(text) => {
+              setName(text);
+              setError(null);
+            }}
             autoCapitalize="words"
             autoComplete="name"
             textContentType="name"
@@ -56,7 +60,10 @@ export default function OnboardingScreen() {
           <TextField
             label="Phone"
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(text) => {
+              setPhone(text);
+              setError(null);
+            }}
             keyboardType="phone-pad"
             autoComplete="tel"
             textContentType="telephoneNumber"
@@ -64,6 +71,7 @@ export default function OnboardingScreen() {
             editable={!saving}
             onSubmitEditing={submit}
           />
+          {hint ? <ErrorLine message={hint} /> : null}
           {error ? <ErrorLine message={error} /> : null}
         </View>
         <View style={styles.action}>

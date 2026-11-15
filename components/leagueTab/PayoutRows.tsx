@@ -7,7 +7,7 @@ import { colors, font, spacing } from "@/theme";
 
 const KIND_LABEL = { refund: "Refund", winnings: "Winnings" } as const;
 
-/** What each player was paid when the week settled. Only rendered once payouts exist. */
+/** What each player was paid when the week settled. Only rendered when there is at least one payout, so a free league shows no empty header. */
 export function PayoutRows({ payouts }: { payouts: Payout[] }) {
   return (
     <View>

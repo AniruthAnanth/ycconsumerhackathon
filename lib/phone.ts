@@ -21,6 +21,16 @@ export function toE164(raw: string, defaultCountryCode = "1"): string | null {
   return `+${digits}`;
 }
 
+/**
+ * The line to show under the phone field, or null. It stays quiet while the
+ * field is empty (or holds no digit yet) so a new player isn't scolded before
+ * they've typed anything, and speaks once there are digits that toE164 rejects.
+ */
+export function phoneHint(raw: string): string | null {
+  if (!/\d/.test(raw) || toE164(raw)) return null;
+  return "Enter a 10-digit phone number";
+}
+
 /** The slice of an address-book entry the contacts step reads. */
 export type DeviceContact = {
   fullName?: string | null;
