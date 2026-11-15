@@ -22,17 +22,19 @@ import { ReactionBar } from "./ReactionBar";
 export function ProofPost({
   item,
   leagueId,
+  memberCount,
   myUserId,
   now,
 }: {
   item: FeedItem;
   leagueId: Id<"leagues">;
+  memberCount: number | undefined;
   myUserId: Id<"users"> | undefined;
   now: number;
 }) {
   const openChallenge = useMutation(socialApi.challenges.open);
   const react = useMutation(socialApi.feed.react);
-  const challengeable = canChallenge(item, myUserId, now);
+  const challengeable = canChallenge(item, myUserId, now, memberCount);
   const kindLabel = KIND_LABEL[item.kind];
 
   // A failed challenge costs the challenger points, so it takes a second tap.
