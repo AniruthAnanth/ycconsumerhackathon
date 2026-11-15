@@ -1,5 +1,3 @@
-import { ConvexError } from "convex/values";
-
 const DEMO_SCHOOL = "demo";
 const SCHEME_AND_HOST = /^(?:([a-z][a-z0-9+.-]*):\/\/)?([^/?#]*)/i;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -24,10 +22,4 @@ export function dueLabel(dueAt: number | undefined): string {
   const minutes = String(due.getMinutes()).padStart(2, "0");
   const meridiem = due.getHours() < 12 ? "AM" : "PM";
   return `Due ${WEEKDAYS[due.getDay()]} ${hour}:${minutes} ${meridiem}`;
-}
-
-/** The server's own message when it sent one, since that is what explains a refusal. */
-export function errorMessage(error: unknown): string {
-  if (error instanceof ConvexError && typeof error.data === "string") return error.data;
-  return "Something went wrong. Try again.";
 }

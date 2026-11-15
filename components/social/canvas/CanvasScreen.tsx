@@ -7,9 +7,9 @@ import { Header, Screen, SectionLabel } from "@/components/ui";
 import { colors, font, spacing } from "@/theme";
 
 import { type CanvasAssignment, socialApi } from "../contract";
+import { errorMessage } from "../errorMessage";
 import { ScreenState } from "../ScreenState";
 import { AssignmentRow } from "./AssignmentRow";
-import { errorMessage } from "./canvasLogic";
 import { ConnectForm } from "./ConnectForm";
 
 const rowKey = ({ courseId, assignmentId }: CanvasAssignment) => `${courseId}:${assignmentId}`;

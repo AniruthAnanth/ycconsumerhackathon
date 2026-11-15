@@ -1,7 +1,6 @@
-import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 
-import { dueLabel, errorMessage, normalizeBaseUrl } from "./canvasLogic";
+import { dueLabel, normalizeBaseUrl } from "./canvasLogic";
 
 describe("normalizeBaseUrl", () => {
   it("adds https when the scheme is missing", () => {
@@ -43,16 +42,5 @@ describe("dueLabel", () => {
   it("reads midnight and noon as 12", () => {
     expect(dueLabel(new Date(2026, 10, 15, 0, 0).getTime())).toBe("Due Sun 12:00 AM");
     expect(dueLabel(new Date(2026, 10, 15, 12, 0).getTime())).toBe("Due Sun 12:00 PM");
-  });
-});
-
-describe("errorMessage", () => {
-  it("uses a ConvexError string", () => {
-    expect(errorMessage(new ConvexError("Canvas rejected that token"))).toBe("Canvas rejected that token");
-  });
-
-  it("falls back for anything else", () => {
-    expect(errorMessage(new ConvexError({ code: 1 }))).toBe("Something went wrong. Try again.");
-    expect(errorMessage(new Error("Server Error"))).toBe("Something went wrong. Try again.");
   });
 });
