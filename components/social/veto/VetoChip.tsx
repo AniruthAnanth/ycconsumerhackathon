@@ -37,12 +37,12 @@ export function VetoChip({
   };
   const style = [
     styles.chip,
-    veto.mine && styles.mine,
+    veto.mine && !veto.struck && styles.mine,
     veto.struck && styles.struck,
   ];
   const text = [
     styles.label,
-    veto.mine && styles.labelMine,
+    veto.mine && !veto.struck && styles.labelMine,
     veto.struck && styles.labelStruck,
   ];
 
