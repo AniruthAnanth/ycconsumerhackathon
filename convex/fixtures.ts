@@ -35,10 +35,11 @@ export function isFixtureName(name: string | undefined): boolean {
 }
 
 /**
- * seed.ts creates the demo league and the two public leagues Quick Match lands in under these
- * codes. They are never fixtures.
+ * The leagues the demo is set in, by invite code: seed.ts creates the demo league and the two
+ * public leagues Quick Match lands in, and versus.ts the demo's game of Sam against Maya. They
+ * are never fixtures.
  */
-const SEEDED_LEAGUE_INVITE_CODES = ["YCHACK", "MATCHA", "MATCHB"];
+const SEEDED_LEAGUE_INVITE_CODES = ["YCHACK", "MATCHA", "MATCHB", "VSMAYA"];
 
 /** What goes. With neither set, only what is named as a fixture. */
 const scope = {

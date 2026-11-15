@@ -256,8 +256,9 @@ describe("fixtures.remove", () => {
   test("`everything` takes every league and player the seed did not make, except the accounts in `keep`", async () => {
     const t = convexTest(schema, modules);
     const { device, kept, gone } = await world(t);
-    // A Quick Match league of the seed's with a tester in it, and a tester's own league with a
-    // seeded player in it. Neither tester is named as a fixture, and one never gave a name.
+    // A Quick Match league of the seed's with a tester in it, the demo's versus game, and a
+    // tester's own league with a seeded player in it. Neither tester is named as a fixture, and
+    // one never gave a name.
     const more = await t.run(async (ctx) => {
       const sam = await ctx.db.insert("users", { name: "Sam Patel", isSeed: true });
       const priya = await ctx.db.insert("users", { name: "Priya Shah", isSeed: true });
@@ -268,7 +269,14 @@ describe("fixtures.remove", () => {
       const testLeague = await league(ctx, "Riley's league", "RILEY1", tester);
       const testWeek = await ctx.db.insert("weeks", { leagueId: testLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
       return {
-        kept: [sam, priya, openLeague, openWeek, ...Object.values(await playIn(ctx, openLeague, openWeek, sam, priya))],
+        kept: [
+          sam,
+          priya,
+          openLeague,
+          openWeek,
+          await league(ctx, "Sam's challenge", "VSMAYA", sam),
+          ...Object.values(await playIn(ctx, openLeague, openWeek, sam, priya)),
+        ],
         gone: [
           tester,
           unnamed,
