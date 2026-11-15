@@ -341,6 +341,13 @@ async function settle(
     });
     await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: task.userId, weekStart: task.weekStart });
   }
+  // A ruling moves points. A drop prices its tasks against each other (first finisher, attendees
+  // present), so it reprices and checks the lead itself; any other task only needs the lead check.
+  if (task.dropId !== undefined) {
+    await ctx.scheduler.runAfter(0, internal.drops.afterRuling, { taskId: task._id });
+  } else {
+    await ctx.scheduler.runAfter(0, internal.leadChange.afterProof, { userId: task.userId });
+  }
   await textLeague(
     ctx,
     challenge.leagueId,
