@@ -415,10 +415,39 @@ describe("leagues.get", () => {
     expect(league).toMatchObject({
       _id: leagueId,
       name: "Dorm 4",
-      inviteCode,
+      inviteCode: "",
       stakeUsd: 5,
       memberCount: 2,
       week: { number: 1, startsAt: Date.UTC(2026, 10, 16, 8), endsAt: Date.UTC(2026, 10, 23, 8), status: "open" },
+    });
+  });
+
+  it("tells a member the invite code", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId, inviteCode } = await createLeague(t, ava, { name: "Dorm 4", stakeUsd: 5 });
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+
+    for (const member of [ava, ben]) {
+      const league = await asUser(t, member).query(api.leagues.get, { leagueId });
+      expect(league).toMatchObject({ _id: leagueId, inviteCode, memberCount: 2 });
+    }
+  });
+
+  it("keeps the invite code from a signed-in outsider but still shows the league", async () => {
+    const t = newHarness();
+    const [ava, ben, outsider] = [await addUser(t), await addUser(t), await addUser(t)];
+    const { leagueId, inviteCode } = await createLeague(t, ava, { name: "Dorm 4", stakeUsd: 5 });
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+
+    const league = await asUser(t, outsider).query(api.leagues.get, { leagueId });
+
+    expect(league.inviteCode).toBe("");
+    expect(league).toMatchObject({
+      name: "Dorm 4",
+      stakeUsd: 5,
+      memberCount: 2,
+      week: { number: 1, status: "open" },
     });
   });
 

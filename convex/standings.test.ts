@@ -101,6 +101,22 @@ describe("standings.table", () => {
     expect(table.every((row) => row.paid)).toBe(true);
   });
 
+  test("is empty for a signed-in player outside the league, and for a league that is gone", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, ids } = await seeded(t);
+    const outsiderId = await t.run((ctx) => ctx.db.insert("users", { name: "Nova", phone: "+14155550177" }));
+
+    expect(await as(t, outsiderId).query(api.standings.table, { leagueId })).toEqual([]);
+    expect(await as(t, ids.Maya).query(api.standings.table, { leagueId })).toHaveLength(6);
+
+    await t.run(async (ctx) => {
+      for (const week of await ctx.db.query("weeks").collect()) await ctx.db.delete("weeks", week._id);
+      for (const membership of await ctx.db.query("memberships").collect()) await ctx.db.delete("memberships", membership._id);
+      await ctx.db.delete("leagues", leagueId);
+    });
+    expect(await as(t, outsiderId).query(api.standings.table, { leagueId })).toEqual([]);
+  });
+
   test("reorders the moment a proof is written", async () => {
     const t = convexTest(schema, modules);
     const { leagueId } = await seeded(t);
@@ -287,6 +303,28 @@ describe("standings.pot", () => {
     expect(pot.paid).toHaveLength(6);
     expect(pot.unpaid).toEqual([{ userId: novaId, name: "Nova" }]);
     expect(pot.payouts).toBeUndefined();
+  });
+
+  test("is empty for a signed-in player outside the league, and unchanged for a member", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, ids } = await seeded(t);
+    const outsiderId = await t.run((ctx) => ctx.db.insert("users", { name: "Nova", phone: "+14155550177" }));
+
+    const outsiders = await as(t, outsiderId).query(api.standings.pot, { leagueId });
+    expect(outsiders).toEqual({ stakeUsd: 20, potUsd: 0, paid: [], unpaid: [], settlesAt: weekEndOf(WEEK) });
+
+    const members = await as(t, ids.Maya).query(api.standings.pot, { leagueId });
+    expect(members).toMatchObject({ stakeUsd: 20, potUsd: 120, settlesAt: weekEndOf(WEEK) });
+    expect(members.paid).toHaveLength(6);
+  });
+
+  test("still rejects a league that does not exist", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, ids } = await seeded(t);
+    await t.run(async (ctx) => {
+      await ctx.db.delete("leagues", leagueId);
+    });
+    await expect(as(t, ids.Maya).query(api.standings.pot, { leagueId })).rejects.toThrow(/League not found/);
   });
 
   test("ticks up when a payment's ledger row is written", async () => {
