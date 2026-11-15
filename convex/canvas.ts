@@ -678,11 +678,13 @@ export const listAssignments = action({
 const UNRATED_POINTS = 20;
 
 /**
- * Adds a Canvas assignment to the caller's current week. It takes the Mind
- * slot (school and work) while that slot is free and the lineup is still
- * being drafted, and otherwise becomes a flex task, the only kind a locked
- * lineup accepts. Week, flex limit and points follow lineup.ts, so the row is
- * the one lineup.addFlexTask would write, plus the Canvas ids.
+ * Adds a Canvas assignment to the caller's current week as a flex task: the
+ * row lineup.addFlexTask would write (same week, limit of three and starting
+ * points), plus the Canvas ids.
+ *
+ * It is never placed in the Mind slot, even when that slot is empty. Locking
+ * a lineup writes all five core slots, so an assignment added to Mind before
+ * the lock would leave the player with two Mind tasks.
  */
 export const addTask = mutation({
   args: {
@@ -715,30 +717,14 @@ export const addTask = mutation({
       return alreadyAdded._id;
     }
 
-    const lineup = await ctx.db
-      .query("lineups")
-      .withIndex("by_user_week", (q) =>
-        q.eq("userId", user._id).eq("weekStart", weekStart),
-      )
-      .first();
-    const locked = lineup !== null && lineup.lockedAt !== undefined;
-    // A drop's task scores only in that drop's league, so it doesn't occupy
-    // the lineup's own Mind slot.
-    const mindTaken = tasks.some(
-      (task) => task.slot === "mind" && task.dropId === undefined,
-    );
-    const asFlex = locked || mindTaken;
-    if (
-      asFlex &&
-      tasks.filter((task) => task.slot === "flex").length >= MAX_FLEX_TASKS
-    ) {
+    if (tasks.filter((task) => task.slot === "flex").length >= MAX_FLEX_TASKS) {
       throw new ConvexError(
         `You already have ${MAX_FLEX_TASKS} flex tasks this week.`,
       );
     }
 
     const task = tidyTask({
-      slot: asFlex ? "flex" : "mind",
+      slot: "flex",
       title: args.title,
       points: UNRATED_POINTS,
       proofType: "canvas",
@@ -749,7 +735,7 @@ export const addTask = mutation({
       weekStart,
       canvas: { courseId: args.courseId, assignmentId: args.assignmentId },
       status: "open",
-      source: asFlex ? "flex" : "draft",
+      source: "flex",
     });
     // Despite its name this rates any open task; it is what gives a typed-in
     // flex task its points.
