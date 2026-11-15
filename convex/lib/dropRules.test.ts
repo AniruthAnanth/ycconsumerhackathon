@@ -1,32 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   clampMysteryPoints,
-  clampWager,
   firstFinisher,
   GESTURES,
   groupAnnouncementText,
   groupReminderText,
-  groupSessionPoints,
   groupWrapUpText,
-  mysteryLossPoints,
   mysteryPrompt,
   mysteryText,
-  mysteryWinPoints,
+  othersPresent,
   parseMystery,
   pickQuickTime,
   QUICK_TIME_IDEAS,
   QUICK_TIME_WINDOW_MS,
-  quickTimePoints,
   quickTimeText,
   spokenDuration,
 } from "./dropRules";
 
 describe("quick-time drops", () => {
-  it("pays the drop's points, plus 10 to the first finisher only", () => {
-    expect(quickTimePoints(40, true)).toBe(50);
-    expect(quickTimePoints(40, false)).toBe(40);
-  });
-
   it("names the earliest verified proof as first finisher", () => {
     const finishers = [
       { user: "sam", verifiedAt: 300 },
@@ -60,27 +51,6 @@ describe("quick-time drops", () => {
 });
 
 describe("mystery task", () => {
-  it("pays double when completed, and the wager on top", () => {
-    expect(mysteryWinPoints(20, 0)).toBe(40);
-    expect(mysteryWinPoints(20, 30)).toBe(70);
-  });
-
-  it("costs 20 plus the wager when accepted and failed", () => {
-    expect(mysteryLossPoints(0)).toBe(-20);
-    expect(mysteryLossPoints(30)).toBe(-50);
-  });
-
-  it("caps a wager at 50 and at the player's own points", () => {
-    expect(clampWager(undefined, 200)).toBe(0);
-    expect(clampWager(30, 200)).toBe(30);
-    expect(clampWager(80, 200)).toBe(50);
-    expect(clampWager(30, 12)).toBe(12);
-    expect(clampWager(30, -40)).toBe(0);
-    expect(clampWager(-5, 200)).toBe(0);
-    expect(clampWager(12.9, 200)).toBe(12);
-    expect(clampWager(Number.NaN, 200)).toBe(0);
-  });
-
   it("keeps the model's points inside the advertised 30 to 60 range", () => {
     expect(clampMysteryPoints(5)).toBe(15);
     expect(clampMysteryPoints(22.4)).toBe(22);
@@ -113,21 +83,16 @@ describe("mystery task", () => {
 });
 
 describe("group sessions", () => {
-  it("adds 5 per other attendee once the group photo shows them", () => {
-    expect(groupSessionPoints(30, 1, 1)).toBe(30);
-    expect(groupSessionPoints(30, 3, 3)).toBe(40);
+  it("counts the other attendees who checked in, up to what the group photo shows", () => {
+    expect(othersPresent(1, 1)).toBe(0);
+    expect(othersPresent(3, 3)).toBe(2);
+    expect(othersPresent(5, 3)).toBe(2);
+    expect(othersPresent(2, 9)).toBe(1);
   });
 
-  it("caps the bonus at 25", () => {
-    expect(groupSessionPoints(30, 6, 6)).toBe(55);
-    expect(groupSessionPoints(30, 12, 12)).toBe(55);
-  });
-
-  it("counts no more attendees than the photo shows, and none before a photo is counted", () => {
-    expect(groupSessionPoints(30, 5, 3)).toBe(40);
-    expect(groupSessionPoints(30, 2, 9)).toBe(35);
-    expect(groupSessionPoints(30, 4, undefined)).toBe(30);
-    expect(groupSessionPoints(30, 0, 0)).toBe(30);
+  it("counts nobody else until a photo has been counted", () => {
+    expect(othersPresent(4, undefined)).toBe(0);
+    expect(othersPresent(0, 0)).toBe(0);
   });
 
   it("writes the announcement, reminder and wrap-up texts", () => {
