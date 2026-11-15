@@ -110,6 +110,7 @@ export function buildSeason<Id extends string>({
     if (opened !== undefined) {
       const matchups = played.filter((result) => result.week === number);
       const playing = new Set(matchups.flatMap((result) => [result.a, result.b]));
+      const bracketMatches = bracket?.rounds.find((r) => r.week === number)?.matches ?? [];
       weeks.push({
         ...label,
         status: opened.live ? "live" : "final",
@@ -118,7 +119,16 @@ export function buildSeason<Id extends string>({
           b: result.b,
           scoreA: result.scoreA,
           scoreB: result.scoreB,
-          winnerId: winnerOf(result),
+          // A tied playoff game still sends someone through, and the bracket
+          // says who; a tie anywhere else has no winner.
+          winnerId:
+            winnerOf(result) ??
+            bracketMatches.find(
+              (match) =>
+                (match.a === result.a && match.b === result.b) ||
+                (match.a === result.b && match.b === result.a),
+            )?.winner ??
+            null,
         })),
         // Someone who joined after the week ended did not have that week off.
         byes: members
