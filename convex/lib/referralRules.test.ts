@@ -33,6 +33,11 @@ describe("tokens and links", () => {
   it("refuses a prefix that is not an app or web link", () => {
     expect(sanitizedAppPrefix("javascript:alert(1)")).toBeUndefined();
     expect(appLink("javascript:alert(1)", "ABCDEFG")).toBe("lineup://invite/ABCDEFG");
+    expect(sanitizedAppPrefix("https://anything.example/x")).toBeUndefined();
+    expect(appLink("https://anything.example/x", "ABCDEFG")).toBe("lineup://invite/ABCDEFG");
+    expect(appLink("https://localhost.example.com/x", "ABCDEFG")).toBe("lineup://invite/ABCDEFG");
+    expect(appLink("http://127.0.0.2:8081/invite", "ABCDEFG")).toBe("http://127.0.0.2:8081/invite/ABCDEFG");
+    expect(appLink("exps://u.expo.dev/--/invite", "ABCDEFG")).toBe("exps://u.expo.dev/--/invite/ABCDEFG");
   });
   it("puts the link and the code in the message", () => {
     const text = inviteMessage({ inviterName: "Maya Chen", leagueName: "YC Hackathon", versus: false, inviteCode: "YCHACK", url: "https://x/i/ABCDEFG" });
