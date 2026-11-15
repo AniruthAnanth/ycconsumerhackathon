@@ -1,17 +1,18 @@
 import { useAction } from "convex/react";
-import { useReducer, useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi } from "@/components/social/contract";
-import { errorMessage } from "@/components/social/errorMessage";
 import { leaveScreen } from "@/components/social/leave";
 import { ScreenState } from "@/components/social/ScreenState";
+import { useMyUserId } from "@/components/social/useMyUserId";
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
 import { ChatInputBar } from "./ChatInputBar";
-import { chatReducer, initialChatState, SUGGESTIONS } from "./chatLogic";
+import { SUGGESTIONS } from "./chatLogic";
+import { chatKey, chatStore, retryMessage, sendMessage } from "./chatStore";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 
@@ -19,45 +20,27 @@ export function ChatScreen() {
   const { leagueId } = useCurrentLeague();
   const chat = useAction(socialApi.keiki.chat);
   const insets = useSafeAreaInsets();
-  const [state, dispatch] = useReducer(chatReducer, initialChatState);
+  const userId = useMyUserId();
+  const key = leagueId && userId ? chatKey(leagueId, userId) : "";
+  const state = useSyncExternalStore(chatStore.subscribe, () => chatStore.get(key));
   const [draft, setDraft] = useState("");
   const list = useRef<FlatList>(null);
-  const nextId = useRef(0);
 
-  const newId = () => String(nextId.current++);
+  const ask = (text: string) => chat({ leagueId: leagueId!, text });
 
-  const request = async (messageId: string, text: string) => {
-    if (!leagueId) return;
-    try {
-      const { reply } = await chat({ leagueId, text });
-      dispatch({ type: "reply", id: newId(), text: reply });
-    } catch (error) {
-      dispatch({ type: "fail", id: messageId, error: errorMessage(error, "The league agent didn't answer.") });
-    }
-  };
-
-  const send = (text: string) => {
-    const id = newId();
-    dispatch({ type: "send", id, text });
-    void request(id, text);
-  };
+  const send = (text: string) => void sendMessage(chatStore, key, ask, text);
 
   const submitDraft = () => {
     send(draft.trim());
     setDraft("");
   };
 
-  const retry = (id: string) => {
-    const message = state.messages.find((m) => m.id === id);
-    if (!message || state.pending) return;
-    dispatch({ type: "retry", id });
-    void request(id, message.text);
-  };
+  const retry = (id: string) => void retryMessage(chatStore, key, ask, id);
 
   return (
     <Screen>
       <Header title="League Agent" onBack={leaveScreen} />
-      {leagueId ? (
+      {key ? (
         <KeyboardAvoidingView
           style={styles.body}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
