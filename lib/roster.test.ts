@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Task } from "./backend";
-import { pickBannerDrop, splitRoster } from "./roster";
+import { flexTasksLeft, pickBannerDrop, splitRoster } from "./roster";
 
 function task(taskId: string, slot: Task["slot"], source: Task["source"] = "draft"): Task {
   return {
@@ -45,8 +45,22 @@ describe("splitRoster", () => {
   });
 });
 
+describe("flexTasksLeft", () => {
+  it("counts down from three as flex tasks are added, whatever their source", () => {
+    expect(flexTasksLeft([task("gym", "body")])).toBe(3);
+    expect(flexTasksLeft([task("stretch", "flex", "flex"), task("walk", "flex")])).toBe(1);
+  });
+
+  it("is zero at the limit and never negative", () => {
+    const flex = ["a", "b", "c", "d"].map((id) => task(id, "flex", "flex"));
+    expect(flexTasksLeft(flex.slice(0, 3))).toBe(0);
+    expect(flexTasksLeft(flex)).toBe(0);
+  });
+});
+
 describe("pickBannerDrop", () => {
   const now = 1_000_000;
+  const taskId = "task" as Task["taskId"];
 
   it("prefers a quick-time drop over a mystery task or a group session", () => {
     const drops = [
@@ -55,6 +69,22 @@ describe("pickBannerDrop", () => {
       { kind: "quicktime" as const, closesAt: now + 30 },
     ];
     expect(pickBannerDrop(drops, now)?.kind).toBe("quicktime");
+  });
+
+  it("puts a group session whose check-in is open above a mystery task", () => {
+    const drops = [
+      { kind: "mystery" as const, closesAt: now + 10 },
+      { kind: "group" as const, closesAt: now + 20, taskId },
+    ];
+    expect(pickBannerDrop(drops, now)?.kind).toBe("group");
+  });
+
+  it("keeps a session that is still gathering RSVPs behind a mystery task", () => {
+    const drops = [
+      { kind: "group" as const, closesAt: now + 10 },
+      { kind: "mystery" as const, closesAt: now + 20, taskId },
+    ];
+    expect(pickBannerDrop(drops, now)?.kind).toBe("mystery");
   });
 
   it("takes the one closing soonest within a kind", () => {
