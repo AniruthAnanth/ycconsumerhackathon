@@ -116,14 +116,11 @@ export type Pot = {
 
 export type Drop = {
   dropId: Id<"drops">;
-  kind: "quicktime" | "mystery" | "group";
+  kind: "quicktime" | "group";
   title: string;
   slot: Slot;
   points: number;
   gesture?: string;
-  /** A mystery task stays sealed until the player opens it. */
-  sealed: boolean;
-  wager?: number;
   place?: Place;
   opensAt: number;
   closesAt: number;

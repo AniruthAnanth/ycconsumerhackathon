@@ -136,13 +136,11 @@ export type CanvasAssignment = {
 
 export type Drop = {
   dropId: Id<"drops">;
-  kind: "quicktime" | "mystery" | "group";
+  kind: "quicktime" | "group";
   title: string;
   slot: Slot;
   points: number;
   gesture?: string;
-  sealed: boolean;
-  wager?: number;
   place?: Place;
   opensAt: number;
   closesAt: number;

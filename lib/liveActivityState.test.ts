@@ -17,7 +17,6 @@ const drop = (over: Partial<Drop> = {}) =>
     slot: "body",
     points: 40,
     gesture: "peace sign",
-    sealed: false,
     opensAt: NOW - 1000,
     closesAt: NOW + 60_000,
     taskId: "t1",
@@ -86,8 +85,8 @@ describe("activityFor", () => {
     expect(activityFor(ctx({ drops: [drop({ closesAt: NOW })], matchup }))?.kind).toBe("matchup");
   });
 
-  it("ignores mystery and group drops", () => {
-    expect(activityFor(ctx({ drops: [drop({ kind: "mystery" }), drop({ kind: "group" })], matchup }))?.kind).toBe("matchup");
+  it("ignores group drops", () => {
+    expect(activityFor(ctx({ drops: [drop({ kind: "group" })], matchup }))?.kind).toBe("matchup");
   });
 
   it("is null with no live drop and no matchup", () => {
