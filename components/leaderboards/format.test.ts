@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BOARDS, parseBoardKey } from "./boards";
-import { formatUsd, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle, tiedRanks } from "./format";
+import { formatUsdWithCents, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle, tiedRanks } from "./format";
 import type { BoardRow } from "./types";
 
 const row = (overrides: Partial<BoardRow>): BoardRow => ({
@@ -26,11 +26,11 @@ describe("ordinal", () => {
   });
 });
 
-describe("formatUsd", () => {
+describe("formatUsdWithCents", () => {
   it("always shows two decimals", () => {
-    expect(formatUsd(5)).toBe("$5.00");
-    expect(formatUsd(27.5)).toBe("$27.50");
-    expect(formatUsd(0)).toBe("$0.00");
+    expect(formatUsdWithCents(5)).toBe("$5.00");
+    expect(formatUsdWithCents(27.5)).toBe("$27.50");
+    expect(formatUsdWithCents(0)).toBe("$0.00");
   });
 });
 
@@ -74,10 +74,15 @@ describe("placeLabel", () => {
 });
 
 describe("projection text", () => {
-  it("is a gain only when the label starts with Projected: +", () => {
-    expect(isProjectedGain("Projected: +$12.40")).toBe(true);
-    expect(isProjectedGain("Projected: -$5.00")).toBe(false);
-    expect(isProjectedGain("Not eligible for the pot")).toBe(false);
+  it("is a gain only for an eligible player expected to cover the stake", () => {
+    expect(isProjectedGain({ eligible: true, expectedUsd: 12.4, stakeUsd: 5 })).toBe(true);
+    expect(isProjectedGain({ eligible: true, expectedUsd: 5, stakeUsd: 5 })).toBe(true);
+    expect(isProjectedGain({ eligible: true, expectedUsd: 2, stakeUsd: 5 })).toBe(false);
+  });
+
+  it("is never a gain for an unpaid player, whatever the numbers say", () => {
+    expect(isProjectedGain({ eligible: false, expectedUsd: 0, stakeUsd: 0 })).toBe(false);
+    expect(isProjectedGain({ eligible: false, expectedUsd: 30, stakeUsd: 5 })).toBe(false);
   });
 
   it("spells out the range", () => {

@@ -24,7 +24,7 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
         {place ?? "Leaderboards"}
       </Text>
       {projection ? (
-        <Text style={[styles.projection, isProjectedGain(projection.label) && styles.gain]} numberOfLines={1}>
+        <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]} numberOfLines={1}>
           {projection.label}
         </Text>
       ) : null}
