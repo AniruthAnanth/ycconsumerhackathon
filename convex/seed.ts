@@ -559,6 +559,8 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   const leagueId = await upsertLeague(ctx, playerIds[0]);
   await clearLeague(ctx, leagueId);
   for (const playerId of playerIds) await clearPlayer(ctx, playerId);
+  // Maya is connected to the demo Canvas school, so a Canvas proof can be shown without a token.
+  await ctx.runMutation(internal.canvas.seedDemoConnection, { userId: playerIds[0] });
 
   const weekId = await ctx.db.insert("weeks", {
     leagueId,

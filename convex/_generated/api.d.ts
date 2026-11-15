@@ -44,6 +44,7 @@ import type * as profile from "../profile.js";
 import type * as proofs from "../proofs.js";
 import type * as seasons from "../seasons.js";
 import type * as seed from "../seed.js";
+import type * as standings from "../standings.js";
 import type * as users from "../users.js";
 import type * as whop from "../whop.js";
 import type * as wrapped from "../wrapped.js";
@@ -91,6 +92,7 @@ declare const fullApi: ApiFromModules<{
   proofs: typeof proofs;
   seasons: typeof seasons;
   seed: typeof seed;
+  standings: typeof standings;
   users: typeof users;
   whop: typeof whop;
   wrapped: typeof wrapped;
