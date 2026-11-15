@@ -233,11 +233,52 @@ describe("lineup.roster", () => {
     await verifyTask(t, before.rows[0].taskId, Date.UTC(2026, 10, 10, 22, 14)); // Tuesday 2:14 PM in Los Angeles
 
     const after = await as.query(api.lineup.roster, {});
-    expect(after.total).toBe(30);
+    // The task's 30 points, 25 for clearing its slot and 5 for the first day of a streak.
+    expect(after).toMatchObject({ total: 60, bonusPoints: 30, bonusLabels: ["1 slot cleared", "Streak"] });
     expect(after.rows[0]).toMatchObject({ status: "verified", score: 30, dueLabel: "Verified Tue 2:14 PM", upNext: false });
     expect(after.rows[0].thumbUrl).toEqual(expect.any(String));
     expect(after.rows[0].verifiedAt).toBe(Date.UTC(2026, 10, 10, 22, 14));
     expect(after.rows[1].upNext).toBe(true);
+  });
+
+  it("adds the week's bonuses, so the total is the player's points in the league table", async () => {
+    const { t, as, userId } = await signedIn("Sam");
+    await as.mutation(api.lineup.lock, { tasks: FULL_LINEUP });
+    const mayaId = await t.run((ctx) => ctx.db.insert("users", { name: "Maya" }));
+    const { leagueId, weekId } = await t.run(async (ctx) => {
+      const leagueId = await ctx.db.insert("leagues", { name: "HOME", inviteCode: "HOME", stakeUsd: 0, visibility: "private", maxMembers: 12, createdBy: userId });
+      for (const member of [userId, mayaId]) {
+        await ctx.db.insert("memberships", { leagueId, userId: member, paid: true, joinedAt: NOW });
+      }
+      const weekId = await ctx.db.insert("weeks", { leagueId, number: 1, startsAt: WEEK_START, endsAt: NEXT_WEEK_START, status: "open" });
+      await ctx.db.insert("matchups", { weekId, userA: userId, userB: mayaId });
+      return { leagueId, weekId };
+    });
+    const { rows } = await as.query(api.lineup.roster, {});
+    await verifyTask(t, rows[0].taskId, Date.UTC(2026, 10, 10, 22)); // Tuesday
+    await verifyTask(t, rows[1].taskId, Date.UTC(2026, 10, 11, 22)); // Wednesday
+    // Sam challenged a proof and the league agreed with him. Which proof it was doesn't change his points.
+    await t.run(async (ctx) => {
+      const proof = await ctx.db.query("proofs").first();
+      if (proof === null) throw new Error("no proof to challenge");
+      await ctx.db.insert("challenges", { proofId: proof._id, leagueId, challengerId: userId, status: "overturned", closesAt: NOW });
+    });
+    const pointsInTable = async () =>
+      (await as.query(api.standings.table, { leagueId })).find((row) => row.userId === userId)?.points;
+
+    // 30 + 40 from the two tasks, then two slots at 25, a two-day streak (5 + 10) and the challenge (10).
+    const live = await as.query(api.lineup.roster, { leagueId });
+    expect(live).toMatchObject({ total: 145, bonusPoints: 75, bonusLabels: ["2 slots cleared", "Streak", "Challenges"] });
+    expect(live.total).toBe(await pointsInTable());
+
+    // A challenge belongs to a league, so a roster read without one leaves it out.
+    expect(await as.query(api.lineup.roster, {})).toMatchObject({ total: 135, bonusPoints: 65 });
+
+    // Settling the week pays the head-to-head winner 50.
+    await t.run((ctx) => ctx.db.patch("weeks", weekId, { status: "settled" }));
+    const settled = await as.query(api.lineup.roster, { leagueId });
+    expect(settled).toMatchObject({ total: 195, bonusLabels: ["2 slots cleared", "Streak", "Challenges", "Matchup win"] });
+    expect(settled.total).toBe(await pointsInTable());
   });
 
   it("shows another player's roster when asked", async () => {

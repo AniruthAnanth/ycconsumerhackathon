@@ -22,12 +22,14 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { draftLineup, rateTask, transcribe } from "./ai";
+import { challengerPointsByUser } from "./challenges";
 import { requireUser } from "./lib/auth";
 import { MAX_FLEX_TASKS, lineupProblem, shapeDraft, tidyTask, type DraftTask } from "./lib/lineupRules";
-import { CORE_SLOTS, clampTaskPoints, taskScore } from "./lib/scoring";
-import { clockLabel, weekEndOf, weekStartOf, weekdayLabel } from "./lib/week";
+import { CORE_SLOTS, clampTaskPoints, scoreWeek, taskScore } from "./lib/scoring";
+import { clockLabel, pacificDay, weekEndOf, weekStartOf, weekdayLabel } from "./lib/week";
 import { addMemory, searchMemories } from "./memory";
 import { place, slot } from "./schema";
+import { leagueStandings } from "./standings";
 
 const TIME_ZONE = "America/Los_Angeles";
 
@@ -301,6 +303,18 @@ type TaskRow = {
   upNext: boolean;
 };
 
+type Roster = {
+  locked: boolean;
+  weekStart: number;
+  /** The rows' scores plus bonusPoints: the player's points on the League and Matchup tabs. */
+  total: number;
+  /** What the week has paid on top of the tasks' own points. Already inside total. */
+  bonusPoints: number;
+  /** A short name for each part of bonusPoints, such as "2 slots cleared" or "Streak". */
+  bonusLabels: string[];
+  rows: TaskRow[];
+};
+
 /**
  * A player's week as roster rows: the five slots in order, then flex, then
  * anything a drop added. Defaults to the caller and the current week.
@@ -311,7 +325,7 @@ export const roster = query({
     userId: v.optional(v.id("users")),
     weekStart: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<{ locked: boolean; weekStart: number; total: number; rows: TaskRow[] }> => {
+  handler: async (ctx, args): Promise<Roster> => {
     const caller = await requireUser(ctx);
     const userId = args.userId ?? caller._id;
     // Someone else's week (their tasks, places and proof photos) is for the players they share a league with.
@@ -323,11 +337,13 @@ export const roster = query({
     // Monday midnight, and the app passes weekStart when it browses weeks.
     const weekStart = args.weekStart ?? weekStartOf(Date.now());
 
+    const shown: Doc<"tasks">[] = [];
     const rows: TaskRow[] = [];
     for (const task of sortForRoster(await weekTasks(ctx, userId, weekStart))) {
       const drop = task.dropId ? await ctx.db.get("drops", task.dropId) : null;
       // A drop task belongs to one league and must not show up in another league's view.
       if (args.leagueId && task.dropId && drop?.leagueId !== args.leagueId) continue;
+      shown.push(task);
       rows.push(await toRow(ctx, task, drop));
     }
 
@@ -336,14 +352,62 @@ export const roster = query({
     const upNext = rows.find((row) => row.status === "open" && isDropSource(row.source)) ?? rows.find((row) => row.status === "open");
     if (upNext) upNext.upNext = true;
 
+    const bonus = await weekBonuses(ctx, userId, weekStart, shown, args.leagueId);
     return {
       locked: await isLocked(ctx, userId, weekStart),
       weekStart,
-      total: rows.reduce((sum, row) => sum + (row.score ?? 0), 0),
+      total: rows.reduce((sum, row) => sum + (row.score ?? 0), 0) + bonus.points,
+      bonusPoints: bonus.points,
+      bonusLabels: bonus.labels,
       rows,
     };
   },
 });
+
+/**
+ * What the week has paid on top of the tasks' own points, so the Roster total is the same number
+ * the League and Matchup tabs show. A drop's bonus is not here: drops.ts writes it into the drop
+ * task's own points.
+ *
+ * Cleared slots, the sweep and the streak come from the shared rules in lib/scoring.ts and need no
+ * league. Inside a league, standings.ts is the source of the player's points, and whatever it
+ * holds beyond those rules is the league's part: challenge results, and the matchup win once the
+ * week has settled.
+ */
+async function weekBonuses(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  weekStart: number,
+  tasks: Doc<"tasks">[],
+  leagueId?: Id<"leagues">,
+): Promise<{ points: number; labels: string[] }> {
+  // The same days standings.ts counts: a proof pays into the streak only while its task is verified.
+  const verified = new Set(tasks.filter((task) => task.status === "verified").map((task) => task._id));
+  const proofs = await ctx.db
+    .query("proofs")
+    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
+    .take(500);
+  const days = proofs.filter((proof) => proof.pass && verified.has(proof.taskId)).map((proof) => pacificDay(proof.createdAt));
+  const score = scoreWeek(tasks, days);
+
+  const labels: string[] = [];
+  if (score.slotsCleared > 0) labels.push(`${score.slotsCleared} slot${score.slotsCleared === 1 ? "" : "s"} cleared`);
+  if (score.finisher) labels.push("Sweep");
+  if (score.streakBonus > 0) labels.push("Streak");
+  const ownBonus = score.slotBonus + score.streakBonus;
+
+  // A week the league never ran (a lineup locked ahead for next week) has no table to match.
+  const week = leagueId && (await leagueWeeks(ctx, leagueId)).find((candidate) => candidate.startsAt === weekStart);
+  const standing =
+    leagueId && week && (await leagueStandings(ctx, leagueId, week._id)).find((member) => member.userId === userId);
+  if (!leagueId || !week || !standing) return { points: ownBonus, labels };
+
+  const challenges =
+    (await challengerPointsByUser(ctx, leagueId, { from: week.startsAt, to: week.endsAt })).get(userId) ?? 0;
+  if (challenges !== 0) labels.push("Challenges");
+  if (standing.points - score.total - challenges > 0) labels.push("Matchup win");
+  return { points: standing.points - score.taskPoints, labels };
+}
 
 const isDropSource = (source: Doc<"tasks">["source"]) => source !== "draft" && source !== "flex";
 
@@ -410,6 +474,15 @@ async function weekTasks(ctx: QueryCtx, userId: Id<"users">, weekStart: number):
     .query("tasks")
     .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
     .take(100);
+}
+
+async function leagueWeeks(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"weeks">[]> {
+  // One row a week; 200 is close to four years of play.
+  return await ctx.db
+    .query("weeks")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .order("desc")
+    .take(200);
 }
 
 async function lineupFor(ctx: QueryCtx, userId: Id<"users">, weekStart: number): Promise<Doc<"lineups"> | null> {
