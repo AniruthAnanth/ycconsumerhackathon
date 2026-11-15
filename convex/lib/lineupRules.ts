@@ -11,7 +11,7 @@ import { isValidLatLng } from "./geo";
 import { CORE_SLOTS, clampTaskPoints, type CoreSlot, type Slot } from "./scoring";
 
 export const MAX_FLEX_TASKS = 3;
-const MAX_TITLE_LENGTH = 60;
+export const MAX_TITLE_LENGTH = 60;
 
 export type Place = { name: string; lat: number; lng: number };
 
