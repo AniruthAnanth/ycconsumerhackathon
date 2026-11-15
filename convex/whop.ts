@@ -298,6 +298,8 @@ export const settleWeek = action({
     const { whopCompanyId, transfers }: Owed = await ctx.runMutation(internal.whop.closeWeek, {
       leagueId,
     });
+    // A settled week carries the matchup bonus, so the leaderboards rebuild the league's stored rows.
+    await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
     // A league nobody has paid into through Whop, like the seeded one, has no company to pay from.
     if (whopCompanyId === null || transfers.length === 0) return null;
 
@@ -431,7 +433,7 @@ export const recordTransfer = internalMutation({
  * added up, so the pot is split on the numbers the League tab shows. `atSettlement` counts the
  * matchup bonus of the week being closed, which the table only shows once that week is settled.
  */
-async function entrantsOver(
+export async function entrantsOver(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
   weeks: Doc<"weeks">[],

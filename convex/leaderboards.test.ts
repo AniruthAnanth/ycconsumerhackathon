@@ -93,6 +93,41 @@ describe("leaderboards.board", () => {
     expect(result.rows.map((row) => row.isRival)).toEqual([false, false, false, true, false, false]);
   });
 
+  test("This Week equals the standings table, before and after the week settles", async () => {
+    const { t, leagueId, as } = await seededLeague();
+    const viewer = as("Maya");
+    const boardAndTable = async () => {
+      const table = await viewer.query(api.standings.table, { leagueId });
+      const { rows } = await viewer.query(api.leaderboards.board, { leagueId, board: "week" });
+      expect(rows.map((row) => [row.rank, row.name, row.value])).toEqual(
+        table.map((row) => [row.rank, row.name, row.points]),
+      );
+      return rows;
+    };
+    await boardAndTable();
+
+    // End Week Now: the ledger is written, the week settles, and each matchup's winner gains 50.
+    await viewer.action(api.whop.settleWeek, { leagueId });
+    // Settlement schedules the rebuild of the stored rows. It is run by hand here, because
+    // running everything settlement schedules would also send its texts and memories.
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.map((job) => job.name)).toContain("leaderboards:rebuild");
+    await t.mutation(internal.leaderboards.rebuild, { leagueId });
+    const settled = await boardAndTable();
+    expect(settled.map((row) => row.value)).toEqual([550, 285, 245, 170, 60, 0]);
+
+    // The stored rows behind the global board carry the bonus too.
+    const global = await viewer.query(api.leaderboards.board, { leagueId, board: "global" });
+    expect(global.rows.map((row) => row.value)).toEqual([550, 285, 245, 170, 60, 0]);
+
+    // Maya was the only finisher: the other five stakes, less the 10% fee.
+    const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money" });
+    expect(money.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "$90.00", isMe: true });
+    // With the week over there is nothing left to project: every case is the payout itself.
+    const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
+    expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Projected: +$90.00" });
+  });
+
   test("a new proof reorders the board at once and shows as movement", async () => {
     const { t, leagueId, as, idOf } = await seededLeague();
     // Leo's gym session: 35 for the task, 25 for the slot, 5 for the day.
@@ -129,9 +164,9 @@ describe("leaderboards.board", () => {
     const { leagueId, as } = await seededLeague();
     const { rows } = await as("Sam").query(api.leaderboards.board, { leagueId, board: "headToHead" });
     // The seeded season has four finished weeks: Sam won all four and Maya lost one.
-    expect(rows[0]).toMatchObject({ name: "Sam Patel", valueLabel: "4-0", detail: "Trailing Maya Chen 285-500" });
-    expect(rows[1]).toMatchObject({ name: "Maya Chen", valueLabel: "3-1", detail: "Leading Sam Patel 500-285" });
-    expect(rows.find((row) => row.isMe)?.detail).toBe("Trailing Maya Chen 285-500");
+    expect(rows[0]).toMatchObject({ name: "Sam Patel", valueLabel: "4-0", detail: "Trailing Maya Chen 285 to 500" });
+    expect(rows[1]).toMatchObject({ name: "Maya Chen", valueLabel: "3-1", detail: "Leading Sam Patel 500 to 285" });
+    expect(rows.find((row) => row.isMe)?.detail).toBe("Trailing Maya Chen 285 to 500");
   });
 
   test("season and all-time add finished weeks from the stored rows to the week in play", async () => {
