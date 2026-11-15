@@ -1,7 +1,8 @@
 import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 
-import { PRESS_SCALE, SPRING } from "@/lib/native/motion";
+import { PRESS_SCALE } from "@/lib/native/motion";
+import { spring } from "@/theme";
 
 import { useReduceMotion } from "./useReduceMotion";
 
@@ -23,11 +24,11 @@ export function PressScale({ style, onPressIn, onPressOut, ...pressable }: Props
       {...pressable}
       style={[style, animated]}
       onPressIn={(event) => {
-        if (!reduceMotion) scale.value = withSpring(PRESS_SCALE, SPRING);
+        if (!reduceMotion) scale.value = withSpring(PRESS_SCALE, spring.snappy);
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        scale.value = reduceMotion ? 1 : withSpring(1, SPRING);
+        scale.value = reduceMotion ? 1 : withSpring(1, spring.snappy);
         onPressOut?.(event);
       }}
     />

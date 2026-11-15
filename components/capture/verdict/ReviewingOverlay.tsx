@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
-import ReAnimated, { Easing as ReEasing, FadeOut } from "react-native-reanimated";
+import ReAnimated, { FadeOut } from "react-native-reanimated";
 
-import { useReduceMotion } from "@/components/motion";
+import { ease, useReduceMotion } from "@/components/motion";
 import { FADE_MS } from "@/lib/native/motion";
-import { colors, fontFamily, spacing } from "@/theme";
+import { colors, duration, fontFamily, spacing } from "@/theme";
+
+// One pass of the scan line: an ambient "working" loop, four slow beats so it reads as calm, not urgent.
+const SWEEP_MS = duration.slow * 4;
 
 const BAND_HEIGHT = 48;
 
@@ -18,7 +21,7 @@ export function ReviewingOverlay({ title }: Props) {
 
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(sweep, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(sweep, { toValue: 1, duration: SWEEP_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
@@ -28,7 +31,7 @@ export function ReviewingOverlay({ title }: Props) {
 
   return (
     <ReAnimated.View
-      exiting={reduceMotion ? undefined : FadeOut.duration(FADE_MS).easing(ReEasing.out(ReEasing.cubic))}
+      exiting={reduceMotion ? undefined : FadeOut.duration(FADE_MS).easing(ease.standard)}
       style={StyleSheet.absoluteFill}
       onLayout={(event) => setHeight(event.nativeEvent.layout.height)}>
       <Animated.View style={[styles.band, { transform: [{ translateY }] }]}>

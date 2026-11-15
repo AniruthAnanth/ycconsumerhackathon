@@ -10,7 +10,7 @@ import { Header, TopTabs, WeekSelector } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
 import { FADE_MS } from "@/lib/native/motion";
-import { colors } from "@/theme";
+import { colors, easingCurve } from "@/theme";
 
 const TABS = [
   { key: "index", label: "Roster", href: "/" },
@@ -84,7 +84,7 @@ export default function TabsLayout() {
           sceneStyle: styles.page,
           // A short cross-fade between tabs; Reduce Motion switches instantly.
           animation: reduceMotion ? "none" : "fade",
-          transitionSpec: { animation: "timing", config: { duration: FADE_MS, easing: Easing.out(Easing.cubic) } },
+          transitionSpec: { animation: "timing", config: { duration: FADE_MS, easing: Easing.bezier(...easingCurve.standard) } },
         }}
       >
         {TABS.map((tab) => (

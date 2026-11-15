@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
 import { Path } from "react-native-svg";
 
-import { MAX_MOTION_MS } from "@/lib/native/motion";
-import { useReduceMotion } from "@/components/motion";
+import { ease, useReduceMotion } from "@/components/motion";
+import { duration } from "@/theme";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -20,7 +20,7 @@ export function DrawLine({ d, length, color, width = 2.5 }: { d: string; length:
       return;
     }
     hidden.value = length;
-    hidden.value = withTiming(0, { duration: MAX_MOTION_MS * 2, easing: Easing.out(Easing.cubic) });
+    hidden.value = withTiming(0, { duration: duration.slow * 2, easing: ease.emphasized });
   }, [d, hidden, length, reduceMotion]);
   const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: hidden.value }));
   return (

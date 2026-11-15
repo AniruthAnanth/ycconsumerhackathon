@@ -1,8 +1,11 @@
 import { type ReactNode, useEffect } from "react";
 import { type StyleProp, type ViewStyle } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming, Easing } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
 import { STAMP_DROP_MS, STAMP_SETTLE_MS } from "@/lib/native/motion";
+import { duration } from "@/theme";
+
+import { ease } from "./ease";
 
 import { useReduceMotion } from "./useReduceMotion";
 
@@ -17,7 +20,7 @@ type Props = {
 
 /**
  * Slams its child down from above full size, overshoots to slightly under, and settles: the
- * referee's rubber stamp hitting the page. 300 ms in all. With Reduce Motion it appears in place.
+ * referee's rubber stamp hitting the page, in one slow beat. With Reduce Motion it appears in place.
  */
 export function StampSlam({ children, delay = 0, onLand, style }: Props) {
   const reduceMotion = useReduceMotion();
@@ -34,11 +37,11 @@ export function StampSlam({ children, delay = 0, onLand, style }: Props) {
     scale.value = withDelay(
       delay,
       withSequence(
-        withTiming(0.92, { duration: STAMP_DROP_MS, easing: Easing.in(Easing.quad) }),
-        withTiming(1, { duration: STAMP_SETTLE_MS, easing: Easing.out(Easing.quad) }),
+        withTiming(0.92, { duration: STAMP_DROP_MS, easing: ease.emphasized }),
+        withTiming(1, { duration: STAMP_SETTLE_MS, easing: ease.standard }),
       ),
     );
-    opacity.value = withDelay(delay, withTiming(1, { duration: 90 }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: duration.fast, easing: ease.standard }));
     // The thud belongs to the frame the stamp touches down, not to when it started falling.
     const timer = setTimeout(() => onLand?.(), delay + STAMP_DROP_MS);
     return () => clearTimeout(timer);
