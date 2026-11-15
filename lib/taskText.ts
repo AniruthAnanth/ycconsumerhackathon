@@ -1,4 +1,4 @@
-import { PROOF_LABEL, type ProofType, type Slot } from "./slots";
+import { PROOF_LABEL, SLOT_NAME, type ProofType, type Slot } from "./slots";
 
 /**
  * What a TaskRow needs to draw itself. It is the overlap of the backend's
@@ -50,4 +50,21 @@ export function taskStatusLine(task: TaskRowData): string {
 /** Line 3 of a row: where the task happens, when it is pinned to a place. */
 export function taskPlaceLine(task: TaskRowData): string | undefined {
   return task.place ? `@ ${task.place.name}` : undefined;
+}
+
+/**
+ * What a screen reader says for a row that is a button. A button's label
+ * replaces the text inside it, so this carries everything the row shows.
+ */
+export function taskRowLabel(task: TaskRowData, upNext = false): string {
+  const points = task.score == null ? `${task.points} points on offer` : `${formatScore(task.score)} points`;
+  return [
+    task.title,
+    upNext ? "Up next" : SLOT_NAME[task.slot],
+    taskStatusLine(task).replace(" | ", ", "),
+    task.place ? `at ${task.place.name}` : undefined,
+    points,
+  ]
+    .filter(Boolean)
+    .join(", ");
 }

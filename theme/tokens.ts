@@ -41,10 +41,14 @@ export const font = {
   score: 16,
   header: 17,
   total: 24,
+  /** The pot on the League tab: the one figure larger than a total, because it is what the league plays for. */
+  pot: 44,
 } as const;
 
-/** ESPN's player row height; every list row in the app uses it. */
+/** ESPN's player row height: every row that lists a task uses it. */
 export const ROW_HEIGHT = 72;
+/** A row with two lines of text rather than three: a standing, a person. */
+export const ROW_HEIGHT_COMPACT = 60;
 
 export const hairline = StyleSheet.hairlineWidth;
 

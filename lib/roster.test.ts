@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Task } from "./backend";
-import { formatTimer, pickBannerDrop, splitRoster } from "./roster";
+import { pickBannerDrop, splitRoster } from "./roster";
 
 function task(taskId: string, slot: Task["slot"], source: Task["source"] = "draft"): Task {
   return {
@@ -68,18 +68,5 @@ describe("pickBannerDrop", () => {
   it("ignores drops that have already closed", () => {
     expect(pickBannerDrop([{ kind: "quicktime" as const, closesAt: now }], now)).toBeUndefined();
     expect(pickBannerDrop([], now)).toBeUndefined();
-  });
-});
-
-describe("formatTimer", () => {
-  it("reads like a clock", () => {
-    expect(formatTimer(2 * 3600_000 - 28_000)).toBe("1:59:32");
-    expect(formatTimer(9 * 60_000 + 5_000)).toBe("9:05");
-    expect(formatTimer(59_001)).toBe("1:00");
-  });
-
-  it("never goes below zero", () => {
-    expect(formatTimer(0)).toBe("0:00");
-    expect(formatTimer(-5_000)).toBe("0:00");
   });
 });

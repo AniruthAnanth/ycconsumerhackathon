@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCountdown, formatUsd } from "./leagueText";
+import { formatCountdown, formatUsd, inviteMessage, isSettled, stakeLine } from "./leagueText";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -15,6 +15,40 @@ describe("formatUsd", () => {
   it("keeps two decimals otherwise", () => {
     expect(formatUsd(36.5)).toBe("$36.50");
     expect(formatUsd(7.25)).toBe("$7.25");
+  });
+});
+
+describe("stakeLine", () => {
+  it("reads Free for a league with no buy-in", () => {
+    expect(stakeLine({ stakeUsd: 0, paid: false })).toBe("Free");
+  });
+
+  it("shows the buy-in and whether it is paid", () => {
+    expect(stakeLine({ stakeUsd: 20, paid: true })).toBe("$20 buy-in | Paid");
+    expect(stakeLine({ stakeUsd: 5, paid: false })).toBe("$5 buy-in | Unpaid");
+  });
+});
+
+describe("inviteMessage", () => {
+  it("names the league and its code", () => {
+    expect(inviteMessage({ name: "Dorm 4", inviteCode: "K7QF2M" })).toBe('Join my Lineup league "Dorm 4" with code K7QF2M.');
+  });
+});
+
+describe("isSettled", () => {
+  const now = 1_000_000;
+
+  it("is settled as soon as payouts exist, even before the scheduled end", () => {
+    expect(isSettled({ settlesAt: now + 11 * HOUR, payouts: [] }, now)).toBe(true);
+  });
+
+  it("is settled once the scheduled end has passed", () => {
+    expect(isSettled({ settlesAt: now }, now)).toBe(true);
+    expect(isSettled({ settlesAt: now - MINUTE }, now)).toBe(true);
+  });
+
+  it("is open while the end is ahead and nothing has been paid out", () => {
+    expect(isSettled({ settlesAt: now + MINUTE }, now)).toBe(false);
   });
 });
 

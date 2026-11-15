@@ -6,7 +6,7 @@ import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
 /** A starter slot with nothing drafted in it. Same height and columns as a TaskRow, so the roster keeps its shape. */
 export function EmptySlotRow({ slot, onPress }: { slot: Slot; onPress: () => void }) {
   return (
-    <Pressable style={styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={`Empty ${SLOT_NAME[slot]} slot`}>
+    <Pressable style={styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={`Empty ${SLOT_NAME[slot]} slot, draft a task`}>
       <PositionPill slot={slot} />
       <Avatar slot={slot} />
       <Text style={styles.empty}>Empty</Text>

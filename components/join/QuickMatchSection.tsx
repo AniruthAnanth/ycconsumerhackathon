@@ -9,6 +9,7 @@ import { ErrorLine } from "./ErrorLine";
 import { STAKES } from "./stakes";
 import type { useJoinLeague } from "./useJoinLeague";
 
+/** The fastest way into a league: pick a stake and the server seats the player in a public league at it. */
 export function QuickMatchSection({ joining }: { joining: ReturnType<typeof useJoinLeague> }) {
   const quickMatch = useMutation(backend.leagues.quickMatch);
   const { join, busy, failure } = joining;
@@ -21,6 +22,7 @@ export function QuickMatchSection({ joining }: { joining: ReturnType<typeof useJ
             <OutlinedPillButton
               key={stakeUsd}
               label={label}
+              accessibilityLabel={`Quick match, ${label}`}
               style={styles.pill}
               disabled={busy}
               onPress={() => join("quickMatch", () => quickMatch({ stakeUsd }))}

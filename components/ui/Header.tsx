@@ -28,18 +28,21 @@ export function Header({ title, onBack, onTitlePress, onChatPress, right }: Prop
           </Pressable>
         ) : null}
       </View>
-      <Pressable
-        style={styles.center}
-        onPress={onTitlePress}
-        disabled={!onTitlePress}
-        accessibilityRole={onTitlePress ? "button" : "header"}
-        accessibilityLabel={onTitlePress ? `${title}, switch league` : title}
-      >
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-        {onTitlePress ? <Icon name="caret-down" size={12} /> : null}
-      </Pressable>
+      {onTitlePress ? (
+        <Pressable style={styles.center} onPress={onTitlePress} accessibilityRole="button" accessibilityLabel={`${title}, switch league`}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          <Icon name="caret-down" size={12} />
+        </Pressable>
+      ) : (
+        // A plain heading rather than a disabled button, which a screen reader would announce as dimmed.
+        <View style={styles.center}>
+          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+            {title}
+          </Text>
+        </View>
+      )}
       <View style={[styles.side, styles.right]}>
         {right ??
           (onChatPress ? (

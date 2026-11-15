@@ -3,9 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
-const ROW_HEIGHT = 60;
 // Fixed widths keep every number in a column lined up whatever the names are.
 const COL = { rank: 28, slots: 44, points: 56, streak: 48 } as const;
 
@@ -33,7 +32,7 @@ export function StandingsTable({ rows, viewerId, onPressPlayer }: Props) {
             style={[styles.row, row.userId === viewerId && styles.viewer]}
             onPress={() => onPressPlayer(row.userId)}
             accessibilityRole="button"
-            accessibilityLabel={`Rank ${row.rank}, ${row.name}, ${row.slotsCleared} of 5 slots, ${formatScore(row.points)} points, streak ${row.streak}`}
+            accessibilityLabel={`Rank ${row.rank}, ${row.name}${row.paid ? "" : ", unpaid"}, ${row.slotsCleared} of 5 slots, ${formatScore(row.points)} points, streak ${row.streak}`}
           >
             <Text style={[styles.rank, { width: COL.rank }]}>{row.rank}</Text>
             <View style={styles.playerCol}>
@@ -72,7 +71,7 @@ const styles = StyleSheet.create({
   },
   heading: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
   right: { textAlign: "right" },
-  row: { height: ROW_HEIGHT, flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md },
+  row: { height: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md },
   viewer: { backgroundColor: colors.accentTint },
   playerCol: { flex: 1 },
   rank: { fontSize: font.body, fontWeight: "700", color: colors.textMuted, fontVariant: ["tabular-nums"] },
