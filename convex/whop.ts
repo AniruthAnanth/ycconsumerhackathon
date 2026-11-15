@@ -33,7 +33,7 @@ import {
   type ActionCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { currentWeek as latestWeek } from "./leagues";
+import { currentWeek as latestWeek, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
 import { computeSettlement, settlementLedgerRows, type Entrant } from "./lib/settlement";
@@ -111,10 +111,13 @@ export const buyInFor = internalQuery({
     const membership = await membershipOf(ctx, leagueId, user._id);
     if (membership === null) throw new ConvexError("Join this league before paying its buy-in");
     if (league.stakeUsd <= 0) throw new ConvexError("This league is free: there is no buy-in");
-    if (membership.paid) throw new ConvexError("You have already paid this league's buy-in");
+    const week = await currentWeek(ctx, leagueId);
+    // The ledger says who has paid, here as for the Pay banner and at settlement.
+    if ((await paidInto(ctx, league, week))(user._id)) {
+      throw new ConvexError("You have already paid this league's buy-in");
+    }
     // A stake is tied to the week it is paid in. Paid into a week already settled, it would
     // sit in the league's company with no settlement left to return it.
-    const week = await currentWeek(ctx, leagueId);
     if (week.status === "settled" && resolveSettings(league).payout === "weekly") {
       throw new ConvexError("This week is settled. Buy in when the next week opens");
     }
@@ -466,24 +469,18 @@ export const recordPaid = internalMutation({
 /**
  * Every member's standing over the weeks being settled, as the settlement maths takes it.
  *
- * Paid means the ledger holds their buy-in for one of these weeks. The ledger decides, not
- * memberships.paid, so a stake can only ever be returned by the settlement it was paid into.
- *
- * Points and finishers come from the standings table (standings.ts), the one place a week is
- * added up, so the pot is split on the numbers the League tab shows. `atSettlement` counts the
- * matchup bonus of the week being closed, which the table only shows once that week is settled.
+ * Everything comes from the standings table (standings.ts), the one place a week is added up,
+ * so the pot is split on the numbers the League tab shows. Paid there means the ledger holds the
+ * member's buy-in for the settlement the week belongs to (paidInto in leagues.ts), not that
+ * memberships.paid is set, so a stake can only be returned by the settlement it was paid into.
+ * `atSettlement` counts the matchup bonus of the week being closed, which the table only shows
+ * once that week is settled.
  */
 export async function entrantsOver(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
   weeks: Doc<"weeks">[],
 ): Promise<Entrant<Id<"users">>[]> {
-  const weekIds = new Set(weeks.map((week) => week._id));
-  const boughtIn = new Set(
-    (await leagueLedger(ctx, leagueId))
-      .filter((row) => row.kind === "buy_in" && weekIds.has(row.weekId))
-      .map((row) => row.userId),
-  );
   const standings = (
     await Promise.all(
       weeks.map((week) => leagueStandings(ctx, leagueId, week._id, { atSettlement: true })),
@@ -499,7 +496,7 @@ export async function entrantsOver(
     const weeksCleared = mine.filter((standing) => standing.finisher).length;
     return {
       userId,
-      paid: boughtIn.has(userId),
+      paid: mine.some((standing) => standing.paid),
       // In one week: cleared all five slots. Over a season: did so in at least half its weeks.
       finished: weeksCleared > 0 && weeksCleared * 2 >= weeks.length,
       points: mine.reduce((sum, standing) => sum + standing.points, 0),
