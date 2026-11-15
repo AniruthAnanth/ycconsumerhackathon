@@ -42,7 +42,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
     weekStart === undefined && league.week.status === "open" ? ` · ends in ${formatCountdown(league.week.endsAt - now)}` : "";
   const chance = matchup ? Math.round(matchup.me.winProbability * 100) : null;
   const scoreboard = matchup
-    ? `${matchup.me.name} ${formatScore(matchup.me.total)}, ${matchup.opponent.name} ${formatScore(matchup.opponent.total)}, ${chance}% to win`
+    ? `${matchup.me.name} ${formatScore(matchup.me.total)}, ${matchup.opponent.name} ${formatScore(matchup.opponent.total)}, ${chance}% to win this matchup`
     : `${formatScore(roster.total)} points this week`;
 
   return (
@@ -96,7 +96,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
             <Text style={styles.planLabel} numberOfLines={1}>
               Your weekly plan · {plan.confirmed} / {plan.possible} pts
             </Text>
-            {chance !== null ? <Text style={styles.chance}>{chance}% to win</Text> : null}
+            {chance !== null ? <Text style={styles.chance}>Win this matchup · {chance}%</Text> : null}
           </View>
           <ProgressFill ratio={plan.ratio} />
           {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}

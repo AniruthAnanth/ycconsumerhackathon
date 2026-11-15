@@ -20,7 +20,10 @@ export type TaskRowData = {
 
 /** Scores always show one decimal, like a fantasy box score; unscored shows a dash. */
 export function formatScore(value: number | null | undefined): string {
-  return value == null ? "--" : value.toFixed(1);
+  if (value == null) return "--";
+  // A whole number reads as a score ("40"), a fraction keeps one decimal ("12.5").
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
 /** "2:14 PM" in the phone's own time zone. */

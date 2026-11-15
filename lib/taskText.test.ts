@@ -6,8 +6,8 @@ const base: TaskRowData = { slot: "body", title: "Leg day", points: 40, proofTyp
 
 describe("formatScore", () => {
   it("shows one decimal once scored", () => {
-    expect(formatScore(40)).toBe("40.0");
-    expect(formatScore(0)).toBe("0.0");
+    expect(formatScore(40)).toBe("40");
+    expect(formatScore(0)).toBe("0");
     expect(formatScore(12.25)).toBe("12.3");
   });
 
@@ -66,7 +66,7 @@ describe("taskRowLabel", () => {
 
   it("says Up next in place of the slot, and the score once there is one", () => {
     expect(taskRowLabel({ ...base, status: "held", score: 40 }, true)).toBe(
-      "Leg day, Up next, Challenged, Points on hold, 40.0 points",
+      "Leg day, Up next, Challenged, Points on hold, 40 points",
     );
   });
 });

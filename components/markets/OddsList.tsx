@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { ProgressFill } from "@/components/motion";
-import { SectionLabel } from "@/components/ui";
-import { colors, fontFamily, hairline, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { RowDivider, SectionLabel } from "@/components/ui";
+import { colors, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance } from "./chartGeometry";
 import type { Market } from "./useMarket";
@@ -33,6 +33,7 @@ export function OddsList({ odds }: { odds: Market["odds"] }) {
             <Text style={styles.meta}>{`Proj ${row.projected} · ${formatChance(row.finishChance)} to clear all 5`}</Text>
           </View>
           <Text style={styles.chance}>{formatChance(row.weekChance)}</Text>
+          <RowDivider inset={SCREEN_MARGIN} />
         </View>
       ))}
     </View>
@@ -44,15 +45,14 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.lg,
+    gap: layout.columnGap,
     paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   mine: { backgroundColor: colors.accentTint },
   who: { flex: 1, gap: spacing.xs },
   name: { ...type.label, color: colors.text },
   meta: { ...type.caption, color: colors.textMuted },
-  chance: { width: 64, textAlign: "right", fontFamily: fontFamily.extraBold, fontSize: type.heading.fontSize, color: colors.text, fontVariant: ["tabular-nums"] },
+  // The same trailing numeric column as the standings below, so the two right edges line up.
+  chance: { ...type.subheading, ...tabular, width: layout.numericColumn, textAlign: "right", color: colors.text },
 });
