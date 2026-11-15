@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { CHECK_IN_ACTION, PASS_ACTION } from "@/convex/lib/notificationContent";
+import { CHECK_IN_ACTION, PASS_ACTION, dropOpened } from "@/convex/lib/notificationContent";
 
-import { DUPLICATE_WINDOW_MS, incomingOf, presentationFor, urlToOpen } from "./rules";
+import { DUPLICATE_WINDOW_MS, PREVIEW_DROP_ID, incomingOf, presentationFor, urlToOpen } from "./rules";
 
 const NOW = 1_800_000_000_000;
 const onRoster = { pathname: "/", textsOn: false, lastShownAt: undefined, now: NOW };
@@ -39,6 +39,15 @@ describe("presentationFor", () => {
     const onDemo = { ...onRoster, pathname: "/demo" };
     expect(presentationFor({ id: "arrival:1", kind: "arrival" }, onDemo)).toBe("quiet");
     expect(presentationFor({ id: "drop:1", kind: "drop" }, onDemo)).toBe("quiet");
+  });
+
+  it("still shows the preview over Demo controls, because its control asked for it", () => {
+    const preview = dropOpened(
+      { dropId: PREVIEW_DROP_ID, title: "20 push-ups", points: 40, gesture: "a thumbs up", closesAt: NOW + 1000 },
+      NOW,
+    );
+    const incoming = incomingOf({ id: preview.id, kind: preview.kind, url: preview.url });
+    expect(presentationFor(incoming, { ...onRoster, pathname: "/demo" })).toBe("alert");
   });
 
   it.each(["drop", "challenge", "rival", "nudge"])("keeps a texted %s quiet when texts are on", (kind) => {

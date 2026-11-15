@@ -31,6 +31,9 @@ const ALSO_TEXTED: ReadonlySet<string> = new Set<NotificationKind>(["drop", "cha
  */
 export const DUPLICATE_WINDOW_MS = 60 * 1000;
 
+/** The drop id of the demo control "Preview Drop Notification" (preview.ts). */
+export const PREVIEW_DROP_ID = "preview";
+
 /**
  * How a notification that arrives while the app is open is shown. iOS shows nothing in the
  * foreground unless the app says so, which makes this the one place every notification, local
@@ -44,7 +47,9 @@ export function presentationFor(
   // Demo controls is the presenter's screen, and Roster stays live underneath it. Switching
   // player there makes Roster announce the new player's arrival; the banner lands on the header,
   // and the tap meant for Back opens the banner's screen instead. Kept, but without a banner.
-  if (context.pathname === "/demo") return "quiet";
+  // The preview is the exception: the presenter asked for that banner by pressing its control,
+  // and a tap on it opens Roster, which is where Back leads too.
+  if (context.pathname === "/demo" && incoming.id !== `drop:${PREVIEW_DROP_ID}`) return "quiet";
   // The proof screens are already showing this ruling, with more of it than a banner holds.
   if (incoming.kind === "verdict" && context.pathname.startsWith("/proof")) return "none";
   // One alert per event: with texts on the text is the alert, and the app only keeps the record.
