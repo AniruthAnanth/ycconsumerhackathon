@@ -105,6 +105,10 @@ export default defineSchema({
     // Who led the standings when a text last went out, so "took the lead" is
     // sent once per change of leader and not on every proof.
     leaderId: v.optional(v.id("users")),
+    // A "versus" is a 1v1 challenge: a private league of exactly two members
+    // (convex/versus.ts), so standings, matchup, feed and drops work unchanged.
+    // Absent means an ordinary league.
+    mode: v.optional(v.union(v.literal("league"), v.literal("versus"))),
   })
     .index("by_inviteCode", ["inviteCode"])
     .index("by_visibility_stake", ["visibility", "stakeUsd"]),
