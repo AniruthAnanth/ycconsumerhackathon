@@ -40,6 +40,26 @@ export const leagueFormat = v.union(
   v.literal("bracket"),
 );
 
+// What a leaderboard ranks by. One shape serves a week row and the all-time
+// row of the scores table; in the all-time row the numbers are totals and
+// streak is the longest ever.
+export const scoreStats = v.object({
+  points: v.number(),
+  slotsCleared: v.number(),
+  streak: v.number(),
+  tasksVerified: v.number(),
+  slotPoints: v.object({
+    body: v.number(),
+    mind: v.number(),
+    recharge: v.number(),
+    chores: v.number(),
+    people: v.number(),
+  }),
+  bestHighlight: v.number(), // 0 until a proof passes
+  bestProofId: v.optional(v.id("proofs")),
+  fastestQuickTimeSec: v.optional(v.number()),
+});
+
 export default defineSchema({
   ...authTables,
 
@@ -264,4 +284,28 @@ export default defineSchema({
   })
     .index("by_league", ["leagueId"])
     .index("by_idempotencyKey", ["idempotencyKey"]),
+
+  // Leaderboards (convex/leaderboards.ts). A denormalised copy of one player's
+  // week in one league, so a board is a single index range read instead of a
+  // recompute over tasks and proofs. Standings stay computed live; this table
+  // is written only by leaderboards.refresh, which rebuilds a row from tasks
+  // and proofs and can be re-run at any time. weekStart 0 is the player's
+  // all-time total in that league.
+  scores: defineTable({
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+    weekStart: v.number(),
+    points: v.number(), // copy of now.points: the cross-league ranking index needs a top-level field
+    now: scoreStats,
+    // The same stats as they stood when `day` began. "Movement since yesterday"
+    // ranks a board by these and compares.
+    yesterday: scoreStats,
+    day: v.number(), // epoch ms of the Los Angeles midnight before the last refresh
+    // Day numbers (0 = this week's Monday) with a verified proof, so streaks
+    // can be joined across weeks without re-reading proofs.
+    activeDays: v.array(v.number()),
+  })
+    .index("by_league_week_user", ["leagueId", "weekStart", "userId"])
+    .index("by_user_week", ["userId", "weekStart"])
+    .index("by_week_points", ["weekStart", "points"]),
 });
