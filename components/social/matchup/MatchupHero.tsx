@@ -16,8 +16,8 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
   return (
     <View style={styles.hero}>
       <View style={styles.sides}>
-        <HeroSide side={me} possible={possiblePoints(rows, "mine")} align="flex-start" />
-        <HeroSide side={opponent} possible={possiblePoints(rows, "theirs")} align="flex-end" />
+        <HeroSide side={me} possible={possiblePoints(rows, "mine", me.total)} align="flex-start" />
+        <HeroSide side={opponent} possible={possiblePoints(rows, "theirs", opponent.total)} align="flex-end" />
       </View>
       <WinProbabilityBar mine={me.winProbability} theirs={opponent.winProbability} />
     </View>
