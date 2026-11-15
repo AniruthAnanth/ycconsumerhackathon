@@ -2,7 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
-import { Header, Screen, SectionLabel } from "@/components/ui";
+import { Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, spacing } from "@/theme";
@@ -20,6 +20,7 @@ const rowKey = ({ courseId, assignmentId }: CanvasAssignment) => `${courseId}:${
 
 export function CanvasScreen() {
   const connect = useMutation(socialApi.canvas.connect);
+  const connection = useQuery(socialApi.canvas.connection);
   const listAssignments = useAction(socialApi.canvas.listAssignments);
   const addTask = useMutation(socialApi.canvas.addTask);
   const { leagueId } = useCurrentLeague();
@@ -27,25 +28,37 @@ export function CanvasScreen() {
   const flexFull = rows !== undefined && isFlexFull(rows);
 
   const [assignments, setAssignments] = useState<CanvasAssignment[] | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [loadError, setLoadError] = useState<string>();
+  const [attempt, setAttempt] = useState(0);
+  // Stays true from the moment Connect is pressed until its list loads, so a failed list keeps the form and its error.
+  const [formOpen, setFormOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string>();
   const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
 
-  // No query says whether the player is connected, so a failed list on mount just means "show the form".
+  const connected = connection?.connected === true;
+  const showForm = connection !== undefined && (!connected || formOpen);
+
   useEffect(() => {
+    if (!connected || formOpen || assignments !== null) return;
+    let current = true;
+    setLoadError(undefined);
     listAssignments()
-      .then(setAssignments)
-      .catch(() => undefined)
-      .finally(() => setChecking(false));
-  }, [listAssignments]);
+      .then((list) => current && setAssignments(list))
+      .catch((e) => current && setLoadError(errorMessage(e, "Couldn't load your assignments.")));
+    return () => {
+      current = false;
+    };
+  }, [connected, formOpen, assignments, attempt, listAssignments]);
 
   const connectAndLoad = async (baseUrl: string, token: string) => {
     setConnecting(true);
+    setFormOpen(true);
     setError(undefined);
     try {
       await connect({ baseUrl, token });
       setAssignments(await listAssignments());
+      setFormOpen(false);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -68,18 +81,28 @@ export function CanvasScreen() {
 
   const changeSchool = () => {
     setAssignments(null);
+    setLoadError(undefined);
     setError(undefined);
+    setFormOpen(true);
   };
 
   return (
     <Screen>
       <Header title="Canvas" onBack={leaveScreen} />
-      {checking ? (
+      {connection === undefined || (!showForm && assignments === null && !loadError) ? (
         <ScreenState loading />
       ) : (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-          {assignments === null ? (
+          {showForm ? (
             <ConnectForm busy={connecting} error={error} onConnect={connectAndLoad} />
+          ) : assignments === null ? (
+            <>
+              <Text style={styles.loadError}>{loadError}</Text>
+              <OutlinedPillButton label="Try again" onPress={() => setAttempt((n) => n + 1)} style={styles.retry} />
+              <Pressable accessibilityRole="button" onPress={changeSchool} style={styles.change}>
+                <Text style={styles.changeText}>Change school</Text>
+              </Pressable>
+            </>
           ) : (
             <>
               <SectionLabel left="Upcoming" />
@@ -115,6 +138,8 @@ export function CanvasScreen() {
 const styles = StyleSheet.create({
   content: { flexGrow: 1 },
   full: { color: colors.textMuted, fontSize: font.meta, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  loadError: { color: colors.danger, fontSize: font.body, padding: spacing.lg, textAlign: "center" },
+  retry: { alignSelf: "center" },
   change: { alignSelf: "center", padding: spacing.lg },
   changeText: { color: colors.accent, fontSize: font.body, fontWeight: "700" },
 });
