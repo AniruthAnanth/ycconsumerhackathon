@@ -5,7 +5,7 @@ import { ScrollView } from "react-native";
 
 import { BoardPicker, LeaderboardTable, parseBoardKey, RivalLine } from "@/components/leaderboards";
 import { Header, Screen } from "@/components/ui";
-import { leaderboards } from "@/components/leaderboards/backend";
+import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
 export default function LeaderboardsScreen() {
@@ -13,8 +13,8 @@ export default function LeaderboardsScreen() {
   const params = useLocalSearchParams<{ board?: string }>();
   const { leagueId } = useCurrentLeague();
   const [board, setBoard] = useState(parseBoardKey(params.board) ?? "week");
-  const result = useQuery(leaderboards.board, leagueId ? { leagueId, board } : "skip");
-  const sync = useMutation(leaderboards.sync);
+  const result = useQuery(api.leaderboards.board, leagueId ? { leagueId, board } : "skip");
+  const sync = useMutation(api.leaderboards.sync);
 
   // The boards are rebuilt from write hooks; syncing on open covers a hook that was missed.
   useEffect(() => {
