@@ -67,8 +67,14 @@ describe("indexAfterTap", () => {
     expect(indexAfterTap(40, 360, 1, 5)).toBe(0);
   });
 
-  it("ignores the middle third", () => {
-    expect(indexAfterTap(180, 360, 1, 5)).toBe(1);
+  it("advances on the middle third too", () => {
+    expect(indexAfterTap(180, 360, 1, 5)).toBe(2);
+    expect(indexAfterTap(120, 360, 1, 5)).toBe(2);
+    expect(indexAfterTap(119, 360, 1, 5)).toBe(0);
+  });
+
+  it("stays on the first card for a left-third tap", () => {
+    expect(indexAfterTap(40, 360, 0, 5)).toBe(0);
   });
 
   it("does not run past the last card", () => {
@@ -77,19 +83,19 @@ describe("indexAfterTap", () => {
 });
 
 describe("tapClosesStory", () => {
-  it("closes on a right-third tap on the last card", () => {
+  it("closes on a forward tap on the last card, middle or right", () => {
     expect(tapClosesStory(340, 360, 4, 5)).toBe(true);
+    expect(tapClosesStory(180, 360, 4, 5)).toBe(true);
   });
 
   it("does not close on an earlier card", () => {
     expect(tapClosesStory(340, 360, 3, 5)).toBe(false);
+    expect(tapClosesStory(180, 360, 3, 5)).toBe(false);
   });
 
-  it("keeps going back and ignoring the middle on the last card", () => {
+  it("still goes back from the last card on a left-third tap", () => {
     expect(tapClosesStory(40, 360, 4, 5)).toBe(false);
-    expect(tapClosesStory(180, 360, 4, 5)).toBe(false);
     expect(indexAfterTap(40, 360, 4, 5)).toBe(3);
-    expect(indexAfterTap(180, 360, 4, 5)).toBe(4);
   });
 });
 
