@@ -16,8 +16,6 @@ Only the first row needs the app, once.
 | A photo while a quick-time drop is live | Counts for the drop. The referee must see the drop's gesture in it. The reply gives the verdict, the reason, the points and the rank. | `answerPhoto`, `judge` in `convex/keiki.ts` |
 | A photo at any other time | Goes to the open photo task the caption names ("laundry done" matches "Do laundry"), or to the only one open. With several open the agent asks "Which task is this for?" and a reply of `2` picks it. | `chooseProofTarget`, `taskNamedIn` in `convex/lib/keikiText.ts` |
 | `STANDINGS` | The top eight of the league the player joined last. | `answerText` in `convex/keiki.ts`; `tableForLeague` in `convex/standings.ts` |
-| `OPEN` or `OPEN 30` | Opens today's sealed mystery task, with an optional wager of the player's own points, capped at 50. | `acceptMysteryFor` in `convex/drops.ts`; `clampWager` in `convex/lib/scoring.ts` |
-| `PASS` | Closes the envelope: "Passed. Nothing lost." | `passMysteryFor` in `convex/drops.ts` |
 | `IN` | RSVPs to the next group session. The check-in itself needs GPS, so it happens in the app. | `rsvpFor` in `convex/drops.ts` |
 | "run tomorrow 7am at Dolores Park" | One model call reads a title, a place and a time out of it. The session is created and the league is told. | `answerFreeText` in `convex/keiki.ts`; `createGroupSessionFor` in `convex/drops.ts` |
 | Any other question | One or two lines answered from the standings and the player's open tasks. If the model cannot be reached, the command menu. | `answerFreeText`, `leagueFacts` in `convex/keiki.ts` |
@@ -31,7 +29,6 @@ Other modules never call Keiki themselves. Each schedules `send` in `convex/keik
 | Text | Trigger | Wording in the code |
 | --- | --- | --- |
 | Quick-time drop | `openDrop` in `convex/drops.ts`, scheduled by `triggerQuickTime` | `quickTimeText`: "Quick-time: {title} in the next 2 hours, {gesture} in the photo. +{points}. Reply with a photo." |
-| Daily mystery task | Cron "daily mystery task" in `convex/crons.ts`, 16:00 UTC (8 AM Pacific in winter), then `sealMystery` in `convex/drops.ts` | `mysteryText`: "Mystery task: {slot}, 30 to 60 points. Reply OPEN or PASS." |
 | Lead change | `afterProof` in `convex/leadChange.ts`, scheduled by `record` in `convex/proofs.ts` on every pass | `leadChangeText`: "{name} took the lead in {league}: {points} points, {gap} ahead of {name}." |
 | Challenge opened and closed | `open` and `settle` in `convex/challenges.ts` | `challengeOpenedText`: "{challenger} challenged {owner}'s "{task}" proof. Vote in the app." `challengeResultText`: "The league upheld {owner}'s "{task}" proof. The points are back and {challenger} loses 10." |
 | Group session announced | `startGroupSession` in `convex/drops.ts`, from the app or a texted proposal | `groupAnnouncementText`: "{creator} started a group session: {title} at {place}, {day and time}. Reply IN to join." |

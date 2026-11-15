@@ -25,7 +25,7 @@ Counted on `main` at commit `b396a71`, 12:28 PM Pacific on November 15, 2026. Th
 | Convex tables and indexes | 19 and 30 | `convex/schema.ts` |
 | Convex public functions | 46: 16 queries, 23 mutations, 7 actions | `convex/*.ts` |
 | Convex internal functions | 59 | `convex/*.ts` |
-| HTTP actions and cron jobs | 2 and 2 | `convex/http.ts`, `convex/crons.ts` |
+| HTTP actions and cron jobs | 2 and 1 | `convex/http.ts`, `convex/crons.ts` |
 | Tests | 835 in 71 files, run in about 9 seconds | `npm test` |
 | Device acceptance checks | 8 defined, 0 run so far | `docs/demo/ACCEPTANCE.md` |
 
@@ -37,7 +37,7 @@ Convex is the whole backend. There is no other server, database or job queue.
 - **One referee path.** A proof sent from the app (`proofs.verify`) and a photo texted to the league agent (`internal.proofs.verifyForUser`) run the same code in `convex/proofs.ts`: the model describes the photo, pure code in `convex/lib/verdict.ts` decides, and one mutation writes the proof row and scores the task.
 - **Every outside call is a Convex action.** OpenAI is called only from `convex/ai.ts`, Supermemory only from `convex/memory.ts`, Whop only from `convex/whop.ts`, Keiki only from `convex/keiki.ts` and `convex/keikiMedia.ts`, and the Canvas school API only from `convex/canvas.ts`. The app imports none of their SDKs and holds no key.
 - **HTTP actions take the two webhooks.** `POST /whop` receives Whop's payment event and `POST /keiki/turn` receives each texted message. Each handler checks the signature before it reads the body and answers 401 when the check fails (`whopWebhook` in `convex/whop.ts`, `keikiTurn` in `convex/keiki.ts`). `convex/http.ts` only routes.
-- **The scheduler replaces a job server.** A quick-time drop opens and closes on time with `ctx.scheduler.runAt` (`convex/drops.ts`). A challenge vote closes itself 12 hours after it opens (`convex/challenges.ts`). A passing proof schedules the leaderboard refresh, the lead-change text and the check-in nudge (`convex/proofs.ts`). Two crons in `convex/crons.ts` send the daily mystery task and sweep for check-in nudges every hour.
+- **The scheduler replaces a job server.** A quick-time drop opens and closes on time with `ctx.scheduler.runAt` (`convex/drops.ts`). A challenge vote closes itself 12 hours after it opens (`convex/challenges.ts`). A passing proof schedules the leaderboard refresh, the lead-change text and the check-in nudge (`convex/proofs.ts`). One cron in `convex/crons.ts` sweeps for check-in nudges every hour.
 - **File storage.** Proof photos, short videos and the voice note go straight from the phone to an upload URL (`proofs.generateUploadUrl`, `components/capture/uploadToConvex.ts`). A photo texted to the agent is downloaded and stored by `convex/keikiMedia.ts`, the one Node action, because it converts iPhone HEIC photos to JPEG.
 - **Auth with no sign-up.** Convex Auth's Anonymous provider (`convex/auth.ts`) gives each device an account with no password, and the session is kept in the keychain (`lib/tokenStorage.ts`). Queries and mutations resolve the caller through `convex/lib/auth.ts`; an action does it through an internal query first.
 - **Typed environment.** Every secret the backend reads is declared in `convex/convex.config.ts` and read through the typed `env`. None is in the repository or the app.
@@ -70,7 +70,7 @@ The machines that write the code have no Xcode. Every binary is built on Revyl's
 - **Whop** carries the money. Each league is its own Whop company, a buy-in is a hosted checkout on that company, and only the verified webhook marks a member paid (`convex/whop.ts`). The split is a pure function in `convex/lib/settlement.ts`. More in [docs/tracks/whop.md](docs/tracks/whop.md).
 - **Keiki** is the league's text agent. A player who opts in can prove a task by texting a photo, and the league gets drops, lead changes and nudges as texts (`convex/keiki.ts`). More in [docs/tracks/keiki.md](docs/tracks/keiki.md).
 - **OpenAI** does three jobs from one file, `convex/ai.ts`: it transcribes the voice note, turns the transcript into a lineup, and describes proof photos for the referee.
-- **Supermemory** keeps each player's past weeks in a namespace of their own (`convex/memory.ts`), so the next draft and the mystery task can react to what they finished and what they skipped.
+- **Supermemory** keeps each player's past weeks in a namespace of their own (`convex/memory.ts`), so the next draft can react to what they finished and what they skipped.
 
 ## What does not work yet
 
