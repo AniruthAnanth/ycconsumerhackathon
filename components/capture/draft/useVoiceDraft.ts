@@ -57,10 +57,10 @@ export function useVoiceDraft() {
   const stopRecording = useCallback(
     () =>
       requestDraft(async () => {
-        const uri = await recorder.stop();
-        if (!uri) throw new Error("Nothing was recorded");
+        const recording = await recorder.stop();
+        if (!recording) throw new Error("Nothing was recorded");
         const uploadUrl = await generateUploadUrl({});
-        const storageId = await uploadToConvex(uploadUrl, uri, "audio/m4a");
+        const storageId = await uploadToConvex(uploadUrl, recording.uri, recording.contentType);
         return { audioStorageId: storageId as Id<"_storage"> };
       }),
     [generateUploadUrl, recorder, requestDraft],
