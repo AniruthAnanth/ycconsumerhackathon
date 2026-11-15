@@ -98,6 +98,30 @@ async function joinAll(t: Harness, leagueId: Id<"leagues">, userIds: Id<"users">
   }
 }
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function markAllPaid(t: Harness, leagueId: Id<"leagues">) {
+  await t.run(async (ctx) => {
+    const rows = await ctx.db
+      .query("memberships")
+      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+      .collect();
+    for (const row of rows) {
+      await ctx.db.patch("memberships", row._id, { paid: true });
+    }
+  });
+}
+
+async function paidOf(t: Harness, leagueId: Id<"leagues">) {
+  return await t.run(async (ctx) => {
+    const rows = await ctx.db
+      .query("memberships")
+      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+      .collect();
+    return rows.map((row) => row.paid);
+  });
+}
+
 async function codeOf(t: Harness, leagueId: Id<"leagues">) {
   const league = await t.run((ctx) => ctx.db.get("leagues", leagueId));
   return league!.inviteCode;
@@ -414,5 +438,53 @@ describe("leagues.startWeek", () => {
     const pairs = await matchupsOf(t, leagueId);
     expect(pairs).toHaveLength(2);
     expect(pairs.flat().sort()).toEqual([ava, ben, cal, dee].sort());
+  });
+
+  it("asks every member of a weekly league for the stake again when a week opens", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId, inviteCode } = await createLeague(t, ava, { stakeUsd: 20 });
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+    await markAllPaid(t, leagueId);
+
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidOf(t, leagueId)).toEqual([true, true]);
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidOf(t, leagueId)).toEqual([false, false]);
+  });
+
+  it("holds a season league's stakes until the next season opens", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId } = await asUser(t, ava).mutation(api.leagues.create, {
+      name: "Season League",
+      stakeUsd: 20,
+      visibility: "private",
+      settings: { payout: "season", seasonWeeks: 2 },
+    });
+    const inviteCode = await codeOf(t, leagueId);
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+    await markAllPaid(t, leagueId);
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidOf(t, leagueId)).toEqual([true, true]);
+
+    vi.setSystemTime(NOW + 2 * WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidOf(t, leagueId)).toEqual([false, false]);
+  });
+
+  it("leaves a free league's members paid", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId, inviteCode } = await createLeague(t, ava);
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidOf(t, leagueId)).toEqual([true, true]);
   });
 });

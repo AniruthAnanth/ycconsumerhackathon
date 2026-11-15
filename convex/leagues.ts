@@ -9,7 +9,13 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
-import { isSeasonLength, MAX_SEASON_WEEKS, type LeagueSettings } from "./lib/schedule";
+import {
+  isSeasonLength,
+  MAX_SEASON_WEEKS,
+  resolveSettings,
+  seasonOf,
+  type LeagueSettings,
+} from "./lib/schedule";
 import { pairsAfterJoin, weekEndOf, weekStartOf } from "./lib/week";
 import { leagueFormat, payout } from "./schema";
 import { pairingsForWeek } from "./seasons";
@@ -88,6 +94,25 @@ export async function ensureCurrentWeek(
   for (const { a, b } of await pairingsForWeek(ctx, leagueId, number)) {
     await ctx.db.insert("matchups", { weekId, userA: a, userB: b });
   }
+
+  // A stake buys into one settlement: a week when the league pays out weekly,
+  // a whole season when it holds stakes to the end. Once the next one opens,
+  // every member owes again. Cleared here and not at settlement, so a settled
+  // week still shows who paid into it.
+  const league = await ctx.db.get("leagues", leagueId);
+  if (league === null) {
+    throw new ConvexError("League not found");
+  }
+  const { payout: paysOut, seasonWeeks } = resolveSettings(league);
+  const stakeDue = paysOut === "weekly" || seasonOf(number, seasonWeeks).firstWeek === number;
+  if (stakeDue && league.stakeUsd > 0) {
+    for (const membership of await membersInJoinOrder(ctx, leagueId)) {
+      if (membership.paid) {
+        await ctx.db.patch("memberships", membership._id, { paid: false });
+      }
+    }
+  }
+
   const week = await ctx.db.get("weeks", weekId);
   if (week === null) {
     throw new ConvexError("Week was not created");
