@@ -26,6 +26,8 @@ export default function RootLayout() {
             <Stack.Screen name="task/[taskId]" options={{ presentation: "formSheet", sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, sheetCornerRadius: 16 }} />
             <Stack.Screen name="proof/[taskId]" options={{ presentation: "fullScreenModal" }} />
             <Stack.Screen name="wrapped/index" options={{ presentation: "fullScreenModal" }} />
+            <Stack.Screen name="league-switcher" options={{ presentation: "formSheet", sheetAllowedDetents: "fitToContents", sheetGrabberVisible: true }} />
+            <Stack.Screen name="group/new" options={{ presentation: "formSheet", sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true }} />
           </Stack>
         </CurrentLeagueProvider>
       </AuthGate>
