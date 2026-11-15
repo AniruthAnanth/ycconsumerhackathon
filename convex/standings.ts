@@ -276,7 +276,7 @@ export const tableForLeague = internalQuery({
 });
 
 type TaskRow = FunctionReturnType<typeof api.lineup.roster>["rows"][number];
-type Side = { userId: Id<"users">; name: string; total: number; winProbability: number };
+type Side = { userId: Id<"users">; name: string; total: number; slotsCleared: number; winProbability: number };
 type MatchupRow = { slot: Slot; mine?: TaskRow; theirs?: TaskRow };
 
 /**
@@ -333,12 +333,20 @@ export const matchup = query({
       { total: theirs.points, openPoints: theirs.openPoints },
     );
     return {
-      me: { userId: mine.userId, name: mine.name, total: mine.points, winProbability: myChance },
+      // slotsCleared comes from the standings, like the table's: a group session clears two slots with one task, so counting rows is wrong.
+      me: {
+        userId: mine.userId,
+        name: mine.name,
+        total: mine.points,
+        slotsCleared: mine.slotsCleared,
+        winProbability: myChance,
+      },
       // Derived from mine, so the two sides always add up to exactly 1.
       opponent: {
         userId: theirs.userId,
         name: theirs.name,
         total: theirs.points,
+        slotsCleared: theirs.slotsCleared,
         winProbability: Math.round((1 - myChance) * 100) / 100,
       },
       rows: pairRows(myRoster.rows, theirRoster.rows),

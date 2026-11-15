@@ -254,8 +254,19 @@ describe("standings.matchup", () => {
     if (matchup === null) throw new Error("Sam has no matchup");
 
     // Sam projects to 285 + half of the 50 still open, against Maya's finished 500.
-    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.38 });
-    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.62 });
+    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, slotsCleared: 4, winProbability: 0.38 });
+    expect(matchup.opponent).toEqual({
+      userId: ids.Maya,
+      name: "Maya Chen",
+      total: 500,
+      slotsCleared: 5,
+      winProbability: 0.62,
+    });
+
+    // The Live Activity shows these beside the table's, so they must be the same numbers.
+    const table = await as(t, ids.Sam).query(api.standings.table, { leagueId });
+    expect(table.find((row) => row.userId === ids.Sam)?.slotsCleared).toBe(matchup.me.slotsCleared);
+    expect(table.find((row) => row.userId === ids.Maya)?.slotsCleared).toBe(matchup.opponent.slotsCleared);
 
     expect(matchup.rows.map((row) => [row.slot, row.mine?.title, row.theirs?.title])).toEqual([
       ["body", "Bike to work", "Leg day at the gym"],
