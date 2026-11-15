@@ -360,23 +360,6 @@ async function answerText(
     return reply.standings(player.league.name, rows, player.userId);
   }
 
-  if (command.kind === "open" || command.kind === "pass") {
-    const { mystery } = await ctx.runQuery(internal.keiki.dropsFor, { userId: player.userId, now });
-    if (mystery === null) return reply.noMystery;
-    if (command.kind === "pass") {
-      await ctx.runMutation(internal.drops.passMysteryFor, { userId: player.userId, dropId: mystery.dropId });
-      return reply.mysteryPassed;
-    }
-    await ctx.runMutation(internal.drops.acceptMysteryFor, {
-      userId: player.userId,
-      dropId: mystery.dropId,
-      ...(command.wager > 0 ? { wager: command.wager } : {}),
-    });
-    // Read back rather than echoed: drops clamps a wager to 50 and to the player's own points.
-    const wager: number = await ctx.runQuery(internal.keiki.wagerOn, { dropId: mystery.dropId });
-    return reply.mysteryOpened({ title: mystery.title, points: mystery.points, wager });
-  }
-
   if (command.kind === "in") {
     const { session } = await ctx.runQuery(internal.keiki.dropsFor, { userId: player.userId, now });
     if (session === null) return reply.noSession;
@@ -423,7 +406,7 @@ const UNDERSTAND_INSTRUCTIONS = [
   "ask for one), sports-desk tone, no emojis, answered only from the league facts given. Answer with the names and numbers",
   "the question is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I',",
   "the task titles for 'what's left'. Speak to the player as 'you'. If the facts don't answer it, say",
-  "what you can do: judge a photo proof, STANDINGS, OPEN or PASS the mystery task, IN to join a group session.",
+  "what you can do: judge a photo proof, STANDINGS, IN to join a group session.",
   "When the facts do answer it, answer and stop: no sign-off, and no tip about a command to send next.",
 ].join(" ");
 
@@ -862,18 +845,16 @@ export const dropLeagueOf = internalQuery({
   },
 });
 
-/** What OPEN, PASS and IN act on: the player's sealed mystery task and the next group session. */
+/** What IN acts on: the next group session. */
 export const dropsFor = internalQuery({
   args: { userId: v.id("users"), now: v.number() },
   returns: v.object({
-    mystery: v.union(v.null(), v.object({ dropId: v.id("drops"), title: v.string(), points: v.number() })),
     session: v.union(
       v.null(),
       v.object({ dropId: v.id("drops"), title: v.string(), placeName: v.string(), startsAt: v.number() }),
     ),
   }),
   handler: async (ctx, { userId, now }) => {
-    let mystery: { dropId: Id<"drops">; title: string; points: number } | null = null;
     let session: { dropId: Id<"drops">; title: string; placeName: string; startsAt: number } | null = null;
 
     const memberships = await ctx.db
@@ -887,9 +868,6 @@ export const dropsFor = internalQuery({
           .withIndex("by_league_status", (q) => q.eq("leagueId", leagueId).eq("status", status))
           .take(MAX_ROWS);
         for (const drop of drops) {
-          if (drop.kind === "mystery" && drop.userId === userId && drop.sealed && status === "open") {
-            mystery ??= { dropId: drop._id, title: drop.title, points: drop.points };
-          }
           const soonest = session === null || drop.opensAt < session.startsAt;
           if (drop.kind === "group" && drop.closesAt > now && soonest) {
             session = { dropId: drop._id, title: drop.title, placeName: drop.place?.name ?? "the usual spot", startsAt: drop.opensAt };
@@ -897,14 +875,8 @@ export const dropsFor = internalQuery({
         }
       }
     }
-    return { mystery, session };
+    return { session };
   },
-});
-
-export const wagerOn = internalQuery({
-  args: { dropId: v.id("drops") },
-  returns: v.number(),
-  handler: async (ctx, { dropId }) => (await ctx.db.get("drops", dropId))?.wager ?? 0,
 });
 
 /** The phone numbers behind a send: one player's or a league's members', opted-in accounts only. */

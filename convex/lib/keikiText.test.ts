@@ -21,9 +21,6 @@ import {
 
 describe("parseCommand", () => {
   it("reads the text commands whatever the case or punctuation", () => {
-    expect(parseCommand("open")).toEqual({ kind: "open", wager: 0 });
-    expect(parseCommand(" OPEN  30 ")).toEqual({ kind: "open", wager: 30 });
-    expect(parseCommand("Pass.")).toEqual({ kind: "pass" });
     expect(parseCommand("standings")).toEqual({ kind: "standings" });
     expect(parseCommand("I'm in!")).toEqual({ kind: "in" });
     expect(parseCommand("2")).toEqual({ kind: "pick", choice: 2 });
@@ -35,6 +32,8 @@ describe("parseCommand", () => {
       text: "run tomorrow 7am at Dolores Park",
     });
     expect(parseCommand("open the pod bay doors")).toEqual({ kind: "freeText", text: "open the pod bay doors" });
+    expect(parseCommand("OPEN 30")).toEqual({ kind: "freeText", text: "OPEN 30" });
+    expect(parseCommand("pass")).toEqual({ kind: "freeText", text: "pass" });
     expect(parseCommand("in a minute")).toEqual({ kind: "freeText", text: "in a minute" });
   });
 });
@@ -219,7 +218,6 @@ describe("SCORING_RULES", () => {
   it("states the bonuses with the numbers scoring.ts uses", () => {
     expect(SCORING_RULES).toContain("the higher scorer of a pair gets 50 more; a tie pays nobody");
     expect(SCORING_RULES).toContain("Clearing a slot with its drafted task adds 25, and clearing all 5 adds 100 more");
-    expect(SCORING_RULES).toContain("costs 20 when opened and not finished");
   });
 });
 
