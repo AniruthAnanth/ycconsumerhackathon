@@ -4,15 +4,19 @@ import { DeviceError } from "../errorMessage";
 import { phoneCoords, type PhoneGps } from "./phoneCoords";
 
 const STAGE = { lat: 37.7749, lng: -122.4194 };
+const LOBBY = { lat: 37.775, lng: -122.4195 };
 
 function gps(overrides: Partial<PhoneGps> = {}): PhoneGps {
   return {
     requestPermission: async () => undefined,
     hasPermission: async () => true,
     current: async () => STAGE,
+    lastKnown: async () => LOBBY,
     ...overrides,
   };
 }
+
+const never = () => new Promise<null>(() => undefined);
 
 describe("phoneCoords", () => {
   it("asks for location access before reading the fix", async () => {
@@ -36,25 +40,40 @@ describe("phoneCoords", () => {
     expect(current).not.toHaveBeenCalled();
   });
 
-  it("says so when the phone has no fix or GPS throws", async () => {
-    await expect(phoneCoords(gps({ current: async () => null }))).rejects.toThrow("Couldn't get this phone's location");
-    await expect(
-      phoneCoords(
+  it("settles for the last known fix when a fresh one is missing or GPS throws", async () => {
+    expect(await phoneCoords(gps({ current: async () => null }))).toEqual(LOBBY);
+    expect(
+      await phoneCoords(
         gps({
           current: async () => {
             throw new Error("kCLErrorDomain 0");
           },
         }),
       ),
-    ).rejects.toThrow(DeviceError);
+    ).toEqual(LOBBY);
   });
 
-  it("gives up on a fix that never arrives instead of spinning", async () => {
+  it("settles for the last known fix when a fresh one never arrives", async () => {
     vi.useFakeTimers();
     try {
-      const pending = phoneCoords(gps({ current: () => new Promise(() => undefined) }), 8000);
-      const outcome = expect(pending).rejects.toThrow("Couldn't get this phone's location");
-      await vi.advanceTimersByTimeAsync(8000);
+      const pending = phoneCoords(gps({ current: never }), 6000);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(await pending).toEqual(LOBBY);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says so, instead of spinning, when the phone has no fix at all", async () => {
+    await expect(phoneCoords(gps({ current: async () => null, lastKnown: async () => null }))).rejects.toThrow(
+      "Couldn't get this phone's location",
+    );
+
+    vi.useFakeTimers();
+    try {
+      const pending = phoneCoords(gps({ current: never, lastKnown: never }), 6000);
+      const outcome = expect(pending).rejects.toThrow(DeviceError);
+      await vi.advanceTimersByTimeAsync(12000);
       await outcome;
     } finally {
       vi.useRealTimers();

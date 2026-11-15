@@ -21,6 +21,7 @@ const PHONE_GPS: PhoneGps = {
   requestPermission: () => requestLocationFor("photo_location"),
   hasPermission: deviceGps.hasPermission,
   current: deviceGps.current,
+  lastKnown: deviceGps.lastKnown,
 };
 
 export function DemoControls() {
