@@ -1,0 +1,88 @@
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+import { Button, Header, Screen } from "@/components/ui";
+import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
+import { colors, font, spacing } from "@/theme";
+
+import { DraftLineup } from "./DraftLineup";
+import { RecordButton } from "./RecordButton";
+import { TranscriptView } from "./TranscriptView";
+import { TypedDraft } from "./TypedDraft";
+import { useVoiceDraft } from "./useVoiceDraft";
+
+export function VoiceDraftScreen() {
+  const router = useRouter();
+  const { sampleVoice } = useDevFlags();
+  const draft = useVoiceDraft();
+  const { state } = draft;
+  const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
+
+  const showsLineup = state.phase === "review" || state.phase === "locking";
+  const showsTyped = state.phase === "idle" && (sampleVoice || state.micUnavailable);
+
+  return (
+    <Screen>
+      <Header
+        title="Voice Draft"
+        onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
+        right={
+          state.phase === "review" ? (
+            <Pressable accessibilityRole="button" onPress={draft.redo} hitSlop={8}>
+              <Text style={styles.redo}>Redo</Text>
+            </Pressable>
+          ) : undefined
+        }
+      />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {showsLineup ? null : (
+            <View style={styles.recorder}>
+              <RecordButton
+                recording={state.phase === "recording"}
+                disabled={state.phase === "drafting" || state.phase === "revealing"}
+                durationMillis={draft.durationMillis}
+                level={draft.level}
+                onPress={draft.toggleRecording}
+              />
+            </View>
+          )}
+          <View style={styles.transcript}>
+            <TranscriptView phase={state.phase} transcript={state.transcript} onRevealFinished={draft.finishReveal} />
+          </View>
+          {showsTyped ? (
+            <View style={styles.transcript}>
+              <TypedDraft value={typedWeek} onChangeText={setTypedWeek} onSubmit={() => draft.draftFromText(typedWeek)} />
+            </View>
+          ) : null}
+          {showsLineup ? (
+            <View style={styles.lineup}>
+              <DraftLineup
+                tasks={state.tasks}
+                editable={state.phase === "review"}
+                onRename={draft.renameTask}
+                onRemove={draft.removeTask}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
+        <View style={styles.footer}>
+          {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
+          <Button label="Lock Lineup" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
+        </View>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  content: { paddingTop: spacing.xl, paddingBottom: spacing.xl },
+  recorder: { alignItems: "center" },
+  transcript: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  lineup: { paddingTop: spacing.md },
+  footer: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
+  error: { fontSize: font.body, color: colors.danger },
+  redo: { fontSize: font.title, color: colors.accent },
+});
