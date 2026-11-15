@@ -95,6 +95,18 @@ export function challengeOpenedText(
   return `${challengerName} challenged ${ownerName}'s "${taskTitle}" proof. Vote in the app.`;
 }
 
+/** The text the league gets when the referee sends a proof to a vote. */
+export function refereeVoteText(ownerName: string, taskTitle: string): string {
+  return `The referee isn't sure about ${ownerName}'s "${taskTitle}" proof, so the league decides. Vote in the app.`;
+}
+
+/** The text the league gets when a referee vote closes. */
+export function refereeResultText(status: "upheld" | "overturned", ownerName: string, taskTitle: string): string {
+  return status === "upheld"
+    ? `The league backed ${ownerName}'s "${taskTitle}" proof. The points count.`
+    : `The league vetoed ${ownerName}'s "${taskTitle}" proof. No points, and the task reopens.`;
+}
+
 /** The text the league gets when the vote closes. */
 export function challengeResultText(
   status: "upheld" | "overturned",
@@ -134,6 +146,8 @@ export async function challengerPointsByUser(
     .collect();
   const points = new Map<Id<"users">, number>();
   for (const challenge of challenges) {
+    // A referee vote has no challenger, so nobody's stake moves.
+    if (challenge.byReferee) continue;
     const delta = challengerDelta(challenge.status);
     if (delta === 0) continue;
     points.set(
@@ -294,6 +308,57 @@ export const vote = mutation({
 });
 
 /**
+ * Sends a proof the referee was unsure of (confidence under LOW_CONFIDENCE) straight to a league
+ * vote instead of passing or failing it. proofs.ts records such a proof as passed with its task
+ * "held", then schedules this. The vote is a challenge with no challenger: challengerId is the
+ * owner, who can't vote anyway, and byReferee keeps any stake from moving. It settles like a
+ * challenge: a majority of Not Legit reopens the task, anything else lets the points count.
+ */
+export const LOW_CONFIDENCE = 0.6;
+
+export const refereeVote = internalMutation({
+  args: { proofId: v.id("proofs") },
+  returns: v.null(),
+  handler: async (ctx, { proofId }) => {
+    const proof = await ctx.db.get("proofs", proofId);
+    const task = proof === null ? null : await ctx.db.get("tasks", proof.taskId);
+    if (proof === null || task === null) return null;
+    const existing = await ctx.db.query("challenges").withIndex("by_proof", (q) => q.eq("proofId", proofId)).first();
+    if (existing !== null) return null;
+
+    // A player's lineup scores in all of their leagues; the vote happens in the one they joined first.
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", proof.userId))
+      .first();
+    const voters =
+      membership === null
+        ? []
+        : eligibleVoters(await leagueMemberIds(ctx, membership.leagueId), proof.userId, proof.userId);
+    // With nobody to ask, the referee's lean stands.
+    if (membership === null || voters.length === 0) {
+      await ctx.db.patch("tasks", task._id, { status: proof.pass ? "verified" : "open" });
+      return null;
+    }
+
+    const now = Date.now();
+    const closesAt = now + VOTE_WINDOW_MS;
+    const challengeId = await ctx.db.insert("challenges", {
+      proofId,
+      leagueId: membership.leagueId,
+      challengerId: proof.userId,
+      status: "open",
+      closesAt,
+      byReferee: true,
+    });
+    if (task.status !== "held") await ctx.db.patch("tasks", task._id, { status: "held" });
+    await ctx.scheduler.runAt(closesAt, internal.challenges.close, { challengeId });
+    await textLeague(ctx, membership.leagueId, refereeVoteText(nameOf(await ctx.db.get("users", proof.userId)), task.title));
+    return null;
+  },
+});
+
+/**
  * Closes the vote at closesAt. open() schedules it for every challenge, so it must
  * tolerate running after the vote already closed early, and after a demo reset
  * deleted the challenge.
@@ -348,15 +413,13 @@ async function settle(
   } else {
     await ctx.scheduler.runAfter(0, internal.leadChange.afterProof, { userId: task.userId });
   }
+  const ownerName = nameOf(await ctx.db.get("users", proof.userId));
   await textLeague(
     ctx,
     challenge.leagueId,
-    challengeResultText(
-      status,
-      nameOf(await ctx.db.get("users", challenge.challengerId)),
-      nameOf(await ctx.db.get("users", proof.userId)),
-      task.title,
-    ),
+    challenge.byReferee
+      ? refereeResultText(status, ownerName, task.title)
+      : challengeResultText(status, nameOf(await ctx.db.get("users", challenge.challengerId)), ownerName, task.title),
   );
 }
 

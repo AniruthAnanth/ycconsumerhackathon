@@ -116,6 +116,7 @@ const feedItem = v.object({
       myVote: v.optional(v.boolean()),
       canVote: v.boolean(),
       closesAt: v.number(),
+      byReferee: v.optional(v.boolean()),
     }),
   ),
 });
@@ -212,6 +213,7 @@ async function feedItemFor(
             status: challenge.status,
             closesAt: challenge.closesAt,
             canVote: canVoteOn(challenge, { userId: viewerId, leagueId }, proof.userId),
+            ...(challenge.byReferee ? { byReferee: true } : {}),
             ...tallyVotes(votes, viewerId),
           },
         }

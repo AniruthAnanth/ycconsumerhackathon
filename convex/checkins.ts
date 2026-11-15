@@ -29,7 +29,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
-import { place } from "./schema";
+import { place, proofType } from "./schema";
 import {
   ARRIVAL_WINDOW_MS,
   type CheckInTask,
@@ -101,7 +101,7 @@ export const prompt = query({
       task: v.object({
         title: v.string(),
         points: v.number(),
-        proofType: v.union(v.literal("photo"), v.literal("photo_location"), v.literal("canvas")),
+        proofType,
         place: v.optional(place),
         gesture: v.optional(v.string()),
       }),

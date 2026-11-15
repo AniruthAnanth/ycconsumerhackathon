@@ -17,7 +17,10 @@ export function SlotRow({ row }: { row: Matchup["rows"][number] }) {
   );
 }
 
-/** Mirrored around the position pill: the score always sits nearest the centre. */
+/**
+ * Mirrored around the position pill. The title takes the side's full width so task names don't wrap
+ * into a narrow column; the score sits on the line under it, nearest the centre.
+ */
 function TaskSide({ task, side }: { task?: TaskRow; side: "mine" | "theirs" }) {
   const mirrored = side === "theirs";
   if (!task) {
@@ -28,16 +31,16 @@ function TaskSide({ task, side }: { task?: TaskRow; side: "mine" | "theirs" }) {
     );
   }
   return (
-    <View style={[styles.side, mirrored && styles.sideMirrored]}>
-      <View style={styles.text}>
-        <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
-          {task.title}
-        </Text>
+    <View style={styles.stack}>
+      <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
+        {task.title}
+      </Text>
+      <View style={[styles.meta, mirrored && styles.sideMirrored]}>
         <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
           {statusLine(task)}
         </Text>
+        <Score value={task.score} />
       </View>
-      <Score value={task.score} />
     </View>
   );
 }
@@ -53,9 +56,10 @@ const styles = StyleSheet.create({
   },
   side: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   sideMirrored: { flexDirection: "row-reverse" },
-  text: { flex: 1, gap: spacing.xs },
+  stack: { flex: 1, gap: spacing.xs },
+  meta: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   textRight: { textAlign: "right" },
   title: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold },
-  status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.meta },
+  status: { flex: 1, color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.meta },
   empty: { flex: 1, color: colors.textFaint, fontFamily: fontFamily.regular, fontSize: font.header, textAlign: "center" },
 });

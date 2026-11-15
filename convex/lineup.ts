@@ -29,7 +29,7 @@ import { MAX_FLEX_TASKS, lineupProblem, shapeDraft, tidyTask, type DraftTask } f
 import { CORE_SLOTS, clampTaskPoints, scoreWeek, taskScore } from "./lib/scoring";
 import { clockLabel, pacificDay, weekEndOf, weekStartOf, weekdayLabel } from "./lib/week";
 import { addMemory, searchMemories } from "./memory";
-import { place, slot } from "./schema";
+import { place, proofType, slot } from "./schema";
 import { leagueStandings } from "./standings";
 
 const TIME_ZONE = "America/Los_Angeles";
@@ -120,8 +120,9 @@ const draftTask = v.object({
   slot,
   title: v.string(),
   points: v.number(),
-  proofType: v.union(v.literal("photo"), v.literal("photo_location"), v.literal("canvas")),
+  proofType,
   place: v.optional(place),
+  targetMinutes: v.optional(v.number()),
 });
 
 /**

@@ -13,7 +13,7 @@ import { rankMovement, withBaseline } from "./rankMovement";
 // Fixed widths keep every number in a column lined up whatever the names are.
 const COL = { rank: layout.avatarCompact, record: layout.numericColumn, points: layout.numericColumn, streak: layout.numericColumn } as const;
 // Where the player name starts: the divider starts there too.
-const NAME_INSET = SCREEN_MARGIN + COL.rank + layout.avatarCompact + spacing.sm;
+const NAME_INSET = SCREEN_MARGIN + COL.rank + layout.avatarCompact + layout.columnGap;
 
 /** Win-loss-tie from the season table, keyed by player. */
 export type SeasonRecord = { wins: number; losses: number; ties: number };
@@ -83,8 +83,8 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
                 <Text style={[styles.record, { width: COL.record }]}>{recordText(records?.get(row.userId))}</Text>
                 <CountUp style={[styles.points, { width: COL.points }]} value={row.points} format={formatScore} decimals={1} />
                 <View style={[styles.streak, { width: COL.streak }]}>
-                  <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
                   <Icon name="flame" size={14} color={row.streak > 0 ? colors.text : colors.textFaint} />
+                  <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
                 </View>
               </PressScale>
               <Divider inset={NAME_INSET} />
@@ -125,6 +125,7 @@ const styles = StyleSheet.create({
   sub: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   record: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted, textAlign: "right", ...tabular },
   points: { ...type.label, color: colors.text, textAlign: "right", ...tabular },
+  // The figure ends at the margin under the right-aligned STRK heading; the flame leads it.
   streak: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.xs },
   streakText: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.text, ...tabular },
   faint: { color: colors.textFaint },

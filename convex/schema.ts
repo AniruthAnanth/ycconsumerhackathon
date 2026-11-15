@@ -22,6 +22,20 @@ export const slot = v.union(
   v.literal("flex"),
 );
 
+/**
+ * How a task is proven. "photo" is the default: rows written before the other kinds existed
+ * keep working. before_after is two photos of the same place, timelapse a series of stills
+ * spread over the task's duration, screenshot an image from the phone's library.
+ */
+export const proofType = v.union(
+  v.literal("photo"),
+  v.literal("photo_location"),
+  v.literal("canvas"),
+  v.literal("before_after"),
+  v.literal("timelapse"),
+  v.literal("screenshot"),
+);
+
 export const place = v.object({
   name: v.string(),
   lat: v.number(),
@@ -163,12 +177,10 @@ export default defineSchema({
     slot,
     title: v.string(),
     points: v.number(),
-    proofType: v.union(
-      v.literal("photo"),
-      v.literal("photo_location"),
-      v.literal("canvas"),
-    ),
+    proofType,
     place: v.optional(place),
+    // How long a timelapse task runs; the app treats a missing value as 30.
+    targetMinutes: v.optional(v.number()),
     // Canvas ids are stored as strings: they are opaque to us and only ever
     // go back into Canvas URLs.
     canvas: v.optional(
@@ -187,6 +199,8 @@ export default defineSchema({
       v.literal("group"),
     ),
     dropId: v.optional(v.id("drops")),
+    // Set when the league vetoed the task as too easy (vetoes.ts); the owner swaps it for another.
+    struck: v.optional(v.boolean()),
   })
     .index("by_user_week", ["userId", "weekStart"])
     .index("by_drop", ["dropId"]),
@@ -211,6 +225,14 @@ export default defineSchema({
     caption: v.string(),
     via: v.union(v.literal("app"), v.literal("keiki"), v.literal("canvas")),
     createdAt: v.number(),
+    // The before photo of a before/after proof.
+    beforeStorageId: v.optional(v.id("_storage")),
+    // The sha256 of every image the referee saw, so a later proof can't reuse one.
+    imageHashes: v.optional(v.array(v.string())),
+    // Short machine tags from the referee and the anti-cheat rules, such as "reused_image".
+    flags: v.optional(v.array(v.string())),
+    // True while a low-confidence proof waits for the league's vote; the task is held meanwhile.
+    needsVote: v.optional(v.boolean()),
   })
     .index("by_user_week", ["userId", "weekStart"])
     .index("by_task", ["taskId"]),
@@ -231,12 +253,22 @@ export default defineSchema({
       v.literal("overturned"),
     ),
     closesAt: v.number(),
+    // The referee was unsure of the proof and sent it to the league itself; nobody challenged it,
+    // so challengerId is the proof's owner and no stake moves.
+    byReferee: v.optional(v.boolean()),
   })
     .index("by_proof", ["proofId"])
     .index("by_status", ["status"])
     // closesAt follows leagueId so standings can read the challenges decided
     // in one week without scanning the league's whole history.
     .index("by_league", ["leagueId", "closesAt"]),
+
+  // One row per league member who called a locked task too easy (vetoes.ts).
+  taskVetoes: defineTable({
+    taskId: v.id("tasks"),
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+  }).index("by_task", ["taskId"]),
 
   votes: defineTable({
     challengeId: v.id("challenges"),
