@@ -93,6 +93,9 @@ type SeedTask = {
 
 type SeedPlayer = { name: string; phone: string; tasks: SeedTask[] };
 
+// Y Combinator, 560 20th Street, San Francisco: where the demo is given.
+const YC_OFFICE = { name: "YC office", lat: 37.7608, lng: -122.3861 };
+
 const QUICK_TIME = {
   title: "20 push-ups",
   slot: "body" as const,
@@ -392,6 +395,8 @@ const PLAYERS: SeedPlayer[] = [
       },
       // Left open so the second phone, switched to Sam, can finish a sweep live.
       { slot: "people", title: "Call mom", points: 20 },
+      // The demo's location check-in, for when the voice draft pins no place of its own.
+      { slot: "flex", title: "Check in at the YC office", points: 30, source: "flex", place: YC_OFFICE },
       {
         slot: QUICK_TIME.slot,
         title: QUICK_TIME.title,
