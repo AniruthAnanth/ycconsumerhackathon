@@ -1,67 +1,40 @@
 import { useMutation } from "convex/react";
-import { makeFunctionReference } from "convex/server";
-import { ConvexError } from "convex/values";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
+import { ErrorLine } from "@/components/join/ErrorLine";
+import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { Button, Header, Screen } from "@/components/ui";
-import type { Id } from "@/convex/_generated/dataModel";
-import { DEFAULT_SETTINGS, type LeagueSettings } from "@/convex/lib/schedule";
-import { useCurrentLeague } from "@/lib/currentLeague";
-import { colors, font, spacing } from "@/theme";
+import { api } from "@/convex/_generated/api";
+import { DEFAULT_SETTINGS } from "@/convex/lib/schedule";
+import { spacing } from "@/theme";
 
 import { SettingsPicker } from "./SettingsPicker";
 
-// leagues.create as API.md has it, settings included. Bound by name, like
-// lib/backend.ts, so this screen typechecks against the contract.
-const createLeagueFunction = makeFunctionReference<
-  "mutation",
-  {
-    name: string;
-    stakeUsd: number;
-    visibility: "private" | "public";
-    settings?: Partial<LeagueSettings>;
-  },
-  { leagueId: Id<"leagues">; inviteCode: string }
->("leagues:create");
-
 /**
- * The last step of Create League. Join passes the name, stake and visibility
- * it collected as route params; this screen adds the three settings, creates
- * the league and carries on to the contacts step, as joining a league does.
+ * The last step of Create League. Join passes on the name, stake and
+ * visibility it collected as route params; this screen adds the three
+ * settings and creates the league. From there it is the same path as every
+ * other way into a league (useJoinLeague): the league becomes the current
+ * one and the contacts step follows.
  */
 export function LeagueSettingsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ name: string; stakeUsd: string; visibility: string }>();
-  const { setLeagueId } = useCurrentLeague();
-  const createLeague = useMutation(createLeagueFunction);
+  const createLeague = useMutation(api.leagues.create);
+  const { join, busy, failure } = useJoinLeague();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function create() {
-    setCreating(true);
-    setError(null);
-    try {
-      const { leagueId } = await createLeague({
+  const create = () =>
+    join("create", () =>
+      createLeague({
         name: params.name,
         stakeUsd: Number(params.stakeUsd),
         visibility: params.visibility === "public" ? "public" : "private",
         settings,
-      });
-      setLeagueId(leagueId);
-      router.replace({ pathname: "/contacts", params: { leagueId } });
-    } catch (failure) {
-      // A ConvexError carries the server's own sentence; anything else is a dropped connection.
-      setError(
-        failure instanceof ConvexError && typeof failure.data === "string"
-          ? failure.data
-          : "Couldn't create the league. Try again.",
-      );
-      setCreating(false);
-    }
-  }
+      }),
+    );
 
   return (
     <Screen>
@@ -70,8 +43,8 @@ export function LeagueSettingsScreen() {
         <SettingsPicker value={settings} onChange={setSettings} />
       </ScrollView>
       <View style={styles.footer}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Button label="Create League" onPress={create} loading={creating} />
+        {failure ? <ErrorLine message={failure.message} /> : null}
+        <Button label="Create League" onPress={create} loading={busy} />
       </View>
     </Screen>
   );
@@ -79,5 +52,4 @@ export function LeagueSettingsScreen() {
 
 const styles = StyleSheet.create({
   footer: { gap: spacing.sm, padding: spacing.lg },
-  error: { fontSize: font.meta, color: colors.danger, textAlign: "center" },
 });
