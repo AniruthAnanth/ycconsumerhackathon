@@ -48,6 +48,14 @@ export const colors = {
   onAccent: palette.white,
   /** Dims the page behind the league switcher. */
   scrim: "rgba(23, 43, 35, 0.4)",
+  /** The light paper tint laid over the floating tab bar's liquid glass. */
+  glassTint: "rgba(250, 248, 242, 0.55)",
+  /** The blurred bar's fill where liquid glass is missing (older iOS, Android, web): paper, mostly opaque so labels stay legible. */
+  glassFill: "rgba(250, 248, 242, 0.78)",
+  /** The glass bar's hairline edge. */
+  glassEdge: "rgba(23, 43, 35, 0.08)",
+  /** The selected tab's pill: a faint wash of the green accent. */
+  glassPill: "rgba(21, 92, 64, 0.12)",
 } as const;
 
 /** The 4-point grid. Every padding, margin and gap comes from here or from layout below. */
@@ -91,6 +99,8 @@ export const layout = {
   barSide: 56,
   /** The position pill's height. */
   pillHeight: 24,
+  /** The floating glass tab bar at the bottom of the tabs. */
+  tabBar: 60,
 } as const;
 
 /** Where a task row's text starts; its inset divider starts here too, as in an iOS list. */

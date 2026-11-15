@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Entrance } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
-import { Divider, Icon, type IconName, Screen } from "@/components/ui";
+import { Divider, Icon, type IconName, Screen, useTabBarInset } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { useNow } from "@/lib/useNow";
@@ -42,6 +42,7 @@ export function FeedScreen() {
   const board = useQuery(socialApi.vetoes.board, leagueId ? { leagueId } : "skip");
   const memberCount = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip")?.memberCount;
   const now = useNow(60_000);
+  const bottomInset = useTabBarInset();
   const list = useRef<FlatList<NonNullable<typeof feed>[number]>>(null);
   const { proofId } = useLocalSearchParams<{ proofId?: string }>();
   const [focused, setFocused] = useState<string>();
@@ -59,9 +60,11 @@ export function FeedScreen() {
   if (!leagueId || feed === undefined) return <ScreenState loading />;
 
   return (
-    <Screen edges={["bottom"]}>
+    <Screen edges={[]}>
       <FlatList
         ref={list}
+        contentContainerStyle={{ paddingBottom: bottomInset }}
+        scrollIndicatorInsets={{ bottom: bottomInset }}
         data={feed}
         keyExtractor={(item) => item.proofId}
         renderItem={({ item, index }) => (

@@ -13,7 +13,7 @@ import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { RosterHero } from "@/components/roster/RosterHero";
 import { RosterTotal } from "@/components/roster/RosterTotal";
-import { Button, EmptyState, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/components/ui";
+import { Button, EmptyState, OutlinedPillButton, Screen, SectionLabel, TaskRow, useTabBarInset } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { splitRoster, weekActions } from "@/lib/roster";
@@ -26,6 +26,7 @@ import { SCREEN_MARGIN } from "@/theme";
 export function RosterScreen() {
   const router = useRouter();
   const { leagueId, membership, league, weekStart } = useCurrentLeague();
+  const bottomInset = useTabBarInset();
   // One lineup scores in every league, so the roster is the same whichever
   // league is selected; the league only decides which drop tasks count.
   const roster = useQuery(
@@ -68,7 +69,7 @@ export function RosterScreen() {
   const listed = (task: Task) => row(task, task.upNext && !lead && !settled);
 
   return (
-    <Screen edges={["bottom"]}>
+    <Screen edges={[]}>
       {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
       <CheckInPrompt leagueId={leagueId} />
       {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
@@ -77,7 +78,14 @@ export function RosterScreen() {
       {leagueId ? <DropBanner leagueId={leagueId} /> : null}
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}
-      <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      {/* With the Draft button under the list, the button clears the tab bar and the list stops above it. */}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ paddingBottom: undrafted ? 0 : bottomInset }}
+        scrollIndicatorInsets={{ bottom: undrafted ? 0 : bottomInset }}
+      >
         {leagueId ? (
           <Entrance index={0}>
             <RosterHero roster={roster} />
@@ -104,7 +112,7 @@ export function RosterScreen() {
         )}
       </ScrollView>
       {/* The one way into the draft; Week Wrapped lives on the Feed, so Roster carries no second entry for either. */}
-      {undrafted ? <Button label="Draft your week" style={styles.draft} onPress={() => router.push("/draft")} /> : null}
+      {undrafted ? <Button label="Draft your week" style={[styles.draft, { marginBottom: bottomInset }]} onPress={() => router.push("/draft")} /> : null}
     </Screen>
   );
 }
