@@ -1,5 +1,6 @@
 export { BOARDS, parseBoardKey } from "./boards";
 export { BoardPicker } from "./BoardPicker";
+export { LeaderboardsScreen } from "./LeaderboardsScreen";
 export { LeaderboardsStrip } from "./LeaderboardsStrip";
 export { LeaderboardTable } from "./LeaderboardTable";
 export { ProjectionLine } from "./ProjectionLine";
