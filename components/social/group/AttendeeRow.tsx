@@ -1,12 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
-import { Avatar, colors } from "../kit";
+import { Avatar } from "@/components/ui";
+import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
 
 /** One attendee: avatar, name and whether they have checked in at the place. */
 export function AttendeeRow({ name, checkedIn, onPress }: { name: string; checkedIn: boolean; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
-      <Avatar name={name} size={40} />
+      <Avatar name={name} />
       <Text style={styles.name} numberOfLines={1}>
         {name}
       </Text>
@@ -19,16 +20,16 @@ export function AttendeeRow({ name, checkedIn, onPress }: { name: string; checke
 
 const styles = StyleSheet.create({
   row: {
-    height: 64,
+    height: ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.hairline,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.divider,
   },
-  name: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "600" },
-  status: { fontSize: 13, fontWeight: "600" },
-  checkedIn: { color: colors.green },
-  going: { color: colors.muted },
+  name: { flex: 1, color: colors.text, fontSize: font.title, fontWeight: "700" },
+  status: { fontSize: font.body, fontWeight: "700" },
+  checkedIn: { color: colors.tabActive },
+  going: { color: colors.textMuted },
 });

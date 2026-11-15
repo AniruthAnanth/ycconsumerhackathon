@@ -4,7 +4,9 @@ import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { socialApi } from "../contract";
-import { Button, Header, Score, Screen, SectionLabel, colors, useCurrentLeague } from "../kit";
+import { Button, Header, Score, Screen, SectionLabel } from "@/components/ui";
+import { useCurrentLeague } from "@/lib/currentLeague";
+import { colors, font, spacing } from "@/theme";
 import { ScreenState } from "../ScreenState";
 import { useMyUserId } from "../useMyUserId";
 import { AttendeeRow } from "./AttendeeRow";
@@ -88,10 +90,10 @@ export function GroupSessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 16 },
-  title: { flex: 1, color: colors.text, fontSize: 22, fontWeight: "800" },
-  details: { padding: 16, gap: 2 },
-  place: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  start: { color: colors.muted, fontSize: 14 },
-  footer: { padding: 16 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, padding: spacing.lg },
+  title: { flex: 1, color: colors.text, fontSize: font.total, fontWeight: "800" },
+  details: { padding: spacing.lg, gap: spacing.xs },
+  place: { color: colors.text, fontSize: font.header, fontWeight: "700" },
+  start: { color: colors.textMuted, fontSize: font.body },
+  footer: { padding: spacing.lg },
 });

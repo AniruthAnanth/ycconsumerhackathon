@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 import { socialApi } from "../contract";
-import { Button, Header, OutlinedPillButton, Screen, TextField, useCurrentLeague } from "../kit";
+import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
+import { useCurrentLeague } from "@/lib/currentLeague";
+import { spacing } from "@/theme";
 import { canStartSession, errorMessage, startTimeOptions, type StartOption } from "./groupLogic";
 import { PlaceMap } from "./PlaceMap";
 import type { Coordinate } from "./PlaceMap.types";
@@ -79,10 +81,12 @@ export function NewGroupSessionScreen() {
     <Screen>
       <Header title="New Session" onBack={router.back} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
-        <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Sunset run" />
-        <TextField label="Place" value={placeName} onChangeText={setPlaceName} placeholder="Dolores Park" />
-        <View style={styles.find}>
-          <OutlinedPillButton label="Find" onPress={findPlace} disabled={finding || placeName.trim() === ""} />
+        <View style={styles.fields}>
+          <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Sunset run" />
+          <TextField label="Place" value={placeName} onChangeText={setPlaceName} placeholder="Dolores Park" />
+          <View style={styles.find}>
+            <OutlinedPillButton label="Find" onPress={findPlace} disabled={finding || placeName.trim() === ""} />
+          </View>
         </View>
         <PlaceMap coordinate={pin} title={placeName.trim() || undefined} onPick={movePin} />
         <StartTimePills options={options} selected={start} onSelect={setStart} />
@@ -100,7 +104,8 @@ export function NewGroupSessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  form: { paddingBottom: 16 },
-  find: { alignItems: "flex-end", paddingHorizontal: 16, paddingBottom: 10 },
-  footer: { padding: 16 },
+  form: { paddingBottom: spacing.lg },
+  fields: { gap: spacing.md, padding: spacing.lg },
+  find: { alignItems: "flex-end" },
+  footer: { padding: spacing.lg },
 });

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "../kit";
+import { colors, font, spacing } from "@/theme";
 import type { Coordinate } from "./PlaceMap.types";
 
 /** react-native-maps cannot bundle for web, so the browser shows where the pin is as text. */
@@ -16,7 +16,7 @@ export function PlaceMap({ coordinate, title }: { coordinate: Coordinate; title?
 }
 
 const styles = StyleSheet.create({
-  box: { height: 220, width: "100%", alignItems: "center", justifyContent: "center", backgroundColor: colors.wash },
-  title: { color: colors.text, fontSize: 16, fontWeight: "700" },
-  coordinates: { color: colors.muted, fontSize: 13, marginTop: 4 },
+  box: { height: 220, width: "100%", alignItems: "center", justifyContent: "center", gap: spacing.xs, backgroundColor: colors.strip },
+  title: { fontSize: font.header, fontWeight: "700", color: colors.text },
+  coordinates: { fontSize: font.body, color: colors.textMuted },
 });

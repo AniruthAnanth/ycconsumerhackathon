@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "../kit";
+import { colors, font, spacing } from "@/theme";
 import { formatStart, type StartOption } from "./groupLogic";
 
 /** The quick start times as a row of pills, with the chosen one filled and its resolved time below. */
@@ -15,7 +15,7 @@ export function StartTimePills({
 }) {
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Start time</Text>
+      <Text style={styles.label}>START TIME</Text>
       <View style={styles.row}>
         {options.map((option) => {
           const active = option === selected;
@@ -38,19 +38,12 @@ export function StartTimePills({
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingVertical: 10 },
-  label: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  wrap: { gap: spacing.sm, padding: spacing.lg },
+  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   pill: {
     height: 32,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.accent,
@@ -58,7 +51,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pillActive: { backgroundColor: colors.accent },
-  pillText: { color: colors.accent, fontSize: 13, fontWeight: "600" },
-  pillTextActive: { color: colors.bg },
-  resolved: { color: colors.text, fontSize: 15, fontWeight: "700", marginTop: 10 },
+  pillText: { fontSize: font.body, fontWeight: "700", color: colors.accent },
+  pillTextActive: { color: colors.background },
+  resolved: { fontSize: font.title, fontWeight: "700", color: colors.text },
 });
