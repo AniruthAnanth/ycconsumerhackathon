@@ -6,10 +6,11 @@ import { InviteCodeSection } from "@/components/join/InviteCodeSection";
 import { QuickMatchSection } from "@/components/join/QuickMatchSection";
 import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { Header, Screen } from "@/components/ui";
+import { ChallengeSection } from "@/components/versus/ChallengeSection";
 
 export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
 
-/** Quick Match, an invite code, or a new league: three ways in, one screen. */
+/** A 1v1 challenge, Quick Match, an invite code, or a new league: four ways in, one screen. */
 export default function JoinScreen() {
   const router = useRouter();
   const joining = useJoinLeague();
@@ -17,6 +18,7 @@ export default function JoinScreen() {
     <Screen>
       <Header title="Join a League" onBack={router.canGoBack() ? router.back : undefined} />
       <FormBody>
+        <ChallengeSection disabled={joining.busy} />
         <QuickMatchSection joining={joining} />
         <InviteCodeSection joining={joining} />
         <CreateLeagueSection joining={joining} />
