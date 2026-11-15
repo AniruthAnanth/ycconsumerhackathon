@@ -10,7 +10,8 @@ import { weekStartOf } from "./lib/week";
 
 /** What the check-in is called wherever the demo happens. */
 const PLACE_NAME = "YC office";
-const CHECK_IN = { slot: "people", title: "Check in at the YC office", points: 20 } as const;
+/** Titled and scored like the seeded check-in (seed.ts), so a pinned one reads the same on Roster. */
+const CHECK_IN = { slot: "people", title: "Check in at the YC office", points: 30 } as const;
 
 /**
  * "Pin check-in here": moves the caller's location check-in to where the phone is standing.
@@ -40,7 +41,10 @@ export const pinCheckIn = mutation({
       await ctx.db.patch("tasks", checkIn._id, { place });
       return checkIn._id;
     }
-    // "flex" keeps it out of the five starter slots, which belong to the drafted lineup.
+    // Filed under People with source "flex", and both halves matter. Clearing a slot keys on
+    // source, so this row never stands in for the drafted People task. The three-flex cap keys
+    // on slot, so a row the presenter added from Demo controls cannot use up one of the player's
+    // flex tasks or make a later Lock Lineup fail.
     return await ctx.db.insert("tasks", {
       ...CHECK_IN,
       userId: me._id,

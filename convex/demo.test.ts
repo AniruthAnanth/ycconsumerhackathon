@@ -97,6 +97,7 @@ describe("demo.pinCheckIn", () => {
     expect(tasks.find((task) => task._id === added)).toMatchObject({
       title: "Check in at the YC office",
       slot: "people",
+      points: 30,
       proofType: "photo_location",
       place: PINNED,
       status: "open",
