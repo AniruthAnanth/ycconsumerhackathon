@@ -28,6 +28,9 @@ import {
   sanitizedAppPrefix,
 } from "./lib/referralRules";
 
+/** Reads only the database, so the leaderboards can call it with their narrower context. */
+type ReadCtx = Pick<QueryCtx, "db">;
+
 const TOKEN_ATTEMPTS = 5;
 /** More friends than anyone brings in a hackathon week; keeps every read bounded. */
 const FRIENDS_READ = 100;
@@ -61,7 +64,7 @@ async function membership(ctx: QueryCtx, leagueId: Id<"leagues">, userId: Id<"us
 }
 
 /** True once the player has locked any lineup: the moment a referral pays. */
-async function hasLockedLineup(ctx: QueryCtx, userId: Id<"users">): Promise<boolean> {
+async function hasLockedLineup(ctx: ReadCtx, userId: Id<"users">): Promise<boolean> {
   const lineups = await ctx.db
     .query("lineups")
     .withIndex("by_user_week", (q) => q.eq("userId", userId))
@@ -71,7 +74,7 @@ async function hasLockedLineup(ctx: QueryCtx, userId: Id<"users">): Promise<bool
 
 type Friend = { userId: Id<"users">; name: string; status: "joined" | "locked"; points: number };
 
-async function friendsOf(ctx: QueryCtx, inviterId: Id<"users">): Promise<Friend[]> {
+async function friendsOf(ctx: ReadCtx, inviterId: Id<"users">): Promise<Friend[]> {
   const referrals = await ctx.db
     .query("referrals")
     .withIndex("by_inviter", (q) => q.eq("inviterId", inviterId))
@@ -92,7 +95,7 @@ async function friendsOf(ctx: QueryCtx, inviterId: Id<"users">): Promise<Friend[
 }
 
 /** A player's Recruiter tally. Exported for the Recruiters leaderboard. */
-export async function recruiterTally(ctx: QueryCtx, userId: Id<"users">) {
+export async function recruiterTally(ctx: ReadCtx, userId: Id<"users">) {
   const friends = await friendsOf(ctx, userId);
   const locked = friends.filter((friend) => friend.status === "locked").length;
   return { friends, invited: friends.length, locked, recruiterPoints: recruiterPoints(locked), badge: badgeFor(locked) };
