@@ -342,6 +342,34 @@ describe("location check-in", () => {
   });
 });
 
+describe("group session check-in", () => {
+  const session = { proofType: "photo_location" as const, source: "group" as const, title: "Morning standup", place: YC_OFFICE };
+  const near = { lat: YC_OFFICE.lat + 0.0003, lng: YC_OFFICE.lng }; // about 33 m north
+
+  it("is judged on who came, not on whether the scene looks like the place", async () => {
+    const { t, as, taskId } = await playerWithTask(session);
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ sceneMatchesPlace: null, reason: "Four friends together on a grassy hill." }));
+
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", ...near });
+
+    expect(verdict).toMatchObject({ pass: true, points: 30 });
+    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ groupSession: true, placeName: undefined });
+  });
+
+  it("still needs the phone to be at the place", async () => {
+    const { t, as, taskId } = await playerWithTask(session);
+    const verdict = await as.action(api.proofs.verify, {
+      taskId,
+      storageId: await upload(t),
+      mediaType: "photo",
+      lat: YC_OFFICE.lat + 0.045,
+      lng: YC_OFFICE.lng,
+    });
+    expect(verdict.reason).toBe("You're 5.0 km from YC office. Check in within 150 m.");
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+});
+
 describe("video proofs", () => {
   it("judges the three stills the app sampled and keeps the clip on the proof", async () => {
     const { t, as, taskId } = await playerWithTask();

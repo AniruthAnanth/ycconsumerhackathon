@@ -274,11 +274,19 @@ export async function judgeProof(input: {
   /** True when imageUrls are frames sampled from a short clip rather than one photo. */
   fromVideo: boolean;
   gesture?: string;
+  /** The place of a check-in whose scene should fit it. Leave out for a group session. */
   placeName?: string;
+  /** True for a group session's check-in, where the proof is the people who came. */
+  groupSession?: boolean;
 }): Promise<Judgement | null> {
   const lines = [`Task: ${input.taskTitle}`, `Roster slot: ${input.slot}`];
   if (input.gesture) lines.push(`Required gesture: ${input.gesture}`);
   if (input.placeName) lines.push(`Place the player must be at: ${input.placeName}`);
+  if (input.groupSession) {
+    lines.push(
+      "This is the check-in for a group session, a meet-up the league scheduled. GPS has already confirmed the phone is at the place, so the proof is the people who came. Pass when at least one person is in the shot, wherever it was taken, and fail a shot with nobody in it. Do not judge the scenery, or whether the activity in the title is visible.",
+    );
+  }
   if (input.fromVideo) {
     lines.push("These are stills from one clip of at most 10 seconds, in order. Judge them together as one proof.");
   }

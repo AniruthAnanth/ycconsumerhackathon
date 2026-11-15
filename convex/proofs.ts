@@ -107,12 +107,16 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
     imageIds,
   });
 
+  // A group session is proven by GPS and by who is in the photo (drops.ts then counts them), so
+  // its scene is not held to the pinned place: a stand-up on the lawn outside the office counts.
+  const groupSession = task.source === "group";
   const rules: ProofRules = { points: task.points, gesture };
   if (task.proofType === "photo_location" && task.place) {
     const phone = { lat: submission.lat ?? Number.NaN, lng: submission.lng ?? Number.NaN };
     rules.location = {
       placeName: task.place.name,
       distanceM: isValidLatLng(phone) ? distanceMeters(phone, task.place) : null,
+      anyScene: groupSession,
     };
   }
 
@@ -124,7 +128,8 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
       imageUrls: await imageUrls(ctx, imageIds),
       fromVideo: submission.mediaType === "video",
       gesture,
-      placeName: rules.location?.placeName,
+      placeName: groupSession ? undefined : rules.location?.placeName,
+      groupSession,
     }).catch((error) => {
       console.error("judgeProof failed:", error instanceof Error ? error.message : error);
       throw new ConvexError("The referee couldn't be reached. Try again in a moment.");
