@@ -43,8 +43,12 @@ export type ProofRules = {
   points: number;
   /** Quick-time drops require a random gesture in the shot, which is what makes a texted photo trustworthy. */
   gesture?: string;
-  /** Present for photo_location tasks. distanceM is null when the phone sent no coordinates. */
-  location?: { placeName: string; distanceM: number | null };
+  /**
+   * Present for photo_location tasks. distanceM is null when the phone sent no coordinates.
+   * anyScene is set for a group session: GPS places it and the photo shows who came, so a
+   * meet-up on the lawn outside the pinned office is not failed for its scenery.
+   */
+  location?: { placeName: string; distanceM: number | null; anyScene?: boolean };
 };
 
 /**
@@ -101,7 +105,7 @@ export function decideVerdict(judgement: Judgement, rules: ProofRules): Verdict 
     );
   }
 
-  if (rules.location && judgement.sceneMatchesPlace !== true) {
+  if (rules.location && !rules.location.anyScene && judgement.sceneMatchesPlace !== true) {
     return fail(judgement.pass ? `This doesn't look like ${rules.location.placeName}.` : judgement.reason);
   }
 

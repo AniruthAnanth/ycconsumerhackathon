@@ -131,6 +131,13 @@ describe("location check-in: distance and scene must both pass", () => {
     expect(verdict.reason).toContain("Location is needed");
   });
 
+  it("takes any scene for a group session, but still needs the phone to be there", () => {
+    const groupAt = (distanceM: number) => ({ points: 30, location: { placeName: "YC office", distanceM, anyScene: true } });
+    const onTheLawn = judgement({ sceneMatchesPlace: null, reason: "Four friends together on a grassy hill." });
+    expect(decideVerdict(onTheLawn, groupAt(40))).toMatchObject({ pass: true, points: 30 });
+    expect(decideVerdict(onTheLawn, groupAt(900)).pass).toBe(false);
+  });
+
   it("still applies the confidence line after both location checks pass", () => {
     expect(decideVerdict(judgement({ sceneMatchesPlace: true, confidence: 0.5 }), at(10)).pass).toBe(false);
   });
