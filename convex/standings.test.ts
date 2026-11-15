@@ -257,9 +257,10 @@ describe("standings.matchup", () => {
     const table = await as(t, ids.Sam).query(api.standings.table, { leagueId });
     const clearedBy = (userId: typeof ids.Sam) => table.find((row) => row.userId === userId)?.slotsCleared;
 
-    // Sam projects to 285 + half of the 50 still open, against Maya's finished 500.
-    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.38, slotsCleared: clearedBy(ids.Sam) });
-    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.62, slotsCleared: clearedBy(ids.Maya) });
+    // Sam's 285 plus every point still open on his roster can't reach Maya's finished 500, so the
+    // forecast (convex/markets.ts) gives him the floor an open week allows.
+    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.01, slotsCleared: clearedBy(ids.Sam) });
+    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.99, slotsCleared: clearedBy(ids.Maya) });
 
     expect(matchup.rows.map((row) => [row.slot, row.mine?.title, row.theirs?.title])).toEqual([
       ["body", "Bike to work", "Leg day at the gym"],
