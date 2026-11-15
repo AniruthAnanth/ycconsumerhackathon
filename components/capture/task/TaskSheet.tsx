@@ -7,7 +7,7 @@ import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing, TASK_TEXT_INSET } from "@/theme";
 
 import { howToProve } from "../proofKinds";
 import { canSubmitProof, findTask, submitProofHref, toProofTarget } from "./taskSheetRules";
@@ -62,6 +62,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
 const styles = StyleSheet.create({
   hero: { alignItems: "center", paddingTop: spacing.lg, paddingBottom: spacing.md },
   action: { padding: SCREEN_MARGIN },
-  howTo: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.md, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
+  // Starts at the task title's edge, so it reads as part of the row above.
+  howTo: { paddingLeft: TASK_TEXT_INSET, paddingRight: SCREEN_MARGIN, paddingTop: spacing.md, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
   missing: { padding: SCREEN_MARGIN, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
 });

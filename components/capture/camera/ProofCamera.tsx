@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDevFlags } from "@/lib/devFlags";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, spacing } from "@/theme";
 
 import { formatElapsed } from "../proofKinds";
 import type { ProofTarget } from "../proofRoute";
@@ -82,8 +82,8 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
           </Text>
         ) : null}
         {capture.before && !capture.busy ? (
-          <Pressable onPress={capture.retakeBefore} hitSlop={8} testID="camera-retake-before">
-            <Text style={styles.hint}>Retake before</Text>
+          <Pressable onPress={capture.retakeBefore} style={styles.retake} accessibilityRole="button" testID="camera-retake-before">
+            <Text style={[styles.hint, styles.retakeLabel]}>Retake before</Text>
           </Pressable>
         ) : null}
         {screen.live ? (
@@ -108,5 +108,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.text },
   bottom: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  retake: { alignSelf: "center", minHeight: layout.rowMin, justifyContent: "center", paddingHorizontal: spacing.lg },
+  retakeLabel: { paddingBottom: 0, fontFamily: fontFamily.semiBold },
   hint: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center", opacity: 0.8, paddingBottom: spacing.md },
 });

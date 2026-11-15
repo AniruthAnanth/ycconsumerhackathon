@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/ui";
-import { colors, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { howToProve } from "../proofKinds";
 import type { ProofTarget } from "../proofRoute";
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   title: { color: colors.onAccent, fontSize: 17, fontFamily: fontFamily.bold },
   place: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: 13, opacity: 0.85 },
   points: { color: colors.onAccent, fontSize: 15, fontFamily: fontFamily.bold },
-  hint: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: 13, opacity: 0.85 },
+  hint: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: font.meta, opacity: 0.85 },
   gesture: { backgroundColor: "rgba(0,0,0,0.6)", paddingVertical: spacing.md, alignItems: "center" },
   gestureText: { color: colors.onAccent, fontSize: 28, fontFamily: fontFamily.extraBold, letterSpacing: 1 },
 });
