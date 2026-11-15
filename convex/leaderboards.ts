@@ -27,7 +27,7 @@ import { challengerPointsByUser } from "./challenges";
 import { requireUser } from "./lib/auth";
 import { projectionLabel, projectPayout, type Projection, type ProjectionMember } from "./lib/projection";
 import { FORMATS, rankBoard, type BoardFormat, type Entry } from "./lib/ranking";
-import { resolveSettings, seasonOf, seasonTable, type Result } from "./lib/schedule";
+import { resolveSettings, seasonOf, seasonTable, withoutStandIns, type Result } from "./lib/schedule";
 import { CORE_SLOTS, matchupBonus, type CoreSlot } from "./lib/scoring";
 import { DAY_MS, pacificDay, startOfPacificDay } from "./lib/week";
 import { NO_STATS, tallyWeek, totalStats, type ScoreStats, type WeekFacts, type WeekTally } from "./lib/weekTally";
@@ -183,8 +183,9 @@ const boardRow = v.object({
 /**
  * One leaderboard for a league, best first. Each row carries its place, the
  * places moved since yesterday and the gap to the player above; `rival` names
- * the caller's closest neighbour. Any signed-in player may read a league's
- * boards, like a sports table.
+ * the caller's closest neighbour. A league's boards are for its members: they
+ * name people and what each has won. Anyone signed in may read the two global
+ * boards, which are public by design.
  */
 export const board = query({
   args: { leagueId: v.id("leagues"), board: boardKey },
@@ -199,7 +200,9 @@ export const board = query({
     const me = await requireUser(ctx);
     const league = await loadLeague(ctx, args.leagueId);
     const { title, valueHeader, format } = { ...STAT_BOARDS, ...OTHER_BOARDS }[args.board];
-    const entries = league === null ? [] : await entriesFor(ctx, league, args.board);
+    const open = args.board === "global" || args.board === "globalAllTime";
+    const allowed = league !== null && (open || league.members.some((member) => member.userId === me._id));
+    const entries = allowed ? await entriesFor(ctx, league, args.board) : [];
     return { board: args.board, title, valueHeader, ...rankBoard(entries, format, me._id) };
   },
 });
@@ -263,7 +266,8 @@ async function headToHeadEntries(ctx: ReadCtx, league: League): Promise<Entry<Us
       .withIndex("by_week", (q) => q.eq("weekId", week._id))
       .take(MAX_MEMBERS);
     const live = week._id === current._id && week.status === "open";
-    for (const pair of pairs) {
+    // A member with the week off has a stand-in row so their Matchup tab is not empty. It is not a game.
+    for (const pair of withoutStandIns(pairs.map((row) => ({ ...row, a: row.userA, b: row.userB })))) {
       // A finished week's score is frozen on the matchup; older weeks fall back to the stored rows.
       const scoreA = pair.scoreA ?? pointsIn(pair.userA, week.startsAt);
       const scoreB = pair.scoreB ?? pointsIn(pair.userB, week.startsAt);
@@ -587,7 +591,8 @@ async function history(ctx: ReadCtx, league: League, from: number): Promise<Map<
 /**
  * One week of a league, tallied from tasks and proofs the way the standings
  * are (leagueStandings in standings.ts): every member as they stand, and as
- * they stood when `dayBegan`.
+ * they stood when `dayBegan`. A final score kept on the week's matchup
+ * replaces the tally.
  *
  * A query leaves `dayBegan` out, because a query that read the clock would not
  * rerun at midnight. "Yesterday" is then the start of the last day anyone in
@@ -611,25 +616,38 @@ async function leagueWeek(
   const since = dayBegan ?? startOfPacificDay(pacificDay(week.startsAt) + lastDayPlayed);
   const yesterday = facts.map((memberFacts) => tallyWeek(memberFacts, since));
 
-  if (week.status === "settled") {
-    // Once a week has settled, the higher scorer of each pair holds the matchup
-    // bonus. Both sides are compared on their points before any bonus lands.
-    const before = new Map(league.members.map((member, i) => [member.userId, now[i].stats.points]));
-    const at = new Map(league.members.map((member, i) => [member.userId, i]));
-    // matchups.by_week
-    const pairs = await ctx.db
-      .query("matchups")
-      .withIndex("by_week", (q) => q.eq("weekId", week._id))
-      .take(MAX_MEMBERS);
-    for (const [mine, theirs] of pairs.flatMap((pair) => [[pair.userA, pair.userB], [pair.userB, pair.userA]])) {
-      const i = at.get(mine);
-      const bonus = matchupBonus(before.get(mine) ?? 0, before.get(theirs) ?? Infinity);
-      if (i === undefined || bonus === 0) continue;
-      now[i].stats.points += bonus;
-      // A week that ended before the day began had settled by then. One ended
-      // early (End Week Now) gained its bonus today, and that shows as a move.
-      if (week.endsAt <= since) yesterday[i].stats.points += bonus;
+  // matchups.by_week
+  const pairs = await ctx.db
+    .query("matchups")
+    .withIndex("by_week", (q) => q.eq("weekId", week._id))
+    .take(MAX_MEMBERS);
+  // Both sides of every pair are compared on their points before any bonus lands.
+  const before = new Map(league.members.map((member, i) => [member.userId, now[i].stats.points]));
+  const at = new Map(league.members.map((member, i) => [member.userId, i]));
+  const sides = pairs.flatMap((pair) => [
+    { mine: pair.userA, theirs: pair.userB, final: pair.scoreA },
+    { mine: pair.userB, theirs: pair.userA, final: pair.scoreB },
+  ]);
+  for (const { mine, theirs, final } of sides) {
+    const i = at.get(mine);
+    if (i === undefined) continue;
+    if (final !== undefined) {
+      // A final score kept on the matchup is the week's result, whatever tasks
+      // are still around to add up (seasons.ts reads it the same way). The
+      // seeded season's earlier weeks are nothing but these. A finished week
+      // stood yesterday as it stands now.
+      now[i].stats.points = final;
+      yesterday[i].stats.points = final;
+      continue;
     }
+    // Once a week has settled, the higher scorer of each pair holds the matchup bonus.
+    if (week.status !== "settled") continue;
+    const bonus = matchupBonus(before.get(mine) ?? 0, before.get(theirs) ?? Infinity);
+    if (bonus === 0) continue;
+    now[i].stats.points += bonus;
+    // A week that ended before the day began had settled by then. One ended
+    // early (End Week Now) gained its bonus today, and that shows as a move.
+    if (week.endsAt <= since) yesterday[i].stats.points += bonus;
   }
   return new Map(
     league.members.map((member, i) => [member.userId, { weekStart: week.startsAt, now: now[i], yesterday: yesterday[i] }]),
