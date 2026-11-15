@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { CountUp } from "@/components/motion";
-import { colors, fontFamily } from "@/theme";
+import { colors, type } from "@/theme";
 
 import { formatPoints } from "./formatPoints";
 
@@ -23,10 +23,8 @@ export function PointsCounter({ points, delay }: Props) {
 
 const styles = StyleSheet.create({
   value: {
+    ...type.display,
     color: colors.text,
-    fontSize: 22,
-    fontFamily: fontFamily.extraBold,
-    textAlign: "right",
     fontVariant: ["tabular-nums"],
   },
 });

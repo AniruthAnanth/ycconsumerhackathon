@@ -37,6 +37,7 @@ import {
 } from "./_generated/server";
 import { currentWeek, ensureCurrentWeek, membersInJoinOrder, membershipOf, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { checkoutPageHtml, isCheckoutId } from "./lib/checkoutPage";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
 import { weekStartOf } from "./lib/week";
 import { computeSettlement, settlementLedgerRows, type Entrant } from "./lib/settlement";
@@ -61,12 +62,14 @@ function whopClient(): WhopClient {
 // ---- Buy-in: checkout ---------------------------------------------------------------------------
 
 /**
- * Starts a member's buy-in and returns the hosted checkout to open in the in-app browser.
+ * Starts a member's buy-in and returns its checkout at two addresses: `embedUrl`, a page of ours
+ * that draws Whop's checkout inside the app's sheet (checkoutPage below), and `purchaseUrl`,
+ * Whop's own hosted page, which the app falls back to in the in-app browser.
  * Paying it is confirmed later by the webhook below; this call changes nothing about who has paid.
  */
 export const createCheckout = action({
   args: { leagueId: v.id("leagues") },
-  returns: v.object({ purchaseUrl: v.string() }),
+  returns: v.object({ purchaseUrl: v.string(), embedUrl: v.string() }),
   handler: async (ctx, { leagueId }) => {
     const buyIn: BuyIn = await ctx.runQuery(internal.whop.buyInFor, { leagueId });
     const whop = whopClient();
@@ -87,8 +90,32 @@ export const createCheckout = action({
       metadata: { userId: buyIn.userId, leagueId },
     });
     if (!checkout.purchase_url) throw new ConvexError("Whop returned no checkout link");
-    return { purchaseUrl: checkout.purchase_url };
+    return { purchaseUrl: checkout.purchase_url, embedUrl: checkoutPageUrl(checkout.id) };
   },
+});
+
+const checkoutPageUrl = (checkoutId: string) => `${process.env.CONVEX_SITE_URL}/whop/checkout?ch=${checkoutId}`;
+
+/**
+ * GET /whop/checkout?ch=ch_…: the page the app's checkout sheet shows in a web view, built in
+ * lib/checkoutPage.ts. After an off-site payment step Whop brings the buyer back to this same
+ * address with ?status=…, and the page then reports that outcome instead of mounting a checkout.
+ */
+export const checkoutPage = httpAction(async (_ctx, request) => {
+  if (env.WHOP_ENVIRONMENT !== "sandbox") return new Response("Whop runs in the sandbox only", { status: 503 });
+  const params = new URL(request.url).searchParams;
+  const checkoutId = params.get("ch") ?? "";
+  // The id is written into the page's script, so only a Whop checkout id gets that far.
+  if (!isCheckoutId(checkoutId)) return new Response("Unknown checkout", { status: 404 });
+  const status = params.get("status");
+  const html = checkoutPageHtml({
+    checkoutId,
+    returnUrl: checkoutPageUrl(checkoutId),
+    returned: status === "succeeded" || status === "failed" || status === "canceled" ? status : null,
+  });
+  return new Response(html, {
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+  });
 });
 
 type BuyIn = {

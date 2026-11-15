@@ -1,6 +1,7 @@
 import { useMutation } from "convex/react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
+import { CountUp, PressScale, ProgressFill } from "@/components/motion";
 import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
@@ -36,12 +37,9 @@ export function ChallengeBar({
         <Text style={styles.title}>CHALLENGED</Text>
         <Text style={styles.status}>{challengeStatus(challenge, now)}</Text>
       </View>
-      <View style={styles.track}>
-        <View style={[styles.legit, { flex: share }]} />
-        <View style={[styles.notLegit, { flex: 1 - share }]} />
-      </View>
+      <ProgressFill ratio={share} color={progress.fill} track={colors.danger} />
       <View style={styles.sides}>
-        <Pressable
+        <PressScale
           accessibilityRole="button"
           accessibilityLabel="Legit"
           accessibilityState={{ selected: challenge.myVote === true, disabled: !votable }}
@@ -50,9 +48,9 @@ export function ChallengeBar({
           style={[styles.side, votable && styles.sideVotable, challenge.myVote === true && styles.sideLegitMine]}
         >
           <Text style={[styles.sideLabel, styles.legitText]}>Legit</Text>
-          <Text style={styles.sideCount}>{challenge.legit}</Text>
-        </Pressable>
-        <Pressable
+          <CountUp value={challenge.legit} format={String} style={styles.sideCount} />
+        </PressScale>
+        <PressScale
           accessibilityRole="button"
           accessibilityLabel="Not Legit"
           accessibilityState={{ selected: challenge.myVote === false, disabled: !votable }}
@@ -60,9 +58,9 @@ export function ChallengeBar({
           onPress={() => cast(false)}
           style={[styles.side, votable && styles.sideVotable, challenge.myVote === false && styles.sideNotLegitMine]}
         >
-          <Text style={styles.sideCount}>{challenge.notLegit}</Text>
+          <CountUp value={challenge.notLegit} format={String} style={styles.sideCount} />
           <Text style={[styles.sideLabel, styles.notLegitText]}>Not Legit</Text>
-        </Pressable>
+        </PressScale>
       </View>
     </View>
   );
@@ -73,9 +71,6 @@ const styles = StyleSheet.create({
   heading: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   title: { color: colors.text, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: 12 },
-  track: { flexDirection: "row", height: progress.height, borderRadius: radius.pill, overflow: "hidden", backgroundColor: progress.track },
-  legit: { backgroundColor: progress.fill },
-  notLegit: { backgroundColor: colors.danger },
   sides: { flexDirection: "row", gap: 8 },
   side: {
     flex: 1,

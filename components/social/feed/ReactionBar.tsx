@@ -1,6 +1,7 @@
 import { useMutation } from "convex/react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
+import { CountUp, PressScale } from "@/components/motion";
 import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedReaction, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
@@ -16,7 +17,7 @@ export function ReactionBar({ proofId, reactions }: { proofId: Id<"proofs">; rea
   return (
     <View style={styles.bar}>
       {reactionButtons(reactions).map(({ emoji, count, mine }) => (
-        <Pressable
+        <PressScale
           key={emoji}
           accessibilityRole="button"
           accessibilityLabel={`React ${emoji}`}
@@ -29,8 +30,8 @@ export function ReactionBar({ proofId, reactions }: { proofId: Id<"proofs">; rea
           style={[styles.reaction, mine && styles.reactionMine]}
         >
           <Text style={styles.emoji}>{emoji}</Text>
-          {count > 0 ? <Text style={[styles.count, mine && styles.countMine]}>{count}</Text> : null}
-        </Pressable>
+          {count > 0 ? <CountUp value={count} format={String} style={[styles.count, mine && styles.countMine]} /> : null}
+        </PressScale>
       ))}
     </View>
   );
