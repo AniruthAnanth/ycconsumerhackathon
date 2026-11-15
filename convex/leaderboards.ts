@@ -127,7 +127,7 @@ const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headTo
     format: FORMATS.points,
     span: "allTime",
     value: (stats) => stats.points,
-    detail: (_ctx, total) => `${total.tasksVerified} tasks proved`,
+    detail: (_ctx, total) => `${total.tasksVerified} ${total.tasksVerified === 1 ? "task" : "tasks"} proved`,
   },
   body: slotBoard("body", "Best Body"),
   mind: slotBoard("mind", "Best Mind"),
