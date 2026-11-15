@@ -131,7 +131,7 @@ Rules:
 - Every task is one concrete thing that can be proven with a single photo taken in the moment. Split "gym twice" into one body task and one flex task.
 - title: at most six words, starts with a verb or names the activity, no day of the week unless the player gave one. Examples: "Leg day at the gym", "Finish OS problem set", "Call Mom".
 - points: 10 to 50 in steps of 5, by effort. 10 is trivial (take out the trash), 20 is light (call a friend), 30 is solid (a gym session, an hour of study), 40 is hard (a long run, a full problem set), 50 is a major push (a 10k race, finishing a big project).
-- proofType is "photo_location" only when the task happens at a specific real-world place the player named and whose coordinates you know: a named park, landmark, campus building or company office. Then set place to its name as the player said it, with its latitude and longitude. "The YC office" is Y Combinator's San Francisco office at Pier 70 in the Dogpatch, 37.7609, -122.3862.
+- proofType is "photo_location" only when the task happens at a specific real-world place the player named and whose coordinates you know: a named park, landmark, campus building or company office. Then set place to its name as the player said it, with its latitude and longitude. "The YC office" is Y Combinator's San Francisco office at 580 20th Street in the Dogpatch, 37.7608, -122.3866.
 - Everywhere else proofType is "photo" and place is null. Generic places such as the gym, home, a café or "the library" are "photo".
 - When notes about past weeks are given, let them shape the lineup: keep habits that worked, and make a slot the player keeps skipping easier and worth fewer points. Never mention the notes in a title.`;
 
