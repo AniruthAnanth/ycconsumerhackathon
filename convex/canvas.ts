@@ -25,6 +25,7 @@ import {
   internalMutation,
   internalQuery,
   mutation,
+  query,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
@@ -649,6 +650,20 @@ export const connect = mutation({
     }
     await saveConnection(ctx, user._id, { baseUrl, token });
     return null;
+  },
+});
+
+/**
+ * Whether the caller has a school connected, so the Canvas screen can show the form without
+ * calling listAssignments first. The token never leaves the server; only the address does.
+ */
+export const connection = query({
+  args: {},
+  returns: v.object({ connected: v.boolean(), baseUrl: v.optional(v.string()) }),
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    const row = await connectionOf(ctx, user._id);
+    return row === null ? { connected: false } : { connected: true, baseUrl: row.baseUrl };
   },
 });
 

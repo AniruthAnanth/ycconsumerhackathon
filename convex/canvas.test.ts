@@ -307,7 +307,9 @@ describe("canvas functions", () => {
   it("runs the demo school end to end: connect, list, add as a task, verify", async () => {
     const { t, maya, proofsOf } = await setUp();
 
+    expect(await maya.as.query(api.canvas.connection, {})).toEqual({ connected: false });
     expect(await maya.as.mutation(api.canvas.connect, { baseUrl: "demo", token: "" })).toBeNull();
+    expect(await maya.as.query(api.canvas.connection, {})).toEqual({ connected: true, baseUrl: "demo" });
     const assignments = await maya.as.action(api.canvas.listAssignments, {});
     const problemSet = assignments.find((assignment) => assignment.title === "Problem Set 6")!;
     expect(problemSet).toMatchObject({ courseId: "demo-cs161", assignmentId: "demo-ps6" });
