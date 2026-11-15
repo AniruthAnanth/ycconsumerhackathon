@@ -4,7 +4,6 @@ import type { FeedItem } from "@/components/social/contract";
 
 import {
   canChallenge,
-  canVote,
   challengeStatus,
   legitShare,
   reactionButtons,
@@ -22,13 +21,13 @@ const proof = (over: Partial<Pick<FeedItem, "challenge" | "createdAt">> = {}) =>
   createdAt: NOW - HOUR,
   ...over,
 });
-const challenge = (status: "open" | "upheld" | "overturned", canVoteFlag?: boolean) => ({
+const challenge = (status: "open" | "upheld" | "overturned") => ({
   challengeId: "challenge_1" as NonNullable<FeedItem["challenge"]>["challengeId"],
   status,
   legit: 0,
   notLegit: 0,
+  canVote: status === "open",
   closesAt: NOW + 12 * HOUR,
-  ...(canVoteFlag === undefined ? {} : { canVote: canVoteFlag }),
 });
 
 describe("reactionButtons", () => {
@@ -59,18 +58,6 @@ describe("canChallenge", () => {
 
   it("waits until we know who is looking", () => {
     expect(canChallenge(proof(), undefined, NOW)).toBe(false);
-  });
-});
-
-describe("canVote", () => {
-  it("offers the vote to the rest of the league while the challenge is open", () => {
-    expect(canVote({ ...proof(), challenge: challenge("open") }, "user_sam")).toBe(true);
-  });
-
-  it("keeps the proof's owner, a server-refused voter and a settled challenge out", () => {
-    expect(canVote({ ...proof(), challenge: challenge("open") }, maya)).toBe(false);
-    expect(canVote({ ...proof(), challenge: challenge("open", false) }, "user_sam")).toBe(false);
-    expect(canVote({ ...proof(), challenge: challenge("overturned") }, "user_sam")).toBe(false);
   });
 });
 

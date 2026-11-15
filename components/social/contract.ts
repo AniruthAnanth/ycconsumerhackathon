@@ -74,8 +74,8 @@ export type FeedChallenge = {
   notLegit: number;
   /** true = I voted Legit, false = Not Legit, absent = I have not voted. */
   myVote?: boolean;
-  /** false for the proof's owner and the challenger, who have no vote. Absent on older backends. */
-  canVote?: boolean;
+  /** Whether I may vote: false for the proof's owner and the challenger, and once the vote has settled. */
+  canVote: boolean;
   closesAt: number;
 };
 
@@ -144,7 +144,10 @@ export type Drop = {
   place?: Place;
   opensAt: number;
   closesAt: number;
-  /** The caller's task for this drop, once they are in; proofs are submitted against it. */
+  /**
+   * The caller's task for this drop, present only while they can submit a proof against it. For a
+   * group session that is while check-in is open: 30 minutes before the start until 2 hours after.
+   */
   taskId?: Id<"tasks">;
   attendees?: { userId: Id<"users">; name: string; checkedIn: boolean }[];
 };
