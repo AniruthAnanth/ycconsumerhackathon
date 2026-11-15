@@ -30,7 +30,7 @@ export function LeagueDetails({ league, pot, now }: Props) {
         <InviteButton leagueId={league._id} />
       </View>
       <Divider inset={SCREEN_MARGIN} />
-      <DetailRow label="Stake" value={league.stakeUsd === 0 ? "Free" : formatUsd(league.stakeUsd)} />
+      <DetailRow label="Buy-in" value={league.stakeUsd === 0 ? "Free" : formatUsd(league.stakeUsd)} />
       <DetailRow label="Members" value={String(league.memberCount)} />
       <DetailRow label="Settles" value={isSettled(pot, now) ? "Settled" : formatCountdown(pot.settlesAt - now)} />
     </View>

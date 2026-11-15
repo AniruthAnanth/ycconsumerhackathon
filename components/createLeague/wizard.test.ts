@@ -126,7 +126,7 @@ describe("reviewRows", () => {
     expect(reviewRows(draft)).toEqual([
       { label: "Name", value: "Gym Rats" },
       { label: "Who's playing", value: "Private friends league" },
-      { label: "Stakes", value: "$20 buy-in" },
+      { label: "Buy-in", value: "$20" },
       { label: "Season", value: "12 weeks" },
       { label: "Format", value: "Bracket" },
       { label: "Payout", value: "End of season" },
