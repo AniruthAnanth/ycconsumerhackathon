@@ -74,10 +74,11 @@ function Notifier() {
   }, []);
 
   // A tap can be what launched the app. Its screen is opened once the player's own screens
-  // exist to open it over; before that the tabs would redirect to onboarding.
+  // exist to open it over; before that the tabs would redirect to onboarding. navigate, not
+  // push: a tab is switched to rather than stacked, and the screen already showing stays one.
   useEffect(() => {
     if (!playing) return;
-    return device.onOpen((url) => router.push(url as Href));
+    return device.onOpen((url) => router.navigate(url as Href));
   }, [playing, router]);
 
   const userId = me?._id;
