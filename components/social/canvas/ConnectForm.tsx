@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Button, OutlinedPillButton, TextField } from "@/components/ui";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { normalizeBaseUrl } from "./canvasLogic";
 
@@ -53,7 +53,7 @@ export function ConnectForm({
 }
 
 const styles = StyleSheet.create({
-  form: { padding: spacing.lg, gap: spacing.md },
+  form: { padding: SCREEN_MARGIN, gap: spacing.md },
   error: { color: colors.danger, fontFamily: fontFamily.regular, fontSize: font.body },
   actions: { gap: spacing.md },
 });

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, radius, spacing } from "@/theme";
 
 import { recruiterPillText } from "./inviteRoute";
 
@@ -23,8 +23,8 @@ const styles = StyleSheet.create({
   pill: {
     alignSelf: "flex-start",
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
     backgroundColor: colors.accentTint,
   },
   text: { fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.5, color: colors.accent },

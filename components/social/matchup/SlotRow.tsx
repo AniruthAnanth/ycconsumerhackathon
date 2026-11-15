@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { PositionPill, Score } from "@/components/ui";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { PositionPill, RowDivider, Score } from "@/components/ui";
+import { colors, font, fontFamily, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Matchup, TaskRow } from "../contract";
 import { statusLine } from "./matchupLogic";
@@ -12,6 +12,7 @@ export function SlotRow({ row }: { row: Matchup["rows"][number] }) {
       <TaskSide task={row.mine} side="mine" />
       <PositionPill slot={row.slot} />
       <TaskSide task={row.theirs} side="theirs" />
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
@@ -47,14 +48,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     gap: spacing.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   side: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   sideMirrored: { flexDirection: "row-reverse" },
-  text: { flex: 1, gap: 2 },
+  text: { flex: 1, gap: spacing.xs },
   textRight: { textAlign: "right" },
   title: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold },
   status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.meta },

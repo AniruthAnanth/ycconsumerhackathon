@@ -9,6 +9,7 @@ import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { ChatInputBar } from "./ChatInputBar";
 import { SUGGESTIONS } from "./chatLogic";
@@ -76,6 +77,6 @@ export function ChatScreen() {
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
-  messages: { paddingVertical: 8 },
-  suggestions: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  messages: { paddingVertical: spacing.sm },
+  suggestions: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN },
 });

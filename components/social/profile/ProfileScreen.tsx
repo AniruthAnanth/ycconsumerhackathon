@@ -3,8 +3,8 @@ import { useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { RecruiterBadge } from "@/components/invite";
-import { Avatar, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { Avatar, Divider, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { socialApi } from "../contract";
@@ -27,7 +27,7 @@ export function ProfileScreen() {
       ) : (
         <>
           <View style={styles.top}>
-            <Avatar uri={profile.avatarUrl} name={profile.name} size={72} />
+            <Avatar uri={profile.avatarUrl} name={profile.name} size={spacing.xxl * 2} />
             <View style={styles.nameBlock}>
               <Text style={styles.name} numberOfLines={2}>
                 {profile.name}
@@ -39,6 +39,7 @@ export function ProfileScreen() {
               <Text style={styles.totalLabel}>TOTAL POINTS</Text>
             </View>
           </View>
+          <Divider />
           <SectionLabel left="SEASON" />
           <StatRow label="Tasks completed" value={String(profile.tasksCompleted)} />
           <StatRow label="Completion rate" value={formatPercent(profile.completionRate)} />
@@ -71,14 +72,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.xl,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   nameBlock: { flex: 1, gap: spacing.xs },
-  name: { flex: 1, fontSize: 22, fontFamily: fontFamily.bold, color: colors.text },
-  total: { alignItems: "flex-end" },
+  name: { ...type.heading, flexShrink: 1, color: colors.text },
+  total: { alignItems: "flex-end", flexShrink: 0 },
   totalLabel: { fontSize: font.label, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textMuted },
   bestSlot: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   slotName: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text },

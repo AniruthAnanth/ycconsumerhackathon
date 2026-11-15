@@ -11,7 +11,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
 import { shareImage, shareText } from "@/lib/native/share";
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { socialApi } from "../contract";
 import { leaveScreen } from "../leave";
@@ -103,7 +103,7 @@ export function WrappedScreen() {
           </View>
         )}
       />
-      <View style={[styles.top, { top: insets.top + 8 }]} pointerEvents="box-none">
+      <View style={[styles.top, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
         <View style={styles.segments} pointerEvents="none">
           {cards.map((card, position) => (
             <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
@@ -122,19 +122,19 @@ export function WrappedScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.text },
-  top: { position: "absolute", left: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 10 },
-  segments: { flex: 1, flexDirection: "row", gap: 4 },
-  segment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: SEGMENT_TRACK },
+  top: { position: "absolute", left: SCREEN_MARGIN, right: SCREEN_MARGIN, flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  segments: { flex: 1, flexDirection: "row", gap: spacing.xs },
+  segment: { flex: 1, height: spacing.xs, borderRadius: radius.pill, backgroundColor: SEGMENT_TRACK },
   segmentFilled: { backgroundColor: WHITE },
   // A dark disc behind each control, so it reads on any photo: on a phone the X landed on a lit
   // sign in the champion card's picture and looked like it had a box of its own.
   control: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: layout.avatarCompact,
+    height: layout.avatarCompact,
+    borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: CONTROL_BACKDROP,
   },
-  close: { color: WHITE, fontSize: 16, lineHeight: 20, fontFamily: fontFamily.bold },
+  close: { color: WHITE, fontSize: font.title, lineHeight: 20, fontFamily: fontFamily.bold },
 });

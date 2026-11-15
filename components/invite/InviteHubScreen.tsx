@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { Header, Screen } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { InviteButton } from "./InviteButton";
 import { RecruiterCard } from "./RecruiterCard";
@@ -24,5 +24,5 @@ export function InviteHubScreen() {
 }
 
 const styles = StyleSheet.create({
-  action: { padding: spacing.lg },
+  action: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
 });

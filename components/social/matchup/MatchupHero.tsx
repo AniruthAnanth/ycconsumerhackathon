@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { CountUp, PressScale } from "@/components/motion";
 import { Avatar } from "@/components/ui";
 import { formatScore } from "@/lib/taskText";
-import { colors, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, layout, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import type { Matchup, MatchupSide } from "../contract";
 import { possiblePoints } from "./matchupLogic";
@@ -33,8 +33,8 @@ function HeroSide({ side, possible, align }: { side: MatchupSide; possible: numb
       onPress={() => router.push(`/profile/${side.userId}`)}
       style={[styles.side, { alignItems: align }]}
     >
-      <Avatar name={side.name} size={44} />
-      <Text style={styles.name} numberOfLines={1}>
+      <Avatar name={side.name} size={layout.rowMin} />
+      <Text style={styles.name} numberOfLines={2}>
         {side.name}
       </Text>
       <CountUp style={styles.score} value={side.total} format={formatScore} decimals={1} fromZero numberOfLines={1} adjustsFontSizeToFit />
@@ -48,6 +48,6 @@ const styles = StyleSheet.create({
   sides: { flexDirection: "row", gap: spacing.lg },
   side: { flex: 1, gap: spacing.xs },
   name: { ...type.label, color: colors.textMuted, maxWidth: "100%" },
-  score: { ...type.display, color: colors.text, fontVariant: ["tabular-nums"], maxWidth: "100%" },
+  score: { ...type.display, color: colors.text, ...tabular, maxWidth: "100%" },
   possible: { color: colors.textFaint, fontFamily: fontFamily.semiBold, fontSize: type.caption.fontSize },
 });

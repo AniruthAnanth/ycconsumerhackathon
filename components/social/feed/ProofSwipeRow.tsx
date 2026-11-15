@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import Swipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 
 import { haptics } from "@/lib/native/haptics";
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily } from "@/theme";
 
 const ACTION_WIDTH = 96;
 
@@ -76,5 +76,5 @@ const styles = StyleSheet.create({
   react: { backgroundColor: colors.accent },
   challenge: { backgroundColor: colors.danger },
   emoji: { fontFamily: fontFamily.regular, fontSize: 24 },
-  label: { color: colors.onAccent, fontSize: 14, fontFamily: fontFamily.bold },
+  label: { color: colors.onAccent, fontSize: font.body, fontFamily: fontFamily.bold },
 });

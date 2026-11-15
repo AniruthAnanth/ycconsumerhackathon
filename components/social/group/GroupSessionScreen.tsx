@@ -12,7 +12,7 @@ import { useMyUserId } from "@/components/social/useMyUserId";
 import { Button, Header, Score, Screen, SectionLabel } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { errorMessage } from "@/lib/errorMessage";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { AttendeeRow } from "./AttendeeRow";
 import { formatStart, sessionAction } from "./groupLogic";
@@ -101,10 +101,10 @@ export function GroupSessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, padding: spacing.lg },
+  titleRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.md, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
   title: { flex: 1, color: colors.text, fontSize: font.total, fontFamily: fontFamily.extraBold },
-  details: { padding: spacing.lg, gap: spacing.xs },
+  details: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg, gap: spacing.xs },
   place: { color: colors.text, fontSize: font.header, fontFamily: fontFamily.bold },
   start: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
-  footer: { padding: spacing.lg },
+  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
 });

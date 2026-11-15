@@ -2,7 +2,8 @@ import { useMutation, useQuery } from "convex/react";
 import { Linking, StyleSheet, Switch, Text, View } from "react-native";
 
 import { api } from "@/convex/_generated/api";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { RowDivider } from "@/components/ui";
+import { colors, font, fontFamily, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { formatLineNumber } from "./formatLineNumber";
 
@@ -46,22 +47,21 @@ export function PlayByTextRow() {
         trackColor={{ true: colors.accent }}
         accessibilityLabel="Play by text"
       />
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 64,
+    minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
-  text: { flex: 1, gap: 2 },
+  text: { flex: 1, gap: spacing.xs },
   title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   copy: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });
