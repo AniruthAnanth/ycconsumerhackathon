@@ -13,15 +13,19 @@ type Props = {
   onNext?: () => void;
   /** The hidden door to demo controls. */
   onLongPress?: () => void;
+  /** False hides both chevrons, for a tab that cannot show another week. Defaults to true. */
+  arrows?: boolean;
 };
 
 /** The "< Week 1 >" row under the top tabs. */
-export function WeekSelector({ label, onPrev, onNext, onLongPress }: Props) {
+export function WeekSelector({ label, onPrev, onNext, onLongPress, arrows = true }: Props) {
   return (
     <View style={styles.bar}>
-      <Pressable onPress={onPrev} disabled={!onPrev} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous week">
-        <Icon name="chevron-back" size={18} color={onPrev ? colors.text : colors.textFaint} />
-      </Pressable>
+      {arrows && (
+        <Pressable onPress={onPrev} disabled={!onPrev} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous week">
+          <Icon name="chevron-back" size={18} color={onPrev ? colors.text : colors.textFaint} />
+        </Pressable>
+      )}
       <Pressable
         onLongPress={onLongPress}
         delayLongPress={600}
@@ -33,9 +37,11 @@ export function WeekSelector({ label, onPrev, onNext, onLongPress }: Props) {
       >
         <Text style={styles.label}>{label}</Text>
       </Pressable>
-      <Pressable onPress={onNext} disabled={!onNext} hitSlop={12} accessibilityRole="button" accessibilityLabel="Next week">
-        <Icon name="chevron-forward" size={18} color={onNext ? colors.text : colors.textFaint} />
-      </Pressable>
+      {arrows && (
+        <Pressable onPress={onNext} disabled={!onNext} hitSlop={12} accessibilityRole="button" accessibilityLabel="Next week">
+          <Icon name="chevron-forward" size={18} color={onNext ? colors.text : colors.textFaint} />
+        </Pressable>
+      )}
     </View>
   );
 }

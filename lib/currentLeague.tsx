@@ -1,9 +1,10 @@
 import { useQuery } from "convex/react";
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 import type { Id } from "@/convex/_generated/dataModel";
 
 import { backend, type League, type Me, type MyLeague } from "./backend";
+import { readPreference, writePreference } from "./preference";
 import { shiftWeekStart } from "./week";
 
 type CurrentLeague = {
@@ -24,6 +25,8 @@ type CurrentLeague = {
   showNextWeek: (() => void) | undefined;
 };
 
+const CHOSEN_LEAGUE_KEY = "lineup.chosenLeague";
+
 const CurrentLeagueContext = createContext<CurrentLeague | null>(null);
 
 /**
@@ -33,14 +36,21 @@ const CurrentLeagueContext = createContext<CurrentLeague | null>(null);
  */
 export function CurrentLeagueProvider({ children }: { children: ReactNode }) {
   const me = useQuery(backend.users.me);
-  const [chosenId, setChosenId] = useState<Id<"leagues"> | null>(null);
+  // Undefined until the id saved on this device has been read, null when none was saved.
+  const [chosenId, setChosenId] = useState<Id<"leagues"> | null | undefined>(undefined);
+  useEffect(() => {
+    void readPreference(CHOSEN_LEAGUE_KEY).then((saved) => setChosenId(saved as Id<"leagues"> | null));
+  }, []);
   // 0 is the league's current week, -1 the one before, 1 the one being drafted next.
   const [weekOffset, setWeekOffset] = useState(0);
 
   // The choice only holds while the player is a member of it; otherwise fall
   // back to their first league, which is also the answer on first launch.
+  // Until the saved choice is read there is no league, as while `me` loads, so
+  // the first league never flashes before the saved one replaces it.
   const leagues = me?.leagues ?? [];
-  const membership = leagues.find((league) => league._id === chosenId) ?? leagues[0];
+  const membership =
+    chosenId === undefined ? undefined : (leagues.find((league) => league._id === chosenId) ?? leagues[0]);
   const leagueId = membership?._id ?? null;
   const league = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip");
 
@@ -51,6 +61,7 @@ export function CurrentLeagueProvider({ children }: { children: ReactNode }) {
     setLeagueId: (id) => {
       setChosenId(id);
       setWeekOffset(0);
+      void writePreference(CHOSEN_LEAGUE_KEY, id);
     },
     membership,
     league,
