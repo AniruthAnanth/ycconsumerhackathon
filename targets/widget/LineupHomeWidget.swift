@@ -67,11 +67,21 @@ extension WidgetSnapshot {
     nextTaskPoints: 30
   )
 
+  /// The App Group is named after the app's bundle identifier (plugins/withAppGroup.js), which
+  /// changes with the team that signs the app. This extension's own identifier is the app's plus
+  /// ".widgets" (expo-target.config.js), so the app's is recovered by dropping that suffix.
+  static var appGroup: String {
+    let extensionId: String = Bundle.main.bundleIdentifier ?? ""
+    let suffix: String = ".widgets"
+    let appId: String = extensionId.hasSuffix(suffix) ? String(extensionId.dropLast(suffix.count)) : extensionId
+    return "group." + appId
+  }
+
   /// What the app last wrote to the App Group, the only storage the app and this extension share
   /// (they are separate processes). Nil on a fresh install, and when the JSON is not the shape
   /// this build expects: the placeholder is better than a half-decoded scoreboard.
   static func stored() -> WidgetSnapshot? {
-    guard let defaults: UserDefaults = UserDefaults(suiteName: "group.com.lineup.app") else {
+    guard let defaults: UserDefaults = UserDefaults(suiteName: appGroup) else {
       return nil
     }
     guard let json: String = defaults.string(forKey: "widgetSnapshot") else {

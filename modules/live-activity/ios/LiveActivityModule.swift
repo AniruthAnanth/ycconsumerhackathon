@@ -69,9 +69,11 @@ public class LiveActivityModule: Module {
     }
 
     // Hands the home-screen widget its data. The widget extension is a separate process, so the
-    // only thing the two share is the App Group's UserDefaults.
+    // only thing the two share is the App Group's UserDefaults. The group is named after the
+    // app's bundle identifier (plugins/withAppGroup.js); LineupHomeWidget.swift reads the same one.
     AsyncFunction("setWidgetSnapshot") { (snapshotJson: String) in
-      UserDefaults(suiteName: "group.com.lineup.app")?.set(snapshotJson, forKey: "widgetSnapshot")
+      let appGroup = "group." + (Bundle.main.bundleIdentifier ?? "")
+      UserDefaults(suiteName: appGroup)?.set(snapshotJson, forKey: "widgetSnapshot")
       WidgetCenter.shared.reloadAllTimelines()
     }
   }
