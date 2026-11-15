@@ -317,6 +317,30 @@ describe("standings.pot", () => {
     expect(pot.unpaid).toEqual([]);
   });
 
+  test("goes by the ledger, not by the membership's paid flag", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, ids } = await seeded(t);
+    const novaId = await t.run((ctx) => ctx.db.insert("users", { name: "Nova", phone: "+14155550177" }));
+    await as(t, novaId).mutation(api.leagues.joinByCode, { inviteCode: "YCHACK" });
+    // A flag with no buy-in behind it, as one left over from an earlier week would be.
+    await t.run(async (ctx) => {
+      const membership = await ctx.db
+        .query("memberships")
+        .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", novaId))
+        .unique();
+      if (!membership) throw new Error("Nova is not a member");
+      await ctx.db.patch("memberships", membership._id, { paid: true });
+    });
+
+    const pot = await as(t, ids.Maya).query(api.standings.pot, { leagueId });
+    expect(pot.potUsd).toBe(120);
+    expect(pot.unpaid).toEqual([{ userId: novaId, name: "Nova" }]);
+
+    const table = await as(t, ids.Maya).query(api.standings.table, { leagueId });
+    expect(table.find((row) => row.userId === novaId)?.paid).toBe(false);
+    expect(table.filter((row) => row.paid)).toHaveLength(6);
+  });
+
   test("shows the settled week's refunds and winnings, but not the fee", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, weekId, ids } = await seeded(t);

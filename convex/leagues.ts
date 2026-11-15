@@ -28,6 +28,8 @@ const INVITE_CODE_LENGTH = 6;
 const INVITE_CODE_ATTEMPTS = 20;
 // No 0, O, 1, I or L: codes are read aloud and typed from a text message.
 const INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+// One settlement writes at most a buy-in, a refund and winnings per member, and a fee.
+const LEDGER_ROWS_PER_SETTLEMENT = 200;
 
 const visibility = v.union(v.literal("private"), v.literal("public"));
 
@@ -65,6 +67,52 @@ export async function membersInJoinOrder(
     .query("memberships")
     .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
     .take(MAX_MEMBERS);
+}
+
+/**
+ * Tells who has paid into the settlement `week` belongs to: the members whose
+ * buy-in is in the ledger for that week, or for any week of its season so far
+ * when the league holds stakes to the season's end. The ledger decides, as it
+ * does at settlement, so the table, the pot and the Pay banner can never
+ * disagree with who is paid out. Nobody owes anything in a free league.
+ */
+export async function paidInto(
+  ctx: QueryCtx | MutationCtx,
+  league: Doc<"leagues">,
+  week: Doc<"weeks">,
+): Promise<(userId: Id<"users">) => boolean> {
+  if (league.stakeUsd === 0) {
+    return () => true;
+  }
+
+  let weeks = [week];
+  const { payout: paysOut, seasonWeeks } = resolveSettings(league);
+  if (paysOut === "season") {
+    // Weeks are appended with a rising number, so walking back from this
+    // week's row reaches the season's first week in that many rows.
+    const { firstWeek } = seasonOf(week.number, seasonWeeks);
+    const upToThisWeek = await ctx.db
+      .query("weeks")
+      .withIndex("by_league", (q) =>
+        q.eq("leagueId", league._id).lte("_creationTime", week._creationTime),
+      )
+      .order("desc")
+      .take(week.number - firstWeek + 1);
+    weeks = upToThisWeek.filter((other) => other.number >= firstWeek);
+  }
+
+  // A ledger row names its week, so it was written after that week's row.
+  // Starting there skips every earlier settlement however long the league runs.
+  const since = Math.min(...weeks.map((other) => other._creationTime));
+  const rows = await ctx.db
+    .query("ledger")
+    .withIndex("by_league", (q) => q.eq("leagueId", league._id).gte("_creationTime", since))
+    .take(LEDGER_ROWS_PER_SETTLEMENT);
+  const weekIds = new Set(weeks.map((other) => other._id));
+  const boughtIn = new Set(
+    rows.filter((row) => row.kind === "buy_in" && weekIds.has(row.weekId)).map((row) => row.userId),
+  );
+  return (userId) => boughtIn.has(userId);
 }
 
 /**

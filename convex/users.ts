@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { addMember } from "./leagues";
+import { addMember, currentWeek, paidInto } from "./leagues";
 import { requireSignedInUser, requireUser, signedInUser } from "./lib/auth";
 
 const MAX_NAME_LENGTH = 40;
@@ -48,11 +48,13 @@ export const me = query({
     for (const membership of memberships) {
       const league = await ctx.db.get("leagues", membership.leagueId);
       if (league !== null) {
+        const week = await currentWeek(ctx, league._id);
         leagues.push({
           _id: league._id,
           name: league.name,
           stakeUsd: league.stakeUsd,
-          paid: membership.paid,
+          // Paid into the week in play, by the ledger: the same answer the pot gives.
+          paid: week === null ? league.stakeUsd === 0 : (await paidInto(ctx, league, week))(player._id),
         });
       }
     }
