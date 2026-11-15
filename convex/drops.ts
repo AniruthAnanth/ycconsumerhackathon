@@ -9,6 +9,7 @@
  *
  * Both transitions are scheduled functions (ctx.scheduler), so a drop opens and closes on time
  * with no client involved, and no query has to read the clock to know whether a drop is live.
+ * A mystery envelope is delivered already open; a group session opens when check-in does.
  *
  * Points live on the task row: standings sum tasks.points, so a bonus is written there the
  * moment it is earned and is never added again at read time. The numbers and the wording of
@@ -22,6 +23,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalAction,
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type MutationCtx,
@@ -33,6 +35,15 @@ import {
   clampMysteryPoints,
   clampWager,
   firstFinisher,
+  GROUP_CHECK_IN_WINDOW_MS,
+  GROUP_REMINDER_LEAD_MS,
+  GROUP_SESSION_POINTS,
+  groupAnnouncementText,
+  groupReminderText,
+  groupSessionPoints,
+  groupWrapUpText,
+  HEADCOUNT_INSTRUCTIONS,
+  HEADCOUNT_SCHEMA,
   MYSTERY_INSTRUCTIONS,
   MYSTERY_MEMORY_QUERY,
   MYSTERY_SCHEMA,
@@ -87,8 +98,11 @@ export const active = query({
     const me = await requireUser(ctx);
     if ((await membership(ctx, leagueId, me._id)) === null) return [];
 
+    // A group session is listed from the moment it is announced, so members can RSVP; every
+    // other drop only once it is open.
+    const upcoming = (await dropsIn(ctx, leagueId, "scheduled")).filter((drop) => drop.kind === "group");
     const banners: ActiveDrop[] = [];
-    for (const drop of await dropsIn(ctx, leagueId, "open")) {
+    for (const drop of [...(await dropsIn(ctx, leagueId, "open")), ...upcoming]) {
       const banner = await bannerFor(ctx, drop, me._id);
       if (banner !== null) banners.push(banner);
     }
@@ -120,6 +134,21 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
     if (drop.sealed) return { ...banner, title: SEALED_TITLE, points: mysteryWinPoints(drop.points, 0) };
   }
   const myTask = (await tasksOf(ctx, drop._id)).find((task) => task.userId === me);
+  if (drop.kind === "group") {
+    // Shown to the whole league until it closes: it is how members find the session to RSVP
+    // and how attendees watch each other check in. taskId is set while I can still check in.
+    const attendees = [];
+    for (const rsvp of await rsvpsOf(ctx, drop._id)) {
+      const attendee = await ctx.db.get("users", rsvp.userId);
+      attendees.push({ userId: rsvp.userId, name: attendee?.name ?? "Player", checkedIn: rsvp.checkedIn });
+    }
+    return {
+      ...banner,
+      points: myTask?.points ?? drop.points,
+      taskId: myTask?.status === "open" ? myTask._id : undefined,
+      attendees,
+    };
+  }
   // A banner asks for one action. Once my task is verified, or I never had one because I
   // joined after the drop opened, there is nothing left for me to do.
   if (myTask?.status !== "open") return null;
@@ -299,18 +328,8 @@ async function openEnvelope(
   // An over-sized wager is cut down rather than refused, so "OPEN 80" by text still opens.
   const wager = clampWager(requestedWager, await bankedPoints(ctx, drop.leagueId, userId, weekStart));
   await ctx.db.patch("drops", dropId, { sealed: false, wager });
-  await ctx.db.insert("tasks", {
-    userId,
-    weekStart,
-    slot: drop.slot,
-    title: drop.title,
-    // Priced for success now. If the envelope closes unfinished, close() turns this negative.
-    points: mysteryWinPoints(drop.points, wager),
-    proofType: "photo",
-    status: "open",
-    source: TASK_SOURCE[drop.kind],
-    dropId,
-  });
+  // Priced for success now. If the envelope closes unfinished, close() turns this negative.
+  await giveTask(ctx, drop, userId, weekStart, mysteryWinPoints(drop.points, wager));
 }
 
 /** A passed envelope is closed still sealed: no task was ever created, so nothing is scored. */
@@ -354,9 +373,181 @@ async function bankedPoints(
   return banked;
 }
 
+// ─── Group sessions ──────────────────────────────────────────────────────────────────────────
+//
+// Any member can call a meetup: a title, a place and a start time. Others join with an RSVP.
+// Check-in opens 30 minutes before the start, when the reminder goes out, and stays open for
+// two hours after it. An attendee checks in with a photo taken at the place, which
+// proofs.verify holds to the usual distance rule. The model then counts the people in that
+// photo, and every checked-in attendee earns a bonus for each other attendee the best photo
+// shows. drops.opensAt is the start time the app displays.
+
+const groupSession = {
+  leagueId: v.id("leagues"),
+  title: v.string(),
+  place,
+  startsAt: v.number(),
+};
+
+export const createGroupSession = mutation({
+  args: groupSession,
+  returns: v.id("drops"),
+  handler: async (ctx, session) => {
+    const me = await requireUser(ctx);
+    return await startGroupSession(ctx, me._id, session);
+  },
+});
+
+export const rsvp = mutation({
+  args: { dropId: v.id("drops") },
+  returns: v.null(),
+  handler: async (ctx, { dropId }) => {
+    const me = await requireUser(ctx);
+    await joinGroupSession(ctx, me._id, dropId);
+    return null;
+  },
+});
+
+/** A session proposed by text ("run tomorrow 7am at Dolores Park"), already parsed by Keiki. */
+export const createGroupSessionFor = internalMutation({
+  args: { userId: v.id("users"), ...groupSession },
+  returns: v.id("drops"),
+  handler: async (ctx, { userId, ...session }) => await startGroupSession(ctx, userId, session),
+});
+
+/** IN by text. */
+export const rsvpFor = internalMutation({
+  args: { userId: v.id("users"), dropId: v.id("drops") },
+  returns: v.null(),
+  handler: async (ctx, { userId, dropId }) => {
+    await joinGroupSession(ctx, userId, dropId);
+    return null;
+  },
+});
+
+async function startGroupSession(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  session: { leagueId: Id<"leagues">; title: string; place: Infer<typeof place>; startsAt: number },
+): Promise<Id<"drops">> {
+  if ((await membership(ctx, session.leagueId, userId)) === null) {
+    throw new ConvexError("Only a member of the league can start a group session");
+  }
+  const title = session.title.trim();
+  if (title === "") throw new ConvexError("Give the session a title");
+
+  const now = Date.now();
+  // A start time that has already passed means "now": check-in opens at once.
+  const startsAt = Math.max(session.startsAt, now);
+  const dropId = await ctx.db.insert("drops", {
+    leagueId: session.leagueId,
+    kind: "group",
+    createdBy: userId,
+    title,
+    // One slot fits the row; standings count a verified group task toward Body and People.
+    slot: "body",
+    points: GROUP_SESSION_POINTS,
+    sealed: false,
+    place: session.place,
+    opensAt: startsAt,
+    closesAt: startsAt + GROUP_CHECK_IN_WINDOW_MS,
+    status: "scheduled",
+  });
+  // Whoever calls the session is going.
+  await ctx.db.insert("rsvps", { dropId, userId, checkedIn: false });
+  await ctx.scheduler.runAt(Math.max(now, startsAt - GROUP_REMINDER_LEAD_MS), internal.drops.openDrop, { dropId });
+  await ctx.scheduler.runAt(startsAt + GROUP_CHECK_IN_WINDOW_MS, internal.drops.closeDrop, { dropId });
+
+  const creator = await ctx.db.get("users", userId);
+  await sendText(
+    ctx,
+    { leagueId: session.leagueId },
+    groupAnnouncementText({
+      creator: creator?.name ?? "A teammate",
+      title,
+      placeName: session.place.name,
+      startsAt,
+    }),
+  );
+  return dropId;
+}
+
+async function joinGroupSession(ctx: MutationCtx, userId: Id<"users">, dropId: Id<"drops">): Promise<void> {
+  const drop = await ctx.db.get("drops", dropId);
+  if (drop === null || drop.kind !== "group") throw new ConvexError("That group session doesn't exist");
+  if (drop.status === "closed") throw new ConvexError("That group session is over");
+  if ((await membership(ctx, drop.leagueId, userId)) === null) {
+    throw new ConvexError("Join the league to join its group sessions");
+  }
+  // IN sent twice, or tapped twice, is still one RSVP.
+  if ((await rsvpsOf(ctx, dropId)).some((rsvp) => rsvp.userId === userId)) return;
+  await ctx.db.insert("rsvps", { dropId, userId, checkedIn: false });
+  // Check-in already opened, so this attendee missed the tasks openDrop handed out.
+  if (drop.status === "open") await giveTask(ctx, drop, userId, await currentWeekStart(ctx, drop.leagueId));
+}
+
+/**
+ * Counts the people in an attendee's check-in photo. A separate step after verification because
+ * it is a second model call, and nobody should wait on it to see their check-in accepted.
+ */
+export const countGroupPhoto = internalAction({
+  args: { dropId: v.id("drops"), taskId: v.id("tasks") },
+  returns: v.null(),
+  handler: async (ctx, { dropId, taskId }) => {
+    const photo: { storageId: Id<"_storage">; url: string } | null = await ctx.runQuery(
+      internal.drops.checkInPhoto,
+      { taskId },
+    );
+    if (photo === null) return null;
+    const { people } = await askJson<{ people: number }>({
+      name: "group_headcount",
+      instructions: HEADCOUNT_INSTRUCTIONS,
+      text: "Count the people in this group session check-in photo.",
+      imageUrls: [photo.url],
+      schema: HEADCOUNT_SCHEMA,
+    });
+    await ctx.runMutation(internal.drops.recordHeadcount, { dropId, storageId: photo.storageId, people });
+    return null;
+  },
+});
+
+/** The photo that verified a check-in. A video check-in has no still the model can count. */
+export const checkInPhoto = internalQuery({
+  args: { taskId: v.id("tasks") },
+  returns: v.union(v.null(), v.object({ storageId: v.id("_storage"), url: v.string() })),
+  handler: async (ctx, { taskId }) => {
+    const proofs = await ctx.db
+      .query("proofs")
+      .withIndex("by_task", (q) => q.eq("taskId", taskId))
+      .order("desc")
+      .take(MAX_ROWS);
+    const proof = proofs.find((candidate) => candidate.pass && candidate.mediaType === "photo");
+    if (proof?.storageId === undefined) return null;
+    const url = await ctx.storage.getUrl(proof.storageId);
+    return url === null ? null : { storageId: proof.storageId, url };
+  },
+});
+
+/** Keeps the highest headcount seen: the photo showing the most people is the group photo. */
+export const recordHeadcount = internalMutation({
+  args: { dropId: v.id("drops"), storageId: v.id("_storage"), people: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { dropId, storageId, people }) => {
+    const drop = await ctx.db.get("drops", dropId);
+    const headcount = Math.max(0, Math.floor(people));
+    if (drop === null || headcount <= (drop.headcount ?? 0)) return null;
+    await ctx.db.patch("drops", dropId, { headcount, groupPhotoId: storageId });
+    await reprice(ctx, { ...drop, headcount });
+    return null;
+  },
+});
+
 // ─── Lifecycle ───────────────────────────────────────────────────────────────────────────────
 
-/** Scheduled for drops.opensAt: gives every member the drop's task and texts the league. */
+/**
+ * Scheduled for the moment a drop goes live: gives the players their task and texts them. A
+ * quick-time drop goes to every member; a group session's check-in goes to those who RSVP'd.
+ */
 export const openDrop = internalMutation({
   args: { dropId: v.id("drops") },
   returns: v.null(),
@@ -367,18 +558,23 @@ export const openDrop = internalMutation({
     await ctx.db.patch("drops", dropId, { status: "open" });
 
     const weekStart = await currentWeekStart(ctx, drop.leagueId);
+    if (drop.kind === "group") {
+      const startsInMs = drop.opensAt - Date.now();
+      for (const { userId } of await rsvpsOf(ctx, dropId)) {
+        await giveTask(ctx, drop, userId, weekStart);
+        // A session called at the last minute was announced moments ago; that was the reminder.
+        if (startsInMs < GROUP_REMINDER_LEAD_MS / 2 || drop.place === undefined) continue;
+        await sendText(
+          ctx,
+          { userId },
+          groupReminderText({ title: drop.title, placeName: drop.place.name, startsInMs }),
+        );
+      }
+      return null;
+    }
+
     for (const member of await membersOf(ctx, drop.leagueId)) {
-      await ctx.db.insert("tasks", {
-        userId: member.userId,
-        weekStart,
-        slot: drop.slot,
-        title: drop.title,
-        points: drop.points,
-        proofType: "photo",
-        status: "open",
-        source: TASK_SOURCE[drop.kind],
-        dropId,
-      });
+      await giveTask(ctx, drop, member.userId, weekStart);
     }
     await sendText(
       ctx,
@@ -417,7 +613,11 @@ export const onTaskVerified = internalMutation({
     const task = await ctx.db.get("tasks", taskId);
     if (task === null || task.dropId === undefined) return null;
     const drop = await ctx.db.get("drops", task.dropId);
-    if (drop !== null) await reprice(ctx, drop);
+    if (drop === null) return null;
+    await reprice(ctx, drop);
+    if (drop.kind === "group") {
+      await ctx.scheduler.runAfter(0, internal.drops.countGroupPhoto, { dropId: drop._id, taskId });
+    }
     return null;
   },
 });
@@ -434,6 +634,21 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
     const points = drop.kind === "mystery" ? mysteryLossPoints(drop.wager ?? 0) : task.points;
     await ctx.db.patch("tasks", task._id, { status: "failed", points });
   }
+
+  if (drop.kind !== "group") return;
+  const checkedIn = (await rsvpsOf(ctx, drop._id)).filter((rsvp) => rsvp.checkedIn).length;
+  // A session nobody checked in to ends quietly.
+  if (checkedIn === 0) return;
+  await sendText(
+    ctx,
+    { leagueId: drop.leagueId },
+    groupWrapUpText({
+      title: drop.title,
+      checkedIn,
+      points: groupSessionPoints(drop.points, checkedIn, drop.headcount),
+      photoUrl: drop.groupPhotoId === undefined ? null : await ctx.storage.getUrl(drop.groupPhotoId),
+    }),
+  );
 }
 
 /**
@@ -443,7 +658,23 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
  */
 async function reprice(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   // An envelope is priced once, when it is opened, and the wager is fixed from then on.
-  if (drop.kind !== "quicktime") return;
+  if (drop.kind === "mystery") return;
+
+  if (drop.kind === "group") {
+    // A check-in is a verified task. Everyone present is worth the same, and that number
+    // rises for all of them each time another attendee checks in or a fuller photo is counted.
+    const present = (await tasksOf(ctx, drop._id)).filter((task) => task.status === "verified");
+    const points = groupSessionPoints(drop.points, present.length, drop.headcount);
+    for (const task of present) {
+      if (task.points !== points) await ctx.db.patch("tasks", task._id, { points });
+    }
+    for (const rsvp of await rsvpsOf(ctx, drop._id)) {
+      const checkedIn = present.some((task) => task.userId === rsvp.userId);
+      if (rsvp.checkedIn !== checkedIn) await ctx.db.patch("rsvps", rsvp._id, { checkedIn });
+    }
+    return;
+  }
+
   const finishers = [];
   for (const task of await tasksOf(ctx, drop._id)) {
     if (task.status !== "verified") continue;
@@ -477,6 +708,39 @@ async function dropsIn(
   return await ctx.db
     .query("drops")
     .withIndex("by_league_status", (q) => q.eq("leagueId", leagueId).eq("status", status))
+    .take(MAX_ROWS);
+}
+
+/**
+ * A player takes part in a drop through an ordinary task that carries the dropId, which is why
+ * proofs, the feed and standings need no drop logic of their own.
+ */
+async function giveTask(
+  ctx: MutationCtx,
+  drop: Doc<"drops">,
+  userId: Id<"users">,
+  weekStart: number,
+  points = drop.points,
+): Promise<Id<"tasks">> {
+  return await ctx.db.insert("tasks", {
+    userId,
+    weekStart,
+    slot: drop.slot,
+    title: drop.title,
+    points,
+    // A drop with a place is a check-in: the photo has to be taken there.
+    proofType: drop.place === undefined ? "photo" : "photo_location",
+    place: drop.place,
+    status: "open",
+    source: TASK_SOURCE[drop.kind],
+    dropId: drop._id,
+  });
+}
+
+async function rsvpsOf(ctx: QueryCtx, dropId: Id<"drops">): Promise<Doc<"rsvps">[]> {
+  return await ctx.db
+    .query("rsvps")
+    .withIndex("by_drop", (q) => q.eq("dropId", dropId))
     .take(MAX_ROWS);
 }
 

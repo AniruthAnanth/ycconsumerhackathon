@@ -197,6 +197,19 @@ export function groupSessionPoints(basePoints: number, checkedIn: number, headco
   return basePoints + Math.min(GROUP_BONUS_CAP, others * GROUP_BONUS_PER_ATTENDEE);
 }
 
+export const HEADCOUNT_INSTRUCTIONS = [
+  "You count attendance for a group meetup from one photo.",
+  "Count only real people who are physically present and at least partly visible, including whoever is holding the camera if they appear.",
+  "Do not count people on screens, in posters or in pictures, and do not guess at people outside the frame.",
+].join("\n");
+
+export const HEADCOUNT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["people"],
+  properties: { people: { type: "integer" } },
+} as const;
+
 /** "Sat 7:00 AM" in the league's home time zone, which is also the zone a week is defined in. */
 export function sessionTime(startsAt: number): string {
   return new Intl.DateTimeFormat("en-US", {
