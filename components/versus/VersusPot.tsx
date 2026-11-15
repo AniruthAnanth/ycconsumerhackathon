@@ -58,40 +58,60 @@ export function VersusPot({ versus }: { versus: Versus }) {
         <Text style={styles.pot}>{potLine(versus)}</Text>
         {versus.status === "waiting" ? (
           <>
-            <Text style={styles.detail}>Waiting for {opponentName} to accept. Code {versus.inviteCode}</Text>
-            <OutlinedPillButton label="Share invite" icon="share-outline" onPress={() => shareInvite(versus.inviteCode)} />
+            <Text style={styles.detail}>
+              Waiting for {opponentName} to accept. Code {versus.inviteCode}
+            </Text>
+            <OutlinedPillButton
+              label="Share invite"
+              icon="share-outline"
+              onPress={() => shareInvite(versus.inviteCode)}
+            />
           </>
         ) : null}
         {versus.status === "live" && versus.opponent && versus.stakeUsd > 0 ? (
           <Text style={styles.detail}>
-            {versus.opponent.name} {versus.opponent.paid ? "has paid" : "hasn't paid yet"}
+            {versus.opponent.name}{" "}
+            {versus.opponent.paid ? "has paid" : "hasn't paid yet"}
           </Text>
         ) : null}
         {outcome ? (
           <>
             <Text style={styles.outcome}>{outcome.title}</Text>
-            {outcome.detail ? <Text style={styles.detail}>{outcome.detail}</Text> : null}
+            {outcome.detail ? (
+              <Text style={styles.detail}>{outcome.detail}</Text>
+            ) : null}
             {versus.opponent ? (
               <Button
                 label="Rematch"
                 loading={busy}
-                onPress={() => run(async () => switchTo((await rematch({ leagueId: versus.leagueId })).leagueId))}
+                onPress={() =>
+                  run(async () =>
+                    switchTo(
+                      (await rematch({ leagueId: versus.leagueId })).leagueId,
+                    ),
+                  )
+                }
               />
             ) : null}
           </>
         ) : null}
-        <OutlinedPillButton
-          label="Add friends, make it a league"
-          icon="people-outline"
-          disabled={busy}
-          onPress={() =>
-            run(async () => {
-              const { leagueId } = await toLeague({ leagueId: versus.leagueId });
-              setLeagueId(leagueId);
-              router.push({ pathname: "/contacts", params: { leagueId } });
-            })
-          }
-        />
+        {/* Growing switches to the league payout rule, so the server refuses it while stakes ride on this week. */}
+        {versus.status === "settled" || versus.potUsd === 0 ? (
+          <OutlinedPillButton
+            label="Add friends, make it a league"
+            icon="people-outline"
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                const { leagueId } = await toLeague({
+                  leagueId: versus.leagueId,
+                });
+                setLeagueId(leagueId);
+                router.push({ pathname: "/contacts", params: { leagueId } });
+              })
+            }
+          />
+        ) : null}
         {failure ? <ErrorLine message={failure} /> : null}
       </View>
     </View>

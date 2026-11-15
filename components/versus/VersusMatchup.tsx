@@ -16,16 +16,26 @@ import { VersusPot } from "./VersusPot";
  * (code and Share) is the whole screen.
  */
 export function VersusMatchup({ versus }: { versus: Versus }) {
-  const matchup = useQuery(socialApi.standings.matchup, { leagueId: versus.leagueId });
+  const matchup = useQuery(socialApi.standings.matchup, {
+    leagueId: versus.leagueId,
+  });
   const router = useRouter();
   // A friend who just accepted has no lineup yet; drafting is the one thing left to do.
-  const needsDraft = matchup?.rows.every((row) => row.mine === undefined) ?? false;
+  const needsDraft =
+    versus.status !== "settled" &&
+    (matchup?.rows.every((row) => row.mine === undefined) ?? false);
   return (
     <ScrollView>
       <VersusPot versus={versus} />
       {matchup ? (
         <>
-          {needsDraft ? <Button label="Draft your lineup" style={{ margin: spacing.md }} onPress={() => router.push("/draft")} /> : null}
+          {needsDraft ? (
+            <Button
+              label="Draft your lineup"
+              style={{ margin: spacing.md }}
+              onPress={() => router.push("/draft")}
+            />
+          ) : null}
           <MatchupBody matchup={matchup} />
         </>
       ) : null}
