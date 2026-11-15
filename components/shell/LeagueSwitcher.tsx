@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, RowDivider } from "@/components/ui";
@@ -19,6 +20,16 @@ export function LeagueSwitcher() {
   const insets = useSafeAreaInsets();
   const { me, leagueId, setLeagueId } = useCurrentLeague();
 
+  // A web form sheet has no swipe-down, so Escape is the keyboard way out.
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") router.back();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [router]);
+
   function pick(id: Id<"leagues">) {
     if (id !== leagueId) haptics.select();
     setLeagueId(id);
@@ -33,6 +44,12 @@ export function LeagueSwitcher() {
 
   return (
     <View style={[styles.list, { paddingBottom: insets.bottom }]}>
+      <View style={styles.titleRow}>
+        <Text style={styles.title} accessibilityRole="header">Your leagues</Text>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close" hitSlop={spacing.sm} style={styles.close}>
+          <Icon name="close" />
+        </Pressable>
+      </View>
       {(me?.leagues ?? []).map((league) => (
         <Pressable
           key={league._id}
@@ -64,6 +81,9 @@ export function LeagueSwitcher() {
 const styles = StyleSheet.create({
   // Room above the first row for the sheet's grabber.
   list: { backgroundColor: colors.background, paddingTop: spacing.lg },
+  titleRow: { minHeight: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: SCREEN_MARGIN },
+  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  close: { minWidth: layout.rowMin, minHeight: layout.rowMin, alignItems: "flex-end", justifyContent: "center" },
   row: {
     minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
