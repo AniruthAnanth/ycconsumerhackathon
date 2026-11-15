@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { checkoutPageHtml, isCheckoutId } from "./checkoutPage";
+import { checkoutPageHtml, isCheckoutId, parseCheckoutMessage } from "./checkoutPage";
 
 const page = { checkoutId: "ch_8Ux4kgefzRCyCgl", returnUrl: "https://lineup.test/whop/checkout?ch=ch_8Ux4kgefzRCyCgl", returned: null };
 
@@ -10,6 +10,22 @@ describe("isCheckoutId", () => {
     for (const value of ["", "plan_abc", "ch_", 'ch_1";alert(1)//', "ch_1</script>", " ch_1"]) {
       expect(isCheckoutId(value)).toBe(false);
     }
+  });
+});
+
+describe("parseCheckoutMessage", () => {
+  test("reads the page's own messages", () => {
+    for (const type of ["ready", "complete", "failed", "returned"]) {
+      expect(parseCheckoutMessage(JSON.stringify({ source: "lineup-checkout", type }))).toBe(type);
+    }
+  });
+
+  test("ignores everything else a message listener hears", () => {
+    expect(parseCheckoutMessage(JSON.stringify({ source: "someone-else", type: "complete" }))).toBeNull();
+    expect(parseCheckoutMessage(JSON.stringify({ source: "lineup-checkout", type: "paid" }))).toBeNull();
+    expect(parseCheckoutMessage("not json")).toBeNull();
+    expect(parseCheckoutMessage({ source: "lineup-checkout", type: "complete" })).toBeNull();
+    expect(parseCheckoutMessage("null")).toBeNull();
   });
 });
 
