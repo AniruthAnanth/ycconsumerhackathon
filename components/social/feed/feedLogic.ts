@@ -63,12 +63,16 @@ export function timeAgo(then: number, now: number): string {
   return `${Math.floor(elapsed / DAY)}d`;
 }
 
-/** How long a vote stays open. "closing" covers the moment between the deadline and the server settling it. */
+/**
+ * How long a vote stays open. "closing" covers the moment between the deadline and the server
+ * settling it. Hours are rounded, not rounded up: the deadline is set by the server's clock, and
+ * a phone a few seconds behind it would otherwise show a fresh 12-hour vote as "13h left".
+ */
 export function timeLeft(closesAt: number, now: number): string {
   const left = closesAt - now;
   if (left <= 0) return "closing";
   if (left < HOUR) return `${Math.ceil(left / MINUTE)}m left`;
-  return `${Math.ceil(left / HOUR)}h left`;
+  return `${Math.round(left / HOUR)}h left`;
 }
 
 /** Drop results and group photos are marked in the feed; an ordinary proof needs no label. */
