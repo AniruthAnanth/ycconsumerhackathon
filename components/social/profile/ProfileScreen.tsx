@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Avatar, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
 import { colors, font, hairline, spacing } from "@/theme";
 
-import type { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "@/convex/_generated/dataModel";
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
 import { formatDuration, formatPercent, formatPoints, formatStreak } from "./profileLogic";
