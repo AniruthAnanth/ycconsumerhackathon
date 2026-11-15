@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as SMS from "expo-sms";
 import { useEffect, useState } from "react";
-import { BackHandler, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { PersonRow } from "@/components/join/PersonRow";
@@ -11,6 +11,8 @@ import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
 import { Button, Header, Screen, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
+import { inviteMessage } from "@/lib/leagueText";
+import { shareText } from "@/lib/native/share";
 import { colors, font, spacing } from "@/theme";
 
 export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
@@ -47,11 +49,11 @@ export default function ContactsScreen() {
 
   async function sendInvites() {
     if (!league) return;
-    const message = `Join my Lineup league "${league.name}" with code ${league.inviteCode}.`;
+    const message = inviteMessage(league);
     setSending(true);
     try {
       if (await SMS.isAvailableAsync()) await SMS.sendSMSAsync(selected.map(({ phone }) => phone), message);
-      else await Share.share({ message });
+      else await shareText(message);
     } catch {
       // Whether the composer opens, is cancelled or fails, the player moves on.
     }
