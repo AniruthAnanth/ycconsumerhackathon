@@ -7,12 +7,16 @@ const task = { slot: "body", title: "Leg day at the gym" } as const;
 
 /**
  * Loads lib/onDeviceReferee with the native binding replaced, the way each kind of build sees
- * it: null in Expo Go, an object in a standalone iOS build. The real binding imports expo,
- * which can't load under node.
+ * it: null in Expo Go, an object in a standalone iOS build (isSupported is true unless a test
+ * says otherwise). The real binding imports expo, which can't load under node.
  */
-async function loadWith(native: { analyze: (...args: unknown[]) => Promise<OnDeviceAnalysis> } | null) {
+async function loadWith(
+  native: { analyze: (...args: unknown[]) => Promise<OnDeviceAnalysis>; isSupported?: () => boolean } | null,
+) {
   vi.resetModules();
-  vi.doMock("../modules/on-device-referee", () => ({ OnDeviceRefereeNative: native }));
+  vi.doMock("../modules/on-device-referee", () => ({
+    OnDeviceRefereeNative: native && { isSupported: () => true, ...native },
+  }));
   return import("./onDeviceReferee");
 }
 
@@ -29,7 +33,17 @@ describe("without the native module (Expo Go, Android, web)", () => {
   });
 });
 
-describe("with the native module (standalone iOS build)", () => {
+describe("on the iOS simulator, where Vision can't read a photo", () => {
+  it("reports unavailable and never asks Vision", async () => {
+    const analyze = vi.fn();
+    const referee = await loadWith({ analyze, isSupported: () => false });
+    expect(referee.isAvailable()).toBe(false);
+    await expect(referee.precheck("file:///photo.jpg", task)).resolves.toEqual(NOTHING_TO_SAY);
+    expect(analyze).not.toHaveBeenCalled();
+  });
+});
+
+describe("with the native module on an iPhone (standalone iOS build)", () => {
   it("judges what Vision saw against the task", async () => {
     const analyze = vi.fn().mockResolvedValue({
       available: true,
@@ -52,7 +66,7 @@ describe("with the native module (standalone iOS build)", () => {
     expect(analyze).toHaveBeenCalledWith("file:///photo.jpg", true, true);
   });
 
-  it("has nothing to say when Vision can't run, as on some simulators", async () => {
+  it("has nothing to say when Vision reports it could not read the photo", async () => {
     const analyze = vi.fn().mockResolvedValue({ available: false, reason: "no inference context", labels: [], elapsedMs: 3 });
     const referee = await loadWith({ analyze });
     await expect(referee.precheck("file:///photo.jpg", task)).resolves.toEqual(NOTHING_TO_SAY);
