@@ -27,7 +27,9 @@ const build = await tools.mobile.build({
   source: {
     type: "workspace",
     path: "ycconsumerhackathon",              // the repository folder under the workspace root
-    commands: ["bash scripts/build-ios-sim.sh"],
+    // EXPO_PUBLIC_DEV_FLAGS=1 offers sample photos, a typed transcript and a fixed location,
+    // because a cloud phone has no camera, microphone or GPS. Leave it out for a clean demo build.
+    commands: ["EXPO_PUBLIC_DEV_FLAGS=1 bash scripts/build-ios-sim.sh"],
     output_path: "build/Lineup-sim.zip",
     timeout_seconds: 2700,
   },
