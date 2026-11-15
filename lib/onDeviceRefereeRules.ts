@@ -219,16 +219,12 @@ export function judgePhoto(
 
   const gesture = readGesture(analysis.fingersUp, task.gesture);
   if (gesture) {
-    seen.unshift(gesture.seen);
+    seen.unshift(gesture);
   }
   if (seen.length === 0) {
     return { labels, likelyMatch: true, hint: "" };
   }
   const read = `On-device: ${seen.join(", ")}.`;
-
-  if (gesture?.missing) {
-    return { labels, likelyMatch: false, hint: `${read} The drop asks for ${task.gesture}.` };
-  }
 
   const personInFrame = (analysis.people ?? 0) > 0 || labels.some(isPerson);
   const plainlySomethingElse =
@@ -244,17 +240,19 @@ export function judgePhoto(
 
 /**
  * What to say about a finger-count gesture, or null when there is nothing to check: no
- * gesture, a gesture that isn't a finger count, or hand detection that did not run. Only a
- * photo with no hand at all is called missing. A different count is shown but not treated
- * as a mismatch, because counting fingers from one still photo is approximate.
+ * gesture, a gesture that isn't a finger count, or hand detection that did not run.
+ *
+ * The gesture is only ever named in the hint, never treated as a mismatch. Finding a hand and
+ * counting its fingers in one still photo is approximate, and it has not been measured on a
+ * real iPhone yet (the simulator can't run it), so it must not put a question to the player.
  */
-function readGesture(fingersUp: number[] | undefined, gesture: string | undefined) {
+function readGesture(fingersUp: number[] | undefined, gesture: string | undefined): string | null {
   if (!gesture || !fingersUp) return null;
   const wanted = fingersWanted(gesture);
   if (wanted === null) return null;
-  if (fingersUp.length === 0) return { seen: "no hand in the photo", missing: true };
+  if (fingersUp.length === 0) return "no hand seen";
   const count = fingersUp.includes(wanted) ? wanted : Math.max(...fingersUp);
-  return { seen: `${count} ${count === 1 ? "finger" : "fingers"} up`, missing: false };
+  return `${count} ${count === 1 ? "finger" : "fingers"} up`;
 }
 
 function displayName(label: OnDeviceLabel): string {

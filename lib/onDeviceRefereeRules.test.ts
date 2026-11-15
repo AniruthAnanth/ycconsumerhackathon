@@ -117,10 +117,10 @@ describe("a quick-time drop's gesture", () => {
     expect(read.hint).toBe("On-device: 3 fingers up, person.");
   });
 
-  it("offers a retake when no hand is in the photo", () => {
+  it("says so when no hand is in the photo, without objecting", () => {
     const read = judgePhoto({ labels: person, fingersUp: [] }, drop);
-    expect(read.likelyMatch).toBe(false);
-    expect(read.hint).toBe("On-device: no hand in the photo, person. The drop asks for three fingers up.");
+    expect(read.likelyMatch).toBe(true);
+    expect(read.hint).toBe("On-device: no hand seen, person.");
   });
 
   it("shows a different count without objecting, because the count is approximate", () => {
