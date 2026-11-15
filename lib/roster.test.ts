@@ -79,7 +79,7 @@ describe("pickBannerDrop", () => {
   });
 
   it("ignores a drop of a kind it does not know", () => {
-    const unknown = "mystery" as const;
+    const unknown = "something new" as never;
     expect(pickBannerDrop([{ kind: unknown, closesAt: now + 10 }], now)).toBeUndefined();
     expect(pickBannerDrop([{ kind: unknown, closesAt: now + 10 }, { kind: "group" as const, closesAt: now + 20 }], now)?.kind).toBe("group");
   });
