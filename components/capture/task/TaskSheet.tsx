@@ -12,7 +12,12 @@ import { canSubmitProof, findTask, submitProofHref } from "./taskSheet";
 export function TaskSheet({ taskId }: { taskId: string }) {
   const router = useRouter();
   const { leagueId, weekStart } = useCurrentLeague();
-  const roster = useQuery(backend.lineup.roster, leagueId ? { leagueId, ...(weekStart !== undefined && { weekStart }) } : "skip");
+  // A lineup belongs to the player and the week, not to a league, so the sheet works before the
+  // player has joined one; the league only adds that league's drop tasks.
+  const roster = useQuery(backend.lineup.roster, {
+    ...(leagueId && { leagueId }),
+    ...(weekStart !== undefined && { weekStart }),
+  });
   const task = roster ? findTask(roster.rows, taskId) : undefined;
 
   return (
