@@ -45,6 +45,9 @@ export const me = query({
       .query("memberships")
       .withIndex("by_user", (q) => q.eq("userId", player._id))
       .take(MAX_LEAGUES_LISTED);
+    // In the order the player joined, which is not the order the rows were written: a seed
+    // reset rewrites the demo league's memberships, and the app opens the first league listed.
+    memberships.sort((a, b) => a.joinedAt - b.joinedAt);
     const leagues = [];
     for (const membership of memberships) {
       const league = await ctx.db.get("leagues", membership.leagueId);
