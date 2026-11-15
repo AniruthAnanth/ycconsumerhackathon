@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CheckInPrompt } from "@/components/checkin";
@@ -13,11 +13,11 @@ import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { RosterHero } from "@/components/roster/RosterHero";
 import { RosterTotal } from "@/components/roster/RosterTotal";
-import { Button, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/components/ui";
+import { Button, EmptyState, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { splitRoster, weekActions } from "@/lib/roster";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
+import { SCREEN_MARGIN } from "@/theme";
 
 /**
  * ROSTER, the screen the app opens on every day: this week's lineup as a team
@@ -85,7 +85,7 @@ export function RosterScreen() {
         ) : null}
         {lead ? <Entrance index={1}>{row(lead, true)}</Entrance> : null}
         {noLineup ? (
-          <Text style={styles.none}>No lineup this week</Text>
+          <EmptyState inline message="No lineup this week" />
         ) : (
           <Entrance index={2}>
             <SectionLabel left="Starters" right="Score" />
@@ -110,6 +110,5 @@ export function RosterScreen() {
 }
 
 const styles = StyleSheet.create({
-  none: { padding: spacing.xl, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   draft: { margin: SCREEN_MARGIN },
 });
