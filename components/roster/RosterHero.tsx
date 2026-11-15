@@ -92,13 +92,11 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           accessibilityLabel={planProgressLabel(plan)}
           accessibilityValue={{ min: 0, max: plan.possible, now: plan.confirmed }}
         >
-          <View style={styles.planHead}>
-            <Text style={styles.planLabel} numberOfLines={1}>
-              Your weekly plan · {plan.confirmed} / {plan.possible} pts
-            </Text>
-            {chance !== null ? <Text style={styles.chance}>Win this matchup · {chance}%</Text> : null}
-          </View>
+          <Text style={styles.planLabel}>
+            Your weekly plan · {plan.confirmed} / {plan.possible} pts
+          </Text>
           <ProgressFill ratio={plan.ratio} />
+          {chance !== null ? <Text style={styles.chance}>Win this matchup · {chance}%</Text> : null}
           {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}
         </View>
       ) : null}
@@ -124,7 +122,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   headText: { flex: 1 },
   meta: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
-  scores: { flexDirection: "row", alignItems: "baseline", gap: layout.columnGap },
+  // Bottom-aligned so the two names under the scores share a baseline.
+  scores: { flexDirection: "row", alignItems: "flex-end", gap: layout.columnGap },
   side: { flex: 1 },
   sideEnd: { alignItems: "flex-end" },
   // The one number that matters most is the biggest type on the screen; the opponent's is a step down.
@@ -133,8 +132,7 @@ const styles = StyleSheet.create({
   name: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
   vs: { ...type.caption, color: colors.textFaint, paddingBottom: spacing.lg },
   plan: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
-  planHead: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  planLabel: { ...type.label, flex: 1, color: colors.text },
+  planLabel: { ...type.label, color: colors.text },
   chance: { ...type.caption, color: colors.accent },
   pending: { ...type.small, color: colors.warning },
 });

@@ -37,17 +37,15 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
       <View style={styles.text}>
         {/* Up Next shares its row with a button, so its tag sits above the title and the title may wrap: beside the title, the two left a narrow phone one letter of it. */}
         {highlighted ? <Text style={[styles.tag, styles.tagUpNext]}>UP NEXT</Text> : null}
-        <View style={styles.titleLine}>
-          <Text style={styles.title} numberOfLines={titleLines ?? 2}>
-            {task.title}
-          </Text>
-          {highlighted ? null : <Text style={styles.tag}>{SLOT_NAME[task.slot]}</Text>}
-        </View>
-        <Text style={styles.meta} numberOfLines={1}>
-          {taskStatusLine(task)}
+        {/* The title gets the full width (a slot tag beside it cut long titles), and the slot name leads the line under it. */}
+        <Text style={styles.title} numberOfLines={titleLines ?? 2}>
+          {task.title}
+        </Text>
+        <Text style={styles.meta} numberOfLines={2}>
+          {highlighted ? taskStatusLine(task) : `${SLOT_NAME[task.slot]} · ${taskStatusLine(task)}`}
         </Text>
         {place ? (
-          <Text style={styles.meta} numberOfLines={1}>
+          <Text style={styles.meta} numberOfLines={2}>
             {place}
           </Text>
         ) : null}
@@ -91,8 +89,7 @@ const styles = StyleSheet.create({
   // The same columns as the row itself, stretched to its full height so the whole left side takes the tap.
   lead: { flex: 1, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   text: { flex: 1, gap: 1 },
-  titleLine: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  title: { flexShrink: 1, fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   // Never shrinks: on the web a squeezed tag wraps onto a second line.
   tag: { flexShrink: 0, fontFamily: fontFamily.regular, fontSize: font.label, color: colors.textMuted },
   tagUpNext: { color: colors.accent, fontFamily: fontFamily.bold, letterSpacing: 0.3 },
