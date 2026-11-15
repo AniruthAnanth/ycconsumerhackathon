@@ -10,10 +10,14 @@ import {
   colors,
   font,
   fontFamily,
+  layout,
   radius,
   spacing,
   tabular,
 } from "@/theme";
+
+// The chip draws at the pill height; the slop takes its tap area to the 44-pt minimum.
+const SLOP = (layout.rowMin - layout.pillHeight) / 2;
 
 import { socialApi, type TaskVeto } from "../contract";
 import { notify } from "../notify";
@@ -60,6 +64,7 @@ export function VetoChip({
       accessibilityState={{ selected: veto.mine, disabled: !veto.canVote }}
       disabled={!veto.canVote}
       onPress={onPress}
+      hitSlop={{ top: SLOP, bottom: SLOP, left: spacing.sm, right: spacing.sm }}
       style={style}
     >
       <Text style={text}>{label}</Text>
@@ -69,15 +74,15 @@ export function VetoChip({
 
 const styles = StyleSheet.create({
   chip: {
+    minHeight: layout.pillHeight,
+    justifyContent: "center",
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     borderWidth: BORDER,
     borderColor: colors.divider,
   },
   // Text-only, same height as the chip so the row doesn't jump when the first veto lands.
   quiet: {
-    paddingVertical: spacing.xs,
     borderWidth: BORDER,
     borderColor: "transparent",
   },

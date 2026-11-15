@@ -37,7 +37,7 @@ function HeroSide({ side, possible, align }: { side: MatchupSide; possible: numb
       <Text style={styles.name} numberOfLines={2}>
         {side.name}
       </Text>
-      <CountUp style={styles.score} value={side.total} format={formatScore} decimals={1} fromZero numberOfLines={1} adjustsFontSizeToFit />
+      <CountUp style={styles.score} value={side.total} format={formatScore} decimals={1} numberOfLines={1} adjustsFontSizeToFit />
       <Text style={styles.possible}>of {formatScore(possible)} possible</Text>
     </PressScale>
   );
