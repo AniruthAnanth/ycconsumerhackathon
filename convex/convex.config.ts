@@ -1,3 +1,4 @@
+import aggregate from "@convex-dev/aggregate/convex.config.js";
 import { defineApp } from "convex/server";
 import { v } from "convex/values";
 
@@ -23,5 +24,8 @@ const app = defineApp({
     KEIKI_JOIN_CODE: v.optional(v.string()),
   },
 });
+
+// The leaderboards' ranked trees (convex/boardRanks.ts).
+app.use(aggregate, { name: "boardRanks" });
 
 export default app;

@@ -37,6 +37,7 @@ import { computeVersusSettlement } from "./lib/versusSettlement";
 import { DAY_MS, pacificDay, startOfPacificDay } from "./lib/week";
 import { NO_STATS, tallyWeek, totalStats, type ScoreStats, type WeekFacts, type WeekTally } from "./lib/weekTally";
 import { entrantsOver } from "./whop";
+import { syncRanks, topOf, type Metric } from "./boardRanks";
 import { recruiterTally } from "./referrals";
 
 type UserId = Id<"users">;
@@ -92,6 +93,12 @@ type StatBoard = {
   format: BoardFormat;
   /** How far back it looks. */
   span: "week" | "season" | "allTime";
+  /**
+   * The ranked tree (boardRanks.ts) an all-time board reads its order from.
+   * The week and season boards add up the week in play live instead, so they
+   * agree with the League tab the moment a proof lands.
+   */
+  metric?: Metric;
   /** The number it ranks by. Undefined keeps a player off the board. */
   value: (stats: ScoreStats) => number | undefined;
   /** The grey line under the name. */
@@ -106,6 +113,7 @@ function slotBoard(slot: CoreSlot, title: string): StatBoard {
     valueHeader: "PTS",
     format: FORMATS.points,
     span: "allTime",
+    metric: slot,
     value: (stats) => stats.slotPoints[slot],
     detail: (_ctx, _total, week) => thisWeek(week.slotPoints[slot]),
   };
@@ -133,6 +141,7 @@ const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headTo
     valueHeader: "PTS",
     format: FORMATS.points,
     span: "allTime",
+    metric: "points",
     value: (stats) => stats.points,
     detail: (_ctx, total) => `${total.tasksVerified} ${total.tasksVerified === 1 ? "task" : "tasks"} proved`,
   },
@@ -146,6 +155,7 @@ const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headTo
     valueHeader: "DAYS",
     format: FORMATS.days,
     span: "allTime",
+    metric: "streak",
     value: (stats) => stats.streak,
     detail: (_ctx, _total, week) => (week.streak >= 2 ? `${week.streak} in a row this week` : undefined),
   },
@@ -154,6 +164,7 @@ const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headTo
     valueHeader: "SCORE",
     format: FORMATS.highlight,
     span: "allTime",
+    metric: "highlight",
     // Nobody is ranked for a proof they have not made.
     value: (stats) => (stats.bestHighlight > 0 ? stats.bestHighlight : undefined),
     detail: async (ctx, total) =>
@@ -164,6 +175,7 @@ const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headTo
     valueHeader: "TIME",
     format: FORMATS.seconds,
     span: "allTime",
+    metric: "quickTime",
     value: (stats) => stats.fastestQuickTimeSec,
   },
 };
@@ -235,9 +247,49 @@ async function entriesFor(ctx: QueryCtx, league: League, key: BoardKey, at?: num
       return await moneyEntries(ctx, league, at);
     case "recruiters":
       return await recruiterEntries(ctx, league);
-    default:
-      return await statEntries(ctx, league, STAT_BOARDS[key]);
+    default: {
+      const spec = STAT_BOARDS[key];
+      return spec.metric === undefined ? await statEntries(ctx, league, spec) : await rankedEntries(ctx, league, spec, spec.metric);
+    }
   }
+}
+
+/**
+ * An all-time board read off its ranked tree: the league's all-time rows in
+ * board order, one tree read and a get per member, with no tasks or proofs
+ * re-read. The week in play is in those rows as of the last refresh, which
+ * every scoring write schedules.
+ */
+async function rankedEntries(ctx: QueryCtx, league: League, spec: StatBoard, metric: Metric): Promise<Entry<UserId>[]> {
+  const leagueId = league.doc._id;
+  const [ids, inPlay] = await Promise.all([
+    topOf(ctx, [metric, leagueId, ALL_TIME], MAX_MEMBERS),
+    // scores.by_league_week_user over the week in play: the "this week" detail.
+    ctx.db
+      .query("scores")
+      .withIndex("by_league_week_user", (q) => q.eq("leagueId", leagueId).eq("weekStart", league.current!.startsAt))
+      .take(MAX_MEMBERS),
+  ]);
+  const rows = (await Promise.all(ids.map((id) => ctx.db.get("scores", id)))).filter((row) => row !== null);
+  const members = new Map(league.members.map((member) => [member.userId, member]));
+  const thisWeekOf = new Map(inPlay.map((row) => [row.userId, row.now]));
+  // A row last rebuilt before the newest day on the board did not move during it.
+  const newestDay = Math.max(0, ...rows.map((row) => row.day));
+  const entries: Entry<UserId>[] = [];
+  for (const row of rows) {
+    const member = members.get(row.userId);
+    const value = spec.value(row.now);
+    if (member === undefined || value === undefined) continue;
+    const detail = await spec.detail?.(ctx, row.now, thisWeekOf.get(row.userId) ?? NO_STATS);
+    entries.push({
+      ...identity(member),
+      value,
+      previous: row.day === newestDay ? (spec.value(row.yesterday) ?? null) : value,
+      tiebreak: row.now.slotsCleared,
+      ...(detail ? { detail } : {}),
+    });
+  }
+  return entries;
 }
 
 async function statEntries(ctx: ReadCtx, league: League, spec: StatBoard): Promise<Entry<UserId>[]> {
@@ -395,14 +447,11 @@ export function winnings(
  * A global board: players from every league, by their points in their best
  * league. weekStart picks the week; ALL_TIME picks the all-time rows.
  */
-async function globalEntries(ctx: ReadCtx, weekStart: number): Promise<Entry<UserId>[]> {
-  // scores.by_week_points, highest first. The index is the ranking, so the
-  // read stops at the top of the table however many players there are.
-  const rows = await ctx.db
-    .query("scores")
-    .withIndex("by_week_points", (q) => q.eq("weekStart", weekStart))
-    .order("desc")
-    .take(GLOBAL_ROWS);
+async function globalEntries(ctx: QueryCtx, weekStart: number): Promise<Entry<UserId>[]> {
+  // The ranked tree ["points", "global", weekStart] (boardRanks.ts), best first:
+  // one read of the top of the table however many players there are.
+  const ids = await topOf(ctx, ["points", "global", weekStart], GLOBAL_ROWS);
+  const rows = (await Promise.all(ids.map((id) => ctx.db.get("scores", id)))).filter((row) => row !== null);
   // A player has a row per league, and the first one met is their best.
   const best = new Map<UserId, Doc<"scores">>();
   for (const row of rows) {
@@ -850,7 +899,7 @@ async function removeStrayRows(ctx: MutationCtx, league: League): Promise<void> 
     (row) =>
       !memberIds.has(row.userId) || (row.weekStart !== ALL_TIME && weekStarts !== null && !weekStarts.has(row.weekStart)),
   );
-  for (const row of strays) await ctx.db.delete("scores", row._id);
+  for (const row of strays) await removeRow(ctx, row);
   // A member whose removed week was their only one still has an all-time row to recount.
   const today = startOfPacificDay(pacificDay(Date.now()));
   for (const userId of new Set(strays.map((row) => row.userId))) {
@@ -891,7 +940,7 @@ async function storeAllTime(ctx: MutationCtx, userId: UserId, today: number): Pr
   }
   // An all-time row with no week left under it totals nothing.
   for (const row of rows) {
-    if (row.weekStart === ALL_TIME && !byLeague.has(row.leagueId)) await ctx.db.delete("scores", row._id);
+    if (row.weekStart === ALL_TIME && !byLeague.has(row.leagueId)) await removeRow(ctx, row);
   }
 
   for (const [leagueId, weeks] of byLeague) {
@@ -910,11 +959,17 @@ async function storeAllTime(ctx: MutationCtx, userId: UserId, today: number): Pr
 
 type ScoreRow = Omit<Doc<"scores">, "_id" | "_creationTime">;
 
-/** Inserts or replaces the row for (league, week, player), and leaves it alone when nothing changed. */
+/**
+ * Inserts or replaces the row for (league, week, player), and leaves it alone
+ * when nothing changed. It and `removeRow` are the only writers of `scores`,
+ * and both move the row's entries in the ranked trees (boardRanks.ts) in the
+ * same transaction, so a tree never disagrees with the table.
+ */
 async function store(ctx: MutationCtx, row: ScoreRow): Promise<void> {
   const existing = await storedRow(ctx, row.leagueId, row.weekStart, row.userId);
   if (existing === null) {
-    await ctx.db.insert("scores", row);
+    const id = await ctx.db.insert("scores", row);
+    await syncRanks(ctx, null, { ...row, _id: id, _creationTime: Date.now() });
     return;
   }
   // `day` alone moving on is not a change worth a write: readers treat an
@@ -923,7 +978,14 @@ async function store(ctx: MutationCtx, row: ScoreRow): Promise<void> {
     sameStats(existing.now, row.now) &&
     sameStats(existing.yesterday, row.yesterday) &&
     existing.activeDays.join() === row.activeDays.join();
-  if (!unchanged) await ctx.db.replace("scores", existing._id, row);
+  if (unchanged) return;
+  await ctx.db.replace("scores", existing._id, row);
+  await syncRanks(ctx, existing, { ...existing, ...row });
+}
+
+async function removeRow(ctx: MutationCtx, row: Doc<"scores">): Promise<void> {
+  await ctx.db.delete("scores", row._id);
+  await syncRanks(ctx, row, null);
 }
 
 async function storedRow(
