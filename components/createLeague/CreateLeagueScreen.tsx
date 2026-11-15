@@ -31,7 +31,7 @@ export function CreateLeagueScreen() {
   const progress = progressOf(step);
   const blocker = blockerOf(step, draft);
   // A versus is one friend for one week, with no name, season or format to ask about: its own screen takes over.
-  const openVersus = () => router.push("/versus/new");
+  const openVersus = () => router.push({ pathname: "/join", params: { mode: "versus" } });
 
   function back() {
     const previous = stepBefore(step);

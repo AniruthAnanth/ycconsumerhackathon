@@ -64,6 +64,7 @@ describe("blockerOf", () => {
   it("asks for a name on every step, since the fast path can skip ahead", () => {
     expect(blockerOf("name", { ...draft, name: "  " })).toBe("Give your league a name");
     expect(blockerOf("review", { ...draft, name: "" })).toBe("Give your league a name");
+    expect(blockerOf("name", { ...draft, name: "x".repeat(41) })).toBe("Keep the name to 40 characters");
   });
 
   it("holds the walkthrough at stakes until a custom amount is valid", () => {

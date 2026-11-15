@@ -17,6 +17,14 @@ export function modeOf(key: JoinMode) {
   return JOIN_MODES.find((mode) => mode.key === key) ?? JOIN_MODES[1];
 }
 
+/** A mode named in a link (?mode=code), or null for anything else. */
+export function parseMode(value: string | undefined): JoinMode | null {
+  return JOIN_MODES.find((mode) => mode.key === value)?.key ?? null;
+}
+
+/** What the Create walkthrough will ask, shown before it opens. */
+export const CREATE_PREVIEW = ["Name your league", "Who's playing", "Set the buy-in", "Pick your season"] as const;
+
 /** The line under the stake picker: what a buy-in means, or nothing for a free match. */
 export function stakeLine(stakeUsd: Stake): string | null {
   return stakeUsd > 0 ? "Everyone pays in, winner takes the pot." : null;
