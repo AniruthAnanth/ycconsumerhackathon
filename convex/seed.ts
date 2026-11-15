@@ -23,6 +23,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { ensureCurrentWeek } from "./leagues";
 import { requireSignedInUser } from "./lib/auth";
 import { seedDemoReferrals } from "./referrals";
 import { scheduleFor } from "./lib/schedule";
@@ -46,12 +47,23 @@ const LEAGUE = {
   name: "YC Hackathon",
   inviteCode: "YCHACK",
   stakeUsd: 20,
-  visibility: "public" as const,
+  // Private: the invite code is the only way in, so Quick Match never seats a stranger at the
+  // table being demoed.
+  visibility: "private" as const,
   maxMembers: 12,
   payout: "weekly" as const,
   seasonWeeks: 8,
   format: "double_round_robin" as const,
 };
+
+// Where Quick Match lands instead: a public league at each paid stake, with three of the seeded
+// players already in it so its table and matchups are not empty. `members` are positions in
+// PLAYERS. Their lineups are the ones written for the demo league, because a lineup scores in
+// every league its player is in.
+const OPEN_LEAGUES = [
+  { name: "Open League", inviteCode: "MATCHA", stakeUsd: 20, members: [1, 2, 4] },
+  { name: "Five Dollar League", inviteCode: "MATCHB", stakeUsd: 5, members: [2, 3, 4] },
+];
 
 // The league is in week 5 of that season, so the Season screen has results behind it, a week in
 // play and a schedule ahead. Each row is one finished week: what the six scored, in PLAYERS
@@ -95,7 +107,7 @@ type SeedTask = {
 type SeedPlayer = { name: string; phone: string; tasks: SeedTask[] };
 
 // Y Combinator, 560 20th Street, San Francisco: where the demo is given.
-const YC_OFFICE = { name: "YC office", lat: 37.7608, lng: -122.3861 };
+const YC_OFFICE = { name: "YC office", lat: 37.7608, lng: -122.3866 };
 
 const QUICK_TIME = {
   title: "20 push-ups",
@@ -491,6 +503,43 @@ async function upsertLeague(ctx: MutationCtx, createdBy: Id<"users">): Promise<I
   return existing._id;
 }
 
+/**
+ * Rebuilds one public league for Quick Match: its seeded members and this week, paired as any
+ * league of its size is. Anyone who quick-matched in before the reset is gone again. Nobody has
+ * bought in, so the first stake on its table is the one paid on stage.
+ */
+async function restoreOpenLeague(
+  ctx: MutationCtx,
+  { members, ...fields }: (typeof OPEN_LEAGUES)[number],
+  playerIds: Id<"users">[],
+  weekStart: number,
+): Promise<void> {
+  const row = {
+    ...fields,
+    visibility: "public" as const,
+    maxMembers: LEAGUE.maxMembers,
+    createdBy: playerIds[members[0]],
+  };
+  const existing = await ctx.db
+    .query("leagues")
+    .withIndex("by_inviteCode", (q) => q.eq("inviteCode", fields.inviteCode))
+    .first();
+  if (existing !== null) {
+    await ctx.db.patch("leagues", existing._id, row);
+    await clearLeague(ctx, existing._id);
+  }
+  const leagueId = existing?._id ?? (await ctx.db.insert("leagues", row));
+  for (const index of members) {
+    await ctx.db.insert("memberships", {
+      leagueId,
+      userId: playerIds[index],
+      paid: false,
+      joinedAt: weekStart,
+    });
+  }
+  await ensureCurrentWeek(ctx, leagueId);
+}
+
 async function deleteChallenge(ctx: MutationCtx, challengeId: Id<"challenges">): Promise<void> {
   const votes = await ctx.db
     .query("votes")
@@ -772,6 +821,9 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
       }
     }
   }
+
+  // After the demo league, so it stays the first league each seeded player is listed in.
+  for (const open of OPEN_LEAGUES) await restoreOpenLeague(ctx, open, playerIds, weekStart);
 
   // The leaderboards keep stored rows per player and week; rebuild them for the fresh league.
   await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
