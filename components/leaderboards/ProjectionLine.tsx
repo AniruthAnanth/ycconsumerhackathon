@@ -24,7 +24,7 @@ export function ProjectionLine({ leagueId }: { leagueId: Id<"leagues"> | null })
       accessibilityRole="button"
       accessibilityLabel={`${projection.label}, open the money board`}
     >
-      <Text style={[styles.label, isProjectedGain(projection.label) && styles.gain]} numberOfLines={1}>
+      <Text style={[styles.label, isProjectedGain(projection) && styles.gain]} numberOfLines={1}>
         {projection.label}
       </Text>
     </Pressable>

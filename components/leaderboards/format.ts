@@ -8,7 +8,7 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
-export function formatUsd(amount: number): string {
+export function formatUsdWithCents(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
@@ -51,10 +51,11 @@ export function hourStart(now: number): number {
   return Math.floor(now / 3_600_000) * 3_600_000;
 }
 
-export function isProjectedGain(label: string): boolean {
-  return label.startsWith("Projected: +");
+/** Green only for a paid-up player expected to get at least the stake back; the label is a sentence and is never parsed. */
+export function isProjectedGain(projection: Pick<Projection, "eligible" | "expectedUsd" | "stakeUsd">): boolean {
+  return projection.eligible && projection.expectedUsd >= projection.stakeUsd;
 }
 
 export function projectionDetail(projection: Pick<Projection, "ifEndedNowUsd" | "lowUsd" | "highUsd">): string {
-  return `If it ended now ${formatUsd(projection.ifEndedNowUsd)} · Low ${formatUsd(projection.lowUsd)} · High ${formatUsd(projection.highUsd)}`;
+  return `If it ended now ${formatUsdWithCents(projection.ifEndedNowUsd)} · Low ${formatUsdWithCents(projection.lowUsd)} · High ${formatUsdWithCents(projection.highUsd)}`;
 }
