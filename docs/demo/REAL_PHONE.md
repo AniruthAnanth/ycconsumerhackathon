@@ -56,4 +56,9 @@ Tests 1, 2 and 4 are the ones only you can do. Please report each as pass or fai
 ## What Expo Go can't show
 
 - The home-screen icon and splash screen are Expo Go's, not Lineup's. The cloud-phone builds show the real ones.
-- Development-only options (sample photos, typed transcript, fixed location) may be visible, because Expo Go always runs in development mode. Ignore them on the real phone and use the real camera, microphone and GPS.
+- The on-device pre-check (Apple Vision) is a native module that exists only in a standalone iOS build. In Expo Go it is absent by design and the server referee judges every proof on its own, so verdicts still work.
+- A prompt that fires while the app is closed. Expo Go doesn't run background tasks on iOS, so check-in prompts appear when the app is open or brought back to the foreground.
+
+## Keep the stand-ins off
+
+Sample photos, the typed transcript and the fixed location exist for cloud phones. They are off unless a build sets `EXPO_PUBLIC_DEV_FLAGS=1`, which Expo Go does not, and Demo controls can switch them on at runtime. Leave them off on the real phone so these tests use the real camera, microphone and GPS.

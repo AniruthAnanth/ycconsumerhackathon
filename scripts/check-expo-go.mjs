@@ -68,6 +68,21 @@ for (const name of dependencies) {
 console.log(`Expo SDK ${expoVersion.split(".")[0]} (expo ${expoVersion}). Expo Go from the App Store must support this SDK.`);
 console.log(`Native modules already inside Expo Go (${nativeAndFine.length}): ${nativeAndFine.join(", ") || "none"}`);
 
+// Local Expo modules (modules/<name>) carry native code that only a standalone build contains.
+// They are fine as long as their JavaScript loads them with requireOptionalNativeModule, which
+// returns null in Expo Go; a hard requireNativeModule would crash there.
+const localModulesDir = join(root, "modules");
+const localModules = existsSync(localModulesDir) ? readdirSync(localModulesDir) : [];
+for (const name of localModules) {
+  const entry = join(localModulesDir, name, "index.ts");
+  const source = existsSync(entry) ? readFileSync(entry, "utf8") : "";
+  if (/\brequireNativeModule\b/.test(source)) {
+    forcesCustomBuild.push(`modules/${name} (uses requireNativeModule; make it requireOptionalNativeModule)`);
+  } else {
+    console.log(`Local module modules/${name}: absent in Expo Go by design, its feature is skipped there.`);
+  }
+}
+
 if (forcesCustomBuild.length > 0) {
   console.error(`\nCUSTOM BUILD FORCED by: ${forcesCustomBuild.join(", ")}`);
   console.error("These have native code that Expo Go does not contain. Tell the owner now, or replace them.");
