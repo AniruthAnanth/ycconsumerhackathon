@@ -31,12 +31,14 @@ afterEach(() => {
 
 /**
  * "YC Hackathon", $20 a head. Its week starts at weekStart, which by default makes NOON the last
- * day. Every player has opted in to texts.
+ * day. Every player has opted in to texts and has a phone number.
  */
 async function startLeague(t: Backend, names: string[], weekStart = WEEK_START) {
   return await t.run(async (ctx) => {
     const userIds: Id<"users">[] = [];
-    for (const name of names) userIds.push(await ctx.db.insert("users", { name, keikiOptIn: true }));
+    for (const name of names) {
+      userIds.push(await ctx.db.insert("users", { name, keikiOptIn: true, phone: `+1415555010${userIds.length}` }));
+    }
     const leagueId = await ctx.db.insert("leagues", {
       name: "YC Hackathon",
       inviteCode: "YCHACK",
@@ -712,5 +714,73 @@ describe("checkins.afterProof", () => {
     // leadChange tells the whole league that Maya took the lead, me included.
     expect(await textsTo(t, me)).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(1);
+  });
+});
+
+describe("who a check-in text can reach", () => {
+  /** A phone that plays by text and is using Switch Player to play this player, who has not opted in. */
+  async function playedFromAPhone(t: Backend, playerId: Id<"users">): Promise<Id<"users">> {
+    return await t.run(async (ctx) => {
+      await ctx.db.patch("users", playerId, { keikiOptIn: undefined });
+      return await ctx.db.insert("users", { name: "Demo phone", keikiOptIn: true, phone: "+14155550199", demoActAs: playerId });
+    });
+  }
+
+  it("sends the played player's nudge on demand to the phone that is playing them", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const [maya] = userIds;
+    await addTask(t, maya);
+    const phone = await playedFromAPhone(t, maya);
+
+    // The phone signs in as its own account, and requireUser makes the caller Maya.
+    const nudge = await as(t, phone).mutation(api.checkins.nudgeNow, { leagueId });
+    expect(nudge).toEqual({ text: "Last day. Body still open, $20 on the line.", delivered: true });
+    // keiki.send is asked for Maya; its phonesOf adds the phone that plays her.
+    expect(await scheduledTo(t, "keiki:send")).toEqual([{ userId: maya, text: nudge.text }]);
+  });
+
+  it("sends nothing to a phone that has not turned texts on, and says so", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const [maya] = userIds;
+    await addTask(t, maya);
+    const phone = await playedFromAPhone(t, maya);
+    await t.run((ctx) => ctx.db.patch("users", phone, { keikiOptIn: undefined }));
+
+    const nudge = await as(t, phone).mutation(api.checkins.nudgeNow, { leagueId });
+    expect(nudge).toEqual({ text: "Last day. Body still open, $20 on the line.", delivered: false });
+    expect(await scheduledTo(t, "keiki:send")).toEqual([]);
+  });
+
+  it("texts that phone when a rival passes the played player, and has the hourly sweep judge their week", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me", "Maya Chen", "Sam"]);
+    const [me, maya, sam] = userIds;
+    await addTask(t, me);
+    await addTask(t, me, { slot: "mind", title: "Problem set", points: 30, status: "verified" });
+    await addTask(t, sam, { points: 100, status: "verified" });
+    const mayas = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
+    const phone = await playedFromAPhone(t, me);
+
+    await t.mutation(internal.checkins.afterProof, { taskId: mayas });
+    const text = "You're falling behind: Maya is up 15 on you this week. Leg day flips it.";
+    expect(await textsTo(t, me)).toEqual([text]);
+    expect(await scheduledTo(t, "keiki:send")).toEqual([{ userId: me, text }]);
+
+    // The phone's own account is swept too; it is in no league, so its nudge comes to nothing.
+    await t.mutation(internal.checkins.sweep, {});
+    expect(await scheduledTo(t, "checkins:nudge")).toEqual([me, maya, sam, phone].map((userId) => ({ userId })));
+  });
+
+  it("does not count a player who gave no phone number as texted", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    await addTask(t, me);
+    await t.run((ctx) => ctx.db.patch("users", me, { phone: undefined }));
+
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
+    expect(await textsTo(t, me)).toEqual([]);
   });
 });
