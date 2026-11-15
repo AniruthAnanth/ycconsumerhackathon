@@ -78,11 +78,16 @@ function Notifier() {
   }, []);
 
   // A tap can be what launched the app. Its screen is opened once the player's own screens
-  // exist to open it over; before that the tabs would redirect to onboarding. navigate, not
-  // push: a tab is switched to rather than stacked, and the screen already showing stays one.
+  // exist to open it over; before that the tabs would redirect to onboarding. Whatever is
+  // stacked on the tabs when the tap arrives (the demo controls, a sheet, an earlier proof) is
+  // closed first: iOS pushes a screen opened from inside a modal into that modal, so the tabs
+  // showed up as a card within it. navigate, not push: a tab is switched to rather than stacked.
   useEffect(() => {
     if (!playing) return;
-    return device.onOpen((url) => router.navigate(url as Href));
+    return device.onOpen((url) => {
+      if (router.canDismiss()) router.dismissAll();
+      router.navigate(url as Href);
+    });
   }, [playing, router]);
 
   const userId = me?._id;
