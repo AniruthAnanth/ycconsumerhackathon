@@ -23,15 +23,9 @@ import {
 } from "./_generated/server";
 import { draftLineup, rateTask, transcribe } from "./ai";
 import { requireUser } from "./lib/auth";
-import {
-  CORE_SLOTS,
-  MAX_FLEX_TASKS,
-  clampTaskPoints,
-  lineupProblem,
-  shapeDraft,
-  tidyTask,
-  type DraftTask,
-} from "./lib/lineupRules";
+import { MAX_FLEX_TASKS, lineupProblem, shapeDraft, tidyTask, type DraftTask } from "./lib/lineupRules";
+import { CORE_SLOTS, clampTaskPoints, taskScore } from "./lib/scoring";
+import { clockLabel, weekEndOf, weekStartOf, weekdayLabel } from "./lib/week";
 import { addMemory, searchMemories } from "./memory";
 import { place, slot } from "./schema";
 
@@ -133,7 +127,8 @@ export const lock = mutation({
     if (problem) throw new ConvexError(problem);
 
     const thisWeek = weekStartOf(Date.now());
-    const weekStart = (await isLocked(ctx, user._id, thisWeek)) ? nextWeekStart(thisWeek) : thisWeek;
+    // A week ends at the instant the next one starts, so weekEndOf names next week.
+    const weekStart = (await isLocked(ctx, user._id, thisWeek)) ? weekEndOf(thisWeek) : thisWeek;
     if (weekStart !== thisWeek && (await isLocked(ctx, user._id, weekStart))) {
       throw new ConvexError("Next week's lineup is already locked.");
     }
@@ -379,7 +374,7 @@ async function toRow(ctx: QueryCtx, task: Doc<"tasks">, drop: Doc<"drops"> | nul
     place: task.place,
     status: task.status,
     source: task.source,
-    score: scoreOf(task),
+    score: taskScore(task),
     verifiedAt: proof?.createdAt,
     thumbUrl: thumbUrl ?? undefined,
     dueLabel: dueLabel(task, proof?.createdAt, drop?.closesAt),
@@ -387,82 +382,18 @@ async function toRow(ctx: QueryCtx, task: Doc<"tasks">, drop: Doc<"drops"> | nul
   };
 }
 
-/**
- * Verified tasks score their points. A failed task scores only when it carries
- * a penalty (an accepted mystery task that was not completed has negative
- * points); every other unfinished task shows a dash.
- */
-function scoreOf(task: Doc<"tasks">): number | null {
-  if (task.status === "verified") return task.points;
-  if (task.status === "failed" && task.points < 0) return task.points;
-  return null;
-}
-
 function dueLabel(task: Doc<"tasks">, verifiedAt?: number, dropClosesAt?: number): string {
-  const clock = (ms: number, withDay: boolean) =>
-    new Date(ms).toLocaleString("en-US", {
-      timeZone: TIME_ZONE,
-      weekday: withDay ? "short" : undefined,
-      hour: "numeric",
-      minute: "2-digit",
-    });
   switch (task.status) {
     case "verified":
-      return verifiedAt ? `Verified ${clock(verifiedAt, true)}` : "Verified";
+      return verifiedAt ? `Verified ${weekdayLabel(verifiedAt)} ${clockLabel(verifiedAt)}` : "Verified";
     case "held":
       return "Under review";
     case "failed":
       return "Missed";
     case "open":
       // A drop closes at its own time; everything else is due when the week ends, on Sunday.
-      return dropClosesAt ? `Due ${clock(dropClosesAt, false)}` : "Due Sun";
+      return dropClosesAt ? `Due ${clockLabel(dropClosesAt)}` : "Due Sun";
   }
-}
-
-// ---------------------------------------------------------------------------
-// Weeks
-// ---------------------------------------------------------------------------
-
-// A week runs Monday 00:00 to Sunday 23:59 in America/Los_Angeles and is named
-// by the epoch milliseconds of that Monday midnight, the same value a league's
-// weeks.startsAt holds.
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function wallClockInLA(ms: number): { year: number; month: number; day: number; hour: number; weekday: number } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TIME_ZONE,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    weekday: "short",
-  }).formatToParts(new Date(ms));
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return {
-    year: Number(part("year")),
-    month: Number(part("month")),
-    day: Number(part("day")),
-    hour: Number(part("hour")),
-    weekday: WEEKDAYS.indexOf(part("weekday")),
-  };
-}
-
-export function weekStartOf(ms: number): number {
-  const local = wallClockInLA(ms);
-  const daysSinceMonday = (local.weekday + 6) % 7;
-  // 08:00 UTC is midnight in Los Angeles in winter and 01:00 in summer, so
-  // stepping back by the local hour lands on local midnight in both.
-  const guess = Date.UTC(local.year, local.month - 1, local.day - daysSinceMonday, 8);
-  return guess - wallClockInLA(guess).hour * 60 * 60 * 1000;
-}
-
-export function nextWeekStart(weekStart: number): number {
-  // Eight days on is always inside the following week, whatever daylight
-  // saving does to the length of a day.
-  return weekStartOf(weekStart + 8 * DAY_MS);
 }
 
 // ---------------------------------------------------------------------------
