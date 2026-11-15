@@ -2,7 +2,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { Drop } from "@/lib/backend";
 
 import type { ProofTarget } from "../proofRoute";
-import { formatCountdown } from "./countdown";
+import { formatClockCountdown } from "./countdown";
 
 /** What the banner shows for a drop at a given moment. */
 export type DropView =
@@ -39,7 +39,7 @@ export function dropView(drop: Drop, now: number, meId?: Id<"users">): DropView 
     return {
       type: "group",
       dropId: drop.dropId,
-      countdown: formatCountdown((started ? drop.closesAt : drop.opensAt) - now),
+      countdown: formatClockCountdown((started ? drop.closesAt : drop.opensAt) - now),
       started,
       attending: started ? attendees.filter((attendee) => attendee.checkedIn).length : attendees.length,
       // Until my id loads, assume I'm in, so someone already going never sees "I'm in" flash.
@@ -51,7 +51,7 @@ export function dropView(drop: Drop, now: number, meId?: Id<"users">): DropView 
 
   return {
     type: "timed",
-    countdown: formatCountdown(drop.closesAt - now),
+    countdown: formatClockCountdown(drop.closesAt - now),
     points: drop.points,
     gesture: drop.gesture,
     proof: proofTargetFor(drop),

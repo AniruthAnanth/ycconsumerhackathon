@@ -63,7 +63,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
           <Divider />
           <View style={styles.pointsRow}>
             {verdict.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : <View />}
-            <PointsCounter points={verdict.points} pass={verdict.pass} delay={POINTS_DELAY_MS} />
+            <PointsCounter points={verdict.points} delay={POINTS_DELAY_MS} />
           </View>
           <Divider />
         </FadeIn>

@@ -1,18 +1,17 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { Drop } from "@/lib/backend";
+import { useNow } from "@/lib/useNow";
 
 import { useMyUserId } from "@/components/social/useMyUserId";
 
 import { GroupActions } from "./drops/GroupActions";
 import { TimedActions } from "./drops/TimedActions";
 import { dropView } from "./drops/dropView";
-import { useNow } from "./drops/useNow";
 
-type Props = { drop: Drop; leagueId: Id<"leagues"> };
+type Props = { drop: Drop };
 
 /** The actions inside a live drop's banner on Roster. */
 export function DropActions({ drop }: Props) {
-  const view = dropView(drop, useNow(), useMyUserId());
+  const view = dropView(drop, useNow(1000), useMyUserId());
 
   switch (view.type) {
     case "hidden":

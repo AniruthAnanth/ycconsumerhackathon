@@ -5,9 +5,9 @@
  */
 import type { Href } from "expo-router";
 
-import { SLOT_ORDER, type Slot } from "@/lib/slots";
+import { SLOT_ORDER, type ProofType, type Slot } from "@/lib/slots";
 
-export type ProofType = "photo" | "photo_location" | "canvas";
+export type { ProofType } from "@/lib/slots";
 
 /** What the camera and the verdict screen need to know about the task being proven. */
 export type ProofTarget = {

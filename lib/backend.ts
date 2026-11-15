@@ -18,13 +18,13 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 import type { ProofType, Slot } from "./slots";
 
-type NoArgs = Record<string, never>;
+export type NoArgs = Record<string, never>;
 
-const query = <Args extends Record<string, unknown>, Result>(name: string) =>
+export const query = <Args extends Record<string, unknown>, Result>(name: string) =>
   makeFunctionReference<"query", Args, Result>(name);
-const mutation = <Args extends Record<string, unknown>, Result>(name: string) =>
+export const mutation = <Args extends Record<string, unknown>, Result>(name: string) =>
   makeFunctionReference<"mutation", Args, Result>(name);
-const action = <Args extends Record<string, unknown>, Result>(name: string) =>
+export const action = <Args extends Record<string, unknown>, Result>(name: string) =>
   makeFunctionReference<"action", Args, Result>(name);
 
 export type Place = { name: string; lat: number; lng: number };

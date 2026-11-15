@@ -1,19 +1,18 @@
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { CountUp } from "@/components/motion";
 import { colors } from "@/theme";
 
 import { formatPoints } from "./formatPoints";
 
-type Props = { points: number; pass: boolean; delay: number };
+type Props = { points: number; delay: number };
 
-/** The score, counting up from zero on a pass (COUNT_MS, under 400 ms) and a plain dash on a fail. */
-export function PointsCounter({ points, pass, delay }: Props) {
-  if (!pass) return <Text style={styles.value}>{formatPoints(points, false)}</Text>;
+/** The score, counting up from zero on a pass (COUNT_MS, under 400 ms). */
+export function PointsCounter({ points, delay }: Props) {
   return (
     <CountUp
       value={points}
-      format={(shown) => formatPoints(shown, true)}
+      format={formatPoints}
       decimals={1}
       fromZero
       delay={delay}
