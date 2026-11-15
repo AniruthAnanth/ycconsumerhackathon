@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { parseKeikiEvent, signTurnCredential, verifyKeikiSignature } from "./keikiProtocol";
+import { parseKeikiEvent, signLinkCode, signTurnCredential, verifyKeikiSignature } from "./keikiProtocol";
 
 const secret = "whsec_test_secret";
 const nowMs = 1_794_771_972_000;
@@ -45,6 +45,20 @@ describe("signTurnCredential", () => {
     expect(version).toBe("kts1");
     expect(JSON.parse(Buffer.from(payloadB64, "base64url").toString())).toEqual({ a: "agent-1", t: "turn-1", ts: nowMs / 1000 });
     expect(signature).toBe(createHmac("sha256", secret).update(`keiki-turn-auth.v1.${payloadB64}`).digest("hex"));
+  });
+});
+
+describe("signLinkCode", () => {
+  it("names the account's millisecond and proves the account with the secret", async () => {
+    const code = await signLinkCode({ secret, accountId: "user-1", createdMs: nowMs + 0.25 });
+    const proof = createHmac("sha256", secret).update("keiki-link.v1.user-1").digest("hex").slice(0, 8);
+    expect(code).toBe(`${nowMs.toString(36)}-${proof}`.toUpperCase());
+  });
+
+  it("differs for another account created in the same millisecond", async () => {
+    const one = await signLinkCode({ secret, accountId: "user-1", createdMs: nowMs });
+    const two = await signLinkCode({ secret, accountId: "user-2", createdMs: nowMs });
+    expect(one).not.toBe(two);
   });
 });
 

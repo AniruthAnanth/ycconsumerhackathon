@@ -21,7 +21,6 @@
  * "Play by text" switch turns it on or off, and send never texts an account that hasn't.
  */
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { makeFunctionReference } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -42,6 +41,7 @@ import { askJson } from "./ai";
 import { requireUser } from "./lib/auth";
 import {
   parseKeikiEvent,
+  signLinkCode,
   signTurnCredential,
   verifyKeikiSignature,
   type KeikiTurn,
@@ -52,6 +52,7 @@ import {
   joinLink,
   lastAttachmentId,
   leagueTime,
+  linkCodeIn,
   parseCommand,
   rankLine,
   reply,
@@ -72,7 +73,6 @@ const MAX_ROWS = 200;
 const GATEWAY_PREFIX = "api:";
 
 type League = { leagueId: Id<"leagues">; name: string };
-type Place = { name: string; lat: number; lng: number };
 type Arrival = { lat: number; lng: number };
 
 /** Who a conversation is with. */
@@ -89,26 +89,6 @@ type Player = {
 /** What proofTargets reads; answerPhoto adds whether the player has arrived at each place. */
 type OpenTasks = Pick<ProofTargets<Id<"tasks">>, "quickTime" | "photoTasks"> & {
   locationTasks: { taskId: Id<"tasks">; title: string; placeName?: string }[];
-};
-
-/**
- * Entry points of modules that land on main in parallel with this one. A text has no
- * signed-in caller, so each takes the player explicitly. They are called by name instead of
- * through `internal`, so this file builds and deploys before they exist; until one does, only
- * the reply that needs it fails.
- */
-const seams = {
-  standings: makeFunctionReference<"query", { leagueId: Id<"leagues"> }, StandingRow[]>("standings:tableForLeague"),
-  rsvp: makeFunctionReference<"mutation", { userId: Id<"users">; dropId: Id<"drops"> }, null>("drops:rsvpFor"),
-  createGroupSession: makeFunctionReference<
-    "mutation",
-    { userId: Id<"users">; leagueId: Id<"leagues">; title: string; place: Place; startsAt: number },
-    Id<"drops">
-  >("drops:createGroupSessionFor"),
-  /** The newest in-app arrival within 100 ft of the task's place in the last hour, if any. */
-  recentArrival: makeFunctionReference<"query", { userId: Id<"users">; taskId: Id<"tasks"> }, (Arrival & { at: number }) | null>(
-    "checkins:recentArrival",
-  ),
 };
 
 // ─── Inbound: POST /keiki/turn ───────────────────────────────────────────────────────────────
@@ -206,6 +186,15 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
   if (written.length === 0) return outbound;
 
   const said = splitLeagueTag(written.map((message) => captionOf(message.text)).join(" "));
+  const onPhone = !turn.conversationId.startsWith(GATEWAY_PREFIX);
+
+  // The app's "Play by text" link writes a code for the account it was opened on. Sending it
+  // ties this number to that account, which is how an account that signed up without this
+  // number (or a reinstall, which is a new account) gets its texts.
+  const linkCode = onPhone ? linkCodeIn(said.text) : null;
+  const linked: boolean =
+    linkCode !== null && (await ctx.runMutation(internal.keiki.linkPhone, { phone: turn.conversationId, ...linkCode }));
+
   const player: Player | null = await ctx.runQuery(internal.keiki.playerFor, {
     conversationId: turn.conversationId,
     leagueTag: said.leagueId,
@@ -214,7 +203,6 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
 
   // Texting the number is the opt-in. The first text from a phone turns it on; after the
   // player has switched it off in the app, only sending the join code again turns it back on.
-  const onPhone = !turn.conversationId.startsWith(GATEWAY_PREFIX);
   const sentJoinCode = saysJoinCode(said.text);
   if (onPhone && (player.optIn === null || (sentJoinCode && !player.optIn))) {
     await ctx.runMutation(internal.keiki.recordOptIn, { accountId: player.accountId });
@@ -222,7 +210,7 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
 
   const file = written.flatMap((message) => message.attachments)[0];
   if (file) return [...outbound, await answerPhoto(ctx, turn, bearer, player, file.id, said.text)];
-  if (sentJoinCode) return [...outbound, reply.welcome];
+  if (sentJoinCode || linked) return [...outbound, reply.welcome];
   return [...outbound, await answerText(ctx, turn, bearer, player, said.text)];
 }
 
@@ -247,8 +235,8 @@ async function answerPhoto(
   // just seen this phone arrive there: the arrival supplies the coordinates the referee needs.
   const arrivals = new Map<Id<"tasks">, Arrival>();
   for (const task of open.locationTasks) {
-    const arrival = await recentArrival(ctx, player.userId, task.taskId);
-    if (arrival !== null) arrivals.set(task.taskId, arrival);
+    const arrival = await ctx.runQuery(internal.checkins.recentArrival, { userId: player.userId, taskId: task.taskId });
+    if (arrival !== null) arrivals.set(task.taskId, { lat: arrival.lat, lng: arrival.lng });
   }
   const targets: ProofTargets<Id<"tasks">> = {
     ...open,
@@ -260,16 +248,6 @@ async function answerPhoto(
   if (choice.kind === "checkIn") return reply.needsCheckIn(choice.title, choice.placeName);
   if (choice.kind === "none") return reply.nothingToProve;
   return await judge(ctx, turn, bearer, player, choice.taskId, attachmentId, arrivals.get(choice.taskId));
-}
-
-/** Allowed to fail: while checkins.ts is not deployed, a location task keeps asking for the in-app check-in. */
-async function recentArrival(ctx: ActionCtx, userId: Id<"users">, taskId: Id<"tasks">): Promise<Arrival | null> {
-  try {
-    const arrival = await ctx.runQuery(seams.recentArrival, { userId, taskId });
-    return arrival === null ? null : { lat: arrival.lat, lng: arrival.lng };
-  } catch {
-    return null;
-  }
 }
 
 /** Stores the photo, runs the same referee the app uses, and words the verdict. */
@@ -306,7 +284,8 @@ async function judge(
   const leagueId = dropLeague ?? player.league?.leagueId;
   if (leagueId === undefined) return reply.verdict(verdict, "");
   try {
-    return reply.verdict(verdict, rankLine(await ctx.runQuery(seams.standings, { leagueId }), player.userId));
+    const rows: StandingRow[] = await ctx.runQuery(internal.standings.tableForLeague, { leagueId });
+    return reply.verdict(verdict, rankLine(rows, player.userId));
   } catch (error) {
     // The proof is already recorded; a missing rank must not turn a pass into an error text.
     console.warn(`Standings unavailable after a texted proof: ${String(error)}`);
@@ -328,7 +307,7 @@ async function answerText(
 
   if (command.kind === "standings") {
     if (player.league === null) return reply.noLeague;
-    const rows = await ctx.runQuery(seams.standings, { leagueId: player.league.leagueId });
+    const rows: StandingRow[] = await ctx.runQuery(internal.standings.tableForLeague, { leagueId: player.league.leagueId });
     return reply.standings(player.league.name, rows, player.userId);
   }
 
@@ -352,7 +331,7 @@ async function answerText(
   if (command.kind === "in") {
     const { session } = await ctx.runQuery(internal.keiki.dropsFor, { userId: player.userId, now });
     if (session === null) return reply.noSession;
-    await ctx.runMutation(seams.rsvp, { userId: player.userId, dropId: session.dropId });
+    await ctx.runMutation(internal.drops.rsvpFor, { userId: player.userId, dropId: session.dropId });
     return reply.joinedSession({ title: session.title, placeName: session.placeName, when: leagueTime(session.startsAt) });
   }
 
@@ -443,7 +422,7 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
   if (player.league === null) return reply.noLeague;
 
   // drops announces the session to the league itself, so this is the only text we send.
-  await ctx.runMutation(seams.createGroupSession, {
+  await ctx.runMutation(internal.drops.createGroupSessionFor, {
     userId: player.userId,
     leagueId: player.league.leagueId,
     title,
@@ -461,8 +440,8 @@ async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text
     player.league === null
       ? "The player is not in a league yet."
       : await ctx
-          .runQuery(seams.standings, { leagueId: player.league.leagueId })
-          .then((rows) => reply.standings(player.league?.name ?? "", rows, player.userId))
+          .runQuery(internal.standings.tableForLeague, { leagueId: player.league.leagueId })
+          .then((rows: StandingRow[]) => reply.standings(player.league?.name ?? "", rows, player.userId))
           .catch(() => "Standings are unavailable right now.");
   const earlier = turn.history
     .slice(-6)
@@ -593,6 +572,8 @@ export const chatCaller = internalQuery({
  * What the app's "Play by text" row shows: the number, the link that opens Messages with the
  * join code typed, and whether this device has opted in. On the shared number, sending that
  * first text is what allows the agent to text the player back, so the row's switch opens it.
+ * The text also carries this account's link code, so the number it is sent from becomes the
+ * account's number whatever was typed at sign-up (see linkPhone).
  */
 export const line = query({
   args: {},
@@ -605,7 +586,9 @@ export const line = query({
     const number = env.KEIKI_LINE_NUMBER;
     const joinCode = env.KEIKI_JOIN_CODE;
     if (!number || !joinCode) return null;
-    return { number, joinCode, smsUrl: joinLink(number, joinCode), optedIn: account.keikiOptIn === true };
+    const secret = env.KEIKI_SIGNING_SECRET;
+    const linkCode = secret ? await linkCodeOf(secret, account) : undefined;
+    return { number, joinCode, smsUrl: joinLink(number, joinCode, linkCode), optedIn: account.keikiOptIn === true };
   },
 });
 
@@ -629,6 +612,45 @@ export const recordOptIn = internalMutation({
     return null;
   },
 });
+
+/**
+ * A text carrying a link code arrived from this number. As in onboarding (users.createUser),
+ * the number moves to the code's account and any other account gives it up, so by_phone keeps
+ * naming one device. Sending the text is also the opt-in. False when the code is not ours.
+ */
+export const linkPhone = internalMutation({
+  args: { phone: v.string(), code: v.string(), createdMs: v.number() },
+  returns: v.boolean(),
+  handler: async (ctx, { phone, code, createdMs }) => {
+    const secret = env.KEIKI_SIGNING_SECRET;
+    if (!secret) return false;
+    // The code names a millisecond; its proof picks the account among any created in it.
+    const createdThen = await ctx.db
+      .query("users")
+      .withIndex("by_creation_time", (q) => q.gte("_creationTime", createdMs).lt("_creationTime", createdMs + 1))
+      .take(10);
+    let account: Doc<"users"> | null = null;
+    for (const candidate of createdThen) {
+      if ((await linkCodeOf(secret, candidate)) === code) account = candidate;
+    }
+    if (account === null) return false;
+
+    const owners = await ctx.db
+      .query("users")
+      .withIndex("by_phone", (q) => q.eq("phone", phone))
+      .take(10);
+    for (const owner of owners) {
+      // A seeded demo player keeps its number: Reset Seed finds it by that.
+      if (owner._id !== account._id && !owner.isSeed) await ctx.db.patch("users", owner._id, { phone: undefined });
+    }
+    await ctx.db.patch("users", account._id, { phone, keikiOptIn: true });
+    return true;
+  },
+});
+
+function linkCodeOf(secret: string, account: Doc<"users">): Promise<string> {
+  return signLinkCode({ secret, accountId: account._id, createdMs: account._creationTime });
+}
 
 /**
  * The account signed in on this device. Under Switch Player this is deliberately not

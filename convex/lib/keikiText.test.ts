@@ -5,6 +5,7 @@ import {
   joinLink,
   lastAttachmentId,
   leagueTime,
+  linkCodeIn,
   ordinal,
   parseCommand,
   rankLine,
@@ -147,6 +148,26 @@ describe("leagueTime", () => {
 describe("joinLink", () => {
   it("opens Messages with the join code typed", () => {
     expect(joinLink("+17796251378", "K-ZL2PWU")).toBe("sms:+17796251378?&body=Lineup%2C%20I'm%20in%20(K-ZL2PWU)");
+  });
+
+  it("adds the account's link code after the join code", () => {
+    expect(joinLink("+17796251378", "K-ZL2PWU", "MI0R2D5K-9F3A07BC")).toBe(
+      "sms:+17796251378?&body=Lineup%2C%20I'm%20in%20(K-ZL2PWU)%20MI0R2D5K-9F3A07BC",
+    );
+  });
+});
+
+describe("linkCodeIn", () => {
+  it("reads the code and the millisecond it names, however the phone cased it", () => {
+    expect(linkCodeIn("Lineup, I'm in (K-ZL2PWU) mi0r2d5k-9f3a07bc")).toEqual({
+      code: "MI0R2D5K-9F3A07BC",
+      createdMs: parseInt("mi0r2d5k", 36),
+    });
+  });
+
+  it("finds none in the join code alone or in an ordinary text", () => {
+    expect(linkCodeIn("Lineup, I'm in (K-ZL2PWU)")).toBeNull();
+    expect(linkCodeIn("run tomorrow 7am at Dolores Park")).toBeNull();
   });
 });
 
