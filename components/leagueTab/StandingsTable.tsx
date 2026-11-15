@@ -7,6 +7,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
 import { colors, font, fontFamily, hairline, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
+import { slotsText } from "./emptyState";
 import { rankMovement, withBaseline } from "./rankMovement";
 
 // Fixed widths keep every number in a column lined up whatever the names are.
@@ -75,7 +76,7 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
                     </View>
                     <View style={styles.nameBlock}>
                       <Text style={styles.name} numberOfLines={1}>{row.name}</Text>
-                      <Text style={styles.sub}>{row.paid ? `${row.slotsCleared}/5 slots` : "Unpaid"}</Text>
+                      <Text style={styles.sub}>{slotsText(row)}</Text>
                     </View>
                   </View>
                 </View>
