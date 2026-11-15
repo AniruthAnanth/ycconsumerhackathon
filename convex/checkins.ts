@@ -61,7 +61,7 @@ import { isValidLatLng } from "./lib/geo";
 import { type LineupNotification, eveningNudge, rivalPassed, settlingSoon } from "./lib/notificationContent";
 import { HOUR_MS, pacificDay } from "./lib/week";
 import { reachableByPush } from "./push";
-import { leagueStandings } from "./standings";
+import { leagueStandings, opponentInWeek, proofDays } from "./standings";
 
 /** leagues.maxMembers and a week's handful of tasks keep every list far below this; it only bounds the reads. */
 const MAX_ROWS = 500;
@@ -478,8 +478,6 @@ export const afterProof = internalMutation({
   },
 });
 
-// ─── Sending ─────────────────────────────────────────────────────────────────────────────────
-
 /**
  * What a proof that has just passed added to the prover's week: the task's points and every bonus
  * that came with it (a cleared slot, the sweep, the day's streak). It is what proving the task
@@ -494,6 +492,8 @@ async function pointsAddedBy(ctx: QueryCtx, task: Doc<"tasks">, week: Doc<"weeks
   // The proof days are read with the task reopened, so this proof's own day is not among them.
   return pointsIfProven(proven, reopened, await proofDaysOf(ctx, task.userId, week, reopened), pacificDay(now));
 }
+
+// ─── Sending ─────────────────────────────────────────────────────────────────────────────────
 
 /**
  * The one door from check-ins to Keiki, and where the limits hold for every kind of text: only
@@ -619,12 +619,7 @@ async function rivalOf(
 
 /** Who the player is matched against this week, when the league has paired them. */
 async function opponentOf(ctx: QueryCtx, week: Doc<"weeks">, userId: Id<"users">): Promise<Id<"users"> | undefined> {
-  const matchups = await ctx.db
-    .query("matchups")
-    .withIndex("by_week", (q) => q.eq("weekId", week._id))
-    .take(MAX_ROWS);
-  const mine = matchups.find((matchup) => matchup.userA === userId || matchup.userB === userId);
-  return mine === undefined ? undefined : mine.userA === userId ? mine.userB : mine.userA;
+  return (await opponentInWeek(ctx, week._id, userId)) ?? undefined;
 }
 
 /**
@@ -662,10 +657,5 @@ async function proofDaysOf(
   week: Doc<"weeks">,
   tasks: readonly Task[],
 ): Promise<number[]> {
-  const verified = new Set(tasks.filter((task) => task.status === "verified").map((task) => task.taskId));
-  const proofs = await ctx.db
-    .query("proofs")
-    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", week.startsAt))
-    .take(MAX_ROWS);
-  return proofs.filter((proof) => proof.pass && verified.has(proof.taskId)).map((proof) => pacificDay(proof.createdAt));
+  return await proofDays(ctx, userId, week.startsAt, tasks.map((task) => ({ _id: task.taskId, status: task.status })));
 }

@@ -31,12 +31,11 @@ import {
 import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { proofChallenged } from "./lib/notificationContent";
+import { HOUR_MS } from "./lib/week";
 
 // ---------------------------------------------------------------------------
 // Rules (pure)
 // ---------------------------------------------------------------------------
-
-const HOUR_MS = 60 * 60 * 1000;
 
 /** A proof can be challenged for this long after it was submitted. */
 export const CHALLENGE_WINDOW_MS = 24 * HOUR_MS;

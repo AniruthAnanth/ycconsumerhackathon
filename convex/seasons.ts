@@ -14,6 +14,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { UNNAMED_PLAYER } from "./lib/names";
 import {
   bracketFor,
   MAX_SEASON_WEEKS,
@@ -430,12 +431,12 @@ export const overview = query({
         : user?.image;
       players.set(userId, {
         userId,
-        name: user?.name ?? "Player",
+        name: user?.name ?? UNNAMED_PLAYER,
         ...(avatarUrl ? { avatarUrl } : {}),
       });
     }
     const playerOf = (userId: UserId) =>
-      players.get(userId) ?? { userId, name: "Player" };
+      players.get(userId) ?? { userId, name: UNNAMED_PLAYER };
     const seeded = (userId: UserId | null, seed: number | null) =>
       userId === null ? null : { ...playerOf(userId), seed: seed ?? 0 };
 

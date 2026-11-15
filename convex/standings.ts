@@ -18,6 +18,7 @@ import { internalQuery, query, type MutationCtx, type QueryCtx } from "./_genera
 import { challengerPointsByUser } from "./challenges";
 import { currentWeek, membersInJoinOrder, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { UNNAMED_PLAYER } from "./lib/names";
 import { withoutStandIns } from "./lib/schedule";
 import { CORE_SLOTS, currentStreak, matchupBonus, scoreWeek, winProbability, type Slot } from "./lib/scoring";
 import { pacificDay } from "./lib/week";
@@ -30,8 +31,6 @@ const PROOFS_PER_WEEK = 500;
 const MATCHUPS_PER_WEEK = 50;
 const WEEKS_PER_LEAGUE = 200;
 const LEDGER_ROWS = 1000;
-
-const UNNAMED_PLAYER = "Player";
 
 /** One member's line in a league week, before it is shaped for a screen. */
 export type MemberStanding = {
@@ -81,6 +80,20 @@ async function weekMatchups(ctx: ReadCtx, weekId: Id<"weeks">): Promise<Doc<"mat
     .take(MATCHUPS_PER_WEEK);
 }
 
+/** Who the player faces in a week, or null when no pair holds them. */
+export async function opponentInWeek(
+  ctx: ReadCtx,
+  weekId: Id<"weeks">,
+  userId: Id<"users">,
+): Promise<Id<"users"> | null> {
+  // In an odd league one member sits in two pairs. Their own matchup is the first; the extra
+  // pair that gives the left-over member an opponent is always the last row.
+  const pairs = await weekMatchups(ctx, weekId);
+  const pair = pairs.find((candidate) => candidate.userA === userId || candidate.userB === userId);
+  if (pair === undefined) return null;
+  return pair.userA === userId ? pair.userB : pair.userA;
+}
+
 /**
  * A player's tasks for the week that count in this league: all of them, except tasks from
  * another league's drop. `dropLeagues` remembers each drop's league across players.
@@ -114,11 +127,11 @@ async function tasksCountingIn(
  * is verified, so a proof under challenge (task held) or overturned (task reopened) drops out of
  * the streak together with its points.
  */
-async function proofDays(
+export async function proofDays(
   ctx: ReadCtx,
   userId: Id<"users">,
   weekStart: number,
-  tasks: Doc<"tasks">[],
+  tasks: readonly Pick<Doc<"tasks">, "_id" | "status">[],
 ): Promise<number[]> {
   const verified = new Set(tasks.filter((task) => task.status === "verified").map((task) => task._id));
   const proofs = await ctx.db
@@ -309,12 +322,8 @@ export const matchup = query({
     const caller = await requireUser(ctx);
     const { week } = await leagueAndWeek(ctx, args.leagueId);
 
-    // In an odd league one member sits in two pairs. Their own matchup is the first; the extra
-    // pair that gives the left-over member an opponent is always the last row.
-    const pairs = await weekMatchups(ctx, week._id);
-    const pair = pairs.find((candidate) => candidate.userA === caller._id || candidate.userB === caller._id);
-    if (pair === undefined) return null;
-    const opponentId = pair.userA === caller._id ? pair.userB : pair.userA;
+    const opponentId = await opponentInWeek(ctx, week._id, caller._id);
+    if (opponentId === null) return null;
 
     const standings = await leagueStandings(ctx, args.leagueId, week._id);
     const mine = standings.find((standing) => standing.userId === caller._id);

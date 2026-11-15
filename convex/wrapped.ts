@@ -9,9 +9,10 @@ import type { Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { UNNAMED_PLAYER } from "./lib/names";
+import { DAY_MS } from "./lib/week";
 import { leagueStandings } from "./standings";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const NO_STAT = "—";
 
 // ---- Shapes -----------------------------------------------------------------------------------
@@ -143,7 +144,7 @@ export function buildCards(input: {
 }): Card[] {
   const { standings, entries, viewerId, weekStart } = input;
   const byPoints = [...standings].sort((a, b) => b.points - a.points);
-  const nameOf = (userId: string) => standings.find((s) => s.userId === userId)?.name ?? "Player";
+  const nameOf = (userId: string) => standings.find((s) => s.userId === userId)?.name ?? UNNAMED_PLAYER;
 
   const [leader, runnerUp] = byPoints;
   const champion: Card =
@@ -285,7 +286,7 @@ async function memberEntries(
       .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
       .take(MAX_WEEK_PROOFS),
   ]);
-  const name = user?.name ?? "Player";
+  const name = user?.name ?? UNNAMED_PLAYER;
 
   const entries: Entry[] = [];
   for (const task of tasks) {

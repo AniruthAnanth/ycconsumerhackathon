@@ -28,6 +28,7 @@ import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } fr
 import { challengerPointsByUser } from "./challenges";
 import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { UNNAMED_PLAYER } from "./lib/names";
 import { projectionLabel, projectPayout, settledLabel, type Projection, type ProjectionMember } from "./lib/projection";
 import { FORMATS, rankBoard, type BoardFormat, type Entry } from "./lib/ranking";
 import { resolveSettings, seasonOf, seasonTable, withoutStandIns, type Result } from "./lib/schedule";
@@ -59,6 +60,8 @@ const MAX_PROJECTED_MEMBERS = 12;
 
 /** weekStart of the row that holds a player's all-time total in a league. Real weeks are far above it. */
 const ALL_TIME = 0;
+/** The first weekStart that is a real week: a range from here skips the stored all-time row. */
+const FIRST_WEEK = ALL_TIME + 1;
 
 // ---- The boards -------------------------------------------------------------------------------
 
@@ -238,7 +241,7 @@ async function entriesFor(ctx: QueryCtx, league: League, key: BoardKey, at?: num
 }
 
 async function statEntries(ctx: ReadCtx, league: League, spec: StatBoard): Promise<Entry<UserId>[]> {
-  const from = { week: league.current!.startsAt, season: seasonStart(league), allTime: ALL_TIME + 1 }[spec.span];
+  const from = { week: league.current!.startsAt, season: seasonStart(league), allTime: FIRST_WEEK }[spec.span];
   const weeks = await history(ctx, league, from);
   const entries: Entry<UserId>[] = [];
   for (const member of league.members) {
@@ -266,7 +269,7 @@ async function statEntries(ctx: ReadCtx, league: League, spec: StatBoard): Promi
  */
 async function headToHeadEntries(ctx: ReadCtx, league: League): Promise<Entry<UserId>[]> {
   const current = league.current!;
-  const weeks = await history(ctx, league, ALL_TIME + 1);
+  const weeks = await history(ctx, league, FIRST_WEEK);
   const pointsIn = (userId: UserId, weekStart: number) =>
     weeks.get(userId)?.find((view) => view.weekStart === weekStart)?.now.stats.points ?? 0;
   const nameOf = new Map(league.members.map((member) => [member.userId, member.name]));
@@ -416,7 +419,7 @@ async function globalEntries(ctx: ReadCtx, weekStart: number): Promise<Entry<Use
       const avatarUrl = await avatarOf(ctx, user);
       return {
         userId: row.userId,
-        name: user?.name ?? "Player",
+        name: user?.name ?? UNNAMED_PLAYER,
         ...(avatarUrl ? { avatarUrl } : {}),
         value: row.points,
         previous: row.day === newestDay ? row.yesterday.points : row.points,
@@ -588,7 +591,7 @@ async function loadLeague(ctx: ReadCtx, leagueId: Id<"leagues">): Promise<League
       const avatarUrl = await avatarOf(ctx, user);
       return {
         userId: membership.userId,
-        name: user?.name ?? "Player",
+        name: user?.name ?? UNNAMED_PLAYER,
         ...(avatarUrl ? { avatarUrl } : {}),
       };
     }),
