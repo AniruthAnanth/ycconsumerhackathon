@@ -4,9 +4,8 @@ import { useState } from "react";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
+import { errorMessage } from "@/lib/errorMessage";
 import { collectContactPhones, inviteesFrom, type Invitee } from "@/lib/phone";
-
-import { errorMessage } from "./errorMessage";
 
 export type ContactMatchState =
   | { status: "idle" }

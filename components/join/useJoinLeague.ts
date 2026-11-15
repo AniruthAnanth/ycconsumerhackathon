@@ -5,8 +5,7 @@ import { useState } from "react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-
-import { errorMessage } from "./errorMessage";
+import { errorMessage } from "@/lib/errorMessage";
 
 export type JoinSection = "quickMatch" | "inviteCode" | "create";
 
