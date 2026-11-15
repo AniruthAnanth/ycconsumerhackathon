@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedKind, isCloseCall, isReactionEmoji, summariseReactions, tallyVotes } from "./feed";
+import { canVoteOn, feedKind, isCloseCall, isReactionEmoji, summariseReactions, tallyVotes } from "./feed";
 
 describe("isCloseCall", () => {
   it("flags a pass the referee was unsure about", () => {
@@ -53,6 +53,21 @@ describe("tallyVotes", () => {
   });
   it("leaves myVote out when the viewer has not voted", () => {
     expect(tallyVotes([{ userId: "maya", legit: true }], "me")).toEqual({ legit: 1, notLegit: 0 });
+  });
+});
+
+describe("canVoteOn", () => {
+  const challenge = { status: "open", leagueId: "yc", challengerId: "sam" } as const;
+  it("lets the rest of the league vote", () => {
+    expect(canVoteOn(challenge, { userId: "lee", leagueId: "yc" }, "maya")).toBe(true);
+  });
+  it("keeps the proof's owner and the challenger out of the vote", () => {
+    expect(canVoteOn(challenge, { userId: "maya", leagueId: "yc" }, "maya")).toBe(false);
+    expect(canVoteOn(challenge, { userId: "sam", leagueId: "yc" }, "maya")).toBe(false);
+  });
+  it("is closed to other leagues and once the challenge is decided", () => {
+    expect(canVoteOn(challenge, { userId: "lee", leagueId: "other" }, "maya")).toBe(false);
+    expect(canVoteOn({ ...challenge, status: "upheld" }, { userId: "lee", leagueId: "yc" }, "maya")).toBe(false);
   });
 });
 
