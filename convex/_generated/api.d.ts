@@ -9,10 +9,13 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
+import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
 import type * as http from "../http.js";
 import type * as keiki from "../keiki.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_dropRules from "../lib/dropRules.js";
 import type * as whop from "../whop.js";
 
 import type {
@@ -23,10 +26,13 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  crons: typeof crons;
+  drops: typeof drops;
   feed: typeof feed;
   http: typeof http;
   keiki: typeof keiki;
   "lib/auth": typeof lib_auth;
+  "lib/dropRules": typeof lib_dropRules;
   whop: typeof whop;
 }>;
 
