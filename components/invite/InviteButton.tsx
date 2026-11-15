@@ -17,12 +17,14 @@ type Props = {
 export function InviteButton({ leagueId, label = "Invite friends", variant = "outlined" }: Props) {
   const { share, busy, notice } = useShareInvite(leagueId);
   const shown = notice === "Link copied" ? notice : label;
+  // With no league there is nothing to invite to, and a greyed button would say nothing about why.
+  if (!leagueId) return null;
   return (
     <View style={variant === "compact" ? styles.compact : styles.block}>
       {variant === "primary" ? (
-        <Button label={shown} onPress={share} loading={busy} disabled={!leagueId} />
+        <Button label={shown} onPress={share} loading={busy} />
       ) : (
-        <OutlinedPillButton label={shown} icon="share-outline" onPress={share} disabled={!leagueId || busy} />
+        <OutlinedPillButton label={shown} icon="share-outline" onPress={share} disabled={busy} />
       )}
       {notice && notice !== "Link copied" ? <Text style={styles.error}>{notice}</Text> : null}
     </View>
