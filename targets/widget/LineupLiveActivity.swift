@@ -358,10 +358,13 @@ struct ExpandedBottom: View {
           }
           Spacer(minLength: 0)
           // The week's score stays in view during a drop: it is what the drop's points are for.
-          Text("\(state.myScore) - \(state.opponentScore)")
-            .font(.system(size: 13, weight: .bold, design: .rounded))
-            .monospacedDigit()
-            .foregroundColor(Brand.blue)
+          // A player with no opponent this week has no score line to show.
+          if !state.opponentName.isEmpty {
+            Text("\(state.myScore) - \(state.opponentScore)")
+              .font(.system(size: 13, weight: .bold, design: .rounded))
+              .monospacedDigit()
+              .foregroundColor(Brand.blue)
+          }
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
