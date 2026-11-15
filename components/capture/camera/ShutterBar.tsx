@@ -1,10 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing } from "@/theme";
 
 import type { CaptureMode } from "./useProofCapture";
 
 const RECORD_RED = "#E5322D";
+
+// expo-camera cannot record on web: recordAsync only warns and returns an empty file.
+const MODES: CaptureMode[] = Platform.OS === "web" ? ["photo"] : ["photo", "video"];
 
 type Props = {
   mode: CaptureMode;
@@ -24,7 +27,7 @@ export function ShutterBar({ mode, recording, secondsRemaining, busy, onModeChan
       <Text style={styles.counter}>{recording ? `0:${String(secondsRemaining ?? 0).padStart(2, "0")}` : " "}</Text>
       <View style={styles.row}>
         <View style={styles.side}>
-          {(["photo", "video"] as const).map((option) => (
+          {MODES.map((option) => (
             <Pressable key={option} disabled={!idle} onPress={() => onModeChange(option)} hitSlop={8}>
               <Text style={[styles.mode, mode === option && styles.modeActive]}>{option.toUpperCase()}</Text>
             </Pressable>
