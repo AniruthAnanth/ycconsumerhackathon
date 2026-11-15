@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { InviteButton } from "@/components/invite";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
 import { PayBanner } from "@/components/roster/PayBanner";
@@ -66,6 +67,7 @@ export function VersusPot({ versus }: { versus: Versus }) {
               icon="share-outline"
               onPress={() => shareInvite(versus.inviteCode)}
             />
+            <InviteButton leagueId={versus.leagueId} label="Send challenge link" />
           </>
         ) : null}
         {versus.status === "live" && versus.opponent && versus.stakeUsd > 0 ? (
