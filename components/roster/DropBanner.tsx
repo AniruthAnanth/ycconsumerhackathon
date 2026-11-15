@@ -27,7 +27,7 @@ export function DropBanner({ leagueId }: { leagueId: Id<"leagues"> }) {
       title={drop.title}
       subtitle={drop.place?.name ?? kind.label}
     >
-      <DropActions drop={drop} leagueId={leagueId} />
+      <DropActions drop={drop} />
     </Banner>
   );
 }

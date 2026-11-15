@@ -1,5 +1,7 @@
+import { MAX_CLIP_SECONDS } from "@/convex/lib/clip";
+
 /** The referee watches at most this much video, so the camera stops there. */
-export const MAX_VIDEO_SECONDS = 10;
+export const MAX_VIDEO_SECONDS = MAX_CLIP_SECONDS;
 
 export function secondsLeft(elapsedMs: number, maxSeconds: number = MAX_VIDEO_SECONDS): number {
   return Math.max(0, Math.ceil(maxSeconds - elapsedMs / 1000));

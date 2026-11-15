@@ -2,26 +2,13 @@
  * The slice of the backend contract (API.md) that the capture screens call, as typed function
  * references: Voice Draft, the proof camera and verdict, the drop actions and the demo controls.
  *
- * Backend modules land from several threads in no fixed order. Binding to the agreed names here
- * lets these screens typecheck against the contract rather than against whatever happens to be
- * on main, and keeps every shape they send or render readable in one place. Names and shapes
- * mirror API.md exactly; change them there first. What the shell also reads (users.me,
- * lineup.roster, drops.active) lives in lib/backend.ts.
+ * These names and shapes are hand-kept mirrors of API.md, and nothing in the typecheck verifies
+ * them: lib/backend.contract.ts compares only lib/backend.ts with the generated api. What the
+ * shell also reads (users.me, lineup.roster, drops.active) lives in lib/backend.ts.
  */
-import { makeFunctionReference } from "convex/server";
-
 import type { Id } from "@/convex/_generated/dataModel";
-import type { Place } from "@/lib/backend";
+import { action, mutation, query, type NoArgs, type Place } from "@/lib/backend";
 import type { ProofType, Slot } from "@/lib/slots";
-
-type NoArgs = Record<string, never>;
-
-const query = <Args extends Record<string, unknown>, Result>(name: string) =>
-  makeFunctionReference<"query", Args, Result>(name);
-const mutation = <Args extends Record<string, unknown>, Result>(name: string) =>
-  makeFunctionReference<"mutation", Args, Result>(name);
-const action = <Args extends Record<string, unknown>, Result>(name: string) =>
-  makeFunctionReference<"action", Args, Result>(name);
 
 /** A task as Voice Draft proposes it, before Lock Lineup turns it into a roster row. */
 export type DraftTask = { slot: Slot; title: string; points: number; proofType: ProofType; place?: Place };
