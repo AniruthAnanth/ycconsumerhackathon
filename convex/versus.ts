@@ -437,7 +437,8 @@ export const remove = internalMutation({
   returns: v.null(),
   handler: async (ctx, { leagueId }) => {
     const league = await ctx.db.get("leagues", leagueId);
-    if (league?.mode !== "versus")
+    // Only versus.ts sets mode, so a league with one began as a versus, grown into a league or not.
+    if (league === null || league.mode === undefined)
       throw new ConvexError("Only a versus game can be removed this way");
     await deleteGame(ctx, leagueId);
     return null;
