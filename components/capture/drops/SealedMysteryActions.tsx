@@ -5,9 +5,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button, PositionPill } from "@/components/ui";
 import { colors, font, spacing } from "@/theme";
 
+import { capture } from "../backend";
 import { errorMessage } from "../errorMessage";
 import type { DropView } from "./dropView";
-import { acceptMystery, passMystery } from "./dropsApi";
 import { Envelope } from "./Envelope";
 import { WagerStepper } from "./WagerStepper";
 
@@ -16,8 +16,8 @@ type Pending = "open" | "pass" | null;
 
 /** A mystery task still in its envelope: wager if you like, then open it or pass. */
 export function SealedMysteryActions({ view }: { view: SealedView }) {
-  const accept = useMutation(acceptMystery);
-  const pass = useMutation(passMystery);
+  const accept = useMutation(capture.drops.acceptMystery);
+  const pass = useMutation(capture.drops.passMystery);
   const [wager, setWager] = useState(0);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<string | null>(null);

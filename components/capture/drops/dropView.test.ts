@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { Id } from "@/convex/_generated/dataModel";
+import type { Drop } from "@/lib/backend";
 
-import { type ActiveDrop, dropView } from "./dropView";
+import { dropView } from "./dropView";
 
 const NOW = 1_000_000;
 
-function drop(overrides: Partial<ActiveDrop>): ActiveDrop {
+function drop(overrides: Partial<Drop>): Drop {
   return {
     dropId: "drop1" as Id<"drops">,
     kind: "quicktime",

@@ -1,12 +1,13 @@
 import type { Id } from "@/convex/_generated/dataModel";
+import type { Drop } from "@/lib/backend";
 
 import { GroupActions } from "./drops/GroupActions";
 import { SealedMysteryActions } from "./drops/SealedMysteryActions";
 import { TimedActions } from "./drops/TimedActions";
-import { type ActiveDrop, dropView } from "./drops/dropView";
+import { dropView } from "./drops/dropView";
 import { useNow } from "./drops/useNow";
 
-type Props = { drop: ActiveDrop; leagueId: Id<"leagues"> };
+type Props = { drop: Drop; leagueId: Id<"leagues"> };
 
 /** The actions inside a live drop's banner on Roster. */
 export function DropActions({ drop }: Props) {
