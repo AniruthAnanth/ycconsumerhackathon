@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button, Divider } from "@/components/ui";
-import { colors, spacing } from "@/theme";
+import { colors, font, spacing } from "@/theme";
 
 import { FadeIn } from "./FadeIn";
 import { PointsCounter } from "./PointsCounter";
@@ -21,7 +21,7 @@ type Props = {
 
 function CloseLink({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} hitSlop={8} style={styles.close}>
+    <Pressable onPress={onPress} hitSlop={8} style={styles.close} accessibilityRole="button" accessibilityLabel="Close">
       <Text style={styles.closeLabel}>Close</Text>
     </Pressable>
   );
@@ -51,15 +51,22 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
     <View style={[styles.panel, { paddingBottom: bottom }]}>
       <FadeIn delay={REASON_DELAY_MS}>
         <Text style={styles.reason}>{verdict.reason}</Text>
+        {verdict.pass && verdict.caption ? (
+          <Text style={styles.caption} numberOfLines={1}>
+            {verdict.caption}
+          </Text>
+        ) : null}
       </FadeIn>
-      <FadeIn delay={POINTS_DELAY_MS}>
-        <Divider />
-        <View style={styles.pointsRow}>
-          {verdict.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : <View />}
-          <PointsCounter points={verdict.points} pass={verdict.pass} delay={POINTS_DELAY_MS} />
-        </View>
-        <Divider />
-      </FadeIn>
+      {verdict.pass ? (
+        <FadeIn delay={POINTS_DELAY_MS}>
+          <Divider />
+          <View style={styles.pointsRow}>
+            {verdict.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : <View />}
+            <PointsCounter points={verdict.points} pass={verdict.pass} delay={POINTS_DELAY_MS} />
+          </View>
+          <Divider />
+        </FadeIn>
+      ) : null}
       <View style={styles.spacer} />
       <FadeIn delay={ACTIONS_DELAY_MS}>
         {verdict.pass ? (
@@ -78,6 +85,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
 const styles = StyleSheet.create({
   panel: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   reason: { color: colors.text, fontSize: 24, fontWeight: "600", lineHeight: 31, marginBottom: spacing.xl },
+  caption: { color: colors.textMuted, fontSize: font.body, marginTop: -spacing.lg, marginBottom: spacing.xl },
   pointsRow: {
     height: 56,
     flexDirection: "row",
