@@ -1,0 +1,100 @@
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { Avatar, Divider, Score } from "@/components/ui";
+import { colors, font, hairline, spacing } from "@/theme";
+
+type SeasonPlayer = { userId: string; name: string; avatarUrl?: string };
+
+type SeasonTableRow = SeasonPlayer & {
+  rank: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  pointsFor: number;
+};
+
+type Props = {
+  rows: SeasonTableRow[];
+  meId: string;
+  onPlayerPress?: (userId: string) => void;
+};
+
+const RANK_WIDTH = 24;
+const RECORD_WIDTH = 56;
+const AVATAR_SIZE = 32;
+// Matches the shared Score box, so the PF header sits over the figures.
+const POINTS_WIDTH = 48;
+
+/** The season standings: rank, player, record and points for, one dense row each. */
+export function SeasonTable({ rows, meId, onPlayerPress }: Props) {
+  return (
+    <View>
+      <View style={styles.header}>
+        <Text style={[styles.headerLabel, styles.rank]}>RK</Text>
+        <Text style={[styles.headerLabel, styles.player]}>PLAYER</Text>
+        <Text style={[styles.headerLabel, styles.record]}>W-L</Text>
+        <Text style={[styles.headerLabel, styles.points]}>PF</Text>
+      </View>
+      {rows.map((row) => (
+        <View key={row.userId}>
+          <TableRow row={row} isMe={row.userId === meId} onPress={onPlayerPress} />
+          <Divider />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function recordText({ wins, losses, ties }: SeasonTableRow): string {
+  return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
+}
+
+function TableRow({ row, isMe, onPress }: { row: SeasonTableRow; isMe: boolean; onPress?: (userId: string) => void }) {
+  const content = (
+    <View style={styles.row}>
+      <Text style={[styles.rankValue, styles.rank]}>{row.rank}</Text>
+      <View style={[styles.player, styles.playerCell]}>
+        <Avatar uri={row.avatarUrl} name={row.name} size={AVATAR_SIZE} />
+        <Text style={[styles.name, isMe && styles.me]} numberOfLines={1}>
+          {row.name}
+        </Text>
+      </View>
+      <Text style={[styles.recordValue, styles.record]}>{recordText(row)}</Text>
+      <Score value={row.pointsFor} />
+    </View>
+  );
+  if (!onPress) return content;
+  return (
+    <Pressable onPress={() => onPress(row.userId)} accessibilityRole="button" accessibilityLabel={row.name}>
+      {content}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    height: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.strip,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.divider,
+  },
+  headerLabel: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  row: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+  },
+  rank: { width: RANK_WIDTH },
+  player: { flex: 1 },
+  playerCell: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  points: { minWidth: POINTS_WIDTH, textAlign: "right" },
+  record: { width: RECORD_WIDTH, textAlign: "right", marginRight: spacing.md },
+  rankValue: { fontSize: font.body, fontWeight: "700", color: colors.textMuted },
+  name: { flex: 1, fontSize: font.title, fontWeight: "600", color: colors.text },
+  me: { color: colors.accent },
+  recordValue: { fontSize: font.body, color: colors.text, fontVariant: ["tabular-nums"] },
+});
