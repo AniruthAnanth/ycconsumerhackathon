@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from "convex/react";
-import { useRouter, type Href } from "expo-router";
+import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import { proofCameraHref } from "@/components/capture/proofRoute";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useDevFlags } from "@/lib/devFlags";
@@ -77,8 +78,8 @@ export function CheckInPrompt({ leagueId }: { leagueId: Id<"leagues"> | null }) 
       kind={prompt.kind}
       label={prompt.label}
       line={prompt.line}
-      // The proof camera belongs to the capture workstream; its route is not in the typed routes.
-      onCheckIn={() => router.push(`/proof/${prompt.taskId}` as Href)}
+      // Straight to the camera, the same way Roster's Submit Proof opens it.
+      onCheckIn={() => router.push(proofCameraHref({ taskId: prompt.taskId, ...prompt.task }))}
     />
   );
 }

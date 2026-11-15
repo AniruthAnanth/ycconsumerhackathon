@@ -26,6 +26,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import { place } from "./schema";
 import {
   ARRIVAL_WINDOW_MS,
   type CheckInTask,
@@ -41,11 +42,14 @@ import {
   passedText,
   pickCheckIn,
   pickRival,
+  pointsIfProven,
   promptCopy,
   scheduledNudge,
   slotsAtStake,
 } from "./lib/checkinRules";
 import { isValidLatLng } from "./lib/geo";
+import { pacificDay } from "./lib/week";
+import { leagueStandings } from "./standings";
 
 /** leagues.maxMembers and a week's handful of tasks keep every list far below this; it only bounds the reads. */
 const MAX_ROWS = 500;
@@ -79,6 +83,14 @@ export const prompt = query({
       label: v.string(),
       /** One sentence that names the rival and the gap: "Maya's up 15. Leg day flips it." */
       line: v.string(),
+      /** What the proof camera shows about the task, so Check In can open it without another read. */
+      task: v.object({
+        title: v.string(),
+        points: v.number(),
+        proofType: v.union(v.literal("photo"), v.literal("photo_location"), v.literal("canvas")),
+        place: v.optional(place),
+        gesture: v.optional(v.string()),
+      }),
     }),
   ),
   handler: async (ctx, { leagueId, now, lat, lng }) => {
@@ -87,16 +99,22 @@ export const prompt = query({
     if (week === null || !(await isMember(ctx, leagueId, me._id))) return null;
 
     const here = { lat: lat ?? Number.NaN, lng: lng ?? Number.NaN };
+    const tasks = await tasksInLeague(ctx, me._id, week);
     const checkIn = pickCheckIn({
       now,
       week: { endsAt: week.endsAt, settled: week.status === "settled" },
-      tasks: await tasksInLeague(ctx, me._id, week),
+      tasks,
       coords: isValidLatLng(here) ? here : undefined,
     });
     if (checkIn === null) return null;
 
-    const rival = await rivalOf(ctx, week, me._id, await standingsOf(ctx, week));
-    return { kind: checkIn.kind, taskId: checkIn.task.taskId, ...promptCopy(checkIn, now, rival) };
+    const copy = promptCopy(checkIn, {
+      now,
+      rival: await rivalOf(ctx, week, me._id, await standingsOf(ctx, week)),
+      worth: pointsIfProven(checkIn.task, tasks, await proofDaysOf(ctx, me._id, week, tasks), pacificDay(now)),
+    });
+    const { taskId, title, points, proofType, place, gesture } = checkIn.task;
+    return { kind: checkIn.kind, taskId, ...copy, task: { title, points, proofType, place, gesture } };
   },
 });
 
@@ -207,7 +225,7 @@ export const nudge = internalMutation({
       pacificHour: clock.hour,
       weekEndsAt: home.week.endsAt,
       sentToday: (await sentOn(ctx, userId, clock.day)).map((sent) => sent.kind),
-      provedToday: await provedSince(ctx, userId, home.week.startsAt, clock.startOfDay),
+      provedToday: (await proofDaysOf(ctx, userId, home.week, tasks)).includes(pacificDay(now)),
       slotsAtStake: slots.length,
       hasCheckIn: checkIn !== null,
     });
@@ -273,17 +291,19 @@ export const afterProof = internalMutation({
           .map((row) => ({ userId: row.userId, before: markOf(row.userId)?.points ?? row.points, after: row.points })),
       });
       for (const { userId, gap } of passed) {
-        // Name the way back: the check-in the passed player would be asked for right now.
-        const wayBack = pickCheckIn({
-          now,
-          week: { endsAt: week.endsAt, settled: false },
-          tasks: await tasksInLeague(ctx, userId, week),
-        });
+        // Name the way back: the check-in the passed player would be asked for right now, and
+        // what it would do to the new gap.
+        const theirs = await tasksInLeague(ctx, userId, week);
+        const checkIn = pickCheckIn({ now, week: { endsAt: week.endsAt, settled: false }, tasks: theirs });
+        const wayBack = checkIn && {
+          ...checkIn.task,
+          worth: pointsIfProven(checkIn.task, theirs, await proofDaysOf(ctx, userId, week, theirs), pacificDay(now)),
+        };
         await sendText(
           ctx,
           userId,
           "rival_passed",
-          passedText({ rivalName: prover.name, gap, leagueName: league.name, task: wayBack?.task ?? null }),
+          passedText({ rivalName: prover.name, gap, leagueName: league.name, wayBack }),
         );
       }
 
@@ -376,38 +396,20 @@ async function tasksInLeague(ctx: QueryCtx, userId: Id<"users">, week: Doc<"week
       proofType: row.proofType,
       source: row.source,
       place: row.place,
+      gesture: drop?.gesture,
       closesAt: drop?.closesAt ?? week.endsAt,
     });
   }
   return tasks;
 }
 
-/** Every member's points in the league this week: what the gap in the copy is measured on. */
-async function standingsOf(ctx: QueryCtx, week: Doc<"weeks">): Promise<Standing[]> {
-  const memberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_league", (q) => q.eq("leagueId", week.leagueId))
-    .take(MAX_ROWS);
-  const standings: Standing[] = [];
-  for (const { userId } of memberships) {
-    const user = await ctx.db.get("users", userId);
-    if (user === null) continue;
-    standings.push({ userId, name: user.name ?? "Someone", points: boardPoints(await tasksInLeague(ctx, userId, week)) });
-  }
-  return standings;
-}
-
 /**
- * Points on the board: every verified task, plus the penalty a failed mystery task carries as
- * negative points. This is the sum the roster total shows. The standings module adds the slot,
- * sweep and streak bonuses on top; when it exports a per-player total this calls that instead,
- * so the gap here always matches the League tab.
+ * Every member's points in the league this week. They come from the standings module, the single
+ * source of the League tab's numbers, so the gap in a prompt or a text is the gap on the table.
  */
-function boardPoints(tasks: readonly Task[]): number {
-  return tasks.reduce((sum, task) => {
-    if (task.status === "verified") return sum + task.points;
-    return task.status === "failed" && task.points < 0 ? sum + task.points : sum;
-  }, 0);
+async function standingsOf(ctx: QueryCtx, week: Doc<"weeks">): Promise<Standing[]> {
+  const standings = await leagueStandings(ctx, week.leagueId, week._id);
+  return standings.map(({ userId, name, points }) => ({ userId, name, points }));
 }
 
 /** The rival to name for this player: see pickRival for who that is. */
@@ -451,11 +453,20 @@ async function homeLeague(
   return home === null ? null : { week: home, stakeUsd };
 }
 
-/** Whether the player has a passing proof since the given moment (the start of today in Los Angeles). */
-async function provedSince(ctx: QueryCtx, userId: Id<"users">, weekStart: number, since: number): Promise<boolean> {
+/**
+ * The Pacific days this week on which the player has a proof that still stands, counted the way
+ * the standings count a streak: a proof stops counting while its task is held or reopened.
+ */
+async function proofDaysOf(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  week: Doc<"weeks">,
+  tasks: readonly Task[],
+): Promise<number[]> {
+  const verified = new Set(tasks.filter((task) => task.status === "verified").map((task) => task.taskId));
   const proofs = await ctx.db
     .query("proofs")
-    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
+    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", week.startsAt))
     .take(MAX_ROWS);
-  return proofs.some((proof) => proof.pass && proof.createdAt >= since);
+  return proofs.filter((proof) => proof.pass && verified.has(proof.taskId)).map((proof) => pacificDay(proof.createdAt));
 }
