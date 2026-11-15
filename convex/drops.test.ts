@@ -7,10 +7,12 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { askJson } from "./ai";
 import {
+  GESTURES,
   GROUP_CHECK_IN_WINDOW_MS,
   GROUP_REMINDER_LEAD_MS,
   MYSTERY_FALLBACKS,
   MYSTERY_WINDOW_MS,
+  QUICK_TIME_IDEAS,
   QUICK_TIME_WINDOW_MS,
 } from "./lib/dropRules";
 import { searchMemories } from "./memory";
@@ -192,6 +194,29 @@ describe("quick-time drop", () => {
         },
       },
     ]);
+  });
+
+  it("starts the spec's example drop from the demo control, and any drop when asked for a random one", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
+
+    await as(t, userIds[0]).mutation(api.drops.triggerQuickTime, { leagueId });
+    await runScheduled(t);
+    const [showcase] = await as(t, userIds[0]).query(api.drops.active, { leagueId });
+    expect(showcase).toMatchObject({ title: "20 push-ups", gesture: "three fingers up", points: 40 });
+    expect(texts.join("\n")).toContain(
+      "Quick-time: 20 push-ups in the next 2 hours, three fingers up in the photo. +40. Reply with a photo.",
+    );
+
+    // The last idea and the last gesture, which is what a draw of 0.99 picks from each list.
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    await as(t, userIds[0]).mutation(api.drops.triggerQuickTime, { leagueId, random: true });
+    await runScheduled(t);
+    const [dealt] = await as(t, userIds[0]).query(api.drops.active, { leagueId });
+    expect(dealt).toMatchObject({
+      title: QUICK_TIME_IDEAS[QUICK_TIME_IDEAS.length - 1].title,
+      gesture: GESTURES[GESTURES.length - 1],
+    });
   });
 
   it("pays the first finisher +10 and everyone after the drop's own points", async () => {

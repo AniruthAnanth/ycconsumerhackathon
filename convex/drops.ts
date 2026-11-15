@@ -52,6 +52,7 @@ import {
   parseMystery,
   pickFallbackMystery,
   pickQuickTime,
+  SHOWCASE_QUICK_TIME,
   QUICK_TIME_WINDOW_MS,
   quickTimeText,
 } from "./lib/dropRules";
@@ -159,11 +160,16 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
 
 // ─── Quick-time drops ────────────────────────────────────────────────────────────────────────
 
-/** Demo control: starts a quick-time drop for the league now. */
+/**
+ * Demo control: starts a quick-time drop for the league now. Called as the demo screen calls
+ * it, the drop is always the showcase one, so the person pressing the button knows what they
+ * will be asked for and can answer it on camera. `random: true` deals the drop as the game
+ * means it: any idea, with any gesture.
+ */
 export const triggerQuickTime = mutation({
-  args: { leagueId: v.id("leagues") },
+  args: { leagueId: v.id("leagues"), random: v.optional(v.boolean()) },
   returns: v.id("drops"),
-  handler: async (ctx, { leagueId }) => {
+  handler: async (ctx, { leagueId, random }) => {
     const me = await requireUser(ctx);
     if ((await membership(ctx, leagueId, me._id)) === null) {
       throw new ConvexError("Only a member of the league can start a drop");
@@ -176,7 +182,7 @@ export const triggerQuickTime = mutation({
     }
 
     const now = Date.now();
-    const idea = pickQuickTime();
+    const idea = random ? pickQuickTime() : SHOWCASE_QUICK_TIME;
     const dropId = await ctx.db.insert("drops", {
       leagueId,
       kind: "quicktime",

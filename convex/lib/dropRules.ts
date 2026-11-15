@@ -70,6 +70,18 @@ export function pickQuickTime(random: () => number = Math.random): DropIdea & { 
   return { ...pick(QUICK_TIME_IDEAS, random), gesture: pick(GESTURES, random) };
 }
 
+/**
+ * The drop the demo control starts: the spec's own example. A presenter can do it on stage in
+ * ten seconds, and it is the one drop the app's bundled push-ups sample photo passes, where a
+ * random pick is answerable with that photo one time in thirty.
+ */
+export const SHOWCASE_QUICK_TIME: DropIdea & { gesture: string } = {
+  title: "20 push-ups",
+  slot: "body",
+  points: 40,
+  gesture: "three fingers up",
+};
+
 /** Earliest verified proof wins; a tie goes to whoever comes first in the list. */
 export function firstFinisher<T extends { verifiedAt: number }>(finishers: readonly T[]): T | undefined {
   return finishers.reduce<T | undefined>(
