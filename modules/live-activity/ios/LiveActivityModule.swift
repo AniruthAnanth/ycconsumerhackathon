@@ -9,8 +9,8 @@ import WidgetKit
 /// The state crosses the bridge as a JSON string and is decoded straight into the activity's
 /// ContentState, so there is one definition of its shape on each side and no hand-written mapping.
 ///
-/// It also hands the home-screen widget its data (setWidgetSnapshot, called from lib/homeWidget.ts),
-/// because it is the one native module the app has and the widget lives in the same extension.
+/// It also hands the home-screen widget its data (setWidgetSnapshot, called from lib/homeWidget.ts):
+/// the widget is drawn by the same extension as the activity, so one module feeds both.
 public class LiveActivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("LiveActivity")
