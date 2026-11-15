@@ -6,6 +6,7 @@ import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthGate } from "@/components/AuthGate";
+import { LiveToastHost } from "@/components/live/LiveToastHost";
 import { NotificationsHost } from "@/components/notifications/NotificationsHost";
 import { sheetOptions } from "@/components/ui/Sheet";
 import { convex } from "@/lib/convex";
@@ -46,6 +47,7 @@ export default function RootLayout() {
               <Stack.Screen name="league-switcher" options={sheetOptions("fitToContents")} />
               <Stack.Screen name="group/new" options={sheetOptions([0.75, 1])} />
             </Stack>
+            <LiveToastHost />
           </CurrentLeagueProvider>
         </AuthGate>
         <StatusBar style="dark" />
