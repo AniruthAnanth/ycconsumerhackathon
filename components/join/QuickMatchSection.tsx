@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 
 import { OutlinedPillButton, SectionLabel } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { ErrorLine } from "./ErrorLine";
 import { STAKES } from "./stakes";
@@ -36,7 +36,7 @@ export function QuickMatchSection({ joining }: { joining: ReturnType<typeof useJ
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md, gap: spacing.sm },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
   row: { flexDirection: "row", gap: spacing.sm },
   pill: { flex: 1 },
 });

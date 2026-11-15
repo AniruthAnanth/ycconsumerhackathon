@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, fontFamily, spacing, type } from "@/theme";
 
 import type { DraftPhase } from "./draftState";
 import { useWordReveal } from "./useWordReveal";
@@ -32,7 +32,7 @@ export function TranscriptView({ phase, transcript, onRevealFinished }: Props) {
 }
 
 const styles = StyleSheet.create({
-  status: { fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6, color: colors.accent },
+  status: { ...type.caption, fontFamily: fontFamily.bold, letterSpacing: 0.6, color: colors.accent },
   working: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  transcript: { fontFamily: fontFamily.regular, fontSize: font.body, lineHeight: 20, color: colors.textMuted },
+  transcript: { ...type.body, color: colors.textMuted },
 });

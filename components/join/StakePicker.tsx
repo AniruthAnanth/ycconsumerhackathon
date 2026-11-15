@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, MIN_TARGET, radius, spacing, type } from "@/theme";
 
 import { STAKES, type Stake } from "./stakes";
 
@@ -37,16 +37,16 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: spacing.sm },
   pill: {
     flex: 1,
-    height: 36,
+    minHeight: MIN_TARGET,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: colors.accent,
     backgroundColor: colors.background,
   },
   selected: { backgroundColor: colors.accent },
   disabled: { opacity: 0.4 },
-  label: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.accent },
+  label: { ...type.label, color: colors.accent },
   selectedLabel: { color: colors.onAccent },
 });

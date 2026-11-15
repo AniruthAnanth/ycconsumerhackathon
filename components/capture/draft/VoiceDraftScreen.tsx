@@ -3,9 +3,10 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Button, Header, Screen } from "@/components/ui";
+import { Artwork } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { RecordButton } from "./RecordButton";
@@ -41,6 +42,9 @@ export function VoiceDraftScreen() {
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.sunny}>
+            <Artwork name="sunny" size={80} />
+          </View>
           {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
           {showsLineup ? null : (
             <View style={styles.recorder}>
@@ -88,13 +92,14 @@ export function VoiceDraftScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: spacing.xl, paddingBottom: spacing.xl },
-  weekNote: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  content: { paddingTop: spacing.lg, paddingBottom: spacing.xl },
+  sunny: { alignItems: "center", paddingBottom: spacing.md },
+  weekNote: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, textAlign: "center", ...type.small, color: colors.textMuted },
   recorder: { alignItems: "center" },
-  transcript: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
-  footer: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
-  error: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.danger },
-  leave: { alignSelf: "center", paddingVertical: spacing.xs },
-  redo: { fontFamily: fontFamily.regular, fontSize: font.title, color: colors.accent },
+  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
+  error: { ...type.body, color: colors.danger },
+  leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
+  redo: { ...type.label, color: colors.accent },
 });
