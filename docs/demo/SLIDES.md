@@ -21,10 +21,10 @@ Names and numbers under "In the shot" are what Reset Seed writes (`reset` in `co
 
 - **Headline:** Your whole week on one screen
 - **Supporting line:** Five starter slots plus flex, with Submit Proof on the Up Next row.
-- **In the shot:** Switched to Sam Patel in Demo controls: league "YC Hackathon", Week 5. Starters: Bike to work 30.0, Ship the onboarding PR 40.0, Journal for ten minutes 15.0, Clean my room 25.0, and Call mom tinted and tagged UP NEXT with a Submit Proof button. Under "Flex and bonus": 20 push-ups 50.0. TOTAL 160.0.
+- **In the shot:** Switched to Sam Patel in Demo controls: league "YC Hackathon", Week 5. Starters: Bike to work 30.0, Ship the onboarding PR 40.0, Journal for ten minutes 15.0, Clean my room 25.0, and Call mom tinted and tagged UP NEXT with a Submit Proof button. Under "Flex and bonus": 20 push-ups 50.0. At the bottom, a "Projected:" line in dollars with a grey range (if it ended now, low, high), then TOTAL 160.0. The projection is recomputed each hour, so read its figures off the screenshot.
 - **Say:** "This is the screen I open every day. Five slots, the next task highlighted, and its camera is one tap away."
 - **Alternates:** "Your week is a roster" (the line already in `scripts/slides/slides.json`) or "One tap from task to camera"
-- **Code:** the screen is `app/(tabs)/index.tsx`; the starter and flex split is `splitRoster` in `lib/roster.ts`; Up Next is chosen by `roster` in `convex/lineup.ts`. The total on this screen is task points only. The League table adds slot and streak bonuses (`scoreWeek` in `convex/lib/scoring.ts`), which is why Sam shows 285.0 there and 160.0 here.
+- **Code:** the screen is `app/(tabs)/index.tsx`; the starter and flex split is `splitRoster` in `lib/roster.ts`; Up Next is chosen by `roster` in `convex/lineup.ts`; the projection line is `ProjectionLine.tsx` in `components/leaderboards/`. The total on this screen is task points only. The League table adds slot and streak bonuses (`scoreWeek` in `convex/lib/scoring.ts`), which is why Sam shows 285.0 there and 160.0 here.
 
 ### 3. The verdict
 
