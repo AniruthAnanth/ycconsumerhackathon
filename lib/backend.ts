@@ -7,6 +7,10 @@
  * the contract rather than against whatever happens to be on main, and keeps
  * every shape a shell screen renders readable in one place. Names and shapes
  * mirror API.md exactly; change them there first.
+ *
+ * Nothing here is checked against convex/ by itself. backend.contract.ts fails
+ * the typecheck when a binding stops matching the real function, and
+ * backend.test.ts when its name does.
  */
 import { makeFunctionReference } from "convex/server";
 
@@ -125,10 +129,6 @@ export const backend = {
     matchContacts: mutation<{ leagueId: Id<"leagues">; phones: string[] }, ContactMatch>("users:matchContacts"),
   },
   leagues: {
-    create: mutation<
-      { name: string; stakeUsd: number; visibility: "private" | "public" },
-      { leagueId: Id<"leagues">; inviteCode: string }
-    >("leagues:create"),
     joinByCode: mutation<{ inviteCode: string }, { leagueId: Id<"leagues"> }>("leagues:joinByCode"),
     quickMatch: mutation<{ stakeUsd: 0 | 5 | 20 }, { leagueId: Id<"leagues"> }>("leagues:quickMatch"),
     get: query<{ leagueId: Id<"leagues"> }, League>("leagues:get"),
@@ -139,6 +139,7 @@ export const backend = {
   },
   lineup: {
     roster: query<{ leagueId?: Id<"leagues">; userId?: Id<"users">; weekStart?: number }, Roster>("lineup:roster"),
+    addFlexTask: mutation<{ title: string }, Id<"tasks">>("lineup:addFlexTask"),
   },
   drops: {
     active: query<{ leagueId: Id<"leagues"> }, Drop[]>("drops:active"),
