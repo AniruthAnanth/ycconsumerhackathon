@@ -5,12 +5,13 @@ import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from "reac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi } from "@/components/social/contract";
+import { errorMessage } from "@/components/social/errorMessage";
 import { ScreenState } from "@/components/social/ScreenState";
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
 import { ChatInputBar } from "./ChatInputBar";
-import { chatReducer, errorMessage, initialChatState, SUGGESTIONS } from "./chatLogic";
+import { chatReducer, initialChatState, SUGGESTIONS } from "./chatLogic";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 
@@ -32,7 +33,7 @@ export function ChatScreen() {
       const { reply } = await chat({ leagueId, text });
       dispatch({ type: "reply", id: newId(), text: reply });
     } catch (error) {
-      dispatch({ type: "fail", id: messageId, error: errorMessage(error) });
+      dispatch({ type: "fail", id: messageId, error: errorMessage(error, "The league agent didn't answer.") });
     }
   };
 
