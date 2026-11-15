@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+
+import { collectContactPhones, inviteesFrom, MAX_CONTACT_PHONES, MAX_INVITEES, toE164 } from "./phone";
+
+describe("toE164", () => {
+  it("adds the default country code to a ten-digit number", () => {
+    expect(toE164("(415) 555-0100")).toBe("+14155550100");
+    expect(toE164("415.555.0100")).toBe("+14155550100");
+    expect(toE164("4155550100")).toBe("+14155550100");
+  });
+
+  it("keeps a leading plus and the digits after it", () => {
+    expect(toE164("+44 20 7946 0958")).toBe("+442079460958");
+    expect(toE164("+1 (415) 555-0100")).toBe("+14155550100");
+  });
+
+  it("adds a plus to an eleven-digit number that starts with the country code", () => {
+    expect(toE164("1 415 555 0100")).toBe("+14155550100");
+    expect(toE164("14155550100")).toBe("+14155550100");
+  });
+
+  it("honours another default country code", () => {
+    expect(toE164("7911 123456", "44")).toBe("+447911123456");
+  });
+
+  it("rejects anything that is not 8 to 15 digits", () => {
+    expect(toE164("")).toBeNull();
+    expect(toE164("   ")).toBeNull();
+    expect(toE164("call me")).toBeNull();
+    expect(toE164("555-0100")).toBeNull();
+    expect(toE164("+1234567890123456")).toBeNull();
+  });
+});
+
+describe("collectContactPhones", () => {
+  it("normalises, de-duplicates and keeps the first name for a number", () => {
+    const { phones, nameByPhone } = collectContactPhones([
+      { fullName: "Ada Lovelace", phones: [{ number: "(415) 555-0100" }, { number: "junk" }] },
+      { fullName: "Ada Again", phones: [{ number: "+1 415 555 0100" }] },
+      { fullName: null, phones: [{ number: "415 555 0101" }, {}] },
+      { fullName: "No Number" },
+    ]);
+    expect(phones).toEqual(["+14155550100", "+14155550101"]);
+    expect(nameByPhone).toEqual({ "+14155550100": "Ada Lovelace", "+14155550101": "+14155550101" });
+  });
+
+  it("caps the list", () => {
+    const contacts = Array.from({ length: MAX_CONTACT_PHONES + 20 }, (_, index) => ({
+      fullName: `Contact ${index}`,
+      phones: [{ number: `+1415${String(5550000 + index)}` }],
+    }));
+    expect(collectContactPhones(contacts).phones).toHaveLength(MAX_CONTACT_PHONES);
+  });
+});
+
+describe("inviteesFrom", () => {
+  it("names each number from the device, sorts by name and caps the list", () => {
+    expect(inviteesFrom(["+2", "+1", "+3"], { "+1": "Zed", "+2": "Amy" })).toEqual([
+      { phone: "+3", name: "+3" },
+      { phone: "+2", name: "Amy" },
+      { phone: "+1", name: "Zed" },
+    ]);
+    const many = Array.from({ length: MAX_INVITEES + 5 }, (_, index) => `+${index}`);
+    expect(inviteesFrom(many, {})).toHaveLength(MAX_INVITEES);
+  });
+});
