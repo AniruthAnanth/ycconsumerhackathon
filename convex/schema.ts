@@ -284,9 +284,6 @@ export default defineSchema({
     slot,
     points: v.number(),
     gesture: v.optional(v.string()),
-    // Nothing writes or reads this any more. Drops stored earlier still carry it, so the
-    // validator accepts it until the seed is next reset.
-    sealed: v.optional(v.boolean()),
     place: v.optional(place),
     // Group sessions only: the most people the model counted in one check-in
     // photo, and that photo. Attendees beyond the headcount earn no bonus.
