@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
-import { bestSlot, calendarDay, completionRate, fastestResponseSec, pointsByWeek, streaks } from "./profile";
+import { bestSlot, completionRate, fastestResponseSec, pointsByWeek } from "./profile";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -56,55 +56,26 @@ describe("bestSlot", () => {
   });
 });
 
-describe("calendarDay", () => {
-  it("gives consecutive numbers to consecutive Los Angeles days", () => {
-    const monday = calendarDay(WEEK + 10 * 60 * 60 * 1000, WEEK);
-    expect(calendarDay(WEEK + DAY - 1, WEEK)).toBe(monday);
-    expect(calendarDay(WEEK + DAY, WEEK)).toBe(monday + 1);
-    expect(calendarDay(WEEK + 6 * DAY + 1, WEEK)).toBe(monday + 6);
-  });
-  it("continues across weeks, so Sunday and the next Monday are neighbours", () => {
-    const sunday = calendarDay(WEEK + 6.5 * DAY, WEEK);
-    const nextMonday = calendarDay(WEEK + 7.5 * DAY, WEEK + 7 * DAY);
-    expect(nextMonday).toBe(sunday + 1);
-  });
-  it("stays consecutive across the daylight-saving change", () => {
-    // Monday 26 Oct 2026 is still PDT (UTC-7); Monday 2 Nov 2026 is PST (UTC-8).
-    const pdtWeek = Date.UTC(2026, 9, 26, 7);
-    const pstWeek = Date.UTC(2026, 10, 2, 8);
-    expect(calendarDay(pstWeek + 1, pstWeek)).toBe(calendarDay(pdtWeek + 1, pdtWeek) + 7);
-  });
-});
-
-describe("streaks", () => {
-  it("counts the run that ends today", () => {
-    expect(streaks([10, 11, 12], 12)).toEqual({ current: 3, longest: 3 });
-  });
-  it("keeps the streak alive when the last proof was yesterday", () => {
-    expect(streaks([10, 11], 12)).toEqual({ current: 2, longest: 2 });
-  });
-  it("ends the current streak after a missed day, but remembers the longest", () => {
-    expect(streaks([1, 2, 3, 4, 8], 10)).toEqual({ current: 0, longest: 4 });
-  });
-  it("counts a day once however many proofs it has", () => {
-    expect(streaks([5, 5, 5, 6], 6)).toEqual({ current: 2, longest: 2 });
-  });
-  it("is zero with no proofs", () => {
-    expect(streaks([], 6)).toEqual({ current: 0, longest: 0 });
-  });
-});
-
 describe("pointsByWeek", () => {
-  it("sums verified tasks per week", () => {
-    const byWeek = pointsByWeek([
-      { weekStart: 1, slot: "body", status: "verified", points: 30 },
-      { weekStart: 1, slot: "mind", status: "verified", points: 20 },
-      { weekStart: 1, slot: "chores", status: "held", points: 50 },
-      { weekStart: 2, slot: "body", status: "verified", points: 10 },
-    ]);
+  it("scores each week by the standings' rules: task points, slot bonus and streak bonus", () => {
+    const byWeek = pointsByWeek(
+      [
+        { weekStart: 1, slot: "body", status: "verified", points: 30, source: "draft" },
+        { weekStart: 1, slot: "mind", status: "verified", points: 20, source: "draft" },
+        { weekStart: 1, slot: "chores", status: "held", points: 50, source: "draft" },
+        { weekStart: 2, slot: "body", status: "verified", points: 10, source: "flex" },
+      ],
+      [
+        { weekStart: 1, day: 100 },
+        { weekStart: 1, day: 101 },
+        { weekStart: 2, day: 107 },
+      ],
+    );
+    // Week 1: 50 task points, two slots cleared (+50), a two-day streak (+5, +10).
+    // Week 2: 10 task points, no slot (a flex task clears none), one proof day (+5).
     expect([...byWeek.entries()]).toEqual([
-      [1, 50],
-      [2, 10],
+      [1, 115],
+      [2, 15],
     ]);
   });
 });
@@ -166,10 +137,11 @@ describe("profile.get", () => {
           });
         }
       };
-      // Last week: two days in a row, 70 points.
+      // Last week: two days in a row. 70 task points, Body cleared (+25), streak (+5, +10).
       await task(WEEK - 7 * DAY, "body", 30, WEEK - 7 * DAY + 1);
       await task(WEEK - 7 * DAY, "body", 40, WEEK - 6 * DAY + 1);
       // This week: Tuesday, Wednesday (a quick-time drop answered in 42 seconds) and Thursday.
+      // 110 task points, Mind and Body cleared (+50; the drop clears no slot), streak (+5, +10, +15).
       await task(WEEK, "mind", 50, WEEK + DAY + 1);
       await task(WEEK, "body", 40, WEEK + 2 * DAY + 42_000, { dropId });
       await task(WEEK, "body", 20, WEEK + 3 * DAY + 1);
@@ -185,13 +157,13 @@ describe("profile.get", () => {
 
     expect(profile).toEqual({
       name: "Maya",
-      totalPoints: 180,
+      totalPoints: 300,
       tasksCompleted: 5,
       completionRate: 5 / 7,
       bestSlot: "body",
       currentStreak: 3,
       longestStreak: 3,
-      bestWeek: 110,
+      bestWeek: 190,
       fastestQuickTimeSec: 42,
     });
   });

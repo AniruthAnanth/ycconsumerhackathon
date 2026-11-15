@@ -7,12 +7,12 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import { currentStreak, longestStreak, scoreWeek, type ScorableTask } from "./lib/scoring";
+import { pacificDay } from "./lib/week";
 import { slot } from "./schema";
 
 type Slot = Doc<"tasks">["slot"];
 type TaskFacts = Pick<Doc<"tasks">, "slot" | "status" | "points">;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ---- Rules (pure) -----------------------------------------------------------------------------
 
@@ -45,40 +45,21 @@ export function bestSlot(tasks: TaskFacts[]): Slot | null {
 }
 
 /**
- * Numbers a moment's Los Angeles calendar day so that consecutive days differ by one.
- *
- * weekStart is that week's Monday 00:00 in Los Angeles, so whole days counted from it are Los
- * Angeles days and no time-zone arithmetic is needed here. Monday 00:00 Pacific is 07:00 or 08:00
- * UTC, the same UTC date either way, which makes the Monday's own number stable across the
- * daylight-saving change.
+ * Each week's points, keyed by weekStart, scored by the same rules as the standings (task points,
+ * slot and sweep bonuses, streak bonus). Bonuses that belong to one league, the matchup win and
+ * challenge results, are left out: a profile is the player across all their leagues.
  */
-export function calendarDay(at: number, weekStart: number): number {
-  return Math.floor(weekStart / DAY_MS) + Math.floor((at - weekStart) / DAY_MS);
-}
-
-/**
- * Runs of consecutive days with at least one verified proof.
- * The current streak may end yesterday: today isn't over, so the streak is still alive.
- */
-export function streaks(proofDays: number[], today: number): { current: number; longest: number } {
-  const days = [...new Set(proofDays)].sort((a, b) => a - b);
-  let longest = 0;
-  let run = 0;
-  let current = 0;
-  for (let i = 0; i < days.length; i++) {
-    run = i > 0 && days[i] === days[i - 1] + 1 ? run + 1 : 1;
-    longest = Math.max(longest, run);
-    const isLastDay = i === days.length - 1;
-    if (isLastDay && days[i] >= today - 1) current = run;
-  }
-  return { current, longest };
-}
-
-/** Points per week, keyed by weekStart, from the tasks proved in it. */
-export function pointsByWeek(tasks: (TaskFacts & { weekStart: number })[]): Map<number, number> {
+export function pointsByWeek(
+  tasks: (ScorableTask & { weekStart: number })[],
+  proofs: { weekStart: number; day: number }[],
+): Map<number, number> {
   const byWeek = new Map<number, number>();
-  for (const task of tasks.filter(isDone)) {
-    byWeek.set(task.weekStart, (byWeek.get(task.weekStart) ?? 0) + task.points);
+  for (const weekStart of new Set(tasks.map((task) => task.weekStart))) {
+    const score = scoreWeek(
+      tasks.filter((task) => task.weekStart === weekStart),
+      proofs.filter((proof) => proof.weekStart === weekStart).map((proof) => proof.day),
+    );
+    byWeek.set(weekStart, score.total);
   }
   return byWeek;
 }
@@ -126,14 +107,12 @@ export const get = query({
     const doneTaskIds = new Set(tasks.filter(isDone).map((task) => task._id));
     const standingProofs = proofs.filter((proof) => proof.pass && doneTaskIds.has(proof.taskId));
 
-    const weekPoints = [...pointsByWeek(tasks).values()];
-    // "Today" needs the clock. The result is recomputed whenever this player's tasks or proofs
-    // change, so the worst case is a streak shown one day too long until their next proof.
-    const newestWeekStart = Math.max(0, ...tasks.map((task) => task.weekStart));
-    const { current, longest } = streaks(
-      standingProofs.map((proof) => calendarDay(proof.createdAt, proof.weekStart)),
-      calendarDay(Date.now(), newestWeekStart),
-    );
+    const proofDays = standingProofs.map((proof) => ({
+      weekStart: proof.weekStart,
+      day: pacificDay(proof.createdAt),
+    }));
+    const weekPoints = [...pointsByWeek(tasks, proofDays).values()];
+    const days = proofDays.map((proof) => proof.day);
 
     const quickTimeResponses = [];
     for (const task of tasks) {
@@ -153,8 +132,10 @@ export const get = query({
       tasksCompleted: doneTaskIds.size,
       completionRate: completionRate(tasks),
       bestSlot: bestSlot(tasks),
-      currentStreak: current,
-      longestStreak: longest,
+      // "Today" needs the clock. The result is recomputed whenever this player's tasks or proofs
+      // change, so the worst case is a streak shown a day too long until their next proof.
+      currentStreak: currentStreak(days, pacificDay(Date.now())),
+      longestStreak: longestStreak(days),
       bestWeek: Math.max(0, ...weekPoints),
       ...(fastestQuickTimeSec === undefined ? {} : { fastestQuickTimeSec }),
     };

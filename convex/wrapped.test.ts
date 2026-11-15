@@ -199,11 +199,12 @@ describe("wrapped.get", () => {
     const { cards } = await as(maya).query(api.wrapped.get, { leagueId });
 
     expect(cards.map((card) => [card.kind, card.subtitle, card.stat])).toEqual([
-      ["champion", "Lee · 35 ahead of Maya", "85 pts"],
+      // Points follow the standings' rules: task points, +25 a cleared slot, the streak bonus.
+      ["champion", "Lee · 45 ahead of Maya", "125 pts"],
       ["best_proof", "Lee · Three fingers up", "9/10"],
       ["comeback", "Lee climbed from 3rd to 1st", "+2"],
       ["fastest", "Lee · 20 push-ups", "42s"],
-      ["your_week", "1/5 slots · 1 proof", "50 pts"],
+      ["your_week", "1/5 slots · 1 proof", "80 pts"],
     ]);
     // Lee's drop photo backs the cards it earned; Maya's proof had no media.
     expect(cards[1]).toMatchObject({ mediaUrl: expect.any(String), mediaType: "photo" });

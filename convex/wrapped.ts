@@ -7,7 +7,10 @@ import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { challengerPointsByUser } from "./challenges";
 import { requireUser } from "./lib/auth";
+import { scoreWeek } from "./lib/scoring";
+import { pacificDay } from "./lib/week";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NO_STAT = "—";
@@ -242,11 +245,16 @@ export const get = query({
     // happened, is simply empty.
     if (!week || !memberships.some((m) => m.userId === viewer._id)) return { cards: [] };
 
-    const perMember = await Promise.all(
-      memberships.map((m) => memberWeek(ctx, m.userId, leagueId, week.startsAt)),
-    );
+    const [perMember, challengePoints] = await Promise.all([
+      Promise.all(memberships.map((m) => memberWeek(ctx, m.userId, leagueId, week.startsAt))),
+      challengerPointsByUser(ctx, leagueId, { from: week.startsAt, to: week.endsAt }),
+    ]);
     const cards = buildCards({
-      standings: perMember.map((member) => member.standing),
+      // Winning or losing a challenge moves points in the league it was raised in, as in the table.
+      standings: perMember.map(({ standing }) => ({
+        ...standing,
+        points: standing.points + (challengePoints.get(standing.userId) ?? 0),
+      })),
       entries: perMember.flatMap((member) => member.entries),
       viewerId: viewer._id,
       weekStart: week.startsAt,
@@ -263,13 +271,16 @@ export const get = query({
   },
 });
 
-/** One member's verified tasks for the week, as card entries, and their line in the table. */
+/**
+ * One member's week in this league: their verified tasks as card entries, and their line in the
+ * table, scored by the same rules as the standings so the champion here is the leader there.
+ */
 async function memberWeek(
   ctx: QueryCtx,
   userId: Id<"users">,
   leagueId: Id<"leagues">,
   weekStart: number,
-): Promise<{ standing: Standing; entries: Entry[] }> {
+): Promise<{ standing: Standing & { userId: Id<"users"> }; entries: Entry[] }> {
   const [user, tasks, proofs] = await Promise.all([
     ctx.db.get("users", userId),
     ctx.db
@@ -284,12 +295,14 @@ async function memberWeek(
   const name = user?.name ?? "Player";
 
   const entries: Entry[] = [];
+  const scoredHere = [];
   for (const task of tasks) {
-    // Held (under challenge) and reopened tasks earn nothing, so they are not part of the recap.
-    if (task.status !== "verified") continue;
     const drop = task.dropId ? await ctx.db.get("drops", task.dropId) : null;
     // A drop is one league's event: its result counts only there.
     if (drop && drop.leagueId !== leagueId) continue;
+    scoredHere.push(task);
+    // Held (under challenge) and reopened tasks earn nothing, so they are not part of the recap.
+    if (task.status !== "verified") continue;
     // The newest passing proof is the one that verified the task; older ones were retries.
     const proof = proofs
       .filter((p) => p.taskId === task._id && p.pass)
@@ -311,16 +324,9 @@ async function memberWeek(
     });
   }
 
-  const clearedSlots = new Set(
-    tasks.filter((task) => task.status === "verified" && task.slot !== "flex").map((task) => task.slot),
-  );
+  const score = scoreWeek(scoredHere, entries.map((entry) => pacificDay(entry.provedAt)));
   return {
-    standing: {
-      userId,
-      name,
-      points: entries.reduce((sum, entry) => sum + entry.points, 0),
-      slotsCleared: clearedSlots.size,
-    },
+    standing: { userId, name, points: score.total, slotsCleared: score.slotsCleared },
     entries,
   };
 }

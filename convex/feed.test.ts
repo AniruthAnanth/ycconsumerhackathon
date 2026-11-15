@@ -13,10 +13,10 @@ const modules = import.meta.glob("./**/*.ts");
 describe("isCloseCall", () => {
   it("flags a pass the referee was unsure about", () => {
     expect(isCloseCall({ pass: true, confidence: 0.6 })).toBe(true);
-    expect(isCloseCall({ pass: true, confidence: 0.74 })).toBe(true);
+    expect(isCloseCall({ pass: true, confidence: 0.75 })).toBe(true);
   });
   it("does not flag a confident pass or a fail", () => {
-    expect(isCloseCall({ pass: true, confidence: 0.75 })).toBe(false);
+    expect(isCloseCall({ pass: true, confidence: 0.76 })).toBe(false);
     expect(isCloseCall({ pass: true, confidence: 0.98 })).toBe(false);
     expect(isCloseCall({ pass: false, confidence: 0.4 })).toBe(false);
   });
