@@ -8,6 +8,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireUser } from "./lib/auth";
 import {
   isSeasonLength,
@@ -148,6 +149,8 @@ export async function addMember(
     paid: league.stakeUsd === 0,
     joinedAt: Date.now(),
   });
+  // A newcomer's lineup already scores here, so the leaderboards' stored rows need theirs.
+  await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: league._id });
 
   const matchups = await ctx.db
     .query("matchups")
