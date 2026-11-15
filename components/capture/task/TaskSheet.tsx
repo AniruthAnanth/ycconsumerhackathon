@@ -1,9 +1,9 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { Artwork, artworkForTask } from "@/components/art";
-import { Button, EmptyState, Header, Icon, Screen, TaskRow } from "@/components/ui";
+import { Button, EmptyState, Header, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
@@ -28,14 +28,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
   // Presented as a form sheet, which starts below the status bar, so only the bottom needs a safe-area inset.
   return (
     <Screen edges={["bottom"]}>
-      <Header
-        title="Task"
-        right={
-          <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-            <Icon name="close" size={24} />
-          </Pressable>
-        }
-      />
+      <Header title="Task" onClose={close} />
       {task ? (
         <>
           <View style={styles.hero}>

@@ -6,7 +6,7 @@ import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ease, useReduceMotion } from "@/components/motion";
-import { Icon, SheetGrabber, sheetSurface } from "@/components/ui";
+import { Header, Icon, SheetGrabber, sheetSurface } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseCheckoutMessage } from "@/convex/lib/checkoutPage";
 import { backend } from "@/lib/backend";
@@ -89,12 +89,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
           accessibilityViewIsModal
         >
           <SheetGrabber />
-          <View style={styles.header}>
-            <Text style={styles.brand}>Lineup</Text>
-            <Pressable style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
-              <Icon name="close" size={22} color={colors.textMuted} />
-            </Pressable>
-          </View>
+          <Header title="Lineup" onClose={onClose} />
 
           <View style={styles.summary}>
             <View style={styles.league}>
@@ -151,9 +146,6 @@ const styles = StyleSheet.create({
     height: "92%",
     ...sheetSurface,
   },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingLeft: SCREEN_MARGIN, paddingRight: spacing.sm },
-  brand: { fontFamily: fontFamily.extraBold, fontSize: font.header, color: colors.accent },
-  close: { width: MIN_TARGET, height: MIN_TARGET, alignItems: "center", justifyContent: "center" },
   summary: {
     flexDirection: "row",
     alignItems: "center",
