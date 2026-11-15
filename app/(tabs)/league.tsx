@@ -1,5 +1,6 @@
-import { Placeholder } from "@/components/Placeholder";
+import { Screen } from "@/components/ui";
 
+/** LEAGUE: pot, standings and invite. Built in the next shell pull request. */
 export default function LeagueScreen() {
-  return <Placeholder title="LEAGUE" />;
+  return <Screen edges={["bottom"]}>{null}</Screen>;
 }

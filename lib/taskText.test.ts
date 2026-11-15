@@ -1,0 +1,59 @@
+import { describe, expect, it } from "vitest";
+
+import { formatClock, formatScore, taskPlaceLine, taskStatusLine, type TaskRowData } from "./taskText";
+
+const base: TaskRowData = { slot: "body", title: "Leg day", points: 40, proofType: "photo_location" };
+
+describe("formatScore", () => {
+  it("shows one decimal once scored", () => {
+    expect(formatScore(40)).toBe("40.0");
+    expect(formatScore(0)).toBe("0.0");
+    expect(formatScore(12.25)).toBe("12.3");
+  });
+
+  it("shows a dash until scored", () => {
+    expect(formatScore(null)).toBe("--");
+    expect(formatScore(undefined)).toBe("--");
+  });
+});
+
+describe("formatClock", () => {
+  it("formats afternoon, midnight and noon on a 12-hour clock", () => {
+    expect(formatClock(new Date(2026, 10, 15, 14, 14).getTime())).toBe("2:14 PM");
+    expect(formatClock(new Date(2026, 10, 15, 0, 5).getTime())).toBe("12:05 AM");
+    expect(formatClock(new Date(2026, 10, 15, 12, 0).getTime())).toBe("12:00 PM");
+  });
+});
+
+describe("taskStatusLine", () => {
+  it("shows the proof type alone for a draft task", () => {
+    expect(taskStatusLine(base)).toBe("Photo + location");
+  });
+
+  it("adds the due label to an open task", () => {
+    expect(taskStatusLine({ ...base, status: "open", dueLabel: "Due Sun" })).toBe("Photo + location | Due Sun");
+  });
+
+  it("shows when a task was verified", () => {
+    const verifiedAt = new Date(2026, 10, 15, 14, 14).getTime();
+    expect(taskStatusLine({ ...base, status: "verified", verifiedAt })).toBe("Verified 2:14 PM");
+  });
+
+  it("invites a retry after a failed proof", () => {
+    expect(taskStatusLine({ ...base, proofType: "photo", status: "failed" })).toBe("Photo | Not verified, try again");
+  });
+
+  it("marks a challenged proof", () => {
+    expect(taskStatusLine({ ...base, status: "held" })).toBe("Challenged | Points on hold");
+  });
+});
+
+describe("taskPlaceLine", () => {
+  it("names the pinned place", () => {
+    expect(taskPlaceLine({ ...base, place: { name: "YC office" } })).toBe("@ YC office");
+  });
+
+  it("is empty without a place", () => {
+    expect(taskPlaceLine(base)).toBeUndefined();
+  });
+});
