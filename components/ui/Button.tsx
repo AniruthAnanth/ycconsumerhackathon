@@ -1,4 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+
+import { PressScale } from "@/components/motion";
 
 import { colors, font, fontFamily, radius, spacing } from "@/theme";
 
@@ -15,8 +17,8 @@ type Props = {
 export function Button({ label, onPress, loading = false, disabled = false, style }: Props) {
   const inactive = disabled || loading;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.button, inactive && styles.inactive, pressed && styles.pressed, style]}
+    <PressScale
+      style={[styles.button, inactive && styles.inactive, style]}
       onPress={onPress}
       disabled={inactive}
       accessibilityRole="button"
@@ -24,7 +26,7 @@ export function Button({ label, onPress, loading = false, disabled = false, styl
       accessibilityState={{ disabled: inactive, busy: loading }}
     >
       {loading ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.label}>{label}</Text>}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -38,6 +40,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   inactive: { opacity: 0.4 },
-  pressed: { opacity: 0.8 },
   label: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.onAccent },
 });
