@@ -11,7 +11,7 @@
  * an action. They run in Convex's default runtime because the SDK only needs
  * fetch.
  */
-import OpenAI, { toFile } from "openai";
+import OpenAI, { APIError, toFile } from "openai";
 import { ConvexError } from "convex/values";
 
 import { env } from "./_generated/server";
@@ -289,11 +289,23 @@ export async function judgeProof(input: {
     imageUrls: input.imageUrls,
     schema: JUDGEMENT_SCHEMA,
   }).catch((error) => {
-    // HTTP 400 on this call means the request was well formed but the image was not.
-    if (error instanceof OpenAI.APIError && error.status === 400) {
+    if (isUnreadableImage(error)) {
       console.warn("The model could not read a proof:", error.message);
       return null;
     }
     throw error;
   });
+}
+
+/**
+ * Whether the model turned a request down because of the photo itself: bytes that are not an
+ * image, a format it can't decode, an upload it couldn't fetch. OpenAI gives these no code of
+ * their own (they share "invalid_value" with every other bad field), so the test is what the
+ * error points at. A 400 about our own request, such as the schema or the reasoning effort,
+ * points at that field instead. It must surface as a failure, not be blamed on the player's shot.
+ */
+export function isUnreadableImage(error: unknown): error is APIError {
+  if (!(error instanceof APIError) || error.status !== 400) return false;
+  const param = error.param ?? "";
+  return param === "url" || param.startsWith("input") || /image/i.test(error.message);
 }
