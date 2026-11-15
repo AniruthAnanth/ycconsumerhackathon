@@ -203,6 +203,19 @@ export function projectPayout<UserId>(input: {
 }
 
 /**
+ * What a settled week did for a player who was in its pot: "Won $90.00",
+ * "Lost $20.00", or "Broke even" for a finisher with no forfeited stake to
+ * share. Once a week is settled the projection is the payout itself, and
+ * calling it "Projected" would read as if it could still move.
+ */
+export function settledLabel(projection: Projection): string {
+  if (!projection.eligible) return projectionLabel(projection);
+  const netCents = projection.expectedCents - projection.stakeCents;
+  if (netCents === 0) return "Broke even";
+  return `${netCents < 0 ? "Lost" : "Won"} $${(Math.abs(netCents) / 100).toFixed(2)}`;
+}
+
+/**
  * "Projected: +$12.40": the expected payout minus the stake the player put in.
  * A member who has not paid has nothing to project, so the line says what
  * would put them in the pot instead of a gain of nothing.

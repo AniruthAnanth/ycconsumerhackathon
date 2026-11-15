@@ -74,9 +74,9 @@ describe("placeLabel", () => {
 });
 
 describe("projection text", () => {
-  it("is a gain only for an eligible player expected to cover the stake", () => {
+  it("is a gain only for an eligible player expected to come out ahead", () => {
     expect(isProjectedGain({ eligible: true, expectedUsd: 12.4, stakeUsd: 5 })).toBe(true);
-    expect(isProjectedGain({ eligible: true, expectedUsd: 5, stakeUsd: 5 })).toBe(true);
+    expect(isProjectedGain({ eligible: true, expectedUsd: 5, stakeUsd: 5 })).toBe(false);
     expect(isProjectedGain({ eligible: true, expectedUsd: 2, stakeUsd: 5 })).toBe(false);
   });
 

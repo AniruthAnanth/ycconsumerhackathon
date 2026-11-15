@@ -126,7 +126,8 @@ describe("leaderboards.board", () => {
     expect(money.rows.slice(1).map((row) => row.valueLabel)).toEqual(Array(5).fill("-$20.00"));
     // With the week over there is nothing left to project: every case is the payout itself.
     const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
-    expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Projected: +$90.00" });
+    expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Won $90.00" });
+    expect(await as("Leo").query(api.leaderboards.projection, { leagueId, at: NOW })).toMatchObject({ label: "Lost $20.00" });
   });
 
   test("This Week numbers level players as the standings table does, and an unpaid member is told to pay", async () => {
@@ -153,6 +154,10 @@ describe("leaderboards.board", () => {
 
     const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
     expect(projection).toMatchObject({ eligible: false, label: "Pay $20 to play for the pot" });
+    // With no money in the league, the newcomers are not on its money board.
+    const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money", at: NOW });
+    expect(money.rows).toHaveLength(6);
+    expect(money.rows.some((row) => row.isMe)).toBe(false);
   });
 
   test("a new proof reorders the board at once and shows as movement", async () => {

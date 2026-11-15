@@ -51,10 +51,11 @@ describe("rankBoard", () => {
       null,
       { splitTies: true },
     );
-    expect(rows.map((row) => [row.rank, row.name])).toEqual([
-      [1, "Maya"],
-      [2, "Lee"],
-      [3, "Sam"],
+    expect(rows.map((row) => [row.rank, row.name, row.gapLabel])).toEqual([
+      [1, "Maya", "50 ahead of Lee"],
+      [2, "Lee", "50 behind Maya"],
+      // Two places, one score: "level" would contradict the 2 and the 3.
+      [3, "Sam", "Same score as Lee"],
     ]);
   });
 

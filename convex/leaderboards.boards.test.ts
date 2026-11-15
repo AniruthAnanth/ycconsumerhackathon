@@ -282,19 +282,23 @@ async function expectedFor(
         label: [row.wins, row.losses, ...(row.ties > 0 ? [row.ties] : [])].join("-"),
       }));
     }
-    case "money":
-      return await Promise.all(
+    case "money": {
+      const rows = await Promise.all(
         members.map(async (member) => {
           const projection = await as(member.name.split(" ")[0]).query(api.leaderboards.projection, {
             leagueId: world.leagueId,
             at: NOW,
           });
           // A settled week has paid out: nothing is left to project.
-          const inPlay = world.current.status !== "settled" && projection?.eligible ? projection.expectedUsd : 0;
-          const value = Math.round((ledgerNet(world, member.id) + inPlay) * 100) / 100;
-          return { userId: member.id, name: member.name, value, tiebreak: 0, label: signedUsd(value) };
+          const staked = world.current.status !== "settled" && projection?.eligible === true;
+          const value = Math.round((ledgerNet(world, member.id) + (staked ? projection.expectedUsd : 0)) * 100) / 100;
+          // Only players with money in the league are on its money board.
+          const onBoard = staked || world.ledger.some((row) => row.userId === member.id && row.kind !== "fee");
+          return onBoard ? [{ userId: member.id, name: member.name, value, tiebreak: 0, label: signedUsd(value) }] : [];
         }),
       );
+      return rows.flat();
+    }
   }
 }
 
