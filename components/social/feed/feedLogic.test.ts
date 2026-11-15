@@ -93,6 +93,8 @@ describe("timeAgo and timeLeft", () => {
 
   it("counts a vote down and says closing once the deadline has passed", () => {
     expect(timeLeft(NOW + 12 * HOUR, NOW)).toBe("12h left");
+    expect(timeLeft(NOW + 12 * HOUR + 5_000, NOW)).toBe("12h left");
+    expect(timeLeft(NOW + 1.4 * HOUR, NOW)).toBe("1h left");
     expect(timeLeft(NOW + 25 * 60_000, NOW)).toBe("25m left");
     expect(timeLeft(NOW - 1, NOW)).toBe("closing");
   });
