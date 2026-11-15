@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CheckInPrompt } from "@/components/checkin";
+import { ProjectionLine } from "@/components/leaderboards";
 import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
@@ -75,7 +76,10 @@ export default function RosterScreen() {
       {undrafted ? (
         <Button label="Draft your week" style={styles.draft} onPress={() => router.push("/draft")} />
       ) : (
-        <RosterTotal total={roster?.total ?? null} />
+        <>
+          {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
+          <RosterTotal total={roster?.total ?? null} />
+        </>
       )}
     </Screen>
   );
