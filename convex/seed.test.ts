@@ -59,15 +59,17 @@ describe("seed.reset", () => {
         .query("weeks")
         .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
         .collect();
+      const current = weeks[weeks.length - 1];
       return {
         weeks,
+        current,
         memberships: await ctx.db
           .query("memberships")
           .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
           .collect(),
         matchups: await ctx.db
           .query("matchups")
-          .withIndex("by_week", (q) => q.eq("weekId", weeks[0]._id))
+          .withIndex("by_week", (q) => q.eq("weekId", current._id))
           .collect(),
         ledger: await ctx.db
           .query("ledger")
@@ -77,9 +79,10 @@ describe("seed.reset", () => {
       };
     });
 
-    expect(state.weeks).toHaveLength(1);
-    expect(state.weeks[0]).toMatchObject({
-      number: 1,
+    // Four finished weeks of the season, then the one in play.
+    expect(state.weeks.map((week) => week.number)).toEqual([1, 2, 3, 4, 5]);
+    expect(state.current).toMatchObject({
+      number: 5,
       startsAt: weekStartOf(NOW),
       endsAt: weekEndOf(weekStartOf(NOW)),
       status: "open",
@@ -88,9 +91,46 @@ describe("seed.reset", () => {
     expect(state.memberships.every((membership) => membership.paid)).toBe(true);
     expect(state.matchups).toHaveLength(3);
     expect(new Set(state.matchups.flatMap((matchup) => [matchup.userA, matchup.userB])).size).toBe(6);
-    expect(state.ledger.every((row) => row.kind === "buy_in" && row.weekId === state.weeks[0]._id)).toBe(true);
+    expect(state.ledger.every((row) => row.kind === "buy_in" && row.weekId === state.current._id)).toBe(true);
     expect(state.ledger.reduce((sum, row) => sum + row.amountUsd, 0)).toBe(6 * stakeUsd);
     expect(state.lineups).toHaveLength(6);
+  });
+
+  test("the league is in week 5 of an 8-week double round robin", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+
+    const { _id: leagueId } = await league(t);
+    const maya = await t.run(async (ctx) => {
+      const players = await ctx.db.query("users").collect();
+      return players.find((player) => player.name === "Maya Chen")!;
+    });
+    const season = await (await signedInAs(t, maya._id)).query(api.seasons.overview, { leagueId });
+
+    expect(season.settings).toEqual({ payout: "weekly", seasonWeeks: 8, format: "double_round_robin" });
+    expect(season.currentWeek).toBe(5);
+    expect(season.weeks.map((week) => week.status)).toEqual([
+      "final", "final", "final", "final", "live", "upcoming", "upcoming", "upcoming",
+    ]);
+    // The week in play keeps the pairs the players' tasks were written around.
+    expect(season.weeks[4].matchups.map((matchup) => [matchup.a.name, matchup.b.name])).toEqual([
+      ["Maya Chen", "Sam Patel"],
+      ["Priya Shah", "Ava Kim"],
+      ["Jordan Lee", "Leo Martinez"],
+    ]);
+    // Everyone has met everyone else once when this week ends.
+    const met = season.weeks.slice(0, 5).flatMap((week) =>
+      week.matchups.map((matchup) => [matchup.a.name, matchup.b.name].sort().join(" v ")),
+    );
+    expect(new Set(met).size).toBe(15);
+    expect(season.table.map((row) => [row.name, row.wins, row.losses, row.pointsFor])).toEqual([
+      ["Sam Patel", 4, 0, 1502],
+      ["Maya Chen", 3, 1, 1599],
+      ["Priya Shah", 2, 2, 1251],
+      ["Jordan Lee", 2, 2, 1162],
+      ["Ava Kim", 1, 3, 910],
+      ["Leo Martinez", 0, 4, 635],
+    ]);
   });
 
   test("the seeded week scores to the table the demo expects", async () => {

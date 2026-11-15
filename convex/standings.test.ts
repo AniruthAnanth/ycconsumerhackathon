@@ -35,10 +35,12 @@ async function seeded(t: Harness) {
       .withIndex("by_inviteCode", (q) => q.eq("inviteCode", "YCHACK"))
       .unique();
     if (league === null) throw new Error("The seeded league is missing");
+    // The week in play is the newest row; the seed also keeps the season's finished weeks.
     const week = await ctx.db
       .query("weeks")
       .withIndex("by_league", (q) => q.eq("leagueId", league._id))
-      .unique();
+      .order("desc")
+      .first();
     if (week === null) throw new Error("The seeded week is missing");
     const ids: Record<string, Id<"users">> = {};
     for (const user of await ctx.db.query("users").collect()) {
@@ -206,8 +208,9 @@ describe("standings.tableForLeague and pointsInLeague", () => {
     expect(await t.run((ctx) => pointsInLeague(ctx, leagueId, ids.Sam))).toBe(285);
 
     await expect(t.query(api.standings.table, { leagueId })).rejects.toThrow(/Not signed in/);
+    // Next week: the seeded league has weeks behind it, but none ahead.
     await expect(
-      t.query(internal.standings.tableForLeague, { leagueId, weekStart: WEEK - 7 * 24 * 60 * 60 * 1000 }),
+      t.query(internal.standings.tableForLeague, { leagueId, weekStart: WEEK + 7 * 24 * 60 * 60 * 1000 }),
     ).rejects.toThrow(/no week starting then/);
   });
 });
