@@ -159,9 +159,20 @@ export function leagueTime(epochMs: number): string {
 /**
  * The link that opens Messages with the join code typed. On Keiki's shared
  * number a player has to send that code once before the agent may text them.
+ * The link code after it ties the number they text from to their account.
  */
-export function joinLink(lineNumber: string, joinCode: string): string {
-  return `sms:${lineNumber}?&body=${encodeURIComponent(`Lineup, I'm in (${joinCode})`)}`;
+export function joinLink(lineNumber: string, joinCode: string, linkCode?: string): string {
+  const body = `Lineup, I'm in (${joinCode})${linkCode ? ` ${linkCode}` : ""}`;
+  return `sms:${lineNumber}?&body=${encodeURIComponent(body)}`;
+}
+
+/** A link code: when its account was created, in base 36, then eight hex digits of proof. */
+const LINK_CODE = /\b([0-9A-Z]{8,9})-([0-9A-F]{8})\b/i;
+
+/** Finds the app's link code in a text (see signLinkCode in keikiProtocol.ts). */
+export function linkCodeIn(text: string): { code: string; createdMs: number } | null {
+  const match = LINK_CODE.exec(text);
+  return match ? { code: match[0].toUpperCase(), createdMs: parseInt(match[1], 36) } : null;
 }
 
 export type StandingRow = { rank: number; userId: string; name: string; points: number };
@@ -226,7 +237,7 @@ export const reply = {
   },
 
   welcome: "You're connected. Drops and verdicts land here. Send a photo to prove a task, or text STANDINGS.",
-  unknownNumber: "This number isn't on Lineup yet. Sign up with it in the app, then text me again.",
+  unknownNumber: "This number isn't linked to a Lineup account yet. In the app, tap Play by text and send the message it writes.",
   nothingToProve: "Nothing open to prove right now. Text STANDINGS for the table.",
   notMedia: "I can only judge a photo or a short video.",
   mediaFailed: "I couldn't read that file. Send it again as a photo.",

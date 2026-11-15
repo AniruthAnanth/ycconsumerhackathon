@@ -119,6 +119,17 @@ export async function signTurnCredential(args: {
   return `kts1.${payloadB64}.${signature}`;
 }
 
+/**
+ * The code in the app's "Play by text" link. Texting it ties the sender's number to the
+ * account the link was opened on. It names that account by the millisecond it was created,
+ * and ends in a proof only this backend can write: a league-mate who knows your user id still
+ * cannot link their phone to your account.
+ */
+export async function signLinkCode(args: { secret: string; accountId: string; createdMs: number }): Promise<string> {
+  const proof = await hmacSha256Hex(args.secret, `keiki-link.v1.${args.accountId}`);
+  return `${Math.floor(args.createdMs).toString(36)}-${proof.slice(0, 8)}`.toUpperCase();
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
