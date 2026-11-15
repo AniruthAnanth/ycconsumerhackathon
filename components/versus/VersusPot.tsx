@@ -14,7 +14,6 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, hairline, spacing } from "@/theme";
 
 import type { Versus } from "./api";
-import { shareInvite } from "./shareInvite";
 import { outcomeLine, potLine } from "./versusText";
 
 /**
@@ -62,12 +61,10 @@ export function VersusPot({ versus }: { versus: Versus }) {
             <Text style={styles.detail}>
               Waiting for {opponentName} to accept. Code {versus.inviteCode}
             </Text>
-            <OutlinedPillButton
-              label="Share invite"
-              icon="share-outline"
-              onPress={() => shareInvite(versus.inviteCode)}
+            <InviteButton
+              leagueId={versus.leagueId}
+              label="Send challenge link"
             />
-            <InviteButton leagueId={versus.leagueId} label="Send challenge link" />
           </>
         ) : null}
         {versus.status === "live" && versus.opponent && versus.stakeUsd > 0 ? (
