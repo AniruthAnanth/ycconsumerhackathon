@@ -85,6 +85,10 @@ export default defineSchema({
     // the league number or the player turned it on in the app; keiki.send
     // texts nobody else. Unset means they were never asked.
     keikiOptIn: v.optional(v.boolean()),
+    // The Push switch in notification settings. Unset means on: iOS's own
+    // permission prompt is the opt-in, so this only records a player who
+    // turned pushes off afterwards.
+    pushEnabled: v.optional(v.boolean()),
     createdAt: v.optional(v.number()),
   })
     .index("email", ["email"]) // looked up by Convex Auth under this exact name
@@ -373,4 +377,17 @@ export default defineSchema({
   keikiTurns: defineTable({
     turnId: v.string(),
   }).index("by_turnId", ["turnId"]),
+
+  // Expo push tokens (convex/push.ts). A token belongs to the device's own
+  // account: accounts are anonymous and device-bound, so the device that
+  // registered it is the one that rings. A table rather than a field on users
+  // so a token that moves to a new account (the app was reinstalled) can be
+  // found by index and taken off the old one.
+  pushTokens: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_token", ["token"]),
 });
