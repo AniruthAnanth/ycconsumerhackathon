@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { linkCodeIn } from "./lib/keikiText";
+import { DAY_MS, weekStartOf } from "./lib/week";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -39,6 +40,58 @@ async function linkCodeFor(t: Backend, userId: Id<"users">) {
 function playerOn(t: Backend, phone: string) {
   return t.query(internal.keiki.playerFor, { conversationId: phone, leagueTag: null });
 }
+
+describe("keiki.takeTurn", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("schedules one answer for a turn that is delivered twice", async () => {
+    const t = convexTest(schema, modules);
+    const turn = {
+      turnId: "turn-1",
+      agentId: "agent-1",
+      conversationId: PHONE,
+      channel: "imessage",
+      turnUrl: "https://keiki.example/api/v1/turns/turn-1",
+      messages: [{ text: "STANDINGS", silent: false, attachments: [] }],
+      history: [],
+    };
+
+    await t.mutation(internal.keiki.takeTurn, { turn });
+    await t.mutation(internal.keiki.takeTurn, { turn });
+    await t.mutation(internal.keiki.takeTurn, { turn: { ...turn, turnId: "turn-2" } });
+
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    const answers = scheduled.filter((job) => job.name.includes("answerTurn")).map((job) => job.args[0].turn.turnId);
+    expect(answers.sort()).toEqual(["turn-1", "turn-2"]);
+  });
+});
+
+describe("keiki.proofTargets", () => {
+  it("lists this week's open tasks only, oldest first", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const thisWeek = weekStartOf(now);
+    const me = await t.run((ctx) => ctx.db.insert("users", { name: "Me" }));
+    const task = { userId: me, slot: "body", points: 30, proofType: "photo", status: "open", source: "draft" } as const;
+    await t.run(async (ctx) => {
+      await ctx.db.insert("tasks", { ...task, title: "Last week's run", weekStart: thisWeek - 7 * DAY_MS });
+      await ctx.db.insert("tasks", { ...task, title: "Gym session", weekStart: thisWeek });
+      await ctx.db.insert("tasks", { ...task, title: "Do laundry", weekStart: thisWeek, slot: "chores" });
+      await ctx.db.insert("tasks", { ...task, title: "Already done", weekStart: thisWeek, status: "verified" });
+      await ctx.db.insert("tasks", { ...task, title: "Problem Set 6", weekStart: thisWeek, slot: "flex", proofType: "canvas" });
+    });
+
+    const targets = await t.query(internal.keiki.proofTargets, { userId: me, now });
+    expect(targets.photoTasks.map((open) => open.title)).toEqual(["Gym session", "Do laundry"]);
+    expect(targets.canvasTasks).toEqual([{ title: "Problem Set 6" }]);
+  });
+});
 
 describe("keiki.opponentOf", () => {
   it("is the other side of the player's pair in the league's newest week", async () => {

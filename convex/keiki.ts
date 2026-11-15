@@ -66,6 +66,7 @@ import {
   type ProofTargets,
   type StandingRow,
 } from "./lib/keikiText";
+import { HOUR_MS, weekStartOf } from "./lib/week";
 
 const KEIKI_API = "https://onkeiki.com/api/v1";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -134,8 +135,40 @@ export const keikiTurn = httpAction(async (ctx, request) => {
 
   const event = parseKeikiEvent(rawBody);
   if (event === null) return new Response("Not a Keiki event", { status: 400 });
-  if (event.kind === "turn") await ctx.scheduler.runAfter(0, internal.keiki.answerTurn, { turn: event.turn });
+  if (event.kind === "turn") await ctx.runMutation(internal.keiki.takeTurn, { turn: event.turn });
   return new Response(null, { status: 202 });
+});
+
+/**
+ * Takes a turn on, once. Keiki can deliver a turn twice, and a signed body can be replayed
+ * inside the signature's five minutes; answering it again would judge a photo a second time
+ * or post a second group session. Claiming the turn and scheduling its answer share one
+ * transaction, so two deliveries arriving together cannot both get through.
+ */
+export const takeTurn = internalMutation({
+  args: { turn: turnArgs },
+  returns: v.null(),
+  handler: async (ctx, { turn }) => {
+    const taken = await ctx.db
+      .query("keikiTurns")
+      .withIndex("by_turnId", (q) => q.eq("turnId", turn.turnId))
+      .first();
+    if (taken !== null) return null;
+    const claimId = await ctx.db.insert("keikiTurns", { turnId: turn.turnId });
+    await ctx.scheduler.runAfter(0, internal.keiki.answerTurn, { turn });
+    // Long after the signature window has closed, the claim has nothing left to stop.
+    await ctx.scheduler.runAfter(HOUR_MS, internal.keiki.forgetTurn, { claimId });
+    return null;
+  },
+});
+
+export const forgetTurn = internalMutation({
+  args: { claimId: v.id("keikiTurns") },
+  returns: v.null(),
+  handler: async (ctx, { claimId }) => {
+    await ctx.db.delete("keikiTurns", claimId);
+    return null;
+  },
 });
 
 /** Works out the replies to one turn, posts them to the turn and settles it. */
@@ -159,7 +192,7 @@ export const answerTurn = internalAction({
     }
 
     for (const [index, text] of texts.entries()) {
-      // The key makes a retried turn harmless: Keiki never sends twice under one key.
+      // If this action runs again, the key stops a text going out twice: Keiki sends once per key.
       await postToTurn(turn, bearer, "/messages", { text, idempotencyKey: `${turn.turnId}:${index}` });
     }
     await postToTurn(turn, bearer, "/complete", failure === null ? { status: "completed" } : { status: "failed", error: failure });
@@ -754,17 +787,16 @@ export const proofTargets = internalQuery({
     canvasTasks: v.array(v.object({ title: v.string() })),
   }),
   handler: async (ctx, { userId, now }) => {
-    const newestFirst = await ctx.db
+    // Only this week: next week's lineup can already be drafted, and last week's is settled.
+    // Oldest first, so the numbers in "Which task is this for?" stay put between texts.
+    const thisWeek = await ctx.db
       .query("tasks")
-      .withIndex("by_user_week", (q) => q.eq("userId", userId))
-      .order("desc")
+      .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStartOf(now)))
       .take(MAX_ROWS);
 
     const targets: OpenTasks = { quickTime: null, photoTasks: [], locationTasks: [], canvasTasks: [] };
-    for (const task of newestFirst.reverse()) {
-      // Only this week: next week's lineup can already be drafted, and last week's is settled.
-      const thisWeek = task.weekStart <= now && now < task.weekStart + WEEK_MS;
-      if (task.status !== "open" || !thisWeek) continue;
+    for (const task of thisWeek) {
+      if (task.status !== "open") continue;
 
       if (task.proofType === "photo_location") {
         targets.locationTasks.push({ taskId: task._id, title: task.title, placeName: task.place?.name });
@@ -878,12 +910,15 @@ export const phonesOf = internalQuery({
     const addIfOptedIn = (account: Doc<"users"> | null) => {
       if (account?.phone && account.keikiOptIn === true) phones.add(account.phone);
     };
-    for (const playerId of players) addIfOptedIn(await ctx.db.get("users", playerId));
-    // Switch Player: a device acting as one of these players gets their texts too, or the
-    // demo phone would never see the drop it is about to prove. There is no index on
-    // demoActAs, and the whole users table is a hackathon's worth of rows.
-    for (const account of await ctx.db.query("users").take(1000)) {
-      if (account.demoActAs !== undefined && players.has(account.demoActAs)) addIfOptedIn(account);
+    for (const playerId of players) {
+      addIfOptedIn(await ctx.db.get("users", playerId));
+      // Switch Player: a device acting as this player gets their texts too, or the demo phone
+      // would never see the drop it is about to prove.
+      const devices = await ctx.db
+        .query("users")
+        .withIndex("by_demoActAs", (q) => q.eq("demoActAs", playerId))
+        .take(MAX_ROWS);
+      for (const device of devices) addIfOptedIn(device);
     }
     return [...phones];
   },
