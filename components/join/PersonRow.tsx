@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Icon } from "@/components/ui";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
+import { colors, hairline, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 type Props = {
   name: string;
@@ -48,15 +48,15 @@ export function PersonRow({ name, detail, selected, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   row: {
-    height: ROW_HEIGHT_COMPACT,
+    minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 1 },
-  name: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
-  detail: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  name: { ...type.subheading, color: colors.text },
+  detail: { ...type.small, color: colors.textMuted },
 });
