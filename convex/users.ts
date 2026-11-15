@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { addMember, currentWeek, paidInto } from "./leagues";
 import { requireSignedInUser, requireUser, signedInUser } from "./lib/auth";
+import { versusLabel } from "./versus";
 
 const MAX_NAME_LENGTH = 40;
 const MAX_CONTACTS = 1000;
@@ -51,7 +52,8 @@ export const me = query({
         const week = await currentWeek(ctx, league._id);
         leagues.push({
           _id: league._id,
-          name: league.name,
+          // A 1v1 versus is named for the other player, as this player sees it: "vs Maya".
+          name: league.mode === "versus" ? await versusLabel(ctx, league._id, player._id) : league.name,
           stakeUsd: league.stakeUsd,
           // Paid into the week in play, by the ledger: the same answer the pot gives.
           paid: week === null ? league.stakeUsd === 0 : (await paidInto(ctx, league, week))(player._id),
