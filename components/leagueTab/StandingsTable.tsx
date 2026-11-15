@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { CountUp, ReorderRow } from "@/components/motion";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
@@ -27,7 +28,8 @@ export function StandingsTable({ rows, viewerId, onPressPlayer }: Props) {
         <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STRK</Text>
       </View>
       {rows.map((row) => (
-        <View key={row.userId}>
+        // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
+        <ReorderRow key={row.userId}>
           <Pressable
             style={[styles.row, row.userId === viewerId && styles.viewer]}
             onPress={() => onPressPlayer(row.userId)}
@@ -45,14 +47,14 @@ export function StandingsTable({ rows, viewerId, onPressPlayer }: Props) {
               </View>
             </View>
             <Text style={[styles.slots, { width: COL.slots }]}>{`${row.slotsCleared}/5`}</Text>
-            <Text style={[styles.points, { width: COL.points }]}>{formatScore(row.points)}</Text>
+            <CountUp style={[styles.points, { width: COL.points }]} value={row.points} format={formatScore} decimals={1} />
             <View style={[styles.streak, { width: COL.streak }]}>
               <Text style={styles.streakText}>{row.streak}</Text>
               <Icon name="flame" size={14} color={row.streak > 0 ? colors.text : colors.textFaint} />
             </View>
           </Pressable>
           <Divider />
-        </View>
+        </ReorderRow>
       ))}
     </View>
   );

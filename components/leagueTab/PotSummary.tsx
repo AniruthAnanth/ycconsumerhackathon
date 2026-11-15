@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { CountUp } from "@/components/motion";
 import { Divider, Icon } from "@/components/ui";
 import type { Pot } from "@/lib/backend";
 import { formatCountdown, formatUsd, isSettled } from "@/lib/leagueText";
@@ -15,9 +16,12 @@ export function PotSummary({ pot, now }: Props) {
       <View style={styles.top}>
         <View>
           <Text style={styles.label}>POT</Text>
-          <Text style={styles.amount} accessibilityLabel={free ? "Free league" : `Pot ${formatUsd(pot.potUsd)}`}>
-            {free ? "Free league" : formatUsd(pot.potUsd)}
-          </Text>
+          {free ? (
+            <Text style={styles.amount}>Free league</Text>
+          ) : (
+            // Ticks up when a buy-in lands, so the pot visibly grows.
+            <CountUp style={styles.amount} value={pot.potUsd} format={formatUsd} accessibilityLabel={`Pot ${formatUsd(pot.potUsd)}`} />
+          )}
         </View>
         <View style={styles.meta}>
           {free ? null : <Text style={styles.muted}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>}
