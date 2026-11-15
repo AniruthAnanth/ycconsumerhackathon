@@ -1,0 +1,396 @@
+// League formats: who plays whom in each week of a season.
+//
+// Everything here is pure (ids in, pairings out) so it can be tested without a
+// database. convex/seasons.ts loads the rows and calls in; leagues.ts calls
+// scheduleFor when it opens a week.
+//
+// Three ideas run through the file:
+// - Week numbers are the league's own (weeks.number, starting at 1) and never
+//   reset. A league keeps playing after its season ends, so week
+//   seasonWeeks + 1 opens season 2; seasonOf maps a week to its season.
+// - Members are sorted by id before scheduling, so every caller gets the same
+//   schedule whatever order it loaded the memberships in.
+// - A member with no pairing in a week has a bye. Byes are never stored.
+
+export type Payout = "weekly" | "season";
+export type LeagueFormat = "round_robin" | "double_round_robin" | "bracket";
+
+export type LeagueSettings = {
+  payout: Payout;
+  seasonWeeks: number;
+  format: LeagueFormat;
+};
+
+/** What a league created before settings existed, or without any, plays by. */
+export const DEFAULT_SETTINGS: LeagueSettings = {
+  payout: "weekly",
+  seasonWeeks: 8,
+  format: "round_robin",
+};
+
+export const MAX_SEASON_WEEKS = 52;
+
+/** Fills in the defaults for whatever a leagues row leaves unset. */
+export function resolveSettings(stored: Partial<LeagueSettings>): LeagueSettings {
+  const weeks = stored.seasonWeeks;
+  const validWeeks = weeks !== undefined && Number.isInteger(weeks) && weeks >= 1;
+  return {
+    payout: stored.payout ?? DEFAULT_SETTINGS.payout,
+    seasonWeeks: validWeeks
+      ? Math.min(weeks, MAX_SEASON_WEEKS)
+      : DEFAULT_SETTINGS.seasonWeeks,
+    format: stored.format ?? DEFAULT_SETTINGS.format,
+  };
+}
+
+export type Season = {
+  number: number; // 1 for the league's first season
+  firstWeek: number; // league week numbers, inclusive
+  lastWeek: number;
+};
+
+/** The season a league week falls in. */
+export function seasonOf(weekNumber: number, seasonWeeks: number): Season {
+  const index = Math.floor((weekNumber - 1) / seasonWeeks);
+  return {
+    number: index + 1,
+    firstWeek: index * seasonWeeks + 1,
+    lastWeek: (index + 1) * seasonWeeks,
+  };
+}
+
+/** True in the week a "season" payout settles. */
+export function isFinalWeek(weekNumber: number, seasonWeeks: number): boolean {
+  return weekNumber === seasonOf(weekNumber, seasonWeeks).lastWeek;
+}
+
+export type Pairing<Id> = { a: Id; b: Id };
+
+/**
+ * One head-to-head and each side's points. live marks a week still being
+ * played: its scores are shown, but it counts in no table and advances nobody
+ * in a bracket.
+ */
+export type Result<Id> = Pairing<Id> & {
+  week: number;
+  scoreA: number;
+  scoreB: number;
+  live?: boolean;
+};
+
+/**
+ * The single entry point: the pairings for one league week.
+ *
+ * results are the league's earlier matchups. Only the bracket reads them (to
+ * seed it and to advance winners), so the round-robin formats accept [].
+ */
+export function scheduleFor<Id extends string>(
+  format: LeagueFormat,
+  memberIds: readonly Id[],
+  weekNumber: number,
+  results: readonly Result<Id>[],
+  seasonWeeks: number = DEFAULT_SETTINGS.seasonWeeks,
+): Pairing<Id>[] {
+  const ids = sortedUnique(memberIds);
+  const season = seasonOf(weekNumber, seasonWeeks);
+  const round = weekNumber - season.firstWeek;
+
+  if (format === "bracket") {
+    const bracket = bracketFor(ids, weekNumber, results, seasonWeeks);
+    if (bracket !== null && weekNumber >= bracket.firstWeek) {
+      return playoffPairings(bracket, weekNumber);
+    }
+    return roundRobinRound(ids, round, false);
+  }
+  return roundRobinRound(ids, round, format === "double_round_robin");
+}
+
+// ---------------------------------------------------------------------------
+// Round robin
+
+/**
+ * The circle method: seat everyone around a table, keep the first seat fixed
+ * and move everyone else one seat each round; each seat plays the one
+ * opposite. With an odd count one seat stays empty and whoever faces it has
+ * the week off.
+ *
+ * After everyone has met once the rotation starts again, which is what fills
+ * a season longer than one cycle. A double round robin differs in that second
+ * pass only: it is the return leg, with the two sides swapped.
+ */
+function roundRobinRound<Id>(
+  ids: readonly Id[],
+  round: number,
+  double: boolean,
+): Pairing<Id>[] {
+  const seats: (Id | null)[] = ids.length % 2 === 0 ? [...ids] : [...ids, null];
+  if (seats.length < 2) {
+    return [];
+  }
+  const roundsPerCycle = seats.length - 1;
+  const turn = round % roundsPerCycle;
+  const moving = seats.slice(1);
+  const table = [
+    seats[0],
+    ...moving.slice(moving.length - turn),
+    ...moving.slice(0, moving.length - turn),
+  ];
+  const returnLeg = double && Math.floor(round / roundsPerCycle) % 2 === 1;
+
+  const pairings: Pairing<Id>[] = [];
+  for (let seat = 0; seat < seats.length / 2; seat++) {
+    const near = table[seat];
+    const far = table[seats.length - 1 - seat];
+    if (near === null || far === null) {
+      continue;
+    }
+    pairings.push(returnLeg ? { a: far, b: near } : { a: near, b: far });
+  }
+  return pairings;
+}
+
+// ---------------------------------------------------------------------------
+// Season table
+
+export type TableRow<Id> = {
+  id: Id;
+  wins: number;
+  losses: number;
+  ties: number;
+  pointsFor: number;
+  pointsAgainst: number;
+};
+
+/** The side with more points, or null for a tie or a week still in play. */
+export function winnerOf<Id>(result: Result<Id>): Id | null {
+  if (result.live === true || result.scoreA === result.scoreB) {
+    return null;
+  }
+  return result.scoreA > result.scoreB ? result.a : result.b;
+}
+
+/**
+ * Wins, losses and points for every member, best first: most wins, then most
+ * points for, then id so the order is stable. Live results are left out, and
+ * so is a side that has since left the league.
+ */
+export function seasonTable<Id extends string>(
+  memberIds: readonly Id[],
+  results: readonly Result<Id>[],
+): TableRow<Id>[] {
+  const rows = new Map<Id, TableRow<Id>>();
+  for (const id of sortedUnique(memberIds)) {
+    rows.set(id, { id, wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0 });
+  }
+  for (const result of results) {
+    if (result.live === true) {
+      continue;
+    }
+    const winner = winnerOf(result);
+    const sides = [
+      { id: result.a, scored: result.scoreA, conceded: result.scoreB },
+      { id: result.b, scored: result.scoreB, conceded: result.scoreA },
+    ];
+    for (const side of sides) {
+      const row = rows.get(side.id);
+      if (row === undefined) {
+        continue;
+      }
+      row.pointsFor += side.scored;
+      row.pointsAgainst += side.conceded;
+      if (winner === null) {
+        row.ties += 1;
+      } else if (winner === side.id) {
+        row.wins += 1;
+      } else {
+        row.losses += 1;
+      }
+    }
+  }
+  return [...rows.values()].sort(
+    (x, y) =>
+      y.wins - x.wins || y.pointsFor - x.pointsFor || (x.id < y.id ? -1 : 1),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bracket
+
+export type BracketMatch<Id> = {
+  // null until the match that feeds this side is decided. b is also null for
+  // a first-round bye.
+  a: Id | null;
+  b: Id | null;
+  seedA: number | null;
+  seedB: number | null;
+  scoreA: number | null;
+  scoreB: number | null;
+  winner: Id | null;
+  bye: boolean;
+};
+
+export type BracketRound<Id> = {
+  week: number; // league week number
+  name: string; // "Quarterfinals", "Semifinals", "Final"
+  matches: BracketMatch<Id>[];
+};
+
+export type Bracket<Id> = {
+  // Every member in seed order; seeds[0] is the first seed. When the season
+  // is too short for everyone to fit, only the top of the list is in rounds.
+  seeds: Id[];
+  // Until the regular season is over the seeds are only "if it ended today".
+  projected: boolean;
+  firstWeek: number; // league week number of the first round
+  rounds: BracketRound<Id>[];
+  champion: Id | null;
+};
+
+/**
+ * The playoff bracket of the season weekNumber falls in, or null for a league
+ * too small to have one.
+ *
+ * The bracket takes the last weeks of the season, one round a week, and the
+ * weeks before it are a round robin. Seeds are that regular season's table.
+ * Everyone qualifies when the season has room for enough rounds; a field that
+ * is not a power of two gives the top seeds a bye in the first round. A tied
+ * match goes to the better seed, because a bracket needs a winner.
+ */
+export function bracketFor<Id extends string>(
+  memberIds: readonly Id[],
+  weekNumber: number,
+  results: readonly Result<Id>[],
+  seasonWeeks: number = DEFAULT_SETTINGS.seasonWeeks,
+): Bracket<Id> | null {
+  const ids = sortedUnique(memberIds);
+  if (ids.length < 2) {
+    return null;
+  }
+  const season = seasonOf(weekNumber, seasonWeeks);
+  const roundCount = Math.min(Math.ceil(Math.log2(ids.length)), seasonWeeks);
+  const size = 2 ** roundCount;
+  const firstWeek = season.lastWeek - roundCount + 1;
+
+  const regularSeason = results.filter(
+    (result) => result.week >= season.firstWeek && result.week < firstWeek,
+  );
+  const seeds = seasonTable(ids, regularSeason).map((row) => row.id);
+  const seedOf = new Map(seeds.map((id, index) => [id, index + 1]));
+
+  const rounds: BracketRound<Id>[] = [];
+  for (let round = 0; round < roundCount; round++) {
+    const week = firstWeek + round;
+    const previous = rounds[round - 1];
+    const sides: (Id | null)[] =
+      previous === undefined
+        ? firstRoundSeeds(size).map((seed) => seeds[seed - 1] ?? null)
+        : previous.matches.map((match) => match.winner);
+
+    const matches: BracketMatch<Id>[] = [];
+    for (let slot = 0; slot < sides.length; slot += 2) {
+      const a = sides[slot];
+      const b = sides[slot + 1];
+      const match: BracketMatch<Id> = {
+        a,
+        b,
+        seedA: a === null ? null : (seedOf.get(a) ?? null),
+        seedB: b === null ? null : (seedOf.get(b) ?? null),
+        scoreA: null,
+        scoreB: null,
+        winner: null,
+        // Only the first round has byes: after it every side is a winner.
+        bye: round === 0 && b === null,
+      };
+      if (match.bye) {
+        match.winner = a;
+      } else if (a !== null && b !== null) {
+        const played = results.find(
+          (result) =>
+            result.week === week &&
+            ((result.a === a && result.b === b) ||
+              (result.a === b && result.b === a)),
+        );
+        if (played !== undefined) {
+          const flipped = played.a !== a;
+          match.scoreA = flipped ? played.scoreB : played.scoreA;
+          match.scoreB = flipped ? played.scoreA : played.scoreB;
+          if (played.live !== true) {
+            const betterSeed = (match.seedA ?? 0) <= (match.seedB ?? 0) ? a : b;
+            match.winner = winnerOf(played) ?? betterSeed;
+          }
+        }
+      }
+      matches.push(match);
+    }
+    rounds.push({ week, name: roundName(matches.length), matches });
+  }
+
+  return {
+    seeds,
+    projected: weekNumber < firstWeek,
+    firstWeek,
+    rounds,
+    champion: rounds[rounds.length - 1].matches[0].winner,
+  };
+}
+
+/**
+ * Seed numbers in first-round order for a bracket of the given size, two per
+ * match: [1, 8, 4, 5, 2, 7, 3, 6] for eight. Built by repeatedly pairing each
+ * seed with the weakest one left, which keeps seeds 1 and 2 apart until the
+ * final and always puts the better seed first.
+ */
+function firstRoundSeeds(size: number): number[] {
+  let order = [1];
+  while (order.length < size) {
+    const field = order.length * 2;
+    order = order.flatMap((seed) => [seed, field + 1 - seed]);
+  }
+  return order;
+}
+
+function roundName(matchCount: number): string {
+  if (matchCount === 1) return "Final";
+  if (matchCount === 2) return "Semifinals";
+  if (matchCount === 4) return "Quarterfinals";
+  return "Round of " + matchCount * 2;
+}
+
+/**
+ * A playoff week's pairings: the bracket matches whose two sides are known,
+ * then consolation games. Everyone still drafts a lineup every week, so
+ * players who are out of the bracket are paired with each other, in seed
+ * order, to keep a matchup on their Matchup tab. A seed with a bye sits out.
+ */
+function playoffPairings<Id extends string>(
+  bracket: Bracket<Id>,
+  weekNumber: number,
+): Pairing<Id>[] {
+  const round = bracket.rounds[weekNumber - bracket.firstWeek];
+  const pairings: Pairing<Id>[] = [];
+  const stillIn = new Set<Id>();
+  let roundIsSet = true;
+  for (const match of round.matches) {
+    if (match.a !== null) stillIn.add(match.a);
+    if (match.b !== null) stillIn.add(match.b);
+    if (match.a !== null && match.b !== null) {
+      pairings.push({ a: match.a, b: match.b });
+    } else if (!match.bye) {
+      roundIsSet = false;
+    }
+  }
+  // Until the round before is decided we can't tell who is out.
+  if (!roundIsSet) {
+    return pairings;
+  }
+
+  const out = bracket.seeds.filter((id) => !stillIn.has(id));
+  for (let i = 0; i + 1 < out.length; i += 2) {
+    pairings.push({ a: out[i], b: out[i + 1] });
+  }
+  return pairings;
+}
+
+function sortedUnique<Id extends string>(ids: readonly Id[]): Id[] {
+  return [...new Set(ids)].sort();
+}
