@@ -15,7 +15,7 @@ export function CameraOverlay({ target, onClose }: Props) {
   return (
     <View style={[styles.top, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
       <View style={styles.row}>
-        <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close camera">
+        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close camera" testID="camera-close">
           <Icon name="close" size={28} color={colors.onAccent} />
         </Pressable>
         <View style={styles.titles}>

@@ -1,10 +1,10 @@
 import { CameraView, useCameraPermissions, type CameraType } from "expo-camera";
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDevFlags } from "@/lib/devFlags";
+import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, font, fontFamily, layout, spacing } from "@/theme";
 
 import { formatElapsed } from "../proofKinds";
@@ -21,7 +21,6 @@ import { modesFor, ShutterBar } from "./ShutterBar";
 import { useProofCapture, type CaptureMode } from "./useProofCapture";
 
 export function ProofCamera({ target }: { target: ProofTarget }) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { sampleMedia } = useDevFlags();
   const [permission, requestPermission] = useCameraPermissions();
@@ -37,7 +36,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
   if (target.proofType === "screenshot") {
     return (
       <View style={styles.screen}>
-        <CameraOverlay target={target} onClose={() => router.back()} />
+        <CameraOverlay target={target} onClose={() => leaveScreen("/(tabs)")} />
         <ScreenshotPicker busy={capture.busy} onPicked={(uri) => void capture.submitPicked(uri)} bottomInset={insets.bottom} />
       </View>
     );
@@ -73,7 +72,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
         <CameraPermissionPrompt canAskAgain={permission.canAskAgain} onRequest={requestPermission} />
       ) : null}
       {screen.unavailable ? <CameraUnavailable onRetry={capture.retryCamera} /> : null}
-      <CameraOverlay target={target} onClose={() => router.back()} />
+      <CameraOverlay target={target} onClose={() => leaveScreen("/(tabs)")} />
       <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
         {timelapse && capture.recording ? (
           <Text style={styles.hint} testID="camera-timelapse-status">
