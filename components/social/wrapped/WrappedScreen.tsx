@@ -21,6 +21,7 @@ import { cardShareText, indexAfterTap, pageIndexFromOffset, tapClosesStory } fro
 
 const WHITE = colors.background;
 const SEGMENT_TRACK = "rgba(255,255,255,0.35)";
+const CONTROL_BACKDROP = "rgba(0,0,0,0.45)";
 
 /** The weekly Wrapped: five full-screen story cards with progress segments and tap paging. */
 export function WrappedScreen() {
@@ -108,12 +109,10 @@ export function WrappedScreen() {
             <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
           ))}
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Share card" onPress={share} hitSlop={12}>
-          <View style={styles.share}>
-            <Icon name="share-outline" size={20} color={WHITE} />
-          </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Share card" onPress={share} hitSlop={6} style={styles.control}>
+          <Icon name="share-outline" size={18} color={WHITE} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leaveScreen} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leaveScreen} hitSlop={6} style={styles.control}>
           <Text style={styles.close}>{"\u2715"}</Text>
         </Pressable>
       </View>
@@ -123,10 +122,19 @@ export function WrappedScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.text },
-  top: { position: "absolute", left: 12, right: 12, flexDirection: "row", alignItems: "center" },
+  top: { position: "absolute", left: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   segments: { flex: 1, flexDirection: "row", gap: 4 },
   segment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: SEGMENT_TRACK },
   segmentFilled: { backgroundColor: WHITE },
-  share: { paddingLeft: 16 },
-  close: { color: WHITE, fontSize: 22, paddingLeft: 16 },
+  // A dark disc behind each control, so it reads on any photo: on a phone the X landed on a lit
+  // sign in the champion card's picture and looked like it had a box of its own.
+  control: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: CONTROL_BACKDROP,
+  },
+  close: { color: WHITE, fontSize: 16, lineHeight: 20, fontWeight: "700" },
 });
