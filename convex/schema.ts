@@ -340,11 +340,14 @@ export default defineSchema({
 
   // Each member's league points the last time convex/checkins.ts looked, so
   // the next proof can tell who was just passed. Standings stay computed
-  // live; this is only the "before" of that before-and-after.
+  // live; this is only the "before" of that before-and-after. weekStart is
+  // the week those points were scored in: every week starts from zero, so a
+  // mark left in an earlier week says nothing about this one.
   checkinMarks: defineTable({
     leagueId: v.id("leagues"),
     userId: v.id("users"),
     points: v.number(),
+    weekStart: v.optional(v.number()),
   }).index("by_league_user", ["leagueId", "userId"]),
 
   // Where a player was when the app told them they had arrived at a task's
