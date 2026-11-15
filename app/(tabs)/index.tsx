@@ -66,7 +66,7 @@ export default function RosterScreen() {
       {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
       <CheckInPrompt leagueId={leagueId} />
       {/* Renders nothing: it keeps the lock-screen Live Activity current, and is absent in Expo Go. */}
-      <LiveActivitySync leagueId={leagueId} />
+      <LiveActivitySync />
       {leagueId ? <DropBanner leagueId={leagueId} /> : null}
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}

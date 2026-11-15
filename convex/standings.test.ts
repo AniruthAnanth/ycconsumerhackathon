@@ -253,9 +253,13 @@ describe("standings.matchup", () => {
     const matchup = await as(t, ids.Sam).query(api.standings.matchup, { leagueId });
     if (matchup === null) throw new Error("Sam has no matchup");
 
+    // The lock screen reads slotsCleared from here, so it must be the League tab's number.
+    const table = await as(t, ids.Sam).query(api.standings.table, { leagueId });
+    const clearedBy = (userId: typeof ids.Sam) => table.find((row) => row.userId === userId)?.slotsCleared;
+
     // Sam projects to 285 + half of the 50 still open, against Maya's finished 500.
-    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.38 });
-    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.62 });
+    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.38, slotsCleared: clearedBy(ids.Sam) });
+    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.62, slotsCleared: clearedBy(ids.Maya) });
 
     expect(matchup.rows.map((row) => [row.slot, row.mine?.title, row.theirs?.title])).toEqual([
       ["body", "Bike to work", "Leg day at the gym"],

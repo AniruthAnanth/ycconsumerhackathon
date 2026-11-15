@@ -276,7 +276,7 @@ export const tableForLeague = internalQuery({
 });
 
 type TaskRow = FunctionReturnType<typeof api.lineup.roster>["rows"][number];
-type Side = { userId: Id<"users">; name: string; total: number; winProbability: number };
+type Side = { userId: Id<"users">; name: string; total: number; winProbability: number; slotsCleared: number };
 type MatchupRow = { slot: Slot; mine?: TaskRow; theirs?: TaskRow };
 
 /**
@@ -333,13 +333,14 @@ export const matchup = query({
       { total: theirs.points, openPoints: theirs.openPoints },
     );
     return {
-      me: { userId: mine.userId, name: mine.name, total: mine.points, winProbability: myChance },
+      me: { userId: mine.userId, name: mine.name, total: mine.points, winProbability: myChance, slotsCleared: mine.slotsCleared },
       // Derived from mine, so the two sides always add up to exactly 1.
       opponent: {
         userId: theirs.userId,
         name: theirs.name,
         total: theirs.points,
         winProbability: Math.round((1 - myChance) * 100) / 100,
+        slotsCleared: theirs.slotsCleared,
       },
       rows: pairRows(myRoster.rows, theirRoster.rows),
     };

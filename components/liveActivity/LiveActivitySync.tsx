@@ -2,7 +2,6 @@ import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 
 import { socialApi } from "@/components/social/contract";
-import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import * as liveActivity from "@/lib/liveActivity";
@@ -16,12 +15,12 @@ import { useNow } from "@/lib/useNow";
  * Renders nothing. Where Live Activities are unavailable (Expo Go, Android, the web, or the
  * player turned them off) every query is skipped and the component costs nothing.
  */
-export function LiveActivitySync({ leagueId }: { leagueId: Id<"leagues"> | null | undefined }) {
+export function LiveActivitySync() {
+  const { leagueId, league } = useCurrentLeague();
   const [available] = useState(liveActivity.isAvailable);
   const args = available && leagueId ? { leagueId } : "skip";
   const drops = useQuery(backend.drops.active, args);
   const matchup = useQuery(socialApi.standings.matchup, args);
-  const { league } = useCurrentLeague();
   // A coarse tick is enough: it only decides when a closed drop gives way to the matchup.
   const now = useNow(5000);
 

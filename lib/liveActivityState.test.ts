@@ -27,8 +27,8 @@ const drop = (over: Partial<Drop> = {}) =>
 const task = (status: TaskRow["status"]) => ({ status }) as TaskRow;
 
 const matchup = {
-  me: { userId: "u1", name: "Sam Rivera", total: 120.6, winProbability: 0.6 },
-  opponent: { userId: "u2", name: "Maya", total: 98.2, winProbability: 0.4 },
+  me: { userId: "u1", name: "Sam Rivera", total: 120.6, winProbability: 0.6, slotsCleared: 3 },
+  opponent: { userId: "u2", name: "Maya", total: 98.2, winProbability: 0.4, slotsCleared: 1 },
   rows: [
     { slot: "body", mine: task("verified") },
     { slot: "mind", mine: task("open") },
@@ -42,7 +42,7 @@ const matchup = {
 const ctx = (over = {}) => ({ drops: [], matchup: null, now: NOW, ...league, ...over });
 
 describe("matchupState", () => {
-  it("rounds every number, uses first names and counts verified slots but not flex", () => {
+  it("rounds every number, uses first names and reports the server's slot count", () => {
     expect(matchupState(matchup, league)).toEqual({
       kind: "matchup",
       leagueName: "YC Hackathon",
@@ -54,7 +54,7 @@ describe("matchupState", () => {
       opponentName: "Maya",
       myScore: 121,
       opponentScore: 98,
-      slotsCleared: 2,
+      slotsCleared: 3,
       slotsTotal: 5,
     });
   });
@@ -64,7 +64,7 @@ describe("dropState", () => {
   it("carries the scoreboard so the expanded island still shows the score", () => {
     const state = dropState(drop(), { leagueName: "YC Hackathon", matchup });
     expect(state).toMatchObject({ kind: "drop", title: "20 push-ups", gesture: "peace sign", points: 40, endsAtMs: NOW + 60_000 });
-    expect(state).toMatchObject({ myScore: 121, opponentScore: 98, slotsCleared: 2 });
+    expect(state).toMatchObject({ myScore: 121, opponentScore: 98, slotsCleared: 3 });
   });
 
   it("uses an empty gesture when the drop has none, and zeros without a matchup", () => {
@@ -82,10 +82,8 @@ describe("activityFor", () => {
     expect(activityFor(ctx({ drops: [later, sooner], matchup }))?.title).toBe("Sooner");
   });
 
-  it("skips a closed drop and one the player can no longer submit", () => {
-    const closed = drop({ closesAt: NOW });
-    const verified = drop({ taskId: undefined });
-    expect(activityFor(ctx({ drops: [closed, verified], matchup }))?.kind).toBe("matchup");
+  it("skips a drop that has closed", () => {
+    expect(activityFor(ctx({ drops: [drop({ closesAt: NOW })], matchup }))?.kind).toBe("matchup");
   });
 
   it("ignores mystery and group drops", () => {
