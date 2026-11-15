@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { addMember, currentWeek, paidInto } from "./leagues";
 import { requireSignedInUser, requireUser, signedInUser } from "./lib/auth";
+import { UNNAMED_PLAYER } from "./lib/names";
 import { versusLabel } from "./versus";
 
 const MAX_NAME_LENGTH = 40;
@@ -70,7 +71,7 @@ export const me = query({
       ...(player.phone !== undefined && { phone: player.phone }),
       onboarded: Boolean(player.name) && Boolean(player.phone),
       ...(player._id !== signedIn._id && {
-        actingAs: { _id: player._id, name: player.name ?? "Player" },
+        actingAs: { _id: player._id, name: player.name ?? UNNAMED_PLAYER },
       }),
       leagues,
     };
@@ -160,7 +161,7 @@ export const matchContacts = mutation({
       }
       await addMember(ctx, league, user._id);
       memberIds.add(user._id);
-      added.push({ userId: user._id, name: user.name ?? "Player" });
+      added.push({ userId: user._id, name: user.name ?? UNNAMED_PLAYER });
     }
     return { added, notOnLineup };
   },

@@ -67,6 +67,7 @@ import {
   type StandingRow,
 } from "./lib/keikiText";
 import { HOUR_MS, weekStartOf } from "./lib/week";
+import { opponentInWeek } from "./standings";
 
 const KEIKI_API = "https://onkeiki.com/api/v1";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -817,14 +818,7 @@ export const opponentOf = internalQuery({
   handler: async (ctx, { leagueId, userId }) => {
     const week = await currentWeek(ctx, leagueId);
     if (week === null) return null;
-    const pairs = await ctx.db
-      .query("matchups")
-      .withIndex("by_week", (q) => q.eq("weekId", week._id))
-      .take(MAX_ROWS);
-    // As on the Matchup tab: in an odd league one member sits in two pairs, and their own is the first.
-    const pair = pairs.find((candidate) => candidate.userA === userId || candidate.userB === userId);
-    if (pair === undefined) return null;
-    return pair.userA === userId ? pair.userB : pair.userA;
+    return await opponentInWeek(ctx, week._id, userId);
   },
 });
 

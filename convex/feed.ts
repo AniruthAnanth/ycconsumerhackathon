@@ -8,6 +8,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { UNNAMED_PLAYER } from "./lib/names";
 import { CLOSE_CALL_CONFIDENCE } from "./lib/verdict";
 import { slot } from "./schema";
 
@@ -193,7 +194,7 @@ async function feedItemFor(
   return {
     proofId: proof._id,
     kind: feedKind(task.source),
-    user: { _id: user._id, name: user.name ?? "Player", ...(avatarUrl ? { avatarUrl } : {}) },
+    user: { _id: user._id, name: user.name ?? UNNAMED_PLAYER, ...(avatarUrl ? { avatarUrl } : {}) },
     taskTitle: task.title,
     slot: task.slot,
     points: task.points,

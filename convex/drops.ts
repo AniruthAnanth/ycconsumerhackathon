@@ -48,6 +48,7 @@ import {
   QUICK_TIME_WINDOW_MS,
   quickTimeText,
 } from "./lib/dropRules";
+import { UNNAMED_PLAYER } from "./lib/names";
 import { dropOpened } from "./lib/notificationContent";
 import { groupSessionScore, quickTimeScore } from "./lib/scoring";
 import { weekStartOf } from "./lib/week";
@@ -119,7 +120,7 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
     const attendees = [];
     for (const rsvp of await rsvpsOf(ctx, drop._id)) {
       const attendee = await ctx.db.get("users", rsvp.userId);
-      attendees.push({ userId: rsvp.userId, name: attendee?.name ?? "Player", checkedIn: rsvp.checkedIn });
+      attendees.push({ userId: rsvp.userId, name: attendee?.name ?? UNNAMED_PLAYER, checkedIn: rsvp.checkedIn });
     }
     return {
       ...banner,

@@ -35,7 +35,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { currentWeek as latestWeek, ensureCurrentWeek, membersInJoinOrder, membershipOf, paidInto } from "./leagues";
+import { currentWeek, ensureCurrentWeek, membersInJoinOrder, membershipOf, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
 import { weekStartOf } from "./lib/week";
@@ -114,7 +114,7 @@ export const buyInFor = internalQuery({
     const membership = await membershipOf(ctx, leagueId, user._id);
     if (membership === null) throw new ConvexError("Join this league before paying its buy-in");
     if (league.stakeUsd <= 0) throw new ConvexError("This league is free: there is no buy-in");
-    const week = await currentWeek(ctx, leagueId);
+    const week = await requireCurrentWeek(ctx, leagueId);
     // The ledger says who has paid, here as for the Pay banner and at settlement.
     if ((await paidInto(ctx, league, week))(user._id)) {
       throw new ConvexError("You have already paid this league's buy-in");
@@ -271,7 +271,7 @@ export const recordBuyIn = internalMutation({
     if (payment.whopUserId) {
       await ctx.db.patch("users", userId, { whopUserId: payment.whopUserId });
     }
-    const week = await currentWeek(ctx, leagueId);
+    const week = await requireCurrentWeek(ctx, leagueId);
     await ctx.db.insert("ledger", {
       leagueId,
       weekId: week._id,
@@ -448,7 +448,7 @@ export const closeWeek = internalMutation({
   handler: async (ctx, { leagueId, weekId }) => {
     const league = await ctx.db.get("leagues", leagueId);
     if (league === null) throw new ConvexError("League not found");
-    const week = weekId === undefined ? await currentWeek(ctx, leagueId) : await ctx.db.get("weeks", weekId);
+    const week = weekId === undefined ? await requireCurrentWeek(ctx, leagueId) : await ctx.db.get("weeks", weekId);
     if (week === null || week.leagueId !== leagueId) throw new ConvexError("That week is not this league's");
     return await settleInLedger(ctx, league, week);
   },
@@ -463,7 +463,7 @@ export const rollWeek = internalMutation({
   returns: v.union(owed, v.null()),
   handler: async (ctx, { leagueId }) => {
     const league = await ctx.db.get("leagues", leagueId);
-    const week = await latestWeek(ctx, leagueId);
+    const week = await currentWeek(ctx, leagueId);
     // The test ensureCurrentWeek makes. While it holds the league is in its current week, and
     // that includes a week End Week Now closed early: its next week still opens on Monday.
     if (league === null || week === null || week.startsAt === weekStartOf(Date.now())) return null;
@@ -677,8 +677,8 @@ async function leagueWeeks(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<
 }
 
 /** The week the league is playing now: its latest row. Every league has one from the day it is created. */
-async function currentWeek(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"weeks">> {
-  const week = await latestWeek(ctx, leagueId);
+async function requireCurrentWeek(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"weeks">> {
+  const week = await currentWeek(ctx, leagueId);
   if (week === null) throw new ConvexError("This league has no week to play in yet");
   return week;
 }
