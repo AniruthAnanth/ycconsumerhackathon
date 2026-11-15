@@ -34,35 +34,54 @@ export function phoneHint(raw: string): string | null {
 /** The slice of an address-book entry the contacts step reads. */
 export type DeviceContact = {
   fullName?: string | null;
-  phones?: { number?: string }[];
+  phones?: { number?: string; label?: string | null }[];
 };
+
+/** A person from the address book, with their usable numbers, mobile first. */
+export type ContactPerson = { name: string; phones: string[] };
+
+const MOBILE_LABEL = /mobile|cell|iphone/i;
 
 /**
  * Turns the address book into the numbers to send to the server, normalised on
  * the device so raw contact data never leaves it, de-duplicated and capped. The
- * names stay on the device too: they label the people we invite by text.
+ * people stay on the device too: they label the friends we invite by text, one
+ * row per person however many numbers they have.
  */
 export function collectContactPhones(
   contacts: DeviceContact[],
   defaultCountryCode = "1",
-): { phones: string[]; nameByPhone: Record<string, string> } {
-  const nameByPhone: Record<string, string> = {};
+): { phones: string[]; people: ContactPerson[] } {
+  const seen = new Set<string>();
+  const people: ContactPerson[] = [];
   for (const contact of contacts) {
-    for (const { number } of contact.phones ?? []) {
+    const numbers = [...(contact.phones ?? [])].sort((a, b) => Number(MOBILE_LABEL.test(b.label ?? "")) - Number(MOBILE_LABEL.test(a.label ?? "")));
+    const phones: string[] = [];
+    for (const { number } of numbers) {
       const phone = number ? toE164(number, defaultCountryCode) : null;
-      if (!phone || phone in nameByPhone) continue;
-      nameByPhone[phone] = contact.fullName?.trim() || phone;
+      // A number listed under two people belongs to the first; the second has one fewer.
+      if (!phone || seen.has(phone)) continue;
+      seen.add(phone);
+      phones.push(phone);
     }
+    if (phones.length > 0) people.push({ name: contact.fullName?.trim() || phones[0], phones });
   }
-  return { phones: Object.keys(nameByPhone).slice(0, MAX_CONTACT_PHONES), nameByPhone };
+  return { phones: [...seen].slice(0, MAX_CONTACT_PHONES), people };
 }
 
-export type Invitee = { phone: string; name: string };
+/** One person to text: the number the invite goes to, and their other numbers to show under the name. */
+export type Invitee = { phone: string; name: string; otherPhones: string[] };
 
-/** The people to text: the server's not-on-Lineup numbers, named from the device and ordered by name. */
-export function inviteesFrom(notOnLineup: string[], nameByPhone: Record<string, string>): Invitee[] {
-  return notOnLineup
-    .map((phone) => ({ phone, name: nameByPhone[phone] ?? phone }))
+/**
+ * The people to text, one per contact, ordered by name. A contact any of whose numbers is on
+ * Lineup was added to the league already, so they are not invited. The invite goes to their
+ * mobile number, or their first when none is marked mobile.
+ */
+export function inviteesFrom(notOnLineup: string[], people: ContactPerson[]): Invitee[] {
+  const invitable = new Set(notOnLineup);
+  return people
+    .filter((person) => person.phones.length > 0 && person.phones.every((phone) => invitable.has(phone)))
+    .map(({ name, phones: [phone, ...otherPhones] }) => ({ phone, name, otherPhones }))
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, MAX_INVITEES);
 }
