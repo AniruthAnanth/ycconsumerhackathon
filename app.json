@@ -9,7 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.lineup.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSSupportsLiveActivities": true
+      }
     },
     "android": {
       "package": "com.lineup.app",
@@ -61,7 +64,8 @@
         }
       ],
       "expo-video",
-      "expo-sharing"
+      "expo-sharing",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
