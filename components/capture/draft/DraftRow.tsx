@@ -32,9 +32,12 @@ export function DraftRow({ task, editable, onRename, onRemove }: Props) {
           returnKeyType="done"
           submitBehavior="blurAndSubmit"
         />
-        <Text style={styles.meta} numberOfLines={1}>
-          {taskStatusLine(task)}
-        </Text>
+        {/* Nearly every task is a plain photo, so the proof type is worth a line only when it asks for more. */}
+        {task.proofType === "photo" ? null : (
+          <Text style={styles.meta} numberOfLines={1}>
+            {taskStatusLine(task)}
+          </Text>
+        )}
         {place ? (
           <Text style={styles.meta} numberOfLines={1}>
             {place}

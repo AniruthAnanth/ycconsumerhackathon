@@ -1,14 +1,16 @@
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import type { Id } from "@/convex/_generated/dataModel";
+import { backend } from "@/lib/backend";
 import { haptics } from "@/lib/native/haptics";
 
 import { capture } from "../backend";
 import { errorMessage } from "../errorMessage";
 import { uploadToConvex } from "../uploadToConvex";
 import { draftReducer, initialDraftState } from "./draftState";
+import { draftWeekNote } from "./draftWeek";
 import { canLock, tasksToLock } from "./lineupEdit";
 import { hasReachedLimit } from "./recordingMeter";
 import { useVoiceRecorder } from "./useVoiceRecorder";
@@ -28,6 +30,11 @@ export function useVoiceDraft() {
   const draft = useAction(capture.lineup.draft);
   const lock = useMutation(capture.lineup.lock);
   const starting = useRef(false);
+  const thisWeek = useQuery(backend.lineup.roster, {});
+  // The first answer holds for the whole visit. Our own lock flips the live one a moment before
+  // the screen closes, and the note must not flash on the way out.
+  const [lockedOnArrival, setLockedOnArrival] = useState<boolean>();
+  if (lockedOnArrival === undefined && thisWeek) setLockedOnArrival(thisWeek.locked);
 
   const requestDraft = useCallback(
     async (buildInput: () => Promise<DraftInput>) => {
@@ -93,6 +100,7 @@ export function useVoiceDraft() {
     state,
     durationMillis: recorder.durationMillis,
     level: recorder.level,
+    weekNote: draftWeekNote(lockedOnArrival),
     canLock: state.phase === "review" && canLock(state.tasks),
     toggleRecording: state.phase === "recording" ? stopRecording : startRecording,
     draftFromText,
