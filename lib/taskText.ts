@@ -40,8 +40,9 @@ export function taskStatusLine(task: TaskRowData): string {
     case "held":
       return "Challenged | Points on hold";
     case "failed":
-      // A failed proof never closes the task: it can be retried until the week ends.
-      return `${proof} | Not verified, try again`;
+      // A rejected proof leaves a task open. Only a drop that closed with no
+      // proof writes "failed", and that task can no longer be played.
+      return "Missed";
     default:
       return task.dueLabel ? `${proof} | ${task.dueLabel}` : proof;
   }

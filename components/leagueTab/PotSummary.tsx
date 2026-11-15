@@ -8,34 +8,30 @@ import { colors, font, spacing } from "@/theme";
 
 type Props = { pot: Pot; now: number };
 
-/** The league's pot as the biggest figure on the screen, then who has paid in. */
+/**
+ * The league's pot as the biggest figure on the screen, then who has paid in.
+ * A free league has no pot and nobody to pay, so it draws nothing: the stake
+ * and the time to settlement are already rows in LeagueDetails.
+ */
 export function PotSummary({ pot, now }: Props) {
-  const free = pot.stakeUsd === 0;
+  if (pot.stakeUsd === 0) return null;
   return (
     <View>
       <View style={styles.top}>
         <View>
           <Text style={styles.label}>POT</Text>
-          {free ? (
-            <Text style={styles.amount}>Free league</Text>
-          ) : (
-            // Ticks up when a buy-in lands, so the pot visibly grows.
-            <CountUp style={styles.amount} value={pot.potUsd} format={formatUsd} accessibilityLabel={`Pot ${formatUsd(pot.potUsd)}`} />
-          )}
+          {/* Ticks up when a buy-in lands, so the pot visibly grows. */}
+          <CountUp style={styles.amount} value={pot.potUsd} format={formatUsd} accessibilityLabel={`Pot ${formatUsd(pot.potUsd)}`} />
         </View>
         <View style={styles.meta}>
-          {free ? null : <Text style={styles.muted}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>}
+          <Text style={styles.muted}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>
           <Text style={styles.muted}>
             {isSettled(pot, now) ? "Settled" : `Settles in ${formatCountdown(pot.settlesAt - now)}`}
           </Text>
         </View>
       </View>
-      {free ? null : (
-        <>
-          <NameGroup label={`PAID ${pot.paid.length}`} names={pot.paid.map((p) => ({ id: p.userId, name: p.name }))} paid />
-          <NameGroup label={`UNPAID ${pot.unpaid.length}`} names={pot.unpaid.map((p) => ({ id: p.userId, name: p.name }))} paid={false} />
-        </>
-      )}
+      <NameGroup label={`PAID ${pot.paid.length}`} names={pot.paid.map((p) => ({ id: p.userId, name: p.name }))} paid />
+      <NameGroup label={`UNPAID ${pot.unpaid.length}`} names={pot.unpaid.map((p) => ({ id: p.userId, name: p.name }))} paid={false} />
       <Divider />
     </View>
   );

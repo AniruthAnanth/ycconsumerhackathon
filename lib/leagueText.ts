@@ -14,6 +14,21 @@ export function inviteMessage(league: { name: string; inviteCode: string }): str
   return `Join my Lineup league "${league.name}" with code ${league.inviteCode}.`;
 }
 
+const PAYOUT_KIND = { refund: "Refund", winnings: "Winnings" } as const;
+const WHOP_ID_SHOWN = 12;
+
+/**
+ * The line under a payout's name. A payout carries Whop's id only once Whop
+ * has accepted the money movement, so showing it is the proof that the money
+ * really moved. The id is cut short: its start is enough to find it on Whop.
+ */
+export function payoutLine(payout: { kind: keyof typeof PAYOUT_KIND; whopId?: string }): string {
+  const kind = PAYOUT_KIND[payout.kind];
+  if (!payout.whopId) return kind;
+  const id = payout.whopId.length > WHOP_ID_SHOWN ? `${payout.whopId.slice(0, WHOP_ID_SHOWN)}...` : payout.whopId;
+  return `${kind} | Paid on Whop ${id}`;
+}
+
 /**
  * Whether the league's week has settled. The server keeps settlesAt at the
  * week's scheduled end even when the week is settled before it (the demo

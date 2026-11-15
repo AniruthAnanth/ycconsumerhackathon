@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCountdown, formatUsd, inviteMessage, isSettled, stakeLine } from "./leagueText";
+import { formatCountdown, formatUsd, inviteMessage, isSettled, payoutLine, stakeLine } from "./leagueText";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+
+describe("payoutLine", () => {
+  it("names the kind alone until Whop has accepted the payout", () => {
+    expect(payoutLine({ kind: "refund" })).toBe("Refund");
+    expect(payoutLine({ kind: "winnings" })).toBe("Winnings");
+  });
+
+  it("adds the start of Whop's id once the money has moved", () => {
+    expect(payoutLine({ kind: "refund", whopId: "pay_z8Bp1nEBq4XyZ" })).toBe("Refund | Paid on Whop pay_z8Bp1nEB...");
+    expect(payoutLine({ kind: "winnings", whopId: "ctt_sent" })).toBe("Winnings | Paid on Whop ctt_sent");
+  });
+});
 
 describe("formatUsd", () => {
   it("drops the cents on whole amounts", () => {
