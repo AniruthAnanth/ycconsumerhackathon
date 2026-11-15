@@ -370,6 +370,30 @@ describe("proofs.verifyForUser (Keiki)", () => {
     expect(judgeProof).not.toHaveBeenCalled();
   });
 
+  it("judges a texted check-in that comes with the player's recent arrival", async () => {
+    const { t, userId, taskId } = await playerWithTask({ proofType: "photo_location", place: YC_OFFICE });
+    const texted = { userId, taskId, mediaType: "photo" as const, via: "keiki" as const };
+
+    const farAway = await t.action(internal.proofs.verifyForUser, {
+      ...texted,
+      storageId: await upload(t),
+      lat: YC_OFFICE.lat + 0.045,
+      lng: YC_OFFICE.lng,
+    });
+    expect(farAway.reason).toBe("You're 5.0 km from YC office. Check in within 150 m.");
+    expect(judgeProof).not.toHaveBeenCalled();
+
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ sceneMatchesPlace: true, reason: "Desks and monitors, an office." }));
+    const verdict = await t.action(internal.proofs.verifyForUser, {
+      ...texted,
+      storageId: await upload(t),
+      lat: YC_OFFICE.lat,
+      lng: YC_OFFICE.lng,
+    });
+    expect(verdict).toMatchObject({ pass: true, points: 30 });
+    expect(await taskOf(t, taskId)).toMatchObject({ status: "verified" });
+  });
+
   it("tells a texted video to come back as a photo", async () => {
     const { t, userId, taskId } = await playerWithTask();
     const verdict = await t.action(internal.proofs.verifyForUser, {
