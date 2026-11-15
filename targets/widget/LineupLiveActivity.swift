@@ -12,7 +12,7 @@ struct LineupLiveActivity: Widget {
     ActivityConfiguration(for: LineupActivityAttributes.self) { context in
       LockScreenBoard(state: context.state)
         .activityBackgroundTint(Brand.board)
-        .activitySystemActionForegroundColor(.white)
+        .activitySystemActionForegroundColor(Brand.ink)
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
@@ -31,19 +31,20 @@ struct LineupLiveActivity: Widget {
       } minimal: {
         MinimalMark(state: context.state)
       }
-      .keylineTint(context.state.isDrop ? Brand.green : Brand.blue)
+      .keylineTint(context.state.isDrop ? Brand.lime : Brand.lime)
     }
   }
 }
 
 typealias BoardState = LineupActivityAttributes.ContentState
 
-/// The app's blue and green (accent and tabActive in theme/tokens.ts) on a scoreboard's near-black.
+/// The app's dark-surface palette (theme/tokens.ts: dark, lime, lightInk), so the lock screen and
+/// home screen match the restyled app: a deep green board, lime for labels and the leading score.
 enum Brand {
-  static let blue = Color(red: 11 / 255, green: 105 / 255, blue: 255 / 255)
-  static let green = Color(red: 0 / 255, green: 166 / 255, blue: 81 / 255)
-  static let board = Color(red: 9 / 255, green: 13 / 255, blue: 24 / 255)
-  static let dim = Color.white.opacity(0.6)
+  static let lime = Color(red: 216 / 255, green: 242 / 255, blue: 154 / 255)
+  static let board = Color(red: 16 / 255, green: 47 / 255, blue: 36 / 255)
+  static let ink = Color(red: 233 / 255, green: 240 / 255, blue: 230 / 255)
+  static let dim = ink.opacity(0.65)
 }
 
 extension LineupActivityAttributes.ContentState {
@@ -92,7 +93,7 @@ struct SlotPips: View {
     HStack(spacing: 3) {
       ForEach(0..<max(state.slotsTotal, 0), id: \.self) { index in
         RoundedRectangle(cornerRadius: 2)
-          .fill(index < state.slotsCleared ? Brand.green : Color.white.opacity(0.25))
+          .fill(index < state.slotsCleared ? Brand.lime : Brand.ink.opacity(0.25))
           .frame(width: 10, height: 10)
       }
     }
@@ -116,7 +117,7 @@ struct ScoreColumn: View {
       Text("\(score)")
         .font(.system(size: scoreSize, weight: .heavy, design: .rounded))
         .monospacedDigit()
-        .foregroundColor(ahead ? Brand.green : .white)
+        .foregroundColor(ahead ? Brand.lime : Brand.ink)
         .lineLimit(1)
         .minimumScaleFactor(0.6)
     }
@@ -164,12 +165,12 @@ struct DropBoard: View {
         HStack(spacing: 4) {
           Image(systemName: "bolt.fill")
             .font(.system(size: 11, weight: .bold))
-            .foregroundColor(Brand.green)
-          BoardLabel(text: "QUICK-TIME DROP", color: Brand.green)
+            .foregroundColor(Brand.lime)
+          BoardLabel(text: "QUICK-TIME DROP", color: Brand.lime)
         }
         Text(state.title)
           .font(.system(size: 22, weight: .heavy))
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
           .lineLimit(2)
           .minimumScaleFactor(0.7)
         if !state.gesture.isEmpty {
@@ -186,10 +187,10 @@ struct DropBoard: View {
       VStack(alignment: .trailing, spacing: 2) {
         Text("+\(state.points)")
           .font(.system(size: 30, weight: .heavy, design: .rounded))
-          .foregroundColor(Brand.green)
+          .foregroundColor(Brand.lime)
         Countdown(state: state)
           .font(.system(size: 20, weight: .bold, design: .rounded))
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
           .frame(maxWidth: 96, alignment: .trailing)
       }
     }
@@ -202,7 +203,7 @@ struct MatchupBoard: View {
   var body: some View {
     VStack(spacing: 8) {
       HStack {
-        BoardLabel(text: state.leagueName.uppercased(), color: Brand.blue)
+        BoardLabel(text: state.leagueName.uppercased(), color: Brand.lime)
         Spacer(minLength: 8)
         HStack(spacing: 3) {
           Text("ENDS IN")
@@ -225,7 +226,7 @@ struct MatchupBoard: View {
         SlotPips(state: state)
         Text("\(state.slotsLabel) slots cleared")
           .font(.system(size: 12, weight: .semibold))
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
         Spacer(minLength: 0)
       }
     }
@@ -242,16 +243,16 @@ struct CompactLeading: View {
     if state.isDrop {
       HStack(spacing: 2) {
         Image(systemName: "bolt.fill")
-          .foregroundColor(Brand.green)
+          .foregroundColor(Brand.lime)
         Text("+\(state.points)")
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
       }
       .font(.system(size: 13, weight: .bold, design: .rounded))
     } else {
       Text("\(state.myScore)")
         .font(.system(size: 14, weight: .heavy, design: .rounded))
         .monospacedDigit()
-        .foregroundColor(state.iAmAhead ? Brand.green : .white)
+        .foregroundColor(state.iAmAhead ? Brand.lime : Brand.ink)
     }
   }
 }
@@ -265,13 +266,13 @@ struct CompactTrailing: View {
       // A timer text asks for all the width it could ever need; the frame keeps the island small.
       Countdown(state: state)
         .font(.system(size: 13, weight: .bold, design: .rounded))
-        .foregroundColor(Brand.green)
+        .foregroundColor(Brand.lime)
         .frame(maxWidth: 56)
     } else {
       Text("\(state.opponentScore)")
         .font(.system(size: 14, weight: .heavy, design: .rounded))
         .monospacedDigit()
-        .foregroundColor(state.iAmAhead ? .white : Brand.green)
+        .foregroundColor(state.iAmAhead ? Brand.ink : Brand.lime)
     }
   }
 }
@@ -283,13 +284,13 @@ struct MinimalMark: View {
   var body: some View {
     if state.isDrop {
       Image(systemName: "bolt.fill")
-        .foregroundColor(Brand.green)
+        .foregroundColor(Brand.lime)
     } else {
       Text("\(state.myScore)")
         .font(.system(size: 12, weight: .heavy, design: .rounded))
         .monospacedDigit()
         .minimumScaleFactor(0.5)
-        .foregroundColor(state.iAmAhead ? Brand.green : .white)
+        .foregroundColor(state.iAmAhead ? Brand.lime : Brand.ink)
     }
   }
 }
@@ -309,10 +310,10 @@ struct ExpandedLeading: View {
   var body: some View {
     if state.isDrop {
       VStack(alignment: .leading, spacing: 0) {
-        BoardLabel(text: "DROP", color: Brand.green)
+        BoardLabel(text: "DROP", color: Brand.lime)
         Text("+\(state.points)")
           .font(.system(size: 28, weight: .heavy, design: .rounded))
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
       }
       .padding(.leading, Island.cornerInset)
       .padding(.top, Island.topInset)
@@ -333,7 +334,7 @@ struct ExpandedTrailing: View {
         BoardLabel(text: "ENDS IN", color: Brand.dim)
         Countdown(state: state)
           .font(.system(size: 24, weight: .heavy, design: .rounded))
-          .foregroundColor(Brand.green)
+          .foregroundColor(Brand.lime)
           .frame(maxWidth: 110, alignment: .trailing)
       }
       .padding(.trailing, Island.cornerInset)
@@ -354,7 +355,7 @@ struct ExpandedBottom: View {
       VStack(alignment: .leading, spacing: 6) {
         Text(state.title)
           .font(.system(size: 18, weight: .heavy))
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
           .lineLimit(1)
           .minimumScaleFactor(0.7)
         HStack(spacing: 8) {
@@ -374,7 +375,7 @@ struct ExpandedBottom: View {
             Text("\(state.myScore) - \(state.opponentScore)")
               .font(.system(size: 13, weight: .bold, design: .rounded))
               .monospacedDigit()
-              .foregroundColor(Brand.blue)
+              .foregroundColor(Brand.lime)
           }
         }
       }
@@ -385,7 +386,7 @@ struct ExpandedBottom: View {
         SlotPips(state: state)
         Text("\(state.slotsLabel) slots")
           .font(.system(size: 13, weight: .semibold))
-          .foregroundColor(.white)
+          .foregroundColor(Brand.ink)
         Spacer(minLength: 8)
         HStack(spacing: 3) {
           Text("ENDS IN")
