@@ -22,6 +22,20 @@ export const slot = v.union(
   v.literal("flex"),
 );
 
+/**
+ * How a task is proven. "photo" is the default: rows written before the other kinds existed
+ * keep working. before_after is two photos of the same place, timelapse a series of stills
+ * spread over the task's duration, screenshot an image from the phone's library.
+ */
+export const proofType = v.union(
+  v.literal("photo"),
+  v.literal("photo_location"),
+  v.literal("canvas"),
+  v.literal("before_after"),
+  v.literal("timelapse"),
+  v.literal("screenshot"),
+);
+
 export const place = v.object({
   name: v.string(),
   lat: v.number(),
@@ -163,12 +177,10 @@ export default defineSchema({
     slot,
     title: v.string(),
     points: v.number(),
-    proofType: v.union(
-      v.literal("photo"),
-      v.literal("photo_location"),
-      v.literal("canvas"),
-    ),
+    proofType,
     place: v.optional(place),
+    // How long a timelapse task runs; the app treats a missing value as 30.
+    targetMinutes: v.optional(v.number()),
     // Canvas ids are stored as strings: they are opaque to us and only ever
     // go back into Canvas URLs.
     canvas: v.optional(
@@ -211,6 +223,14 @@ export default defineSchema({
     caption: v.string(),
     via: v.union(v.literal("app"), v.literal("keiki"), v.literal("canvas")),
     createdAt: v.number(),
+    // The before photo of a before/after proof.
+    beforeStorageId: v.optional(v.id("_storage")),
+    // The sha256 of every image the referee saw, so a later proof can't reuse one.
+    imageHashes: v.optional(v.array(v.string())),
+    // Short machine tags from the referee and the anti-cheat rules, such as "reused_image".
+    flags: v.optional(v.array(v.string())),
+    // True while a low-confidence proof waits for the league's vote; the task is held meanwhile.
+    needsVote: v.optional(v.boolean()),
   })
     .index("by_user_week", ["userId", "weekStart"])
     .index("by_task", ["taskId"]),

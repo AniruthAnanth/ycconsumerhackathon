@@ -109,7 +109,7 @@ export type CheckInTask<TaskId> = {
   title: string;
   points: number;
   status: "open" | "verified" | "held" | "failed";
-  proofType: "photo" | "photo_location" | "canvas";
+  proofType: "photo" | "photo_location" | "canvas" | "before_after" | "timelapse" | "screenshot";
   /** "drop" is the task a quick-time drop gave this player. */
   source: "draft" | "flex" | "drop" | "group";
   place?: LatLng & { name: string };

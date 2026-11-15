@@ -20,8 +20,10 @@ export type DraftTask = {
   slot: Slot;
   title: string;
   points: number;
-  proofType: "photo" | "photo_location" | "canvas";
+  proofType: "photo" | "photo_location" | "canvas" | "before_after" | "timelapse" | "screenshot";
   place?: Place;
+  /** Timelapse only: how many minutes the stills must span. */
+  targetMinutes?: number;
 };
 
 const SLOT_LABELS: Record<CoreSlot, string> = {
@@ -56,6 +58,11 @@ export function tidyTask(task: DraftTask): DraftTask {
     points: clampTaskPoints(task.points),
     proofType: task.proofType,
   };
+  if (task.proofType === "timelapse") {
+    // Between 5 minutes and 3 hours; a timelapse the model gave no length gets the app's 30.
+    const minutes = Math.round(task.targetMinutes ?? 30);
+    return { ...tidy, targetMinutes: Math.min(180, Math.max(5, Number.isFinite(minutes) ? minutes : 30)) };
+  }
   if (task.proofType !== "photo_location") return tidy;
   const place = task.place;
   if (!place || place.name.trim() === "" || !isValidLatLng(place)) {
