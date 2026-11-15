@@ -22,10 +22,10 @@ export function isCloseCall(proof: { pass: boolean; confidence: number }): boole
 
 export type FeedKind = "proof" | "drop" | "group";
 
-/** Quick-time results read as drops in the feed, and so do stored mystery ones; a group session's photo reads as a group. */
+/** Quick-time results read as drops in the feed, a group session's photo as a group. */
 export function feedKind(source: Doc<"tasks">["source"]): FeedKind {
   if (source === "group") return "group";
-  if (source === "drop" || source === "mystery") return "drop";
+  if (source === "drop") return "drop";
   return "proof";
 }
 

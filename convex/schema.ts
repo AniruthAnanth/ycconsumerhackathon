@@ -184,8 +184,6 @@ export default defineSchema({
       v.literal("draft"),
       v.literal("flex"),
       v.literal("drop"),
-      // The daily mystery task was removed. Tasks stored while it existed keep this source.
-      v.literal("mystery"),
       v.literal("group"),
     ),
     dropId: v.optional(v.id("drops")),
@@ -248,21 +246,15 @@ export default defineSchema({
 
   drops: defineTable({
     leagueId: v.id("leagues"),
-    kind: v.union(
-      v.literal("quicktime"),
-      // The daily mystery task was removed. Drops stored while it existed keep this kind, and
-      // userId, sealed and wager below were theirs alone: nothing writes or reads them now.
-      v.literal("mystery"),
-      v.literal("group"),
-    ),
-    userId: v.optional(v.id("users")),
+    kind: v.union(v.literal("quicktime"), v.literal("group")),
     createdBy: v.optional(v.id("users")),
     title: v.string(),
     slot,
     points: v.number(),
     gesture: v.optional(v.string()),
+    // Nothing writes or reads this any more. Drops stored earlier still carry it, so the
+    // validator accepts it until the seed is next reset.
     sealed: v.optional(v.boolean()),
-    wager: v.optional(v.number()),
     place: v.optional(place),
     // Group sessions only: the most people the model counted in one check-in
     // photo, and that photo. Attendees beyond the headcount earn no bonus.

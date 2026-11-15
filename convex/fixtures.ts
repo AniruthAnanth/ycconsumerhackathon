@@ -314,7 +314,7 @@ async function leaveLeague(sweep: Sweep, membership: Doc<"memberships">): Promis
   const { db } = sweep.ctx;
   const { leagueId, userId } = membership;
   const removeTheirs = async (drop: Doc<"drops">) => {
-    if (drop.userId === userId || drop.createdBy === userId) return removeDrop(sweep, drop);
+    if (drop.createdBy === userId) return removeDrop(sweep, drop);
     const rsvps = await db
       .query("rsvps")
       .withIndex("by_drop", (q) => q.eq("dropId", drop._id))

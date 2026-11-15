@@ -27,8 +27,6 @@ describe("feedKind", () => {
     expect(feedKind("draft")).toBe("proof");
     expect(feedKind("flex")).toBe("proof");
     expect(feedKind("drop")).toBe("drop");
-    // Tasks stored while the daily mystery task existed carry this source.
-    expect(feedKind("mystery")).toBe("drop");
     expect(feedKind("group")).toBe("group");
   });
 });

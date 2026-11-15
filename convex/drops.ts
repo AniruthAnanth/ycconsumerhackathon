@@ -55,17 +55,6 @@ import { place, slot } from "./schema";
 /** leagues.maxMembers keeps every list here far below this; it only bounds the reads. */
 const MAX_ROWS = 500;
 
-/**
- * The two kinds of drop. The schema still lists a third, "mystery": the daily mystery task was
- * removed, and drops stored while it existed keep their rows. Nothing here reads them, because
- * every lookup goes through liveDrop or dropsIn, which leave them out.
- */
-type LiveDrop = Doc<"drops"> & { kind: "quicktime" | "group" };
-
-function isLive(drop: Doc<"drops">): drop is LiveDrop {
-  return drop.kind !== "mystery";
-}
-
 /** How tasks.source names a task that came from each kind of drop. */
 const TASK_SOURCE = { quicktime: "drop", group: "group" } as const;
 
@@ -110,7 +99,7 @@ export const active = query({
 });
 
 /** One drop as one player sees it, or null when there is nothing in it for them to do. */
-async function bannerFor(ctx: QueryCtx, drop: LiveDrop, me: Id<"users">): Promise<ActiveDrop | null> {
+async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Promise<ActiveDrop | null> {
   const banner = {
     dropId: drop._id,
     kind: drop.kind,
@@ -286,7 +275,7 @@ async function startGroupSession(
 }
 
 async function joinGroupSession(ctx: MutationCtx, userId: Id<"users">, dropId: Id<"drops">): Promise<void> {
-  const drop = await liveDrop(ctx, dropId);
+  const drop = await ctx.db.get("drops", dropId);
   if (drop === null || drop.kind !== "group") throw new ConvexError("That group session doesn't exist");
   if (drop.status === "closed") throw new ConvexError("That group session is over");
   if ((await membership(ctx, drop.leagueId, userId)) === null) {
@@ -346,7 +335,7 @@ export const recordHeadcount = internalMutation({
   args: { dropId: v.id("drops"), storageId: v.id("_storage"), people: v.number() },
   returns: v.null(),
   handler: async (ctx, { dropId, storageId, people }) => {
-    const drop = await liveDrop(ctx, dropId);
+    const drop = await ctx.db.get("drops", dropId);
     const headcount = Math.max(0, Math.floor(people));
     if (drop === null || headcount <= (drop.headcount ?? 0)) return null;
     await ctx.db.patch("drops", dropId, { headcount, groupPhotoId: storageId });
@@ -366,7 +355,7 @@ export const openDrop = internalMutation({
   args: { dropId: v.id("drops") },
   returns: v.null(),
   handler: async (ctx, { dropId }) => {
-    const drop = await liveDrop(ctx, dropId);
+    const drop = await ctx.db.get("drops", dropId);
     // Already open, or closed before it opened because a newer drop replaced it.
     if (drop === null || drop.status !== "scheduled") return null;
     await ctx.db.patch("drops", dropId, { status: "open" });
@@ -420,7 +409,7 @@ export const closeDrop = internalMutation({
   args: { dropId: v.id("drops") },
   returns: v.null(),
   handler: async (ctx, { dropId }) => {
-    const drop = await liveDrop(ctx, dropId);
+    const drop = await ctx.db.get("drops", dropId);
     if (drop === null || drop.status === "closed") return null;
     await close(ctx, drop);
     return null;
@@ -437,7 +426,7 @@ export const onTaskVerified = internalMutation({
   handler: async (ctx, { taskId }) => {
     const task = await ctx.db.get("tasks", taskId);
     if (task === null || task.dropId === undefined) return null;
-    const drop = await liveDrop(ctx, task.dropId);
+    const drop = await ctx.db.get("drops", task.dropId);
     if (drop === null) return null;
     await reprice(ctx, drop);
     await pointsChanged(ctx, drop.leagueId);
@@ -460,7 +449,7 @@ export const afterRuling = internalMutation({
   handler: async (ctx, { taskId }) => {
     const task = await ctx.db.get("tasks", taskId);
     if (task === null || task.dropId === undefined) return null;
-    const drop = await liveDrop(ctx, task.dropId);
+    const drop = await ctx.db.get("drops", task.dropId);
     if (drop === null) return null;
     await reprice(ctx, drop);
     if (drop.status === "closed") await failUnproven(ctx, drop);
@@ -469,7 +458,7 @@ export const afterRuling = internalMutation({
   },
 });
 
-async function close(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
+async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   // Price one last time: the backstop for a verification that never reached onTaskVerified.
   await reprice(ctx, drop);
   await ctx.db.patch("drops", drop._id, { status: "closed" });
@@ -494,11 +483,11 @@ async function close(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
 }
 
 /** Ends the tasks nobody proved before the window shut: they can no longer be submitted. */
-async function failUnproven(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
+async function failUnproven(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   for (const task of await tasksOf(ctx, drop._id)) {
     if (task.status !== "open") continue;
-    // A missed drop or check-in scores nothing: standings count a failed task only when its
-    // points are negative. The points go back to what the drop offered, without any bonus.
+    // A missed drop or check-in scores nothing, because standings count only verified tasks.
+    // The points go back to what the drop offered, without any bonus.
     await ctx.db.patch("tasks", task._id, { status: "failed", points: drop.points });
   }
 }
@@ -509,7 +498,7 @@ async function failUnproven(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
  * anyone twice, and it corrects itself if a challenge later overturns the first finisher.
  * Every caller follows it with pointsChanged.
  */
-async function reprice(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
+async function reprice(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   if (drop.kind === "group") {
     // A check-in is a verified task. Everyone present is worth the same, and that number
     // rises for all of them each time another attendee checks in or a fuller photo is counted.
@@ -564,17 +553,11 @@ async function dropsIn(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
   status: Doc<"drops">["status"],
-): Promise<LiveDrop[]> {
-  const drops = await ctx.db
+): Promise<Doc<"drops">[]> {
+  return await ctx.db
     .query("drops")
     .withIndex("by_league_status", (q) => q.eq("leagueId", leagueId).eq("status", status))
     .take(MAX_ROWS);
-  return drops.filter(isLive);
-}
-
-async function liveDrop(ctx: QueryCtx, dropId: Id<"drops">): Promise<LiveDrop | null> {
-  const drop = await ctx.db.get("drops", dropId);
-  return drop !== null && isLive(drop) ? drop : null;
 }
 
 /**
@@ -583,7 +566,7 @@ async function liveDrop(ctx: QueryCtx, dropId: Id<"drops">): Promise<LiveDrop | 
  */
 async function giveTask(
   ctx: MutationCtx,
-  drop: LiveDrop,
+  drop: Doc<"drops">,
   userId: Id<"users">,
   weekStart: number,
   points = drop.points,

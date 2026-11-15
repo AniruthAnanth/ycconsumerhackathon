@@ -357,7 +357,7 @@ describe("lineup.roster", () => {
     expect(inAway.rows.map((row) => row.source)).toEqual(["draft", "draft", "draft", "draft", "draft"]);
   });
 
-  it("counts the negative points of a stored failed task", async () => {
+  it("scores nothing for a drop nobody proved in time and labels it Missed", async () => {
     const { t, as, userId } = await signedIn();
     await t.run((ctx) =>
       ctx.db.insert("tasks", {
@@ -365,16 +365,15 @@ describe("lineup.roster", () => {
         weekStart: WEEK_START,
         slot: "body",
         title: "Cold plunge",
-        points: -30,
+        points: 30,
         proofType: "photo",
         status: "failed",
-        // "mystery" survives only on tasks stored before the daily mystery task was removed.
-        source: "mystery",
+        source: "drop",
       }),
     );
     const roster = await as.query(api.lineup.roster, {});
-    expect(roster.total).toBe(-30);
-    expect(roster.rows[0]).toMatchObject({ score: -30, dueLabel: "Missed" });
+    expect(roster.total).toBe(0);
+    expect(roster.rows[0]).toMatchObject({ score: null, dueLabel: "Missed" });
     expect(roster.locked).toBe(false);
   });
 });

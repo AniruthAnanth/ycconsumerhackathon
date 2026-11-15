@@ -10,8 +10,7 @@ export const CORE_SLOTS = ["body", "mind", "recharge", "chores", "people"] as co
 export type CoreSlot = (typeof CORE_SLOTS)[number];
 export type Slot = CoreSlot | "flex";
 export type TaskStatus = "open" | "verified" | "held" | "failed";
-/** "mystery" is the source of tasks stored before the daily mystery task was removed. */
-export type TaskSource = "draft" | "flex" | "drop" | "mystery" | "group";
+export type TaskSource = "draft" | "flex" | "drop" | "group";
 
 export const TASK_POINTS_MIN = 10;
 export const TASK_POINTS_MAX = 50;
@@ -57,15 +56,12 @@ export function groupSessionScore(points: number, otherAttendees: number): numbe
 /**
  * The points a task contributes right now, or null while it contributes nothing.
  *
- * A verified task pays its points. A failed task stored with negative points costs exactly
- * that: nothing writes one any more, but the penalties of the removed mystery task are still in
- * the table and still count. Everything else counts for nothing: an open task, a failed proof
- * that can still be retried, and a held task whose proof is under challenge until the vote closes.
+ * Only a verified task pays. Everything else counts for nothing: an open task, a failed proof
+ * that can still be retried, a drop nobody proved before it closed, and a held task whose proof
+ * is under challenge until the vote closes.
  */
 export function taskScore(task: ScorableTask): number | null {
-  if (task.status === "verified") return task.points;
-  if (task.status === "failed" && task.points < 0) return task.points;
-  return null;
+  return task.status === "verified" ? task.points : null;
 }
 
 /**
