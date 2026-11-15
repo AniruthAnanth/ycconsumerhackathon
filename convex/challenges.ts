@@ -85,6 +85,27 @@ export function challengerDelta(status: ChallengeStatus): number {
   return 0;
 }
 
+/** The text the league gets when a challenge opens (SPEC section 7). */
+export function challengeOpenedText(
+  challengerName: string,
+  ownerName: string,
+  taskTitle: string,
+): string {
+  return `${challengerName} challenged ${ownerName}'s "${taskTitle}" proof. Vote in the app.`;
+}
+
+/** The text the league gets when the vote closes. */
+export function challengeResultText(
+  status: "upheld" | "overturned",
+  challengerName: string,
+  ownerName: string,
+  taskTitle: string,
+): string {
+  return status === "upheld"
+    ? `The league upheld ${ownerName}'s "${taskTitle}" proof. The points are back and ${challengerName} loses ${CHALLENGER_STAKE}.`
+    : `The league overturned ${ownerName}'s "${taskTitle}" proof. The task reopens and ${challengerName} gets +${CHALLENGER_STAKE}.`;
+}
+
 // ---------------------------------------------------------------------------
 // Standings
 // ---------------------------------------------------------------------------
@@ -196,6 +217,15 @@ export const open = mutation({
     await ctx.scheduler.runAt(closesAt, internal.challenges.close, {
       challengeId,
     });
+    await textLeague(
+      ctx,
+      leagueId,
+      challengeOpenedText(
+        nameOf(challenger),
+        nameOf(await ctx.db.get("users", proof.userId)),
+        task.title,
+      ),
+    );
     return challengeId;
   },
 });
@@ -290,13 +320,42 @@ async function settle(
 
   const proof = await ctx.db.get("proofs", challenge.proofId);
   const task = proof === null ? null : await ctx.db.get("tasks", proof.taskId);
-  // Only a task this challenge is still holding is released; anything else means
-  // the week moved on without us (for example a demo reset).
-  if (task !== null && task.status === "held") {
+  // A demo reset can delete the proof or task under an open challenge; there is
+  // then nothing to release and nothing worth texting the league about.
+  if (proof === null || task === null) return;
+  // Only a task this challenge is still holding is released.
+  if (task.status === "held") {
     await ctx.db.patch("tasks", task._id, {
       status: status === "upheld" ? "verified" : "open",
     });
   }
+  await textLeague(
+    ctx,
+    challenge.leagueId,
+    challengeResultText(
+      status,
+      nameOf(await ctx.db.get("users", challenge.challengerId)),
+      nameOf(await ctx.db.get("users", proof.userId)),
+      task.title,
+    ),
+  );
+}
+
+/**
+ * Texts every member of the league through Keiki. It is scheduled, never awaited,
+ * so a messaging failure can't roll back the challenge or the ruling.
+ */
+async function textLeague(
+  ctx: MutationCtx,
+  leagueId: Id<"leagues">,
+  text: string,
+): Promise<void> {
+  await ctx.scheduler.runAfter(0, internal.keiki.send, { leagueId, text });
+}
+
+/** users.name is optional until onboarding finishes. */
+function nameOf(user: Doc<"users"> | null): string {
+  return user?.name ?? "A player";
 }
 
 /** A league is capped at leagues.maxMembers, so reading every membership is bounded. */
