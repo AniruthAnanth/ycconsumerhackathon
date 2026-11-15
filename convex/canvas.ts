@@ -602,6 +602,9 @@ export const recordVerdict = internalMutation({
     if (args.pass) {
       await ctx.db.patch("tasks", task._id, { status: "verified" });
       // Leaderboards keep a stored copy of each player's week; this rebuilds theirs.
+      // The same follow-ups as proofs.record: a Canvas pass can take the lead or pass a league mate.
+      await ctx.scheduler.runAfter(0, internal.leadChange.afterProof, { userId: task.userId });
+      await ctx.scheduler.runAfter(0, internal.checkins.afterProof, { taskId: task._id });
       await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: task.userId, weekStart: task.weekStart });
     }
     return null;
