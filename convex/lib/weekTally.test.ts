@@ -64,6 +64,18 @@ describe("tallyWeek", () => {
     expect(activeDays).toEqual([2]);
   });
 
+  it("dates a task that was voted down and proved again by its latest pass", () => {
+    const gym = task("body", 40);
+    // Monday's proof was overturned by a challenge; the row still says pass. Thursday's stands.
+    const overturned = pass(gym, at(0), 9);
+    const standing = pass(gym, at(3), 4);
+    const { stats, activeDays } = tallyWeek(facts([gym], [overturned, standing]));
+    expect(activeDays).toEqual([3]);
+    expect(stats.bestProofId).toBe(standing._id);
+    // Replayed on Tuesday the task was still open.
+    expect(tallyWeek(facts([gym], [overturned, standing]), at(1)).stats.points).toBe(0);
+  });
+
   it("adds what challenges won or lost the player", () => {
     const gym = task("body", 40);
     const base = tallyWeek(facts([gym], [pass(gym, at(0))])).stats.points;

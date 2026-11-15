@@ -316,7 +316,12 @@ describe("projectionLabel", () => {
     expect(projectionLabel({ ...base, stakeCents: 1000, expectedCents: 500 })).toBe("Projected: -$5.00");
   });
 
-  test("shows nothing to win for an ineligible player", () => {
-    expect(projectionLabel({ ...base, eligible: false, expectedCents: 0 })).toBe("Projected: +$0.00");
+  test("tells an unpaid member what puts them in the pot", () => {
+    expect(projectionLabel({ ...base, eligible: false, expectedCents: 0 })).toBe("Pay $10 to play for the pot");
+    expect(projectionLabel({ ...base, eligible: false, stakeCents: 250, expectedCents: 0 })).toBe("Pay $2.50 to play for the pot");
+  });
+
+  test("shows nothing to win where there is no stake", () => {
+    expect(projectionLabel({ ...base, eligible: false, stakeCents: 0, expectedCents: 0 })).toBe("Projected: +$0.00");
   });
 });

@@ -44,6 +44,30 @@ describe("rankBoard", () => {
     ]);
   });
 
+  it("numbers level players straight through when asked, by name", () => {
+    const { rows } = rankBoard(
+      [entry("Sam", 0, 0), entry("Maya", 50, 50), entry("Lee", 0, 0)],
+      FORMATS.points,
+      null,
+      { splitTies: true },
+    );
+    expect(rows.map((row) => [row.rank, row.name])).toEqual([
+      [1, "Maya"],
+      [2, "Lee"],
+      [3, "Sam"],
+    ]);
+  });
+
+  it("shows no movement for a player still on nothing", () => {
+    // Yesterday all three were level on nothing. Maya scored; the other two did not fall, they never stood.
+    const { rows } = rankBoard([entry("Maya", 50, 0), entry("Lee", 0, 0), entry("Sam", 0, 0)], FORMATS.points, null);
+    expect(rows.map((row) => [row.name, row.rank, row.movement])).toEqual([
+      ["Maya", 1, 0],
+      ["Lee", 2, 0],
+      ["Sam", 2, 0],
+    ]);
+  });
+
   it("treats a player new to the board as having stood below everyone", () => {
     const { rows } = rankBoard([entry("Maya", 50, 50), entry("Lee", 80, null), entry("Sam", 20, 20)], FORMATS.points, null);
     expect(rows.find((row) => row.name === "Lee")?.movement).toBe(2);
