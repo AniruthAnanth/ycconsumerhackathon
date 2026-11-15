@@ -199,22 +199,39 @@ export const triggerQuickTime = mutation({
 // (optionally with a wager) creates the task at double points. Passing costs nothing. Opening
 // it and not finishing before it closes costs 20 points and the wager.
 
-/** Cron target (crons.ts): starts an envelope for every member of every league. */
+/** How many leagues one run of the morning job hands on before it schedules itself for the rest. */
+const LEAGUES_PER_RUN = 100;
+
+/**
+ * Cron target (crons.ts): starts an envelope for every member of every league. Nothing bounds
+ * the number of leagues, so it walks them a page at a time and gives each league its own
+ * mutation; no single run then reads or schedules more than Convex allows one mutation.
+ */
 export const dailyMystery = internalMutation({
-  args: {},
+  args: { cursor: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx) => {
-    for (const league of await ctx.db.query("leagues").take(MAX_ROWS)) {
-      const open = await dropsIn(ctx, league._id, "open");
-      for (const member of await membersOf(ctx, league._id)) {
-        // Running the job twice in a day must not hand anyone a second envelope.
-        const hasEnvelope = open.some((drop) => drop.kind === "mystery" && drop.userId === member.userId);
-        if (hasEnvelope) continue;
-        await ctx.scheduler.runAfter(0, internal.drops.writeMystery, {
-          leagueId: league._id,
-          userId: member.userId,
-        });
-      }
+  handler: async (ctx, { cursor }) => {
+    const leagues = await ctx.db.query("leagues").paginate({ cursor: cursor ?? null, numItems: LEAGUES_PER_RUN });
+    for (const league of leagues.page) {
+      await ctx.scheduler.runAfter(0, internal.drops.mysteryForLeague, { leagueId: league._id });
+    }
+    if (!leagues.isDone) {
+      await ctx.scheduler.runAfter(0, internal.drops.dailyMystery, { cursor: leagues.continueCursor });
+    }
+    return null;
+  },
+});
+
+/** One league's share of the morning job: an envelope for every member who holds none. */
+export const mysteryForLeague = internalMutation({
+  args: { leagueId: v.id("leagues") },
+  returns: v.null(),
+  handler: async (ctx, { leagueId }) => {
+    const open = await dropsIn(ctx, leagueId, "open");
+    for (const member of await membersOf(ctx, leagueId)) {
+      // Running the job twice in a day must not hand anyone a second envelope.
+      if (open.some((drop) => drop.kind === "mystery" && drop.userId === member.userId)) continue;
+      await ctx.scheduler.runAfter(0, internal.drops.writeMystery, { leagueId, userId: member.userId });
     }
     return null;
   },
