@@ -339,8 +339,13 @@ export const matchup = query({
     const theirRoster = await rosterOf(opponentId);
 
     // The same forecast the Matchup tab charts (convex/markets.ts), so every win chance in the app agrees.
-    const { replays, asOf } = await loadMarket(ctx, args.leagueId, week, [mine, theirs]);
-    const myChance = matchupChanceAt(replays[0], replays[1], asOf, week);
+    // The whole league is loaded because the market is priced at the league's latest proof, not this pair's.
+    const { replays, asOf } = await loadMarket(ctx, args.leagueId, week, standings);
+    const replayOf = (userId: Id<"users">) => replays.find((replay) => replay.standing.userId === userId);
+    const myReplay = replayOf(mine.userId);
+    const theirReplay = replayOf(theirs.userId);
+    if (myReplay === undefined || theirReplay === undefined) return null;
+    const myChance = matchupChanceAt(myReplay, theirReplay, asOf, week);
     return {
       me: { userId: mine.userId, name: mine.name, total: mine.points, winProbability: myChance, slotsCleared: mine.slotsCleared },
       // Derived from mine, so the two sides always add up to exactly 1.

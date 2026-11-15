@@ -237,11 +237,12 @@ export const week = query({
         userId: replay.standing.userId,
         name: replay.standing.name,
         isMe: replay === mine,
-        weekChance: top[i],
+        // Rounded so a field of long shots sorts by projection, not by grid noise in the last decimals.
+        weekChance: Math.round(top[i] * 1000) / 1000,
         finishChance: finishProbability(atNow[i].slotsCleared, daysLeft),
         projected: Math.round(atNow[i].projection.mean),
       }))
-      .sort((a, b) => b.weekChance - a.weekChance || a.name.localeCompare(b.name));
+      .sort((a, b) => b.weekChance - a.weekChance || b.projected - a.projected || a.name.localeCompare(b.name));
 
     return {
       asOf,
