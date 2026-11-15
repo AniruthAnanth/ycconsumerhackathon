@@ -18,6 +18,7 @@ function judgement(overrides: Partial<Judgement> = {}): Judgement {
     caption: "Leg day survived",
     gestureSeen: null,
     sceneMatchesPlace: null,
+    flags: [],
     ...overrides,
   };
 }
@@ -36,10 +37,18 @@ describe("confidence thresholds", () => {
     expect(verdict.reason).toBe("Barbell rack and mirror visible, matches leg day.");
   });
 
-  it("fails below 0.6 even when the model said pass, and says why", () => {
-    const verdict = decideVerdict(judgement({ confidence: 0.59, reason: "A treadmill is partly visible." }), photoTask);
-    expect(verdict).toMatchObject({ pass: false, points: 0, closeCall: false });
-    expect(verdict.reason).toBe("Not clear enough to count. A treadmill is partly visible.");
+  it("sends 0.3 to 0.6 to a league vote with no points, whatever the model concluded", () => {
+    for (const pass of [true, false]) {
+      const verdict = decideVerdict(judgement({ pass, confidence: 0.59, reason: "A treadmill is partly visible." }), photoTask);
+      expect(verdict).toMatchObject({ pass: true, needsVote: true, points: 0, closeCall: false });
+      expect(verdict.reason).toBe("Sent to the league for a vote. A treadmill is partly visible.");
+    }
+    expect(decideVerdict(judgement({ confidence: 0.3 }), photoTask).needsVote).toBe(true);
+  });
+
+  it("fails below 0.3 outright: the referee is sure it wasn't done", () => {
+    const verdict = decideVerdict(judgement({ pass: false, confidence: 0.29, reason: "Pizza, not leg day.", flags: ["not_doing_task"] }), photoTask);
+    expect(verdict).toMatchObject({ pass: false, needsVote: false, points: 0, reason: "Pizza, not leg day.", flags: ["not_doing_task"] });
   });
 
   it("passes at exactly 0.6 as a close call", () => {
@@ -139,7 +148,8 @@ describe("location check-in: distance and scene must both pass", () => {
   });
 
   it("still applies the confidence line after both location checks pass", () => {
-    expect(decideVerdict(judgement({ sceneMatchesPlace: true, confidence: 0.5 }), at(10)).pass).toBe(false);
+    expect(decideVerdict(judgement({ sceneMatchesPlace: true, confidence: 0.5 }), at(10)).needsVote).toBe(true);
+    expect(decideVerdict(judgement({ sceneMatchesPlace: true, confidence: 0.2 }), at(10)).pass).toBe(false);
   });
 });
 
@@ -162,6 +172,8 @@ describe("rejectWithoutJudging", () => {
       caption: "",
       points: 0,
       closeCall: false,
+      flags: [],
+      needsVote: false,
     });
   });
 });

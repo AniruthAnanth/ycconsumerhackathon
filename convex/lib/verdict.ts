@@ -13,6 +13,13 @@ export const PASS_CONFIDENCE = 0.6;
 /** Passing proofs at or below this confidence are flagged "close call" in the feed to invite a challenge. */
 export const CLOSE_CALL_CONFIDENCE = 0.75;
 
+/**
+ * Below PASS_CONFIDENCE the referee isn't sure, and an unsure call is the league's to make: from
+ * here up to the pass line the proof goes to a vote instead of failing. Under this line the
+ * referee is sure the task wasn't done (pizza for leg day), and the proof fails outright.
+ */
+export const VOTE_CONFIDENCE = 0.3;
+
 /** What the vision model reports about one proof. Nulls mean "not asked". */
 export type Judgement = {
   pass: boolean;
@@ -24,6 +31,8 @@ export type Judgement = {
   caption: string;
   gestureSeen: boolean | null;
   sceneMatchesPlace: boolean | null;
+  /** Short tags for what the referee found wrong, such as "no_change" or "scene_changed". */
+  flags: string[];
 };
 
 /** What the app, the feed and Keiki receive. Matches Verdict in API.md. */
@@ -36,6 +45,10 @@ export type Verdict = {
   /** Points awarded by this proof: the task's points on a pass, otherwise 0. */
   points: number;
   closeCall: boolean;
+  /** Machine tags: the referee's own, plus "reused_image", "stale_capture" or "too_short" from the rules here. */
+  flags?: string[];
+  /** The referee wasn't sure: no points yet, the task is held and the league votes. */
+  needsVote?: boolean;
 };
 
 /** The rules a particular task puts on its proof. */
@@ -67,8 +80,8 @@ export function locationProblem(location: NonNullable<ProofRules["location"]>): 
 }
 
 /** A failed verdict reached without the model, for example too far away or media it can't read. */
-export function rejectWithoutJudging(reason: string): Verdict {
-  return { pass: false, confidence: 0, reason, highlight: 1, caption: "", points: 0, closeCall: false };
+export function rejectWithoutJudging(reason: string, flags: string[] = []): Verdict {
+  return { pass: false, confidence: 0, reason, highlight: 1, caption: "", points: 0, closeCall: false, flags, needsVote: false };
 }
 
 /**
@@ -79,6 +92,7 @@ export function rejectWithoutJudging(reason: string): Verdict {
 export function decideVerdict(judgement: Judgement, rules: ProofRules): Verdict {
   const confidence = clamp(judgement.confidence, 0, 1);
   const highlight = Math.round(clamp(judgement.highlight, 1, 10));
+  const flags = judgement.flags ?? [];
   const fail = (reason: string): Verdict => ({
     pass: false,
     confidence,
@@ -87,6 +101,8 @@ export function decideVerdict(judgement: Judgement, rules: ProofRules): Verdict 
     caption: judgement.caption,
     points: 0,
     closeCall: false,
+    flags,
+    needsVote: false,
   });
 
   if (rules.location) {
@@ -109,11 +125,24 @@ export function decideVerdict(judgement: Judgement, rules: ProofRules): Verdict 
     return fail(judgement.pass ? `This doesn't look like ${rules.location.placeName}.` : judgement.reason);
   }
 
-  if (!judgement.pass) return fail(judgement.reason);
+  if (confidence < VOTE_CONFIDENCE) return fail(judgement.reason);
 
   if (confidence < PASS_CONFIDENCE) {
-    return fail(`Not clear enough to count. ${judgement.reason}`);
+    // Recorded as a pass on hold: the league's vote either lets it stand or reopens the task.
+    return {
+      pass: true,
+      confidence,
+      reason: `Sent to the league for a vote. ${judgement.reason}`,
+      highlight,
+      caption: judgement.caption,
+      points: 0,
+      closeCall: false,
+      flags,
+      needsVote: true,
+    };
   }
+
+  if (!judgement.pass) return fail(judgement.reason);
 
   return {
     pass: true,
@@ -127,6 +156,8 @@ export function decideVerdict(judgement: Judgement, rules: ProofRules): Verdict 
     caption: judgement.caption,
     points: rules.points,
     closeCall: confidence <= CLOSE_CALL_CONFIDENCE,
+    flags,
+    needsVote: false,
   };
 }
 

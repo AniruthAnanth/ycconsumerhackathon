@@ -30,6 +30,7 @@ function sees(overrides: Partial<Judgement> = {}): Judgement {
     caption: "Leg day survived",
     gestureSeen: null,
     sceneMatchesPlace: null,
+    flags: [],
     ...overrides,
   };
 }
@@ -66,8 +67,10 @@ async function playerWithTask(task: Partial<Doc<"tasks">> = {}) {
   return { t, userId, taskId, as: t.withIdentity({ subject: userId + "|session" }) };
 }
 
-const upload = (t: Backend, type = "image/jpeg") =>
-  t.run((ctx) => ctx.storage.store(new Blob(["media"], { type })));
+// Every upload is a new shot: identical bytes would be caught as a reused image.
+let shots = 0;
+const upload = (t: Backend, type = "image/jpeg", bytes = `shot ${++shots}`) =>
+  t.run((ctx) => ctx.storage.store(new Blob([bytes], { type })));
 
 /** The smallest file a phone could call a video of this length: a movie box holding only its header. */
 function clipOfSeconds(seconds: number): Uint8Array<ArrayBuffer> {
@@ -101,6 +104,8 @@ describe("proofs.verify", () => {
       caption: "Leg day survived",
       points: 30,
       closeCall: false,
+      flags: [],
+      needsVote: false,
     });
     expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({
       taskTitle: "Leg day at the gym",
@@ -201,12 +206,12 @@ describe("proofs.verify", () => {
     ]);
   });
 
-  it("fails below 0.6 confidence and flags 0.6 to 0.75 as a close call", async () => {
+  it("fails below 0.3, sends 0.3 to 0.6 to a league vote and flags 0.6 to 0.75 as a close call", async () => {
     const { t, as, taskId } = await playerWithTask();
 
-    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ confidence: 0.55 }));
-    const unsure = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
-    expect(unsure).toMatchObject({ pass: false, closeCall: false, points: 0 });
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ pass: false, confidence: 0.2 }));
+    const wrong = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    expect(wrong).toMatchObject({ pass: false, needsVote: false, points: 0 });
 
     vi.mocked(judgeProof).mockResolvedValueOnce(sees({ confidence: 0.7 }));
     const close = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
@@ -366,6 +371,120 @@ describe("group session check-in", () => {
     });
     expect(verdict.reason).toBe("You're 5.0 km from YC office. Check in within 150 m.");
     expect(judgeProof).not.toHaveBeenCalled();
+  });
+});
+
+describe("league vote for an unsure referee", () => {
+  it("holds the task with no points and opens a vote in the player's league", async () => {
+    const { t, as, userId, taskId } = await playerWithTask();
+    await t.run(async (ctx) => {
+      const mayaId = await ctx.db.insert("users", { name: "Maya" });
+      const leagueId = await ctx.db.insert("leagues", { name: "HOME", inviteCode: "HOME", stakeUsd: 0, visibility: "private", maxMembers: 12, createdBy: userId });
+      for (const member of [userId, mayaId]) await ctx.db.insert("memberships", { leagueId, userId: member, paid: true, joinedAt: NOW });
+    });
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ pass: false, confidence: 0.45, reason: "A dim room, maybe a gym." }));
+
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+
+    expect(verdict).toMatchObject({ pass: true, needsVote: true, points: 0, reason: "Sent to the league for a vote. A dim room, maybe a gym." });
+    expect(await taskOf(t, taskId)).toMatchObject({ status: "held" });
+    expect(await proofsOf(t)).toMatchObject([{ pass: true, needsVote: true }]);
+    expect(await t.run((ctx) => ctx.db.query("challenges").collect())).toMatchObject([{ byReferee: true, status: "open" }]);
+  });
+});
+
+describe("anti-cheat", () => {
+  it("turns away an image already used for an earlier proof, without calling the model", async () => {
+    const { t, as, userId, taskId } = await playerWithTask();
+    await as.action(api.proofs.verify, { taskId, storageId: await upload(t, "image/jpeg", "same bytes"), mediaType: "photo" });
+    const otherTask = await t.run((ctx) =>
+      ctx.db.insert("tasks", { userId, weekStart: WEEK_START, slot: "mind", title: "Finish OS problem set", points: 30, proofType: "photo", status: "open", source: "draft" }),
+    );
+    vi.mocked(judgeProof).mockClear();
+
+    const verdict = await as.action(api.proofs.verify, { taskId: otherTask, storageId: await upload(t, "image/jpeg", "same bytes"), mediaType: "photo" });
+
+    expect(verdict).toMatchObject({ pass: false, flags: ["reused_image"] });
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+
+  it("turns away a shot taken more than 15 minutes ago", async () => {
+    const { t, as, taskId } = await playerWithTask();
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", capturedAt: NOW - 16 * 60_000 });
+    expect(verdict).toMatchObject({ pass: false, flags: ["stale_capture"] });
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+});
+
+describe("verification types", () => {
+  it("before/after: shows the model the before photo, then the after, with its rubric", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "before_after", slot: "chores", title: "Clean the room" });
+    const before = await upload(t);
+    const after = await upload(t);
+    const beforeUrl = await t.run((ctx) => ctx.storage.getUrl(before));
+
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: after, beforeStorageId: before, mediaType: "photo" });
+
+    expect(verdict.pass).toBe(true);
+    const call = vi.mocked(judgeProof).mock.calls[0][0];
+    expect(call).toMatchObject({ proofType: "before_after" });
+    expect(call.imageUrls).toHaveLength(2);
+    expect(call.imageUrls[0]).toBe(beforeUrl);
+    expect((await proofsOf(t))[0]).toMatchObject({ beforeStorageId: before });
+  });
+
+  it("before/after: needs a before photo", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "before_after" });
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    expect(verdict.reason).toBe("This task needs a before photo and an after photo.");
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+
+  it("timelapse: judges up to 8 stills with their times and the target", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "timelapse", slot: "recharge", title: "Read for 30 minutes", targetMinutes: 30 });
+    const frames = [];
+    for (let i = 0; i < 10; i++) frames.push(await upload(t));
+    const frameTimes = frames.map((_, i) => NOW - (9 - i) * 200_000);
+
+    const verdict = await as.action(api.proofs.verify, {
+      taskId,
+      storageId: frames[9],
+      frameStorageIds: frames,
+      frameTimes,
+      durationSec: 1800,
+      mediaType: "photo",
+    });
+
+    expect(verdict.pass).toBe(true);
+    const call = vi.mocked(judgeProof).mock.calls[0][0];
+    expect(call).toMatchObject({ proofType: "timelapse", targetMinutes: 30, durationSec: 1800 });
+    expect(call.imageUrls).toHaveLength(8);
+  });
+
+  it("timelapse: turns away one that covers less than the task's time", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "timelapse", targetMinutes: 30 });
+    const frames = [await upload(t), await upload(t), await upload(t)];
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: frames[2], frameStorageIds: frames, durationSec: 600, mediaType: "photo" });
+    expect(verdict).toMatchObject({ pass: false, flags: ["too_short"], reason: "That timelapse covers 10 minutes; this task needs 30." });
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+
+  it("screenshot: judges the one image with the screenshot rubric and today's date", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "screenshot", slot: "recharge", title: "Under 2 hours of screen time" });
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ pass: false, confidence: 0.1, flags: ["wrong_date"], reason: "Screen Time from last month." }));
+
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t, "image/png"), mediaType: "photo" });
+
+    expect(verdict).toMatchObject({ pass: false, flags: ["wrong_date"] });
+    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ proofType: "screenshot", today: "Sunday, November 15" });
+  });
+
+  it("plain photo: no rubric type beyond photo", async () => {
+    const { t, as, taskId } = await playerWithTask();
+    await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ proofType: "photo" });
   });
 });
 
