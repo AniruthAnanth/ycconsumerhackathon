@@ -10,12 +10,19 @@
  *   npx convex run fixtures:remove
  *
  * A fixture is recognised by its name alone (isFixtureName), so name whatever a check creates
- * that way. The seeded league and the seeded players are never fixtures, whatever they are
+ * that way. The seeded leagues and the seeded players are never fixtures, whatever they are
  * called, and neither is an account whose name does not match, which is every real device.
+ *
+ * Before a recording that is not enough, because most test players were given ordinary names.
+ * `everything` takes every league and player the seed did not make, and `keep` lists the
+ * accounts of real phones, which stay:
+ *
+ *   npx convex run fixtures:list '{"everything": true, "keep": ["<user id>"]}'
+ *   npx convex run fixtures:remove '{"everything": true, "keep": ["<user id>"]}'
  *
  * Stored photos are left alone: a fixture proof may point at the same file as a seeded one.
  */
-import { v } from "convex/values";
+import { v, type ObjectType } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, TableNames } from "./_generated/dataModel";
@@ -27,8 +34,20 @@ export function isFixtureName(name: string | undefined): boolean {
   return /^(zz |Whop E2E|Canvas check)/.test(name) || name.includes("(YCCO-");
 }
 
-/** seed.ts creates the demo league under this code. It is never a fixture. */
-const SEEDED_LEAGUE_INVITE_CODE = "YCHACK";
+/**
+ * seed.ts creates the demo league and the two public leagues Quick Match lands in under these
+ * codes. They are never fixtures.
+ */
+const SEEDED_LEAGUE_INVITE_CODES = ["YCHACK", "MATCHA", "MATCHB"];
+
+/** What goes. With neither set, only what is named as a fixture. */
+const scope = {
+  // Every league and player the seed did not make, whatever they are called.
+  everything: v.optional(v.boolean()),
+  // Players who stay all the same: the accounts of real phones.
+  keep: v.optional(v.array(v.id("users"))),
+};
+type Scope = ObjectType<typeof scope>;
 
 // Bounds on reads. A dev deployment holds a few hundred leagues and players.
 const MAX_ROOTS = 2000;
@@ -37,25 +56,32 @@ const PAGE = 500;
 /** Deletions in one run, to stay inside a mutation's limits. A run that deletes anything schedules the next. */
 const DELETES_PER_RUN = 1000;
 
-async function fixtures(ctx: QueryCtx): Promise<{ leagues: Doc<"leagues">[]; players: Doc<"users">[] }> {
+async function fixtures(
+  ctx: QueryCtx,
+  { everything = false, keep = [] }: Scope,
+): Promise<{ leagues: Doc<"leagues">[]; players: Doc<"users">[] }> {
   const leagues = (await ctx.db.query("leagues").take(MAX_ROOTS)).filter(
-    (league) => league.inviteCode !== SEEDED_LEAGUE_INVITE_CODE && isFixtureName(league.name),
+    (league) =>
+      !SEEDED_LEAGUE_INVITE_CODES.includes(league.inviteCode) && (everything || isFixtureName(league.name)),
   );
   const players = (await ctx.db.query("users").take(MAX_ROOTS)).filter(
-    (user) => !user.isSeed && isFixtureName(user.name),
+    (user) => !user.isSeed && !keep.includes(user._id) && (everything || isFixtureName(user.name)),
   );
   return { leagues, players };
 }
 
-/** What `remove` would delete: the fixture leagues and players, by name. Deletes nothing. */
+/**
+ * What `remove` would delete with the same arguments: the leagues and players, by name. An
+ * account that never finished onboarding has no name. Deletes nothing.
+ */
 export const list = internalQuery({
-  args: {},
+  args: scope,
   returns: v.object({ leagues: v.array(v.string()), players: v.array(v.string()) }),
-  handler: async (ctx) => {
-    const { leagues, players } = await fixtures(ctx);
+  handler: async (ctx, args) => {
+    const { leagues, players } = await fixtures(ctx, args);
     return {
       leagues: leagues.map((league) => league.name),
-      players: players.map((player) => player.name ?? ""),
+      players: players.map((player) => player.name ?? "(no name)"),
     };
   },
 });
@@ -66,10 +92,10 @@ export const list = internalQuery({
  * leaves nothing dangling, and a run that finds no fixture deletes nothing.
  */
 export const remove = internalMutation({
-  args: {},
+  args: scope,
   returns: v.object({ deleted: v.number() }),
-  handler: async (ctx) => {
-    const { leagues, players } = await fixtures(ctx);
+  handler: async (ctx, args) => {
+    const { leagues, players } = await fixtures(ctx, args);
     const sweep: Sweep = { ctx, left: DELETES_PER_RUN };
 
     // Leagues first: what is left of a fixture player afterwards is what they did in leagues that stay.
@@ -89,7 +115,7 @@ export const remove = internalMutation({
     }
 
     const deleted = DELETES_PER_RUN - sweep.left;
-    if (deleted > 0) await ctx.scheduler.runAfter(0, internal.fixtures.remove, {});
+    if (deleted > 0) await ctx.scheduler.runAfter(0, internal.fixtures.remove, args);
     return { deleted };
   },
 });

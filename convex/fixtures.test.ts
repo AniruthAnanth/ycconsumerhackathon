@@ -22,8 +22,8 @@ afterEach(() => {
 type Harness = TestConvex<typeof schema>;
 
 /** Runs `remove` and every run it schedules after itself. Returns what the first run deleted. */
-async function removeFixtures(t: Harness): Promise<number> {
-  const { deleted } = await t.mutation(internal.fixtures.remove, {});
+async function removeFixtures(t: Harness, scope: { everything?: boolean; keep?: Id<"users">[] } = {}): Promise<number> {
+  const { deleted } = await t.mutation(internal.fixtures.remove, scope);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   return deleted;
 }
@@ -191,6 +191,7 @@ async function world(t: Harness) {
     };
 
     return {
+      device,
       kept: [seeded, device, seededLeague, seededWeek, ...Object.values(kept).flatMap(Object.values), ...Object.values(social.kept)],
       gone: [fixture, fixtureLeague, fixtureWeek, ...Object.values(gone).flatMap(Object.values), ...Object.values(social.gone)],
     };
@@ -250,6 +251,57 @@ describe("fixtures.remove", () => {
 
     expect(await removeFixtures(t)).toBe(0);
     expect(await t.query(internal.fixtures.list, {})).toEqual({ leagues: [], players: [] });
+  });
+
+  test("`everything` takes every league and player the seed did not make, except the accounts in `keep`", async () => {
+    const t = convexTest(schema, modules);
+    const { device, kept, gone } = await world(t);
+    // A Quick Match league of the seed's with a tester in it, and a tester's own league with a
+    // seeded player in it. Neither tester is named as a fixture, and one never gave a name.
+    const more = await t.run(async (ctx) => {
+      const sam = await ctx.db.insert("users", { name: "Sam Patel", isSeed: true });
+      const priya = await ctx.db.insert("users", { name: "Priya Shah", isSeed: true });
+      const tester = await ctx.db.insert("users", { name: "Riley Park" });
+      const unnamed = await ctx.db.insert("users", {});
+      const openLeague = await league(ctx, "Open League", "MATCHA", sam);
+      const openWeek = await ctx.db.insert("weeks", { leagueId: openLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
+      const testLeague = await league(ctx, "Riley's league", "RILEY1", tester);
+      const testWeek = await ctx.db.insert("weeks", { leagueId: testLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
+      return {
+        kept: [sam, priya, openLeague, openWeek, ...Object.values(await playIn(ctx, openLeague, openWeek, sam, priya))],
+        gone: [
+          tester,
+          unnamed,
+          testLeague,
+          testWeek,
+          ...Object.values(await ownRows(ctx, tester)),
+          ...Object.values(await ownRows(ctx, unnamed)),
+          ...Object.values(await playIn(ctx, openLeague, openWeek, tester, sam)),
+          ...Object.values(await playIn(ctx, testLeague, testWeek, tester, sam)),
+          ...Object.values(await playIn(ctx, testLeague, testWeek, sam, tester)),
+        ],
+      };
+    });
+    const scope = { everything: true, keep: [device] };
+
+    expect(await t.query(internal.fixtures.list, scope)).toEqual({
+      leagues: ["zz check (safe to delete)", "Riley's league"],
+      players: ["zz Tester", "Riley Park", "(no name)"],
+    });
+    await removeFixtures(t, scope);
+
+    expect(await stillThere(t, [...gone, ...more.gone])).toEqual([]);
+    expect(await stillThere(t, [...kept, ...more.kept])).toEqual([...kept, ...more.kept]);
+    expect(await removeFixtures(t, scope)).toBe(0);
+  });
+
+  test("`everything` takes an account that is not in `keep`, a real phone's included", async () => {
+    const t = convexTest(schema, modules);
+    const { device } = await world(t);
+
+    await removeFixtures(t, { everything: true });
+
+    expect(await stillThere(t, [device])).toEqual([]);
   });
 
   test("never takes the seeded league or a seeded player, whatever they are called", async () => {
