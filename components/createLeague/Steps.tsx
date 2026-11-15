@@ -112,7 +112,7 @@ export function StakeStep({ draft, change, disabled }: StepProps) {
   const [customText, setCustomText] = useState(custom && draft.stakeUsd !== null ? String(draft.stakeUsd) : "");
   return (
     <View style={styles.step}>
-      <StepIntro title="Set the stakes" line={potExplanation(draft.settings.payout)} />
+      <StepIntro title="Set the buy-in" line={potExplanation(draft.settings.payout)} />
       <View style={styles.choices} accessibilityRole="radiogroup">
         {STAKE_CHOICES.map((choice) => (
           <ChoiceCard

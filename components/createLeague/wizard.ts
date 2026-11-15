@@ -178,11 +178,11 @@ export function recommendedLines(): string[] {
 
 /** What Review lists before Create: every answer, in the order it was asked. */
 export function reviewRows(draft: Draft): { label: string; value: string }[] {
-  const stake = draft.stakeUsd === null ? "Not set" : draft.stakeUsd === 0 ? "Free" : `${usd(draft.stakeUsd)} buy-in`;
+  const stake = draft.stakeUsd === null ? "Not set" : draft.stakeUsd === 0 ? "Free" : usd(draft.stakeUsd);
   return [
     { label: "Name", value: draft.name.trim() },
     { label: "Who's playing", value: labelOf(KIND_CHOICES, draft.kind) },
-    { label: "Stakes", value: stake },
+    { label: "Buy-in", value: stake },
     { label: "Season", value: labelOf(SEASON_WEEKS_CHOICES, draft.settings.seasonWeeks) },
     { label: "Format", value: labelOf(FORMAT_CHOICES, draft.settings.format) },
     { label: "Payout", value: labelOf(PAYOUT_CHOICES, draft.settings.payout) },
