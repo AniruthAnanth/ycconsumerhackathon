@@ -11,6 +11,8 @@ import { backend } from "@/lib/backend";
 import { toE164 } from "@/lib/phone";
 import { spacing } from "@/theme";
 
+export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
+
 /** The first screen of a new player: name and phone, then straight on to picking a league. */
 export default function OnboardingScreen() {
   const router = useRouter();

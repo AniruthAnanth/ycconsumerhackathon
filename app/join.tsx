@@ -7,6 +7,8 @@ import { QuickMatchSection } from "@/components/join/QuickMatchSection";
 import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { Header, Screen } from "@/components/ui";
 
+export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
+
 /** Quick Match, an invite code, or a new league: three ways in, one screen. */
 export default function JoinScreen() {
   const router = useRouter();

@@ -118,6 +118,14 @@ export type ContactMatch = {
   notOnLineup: string[];
 };
 
+/** The shared iMessage number the league agent texts from. */
+export type KeikiLine = {
+  number: string;
+  joinCode: string;
+  /** Opens Messages with the join text already typed. */
+  smsUrl: string;
+};
+
 export const backend = {
   users: {
     me: query<NoArgs, Me | null>("users:me"),
@@ -145,5 +153,9 @@ export const backend = {
   },
   whop: {
     createCheckout: action<{ leagueId: Id<"leagues"> }, { purchaseUrl: string }>("whop:createCheckout"),
+  },
+  keiki: {
+    /** Null when no line is configured. */
+    line: query<NoArgs, KeikiLine | null>("keiki:line"),
   },
 } as const;
