@@ -221,7 +221,7 @@ export async function addMember(
   return true;
 }
 
-async function createLeagueWithCreator(
+export async function createLeagueWithCreator(
   ctx: MutationCtx,
   creator: Doc<"users">,
   league: { name: string; stakeUsd: number; visibility: "private" | "public" } & Partial<LeagueSettings>,

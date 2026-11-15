@@ -37,6 +37,7 @@ import { currentWeek as latestWeek } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
 import { computeSettlement, settlementLedgerRows, type Entrant } from "./lib/settlement";
+import { computeVersusSettlement } from "./lib/versusSettlement";
 import { leagueStandings } from "./standings";
 
 // ---- The Whop client ----------------------------------------------------------------------------
@@ -384,7 +385,9 @@ export const closeWeek = internalMutation({
       if (!bySeason || isFinalWeek(week.number, seasonWeeks)) {
         const weeks = bySeason ? await weeksOfSeason(ctx, week, seasonWeeks) : [week];
         const entrants = await entrantsOver(ctx, leagueId, weeks);
-        const settlement = computeSettlement(league.stakeUsd, entrants);
+        // A 1v1 versus pays the higher score; a league pays its finishers (convex/versus.ts).
+        const settle = league.mode === "versus" ? computeVersusSettlement : computeSettlement;
+        const settlement = settle(league.stakeUsd, entrants);
         for (const row of settlementLedgerRows(scope, settlement)) {
           if (await isInLedger(ctx, row.idempotencyKey)) continue;
           await ctx.db.insert("ledger", {

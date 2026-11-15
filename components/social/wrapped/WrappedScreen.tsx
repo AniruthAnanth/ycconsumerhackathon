@@ -13,7 +13,7 @@ import { colors } from "@/theme";
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
 import { WrappedCard } from "./WrappedCard";
-import { indexAfterTap, pageIndexFromOffset } from "./wrappedLogic";
+import { indexAfterTap, pageIndexFromOffset, tapClosesStory } from "./wrappedLogic";
 
 const WHITE = colors.background;
 const SEGMENT_TRACK = "rgba(255,255,255,0.35)";
@@ -73,7 +73,11 @@ export function WrappedScreen() {
             width={width}
             height={height}
             topInset={insets.top}
-            onTap={(tapX) => goTo(indexAfterTap(tapX, width, index, cards.length))}
+            onTap={(tapX) =>
+              tapClosesStory(tapX, width, index, cards.length)
+                ? leave()
+                : goTo(indexAfterTap(tapX, width, index, cards.length))
+            }
           />
         )}
       />

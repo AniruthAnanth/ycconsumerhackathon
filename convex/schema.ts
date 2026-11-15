@@ -88,7 +88,9 @@ export default defineSchema({
     createdAt: v.optional(v.number()),
   })
     .index("email", ["email"]) // looked up by Convex Auth under this exact name
-    .index("by_phone", ["phone"]),
+    .index("by_phone", ["phone"])
+    // Which devices are acting as a player (Switch Player), so they get that player's texts.
+    .index("by_demoActAs", ["demoActAs"]),
 
   leagues: defineTable({
     name: v.string(),
@@ -344,11 +346,14 @@ export default defineSchema({
 
   // Each member's league points the last time convex/checkins.ts looked, so
   // the next proof can tell who was just passed. Standings stay computed
-  // live; this is only the "before" of that before-and-after.
+  // live; this is only the "before" of that before-and-after. weekStart is
+  // the week those points were scored in: every week starts from zero, so a
+  // mark left in an earlier week says nothing about this one.
   checkinMarks: defineTable({
     leagueId: v.id("leagues"),
     userId: v.id("users"),
     points: v.number(),
+    weekStart: v.optional(v.number()),
   }).index("by_league_user", ["leagueId", "userId"]),
 
   // Where a player was when the app told them they had arrived at a task's
@@ -362,4 +367,10 @@ export default defineSchema({
     lng: v.number(),
     at: v.number(),
   }).index("by_user_task", ["userId", "taskId"]),
+
+  // Turns Keiki has pushed to us that convex/keiki.ts has taken on, so a turn
+  // delivered twice is answered once. A row is deleted an hour later.
+  keikiTurns: defineTable({
+    turnId: v.string(),
+  }).index("by_turnId", ["turnId"]),
 });

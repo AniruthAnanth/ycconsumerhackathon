@@ -40,6 +40,7 @@ import type * as lib_scoring from "../lib/scoring.js";
 import type * as lib_seedPhotos from "../lib/seedPhotos.js";
 import type * as lib_settlement from "../lib/settlement.js";
 import type * as lib_verdict from "../lib/verdict.js";
+import type * as lib_versusSettlement from "../lib/versusSettlement.js";
 import type * as lib_week from "../lib/week.js";
 import type * as lib_weekTally from "../lib/weekTally.js";
 import type * as lineup from "../lineup.js";
@@ -50,6 +51,7 @@ import type * as seasons from "../seasons.js";
 import type * as seed from "../seed.js";
 import type * as standings from "../standings.js";
 import type * as users from "../users.js";
+import type * as versus from "../versus.js";
 import type * as whop from "../whop.js";
 import type * as wrapped from "../wrapped.js";
 
@@ -92,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "lib/seedPhotos": typeof lib_seedPhotos;
   "lib/settlement": typeof lib_settlement;
   "lib/verdict": typeof lib_verdict;
+  "lib/versusSettlement": typeof lib_versusSettlement;
   "lib/week": typeof lib_week;
   "lib/weekTally": typeof lib_weekTally;
   lineup: typeof lineup;
@@ -102,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   standings: typeof standings;
   users: typeof users;
+  versus: typeof versus;
   whop: typeof whop;
   wrapped: typeof wrapped;
 }>;

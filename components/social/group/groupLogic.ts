@@ -4,10 +4,12 @@ export type StartOption = { label: string; startsAt: number };
 
 export type SessionAction =
   | { kind: "join"; label: "I'm In"; disabled: false }
-  | { kind: "checkIn"; label: "Check In"; disabled: boolean }
+  | { kind: "checkIn"; label: string; disabled: boolean }
   | { kind: "checkedIn"; label: "Checked In"; disabled: true };
 
 const HOUR_MS = 60 * 60 * 1000;
+// How long before the start check-in opens: GROUP_REMINDER_LEAD_MS in convex/lib/dropRules.ts.
+const CHECK_IN_LEAD_MS = HOUR_MS / 2;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Offsets are calendar days from today so a DST change cannot shift the hour. */
@@ -47,6 +49,10 @@ export function sessionAction(drop: Drop, myUserId: string): SessionAction {
   const me = drop.attendees?.find((attendee) => attendee.userId === myUserId);
   if (!me) return { kind: "join", label: "I'm In", disabled: false };
   if (me.checkedIn) return { kind: "checkedIn", label: "Checked In", disabled: true };
-  // The task arrives with the next query update after joining; the proof camera needs it.
-  return { kind: "checkIn", label: "Check In", disabled: drop.taskId === undefined };
+  // The server hands out the task the proof camera needs only once check-in opens, so until then
+  // the button says when that is rather than sitting greyed out with no reason.
+  if (drop.taskId === undefined) {
+    return { kind: "checkIn", label: `Check-in opens ${formatStart(drop.opensAt - CHECK_IN_LEAD_MS)}`, disabled: true };
+  }
+  return { kind: "checkIn", label: "Check In", disabled: false };
 }

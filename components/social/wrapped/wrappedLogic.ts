@@ -36,9 +36,16 @@ export function previousIndex(current: number): number {
   return Math.max(current - 1, 0);
 }
 
+const isForwardTap = (tapX: number, pageWidth: number) => tapX > (pageWidth * 2) / 3;
+
 /** Story taps: the right third advances, the left third goes back, the middle does nothing. */
 export function indexAfterTap(tapX: number, pageWidth: number, current: number, pageCount: number): number {
-  if (tapX > (pageWidth * 2) / 3) return nextIndex(current, pageCount);
+  if (isForwardTap(tapX, pageWidth)) return nextIndex(current, pageCount);
   if (tapX < pageWidth / 3) return previousIndex(current);
   return current;
+}
+
+/** A forward tap on the last card has no card to go to, so it ends the story like the close button. */
+export function tapClosesStory(tapX: number, pageWidth: number, current: number, pageCount: number): boolean {
+  return isForwardTap(tapX, pageWidth) && current >= pageCount - 1;
 }

@@ -7,6 +7,7 @@ import {
   nextIndex,
   pageIndexFromOffset,
   previousIndex,
+  tapClosesStory,
 } from "./wrappedLogic";
 
 const KINDS = ["champion", "best_proof", "comeback", "fastest", "your_week"] as const;
@@ -71,5 +72,22 @@ describe("indexAfterTap", () => {
 
   it("does not run past the last card", () => {
     expect(indexAfterTap(340, 360, 4, 5)).toBe(4);
+  });
+});
+
+describe("tapClosesStory", () => {
+  it("closes on a right-third tap on the last card", () => {
+    expect(tapClosesStory(340, 360, 4, 5)).toBe(true);
+  });
+
+  it("does not close on an earlier card", () => {
+    expect(tapClosesStory(340, 360, 3, 5)).toBe(false);
+  });
+
+  it("keeps going back and ignoring the middle on the last card", () => {
+    expect(tapClosesStory(40, 360, 4, 5)).toBe(false);
+    expect(tapClosesStory(180, 360, 4, 5)).toBe(false);
+    expect(indexAfterTap(40, 360, 4, 5)).toBe(3);
+    expect(indexAfterTap(180, 360, 4, 5)).toBe(4);
   });
 });
