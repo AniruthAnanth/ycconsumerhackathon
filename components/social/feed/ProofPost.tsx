@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
@@ -9,9 +9,10 @@ import { confirmAction, notify } from "@/components/social/notify";
 import { Avatar, PositionPill, Score } from "@/components/ui";
 import { colors } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
+import { shareText } from "@/lib/native/share";
 
 import { ChallengeBar } from "./ChallengeBar";
-import { canChallenge, KIND_LABEL, timeAgo } from "./feedLogic";
+import { canChallenge, KIND_LABEL, proofShareText, reactionButtons, timeAgo } from "./feedLogic";
 import { ReactionBar } from "./ReactionBar";
 
 /**
@@ -29,8 +30,9 @@ export function ProofPost({
   myUserId: Id<"users"> | undefined;
   now: number;
 }) {
-  const router = useRouter();
   const openChallenge = useMutation(socialApi.challenges.open);
+  const react = useMutation(socialApi.feed.react);
+  const challengeable = canChallenge(item, myUserId, now);
   const kindLabel = KIND_LABEL[item.kind];
 
   // A failed challenge costs the challenger points, so it takes a second tap.
@@ -45,27 +47,56 @@ export function ProofPost({
 
   return (
     <View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${item.user.name}'s profile`}
-        onPress={() => router.push(`/profile/${item.user._id}`)}
-        style={styles.byline}
-      >
-        <Avatar uri={item.user.avatarUrl} name={item.user.name} size={40} />
-        <View style={styles.who}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.user.name}
-            <Text style={styles.age}>{`  ${timeAgo(item.createdAt, now)}`}</Text>
-          </Text>
-          <View style={styles.task}>
-            <PositionPill slot={item.slot} />
-            <Text style={styles.taskTitle} numberOfLines={1}>
-              {item.taskTitle}
-            </Text>
-          </View>
-        </View>
-        <Score value={item.points} />
-      </Pressable>
+      {/*
+        Tapping the byline opens the profile; a long press opens the iOS context menu with the
+        post's actions. Link.Menu is iOS-only and renders nothing elsewhere, so Android and the
+        web keep the plain link and the buttons below.
+      */}
+      <Link href={`/profile/${item.user._id}`} asChild>
+        <Link.Trigger>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.user.name}'s profile`}
+            style={styles.byline}
+          >
+            <Avatar uri={item.user.avatarUrl} name={item.user.name} size={40} />
+            <View style={styles.who}>
+              <Text style={styles.name} numberOfLines={1}>
+                {item.user.name}
+                <Text style={styles.age}>{`  ${timeAgo(item.createdAt, now)}`}</Text>
+              </Text>
+              <View style={styles.task}>
+                <PositionPill slot={item.slot} />
+                <Text style={styles.taskTitle} numberOfLines={1}>
+                  {item.taskTitle}
+                </Text>
+              </View>
+            </View>
+            <Score value={item.points} />
+          </Pressable>
+        </Link.Trigger>
+        <Link.Menu>
+          <Link.Menu title="React" icon="face.smiling" palette>
+            {reactionButtons(item.reactions).map(({ emoji, mine }) => (
+              <Link.MenuAction
+                key={emoji}
+                isOn={mine}
+                onPress={() => react({ proofId: item.proofId, emoji }).catch((error) => notify(errorMessage(error)))}
+              >
+                {emoji}
+              </Link.MenuAction>
+            ))}
+          </Link.Menu>
+          {challengeable ? (
+            <Link.MenuAction icon="flag" onPress={confirmChallenge}>
+              Challenge
+            </Link.MenuAction>
+          ) : null}
+          <Link.MenuAction icon="square.and.arrow.up" onPress={() => shareText(proofShareText(item))}>
+            Share
+          </Link.MenuAction>
+        </Link.Menu>
+      </Link>
 
       {item.mediaUrl && item.mediaType !== "canvas" ? (
         <ProofMedia uri={item.mediaUrl} mediaType={item.mediaType} style={styles.media} />
@@ -85,7 +116,7 @@ export function ProofPost({
         </Text>
         <View style={styles.actions}>
           <ReactionBar proofId={item.proofId} reactions={item.reactions} />
-          {canChallenge(item, myUserId, now) ? (
+          {challengeable ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Challenge" hitSlop={8} onPress={confirmChallenge}>
               <Text style={styles.challenge}>Challenge</Text>
             </Pressable>

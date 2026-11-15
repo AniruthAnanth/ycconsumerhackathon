@@ -6,6 +6,7 @@ import {
   canChallenge,
   challengeStatus,
   legitShare,
+  proofShareText,
   reactionButtons,
   REACTION_EMOJI,
   timeAgo,
@@ -92,5 +93,20 @@ describe("challengeStatus", () => {
     expect(challengeStatus(challenge("open"), NOW)).toBe("Points on hold · 12h left");
     expect(challengeStatus(challenge("upheld"), NOW)).toBe("Upheld · points stand");
     expect(challengeStatus(challenge("overturned"), NOW)).toBe("Overturned · task reopened");
+  });
+});
+
+describe("proofShareText", () => {
+  const item = { user: { _id: maya, name: "Maya" }, taskTitle: "Run 5k", points: 12, mediaType: "photo" as const };
+
+  it("names the player, the task and the points", () => {
+    expect(proofShareText(item)).toBe('Maya proved "Run 5k" for 12.0 pts on Lineup.');
+  });
+
+  it("adds the photo link when there is one, but not for a Canvas proof", () => {
+    expect(proofShareText({ ...item, mediaUrl: "https://x/p.jpg" })).toBe(
+      'Maya proved "Run 5k" for 12.0 pts on Lineup.\nhttps://x/p.jpg',
+    );
+    expect(proofShareText({ ...item, mediaUrl: "https://x/c", mediaType: "canvas" })).not.toContain("https");
   });
 });
