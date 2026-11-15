@@ -1,12 +1,16 @@
 import ActivityKit
 import ExpoModulesCore
 import Foundation
+import WidgetKit
 
 /// Starts, updates and ends Lineup's Live Activity with ActivityKit. JavaScript reaches it through
 /// lib/liveActivity.ts; the views are in the widget extension (targets/widget).
 ///
 /// The state crosses the bridge as a JSON string and is decoded straight into the activity's
 /// ContentState, so there is one definition of its shape on each side and no hand-written mapping.
+///
+/// It also hands the home-screen widget its data (setWidgetSnapshot, called from lib/homeWidget.ts),
+/// because it is the one native module the app has and the widget lives in the same extension.
 public class LiveActivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("LiveActivity")
@@ -62,6 +66,13 @@ public class LiveActivityModule: Module {
         return
       }
       await endAllActivities()
+    }
+
+    // Hands the home-screen widget its data. The widget extension is a separate process, so the
+    // only thing the two share is the App Group's UserDefaults.
+    AsyncFunction("setWidgetSnapshot") { (snapshotJson: String) in
+      UserDefaults(suiteName: "group.com.lineup.app")?.set(snapshotJson, forKey: "widgetSnapshot")
+      WidgetCenter.shared.reloadAllTimelines()
     }
   }
 }
