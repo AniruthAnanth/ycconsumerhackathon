@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -7,19 +6,19 @@ import { FormBody } from "@/components/join/FormBody";
 import { StakePicker } from "@/components/join/StakePicker";
 import type { Stake } from "@/components/join/stakes";
 import { Button, Header, Screen, SectionLabel } from "@/components/ui";
+import { leaveScreen } from "@/lib/leaveScreen";
 import { OpponentPicker } from "./OpponentPicker";
 import { type Opponent, useChallenge } from "./useChallenge";
 import { SCREEN_MARGIN, spacing } from "@/theme";
 
 /** Pick a stake and one friend for a head-to-head week. */
 export function ChallengeScreen() {
-  const router = useRouter();
   const [stakeUsd, setStakeUsd] = useState<Stake>(5);
   const [opponent, setOpponent] = useState<Opponent>({ kind: "link" });
   const { challenge, busy, failure } = useChallenge();
   return (
     <Screen>
-      <Header title="Challenge a Friend" onBack={router.canGoBack() ? router.back : undefined} />
+      <Header title="Challenge a Friend" onBack={() => leaveScreen("/matchup")} />
       <FormBody>
         <SectionLabel left="Stake each" />
         <View style={styles.body}>

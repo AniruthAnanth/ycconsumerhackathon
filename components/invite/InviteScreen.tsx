@@ -6,6 +6,7 @@ import { ErrorLine } from "@/components/join/ErrorLine";
 import { FormBody } from "@/components/join/FormBody";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
 import { phoneHint, toE164 } from "@/lib/phone";
+import { leaveScreen } from "@/components/social/leave";
 import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { inviteDetailLine } from "./inviteRoute";
@@ -22,7 +23,7 @@ export function InviteScreen() {
   if (me === undefined || preview === undefined) {
     return (
       <Screen>
-        <Header title="Invite" />
+        <Header title="Invite" onBack={leaveScreen} />
         <View style={styles.center}>
           <ActivityIndicator color={colors.textMuted} />
         </View>
@@ -33,7 +34,7 @@ export function InviteScreen() {
   if (preview === null) {
     return (
       <Screen>
-        <Header title="Invite" />
+        <Header title="Invite" onBack={leaveScreen} />
         <View style={styles.center}>
           <Text style={styles.muted}>This invite link is not valid</Text>
           <OutlinedPillButton label="Join with a code" onPress={() => router.replace("/join")} />
@@ -49,7 +50,7 @@ export function InviteScreen() {
 
   return (
     <Screen>
-      <Header title="Invite" />
+      <Header title="Invite" onBack={leaveScreen} />
       <FormBody>
         <View style={styles.hero}>
           <Text style={styles.kicker}>{preview.isSelf ? "This is your own invite" : `${preview.inviterName} invited you`}</Text>
