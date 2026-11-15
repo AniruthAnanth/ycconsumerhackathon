@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Banner, PositionPill, SectionLabel } from "@/components/ui";
+import { Banner, PositionPill, RowDivider, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   colors,
@@ -13,6 +13,9 @@ import {
   spacing,
   tabular,
 } from "@/theme";
+
+// A veto row has the pill but no thumbnail, so its text (and its divider) start one column in.
+const TEXT_INSET = SCREEN_MARGIN + layout.pillColumn + layout.columnGap;
 
 import type { TaskVeto } from "../contract";
 import { myStruck, struckBanner, upForVeto } from "./vetoLogic";
@@ -62,6 +65,7 @@ export function UpForVeto({
             <VetoChip veto={veto} leagueId={leagueId} />
           </View>
           <Text style={styles.points}>{veto.points}</Text>
+          <RowDivider inset={TEXT_INSET} />
         </View>
       ))}
       {open.length > shown.length ? (
@@ -85,11 +89,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   text: { flex: 1, gap: spacing.xs },
-  more: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  more: { minHeight: layout.rowMin, justifyContent: "center", paddingLeft: TEXT_INSET, paddingRight: SCREEN_MARGIN },
   moreText: { color: colors.accent, fontSize: font.meta, fontFamily: fontFamily.bold },
   title: {
     color: colors.text,
-    fontSize: font.body,
+    fontSize: font.title,
     fontFamily: fontFamily.bold,
   },
   owner: {
@@ -102,7 +106,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: colors.text,
     fontSize: font.score,
-    fontFamily: fontFamily.extraBold,
+    fontFamily: fontFamily.bold,
     ...tabular,
   },
 });

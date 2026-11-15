@@ -2,7 +2,7 @@ import { useMutation } from "convex/react";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { Button, TextField } from "@/components/ui";
+import { Button, OutlinedPillButton, TextField } from "@/components/ui";
 import { errorMessage } from "@/lib/errorMessage";
 import { spacing } from "@/theme";
 
@@ -18,7 +18,8 @@ export function SwapEditor({ veto }: { veto: TaskVeto }) {
 
   if (!open)
     return (
-      <Button label="Swap" onPress={() => setOpen(true)} style={styles.swap} />
+      // Secondary, so a struck row inside the list never competes with the screen's one primary action.
+      <OutlinedPillButton label="Swap" icon="refresh" onPress={() => setOpen(true)} style={styles.swap} />
     );
 
   const save = () => {
