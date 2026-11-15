@@ -10,11 +10,11 @@ import type { DropView } from "./dropView";
 
 type TimedView = Extract<DropView, { type: "timed" }>;
 
-/** A quick-time drop, or a mystery task already opened: time left, what to show, and Submit. */
+/** A quick-time drop: time left, what to show, and Submit. */
 export function TimedActions({ view }: { view: TimedView }) {
   const router = useRouter();
   const { proof } = view;
-  const details = [view.gesture?.toUpperCase(), `${view.points} PTS`, view.wager ? `WAGER ${view.wager}` : undefined];
+  const details = [view.gesture?.toUpperCase(), `${view.points} PTS`];
 
   return (
     <View style={styles.row}>

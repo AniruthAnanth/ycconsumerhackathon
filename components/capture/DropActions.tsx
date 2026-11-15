@@ -4,7 +4,6 @@ import type { Drop } from "@/lib/backend";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
 import { GroupActions } from "./drops/GroupActions";
-import { SealedMysteryActions } from "./drops/SealedMysteryActions";
 import { TimedActions } from "./drops/TimedActions";
 import { dropView } from "./drops/dropView";
 import { useNow } from "./drops/useNow";
@@ -18,8 +17,6 @@ export function DropActions({ drop }: Props) {
   switch (view.type) {
     case "hidden":
       return null;
-    case "sealed":
-      return <SealedMysteryActions view={view} />;
     case "timed":
       return <TimedActions view={view} />;
     case "group":

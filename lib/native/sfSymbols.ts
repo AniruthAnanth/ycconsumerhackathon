@@ -37,8 +37,6 @@ export const SF_SYMBOL_FOR_IONICON: Partial<Record<IoniconName, SFSymbol>> = {
   "leaf-outline": "leaf",
   "location-outline": "location",
   "lock-closed": "lock.fill",
-  mail: "envelope.fill",
-  "mail-open": "envelope.open.fill",
   "mic-outline": "mic",
   people: "person.2.fill",
   "people-outline": "person.2",

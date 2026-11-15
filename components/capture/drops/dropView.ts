@@ -7,13 +7,11 @@ import { formatCountdown } from "./countdown";
 /** What the banner shows for a drop at a given moment. */
 export type DropView =
   | { type: "hidden" }
-  | { type: "sealed"; dropId: Id<"drops">; slot: Drop["slot"]; points: number }
   | {
       type: "timed";
       countdown: string;
       points: number;
       gesture?: string;
-      wager?: number;
       proof?: ProofTarget;
     }
   | { type: "group"; dropId: Id<"drops">; countdown: string; started: boolean; attending: number; going: boolean };
@@ -49,16 +47,13 @@ export function dropView(drop: Drop, now: number, meId?: Id<"users">): DropView 
     };
   }
 
-  if (drop.kind === "mystery" && drop.sealed) {
-    return { type: "sealed", dropId: drop.dropId, slot: drop.slot, points: drop.points };
-  }
+  if (drop.kind !== "quicktime") return { type: "hidden" };
 
   return {
     type: "timed",
     countdown: formatCountdown(drop.closesAt - now),
     points: drop.points,
     gesture: drop.gesture,
-    wager: drop.kind === "mystery" ? drop.wager : undefined,
     proof: proofTargetFor(drop),
   };
 }
