@@ -316,9 +316,32 @@ describe("wording", () => {
       promptCopy({ kind: "at_risk", task: legDay }, { now: NOW, rival: { name: "Maya Chen", gap }, worth: 65 });
     expect(copy(15)).toEqual({ label: "12H LEFT", line: "Maya's up 15. Leg day flips it." });
     expect(copy(65).line).toBe("Maya's up 65. Leg day ties it.");
-    expect(copy(80).line).toBe("Maya's up 80. Leg day cuts it to 15.");
-    expect(copy(-15).line).toBe("Maya's 15 back. Leg day makes it 80.");
-    expect(copy(0).line).toBe("Tied with Maya. Leg day breaks the tie.");
+    expect(copy(0).line).toBe("Tied with Maya. Leg day breaks it.");
+    const run = (gap: number) =>
+      promptCopy({ kind: "at_risk", task: task({ taskId: "run", title: "Run" }) }, { now: NOW, rival: { name: "Maya Chen", gap }, worth: 65 });
+    expect(run(80).line).toBe("Maya's up 80. Run cuts it to 15.");
+    expect(run(-15).line).toBe("Maya's 15 back. Run makes it 80.");
+  });
+
+  it("drops what the proof is worth before the row would cut the line off, and keeps the rival and the gap", () => {
+    const copy = (title: string, gap: number) =>
+      promptCopy({ kind: "at_risk", task: task({ taskId: "t", title }) }, { now: NOW, rival: { name: "Priya Shah", gap }, worth: 65 });
+    // 46 characters with "cuts it to 70." on the end: the row showed "Priya's up 135. Read two papers cut…".
+    expect(copy("Read two papers", 135).line).toBe("Priya's up 135. Read two papers.");
+    expect(copy("Leg day", 80).line).toBe("Priya's up 80. Leg day.");
+    // Too long either way: the row cuts the end of the title, and the gap is still whole.
+    expect(copy("Study for the stats midterm", -120).line).toBe("Priya's 120 back. Study for the stats midterm.");
+  });
+
+  it("puts the points first when a long title would push them off the line", () => {
+    const algorithms = task({ taskId: "algo", title: "Finish algorithms problem set" });
+    expect(promptCopy({ kind: "at_risk", task: algorithms }, { now: NOW, rival: null, worth: 65 }).line).toBe(
+      "+40 for Finish algorithms problem set.",
+    );
+    const climbing = task({ taskId: "climb", place: { ...YC_OFFICE, name: "Mission Cliffs Climbing" } });
+    expect(promptCopy({ kind: "nearby", task: climbing, meters: 5 }, { now: NOW, rival: null, worth: 65 }).line).toBe(
+      "You're at Mission Cliffs Climbing.",
+    );
   });
 
   it("still asks when the player has no rival", () => {
