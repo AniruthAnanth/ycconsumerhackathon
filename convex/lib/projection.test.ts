@@ -3,6 +3,7 @@ import {
   finishProbability,
   projectionLabel,
   projectPayout,
+  settledLabel,
   type Projection,
   type ProjectionMember,
 } from "./projection";
@@ -319,6 +320,13 @@ describe("projectionLabel", () => {
   test("tells an unpaid member what puts them in the pot", () => {
     expect(projectionLabel({ ...base, eligible: false, expectedCents: 0 })).toBe("Pay $10 to play for the pot");
     expect(projectionLabel({ ...base, eligible: false, stakeCents: 250, expectedCents: 0 })).toBe("Pay $2.50 to play for the pot");
+  });
+
+  test("says what a settled week paid instead of projecting it", () => {
+    expect(settledLabel({ ...base, expectedCents: 10000 })).toBe("Won $90.00");
+    expect(settledLabel({ ...base, expectedCents: 0 })).toBe("Lost $10.00");
+    expect(settledLabel(base)).toBe("Broke even");
+    expect(settledLabel({ ...base, eligible: false, expectedCents: 0 })).toBe("Pay $10 to play for the pot");
   });
 
   test("shows nothing to win where there is no stake", () => {
