@@ -16,7 +16,7 @@ export function PlaceMap({ coordinate, title }: { coordinate: Coordinate; title?
 }
 
 const styles = StyleSheet.create({
-  box: { height: 220, width: "100%", alignItems: "center", justifyContent: "center", gap: spacing.xs, backgroundColor: colors.strip },
-  title: { fontSize: font.header, fontWeight: "700", color: colors.text },
+  box: { height: 220, width: "100%", alignItems: "center", justifyContent: "center", gap: spacing.xs, padding: spacing.lg, backgroundColor: colors.strip },
+  title: { fontSize: font.header, fontWeight: "700", color: colors.text, textAlign: "center" },
   coordinates: { fontSize: font.body, color: colors.textMuted },
 });
