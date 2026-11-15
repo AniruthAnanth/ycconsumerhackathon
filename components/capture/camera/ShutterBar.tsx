@@ -1,0 +1,68 @@
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { colors, spacing } from "@/theme";
+
+import type { CaptureMode } from "./useProofCapture";
+
+const RECORD_RED = "#E5322D";
+
+type Props = {
+  mode: CaptureMode;
+  recording: boolean;
+  secondsRemaining: number | null;
+  busy: boolean;
+  onModeChange: (mode: CaptureMode) => void;
+  onShutter: () => void;
+  onFlip: () => void;
+};
+
+/** Photo / Video switch, the shutter with its countdown, and the camera flip. */
+export function ShutterBar({ mode, recording, secondsRemaining, busy, onModeChange, onShutter, onFlip }: Props) {
+  const idle = !recording && !busy;
+  return (
+    <View style={styles.bar} pointerEvents="box-none">
+      <Text style={styles.counter}>{recording ? `0:${String(secondsRemaining ?? 0).padStart(2, "0")}` : " "}</Text>
+      <View style={styles.row}>
+        <View style={styles.side}>
+          {(["photo", "video"] as const).map((option) => (
+            <Pressable key={option} disabled={!idle} onPress={() => onModeChange(option)} hitSlop={8}>
+              <Text style={[styles.mode, mode === option && styles.modeActive]}>{option.toUpperCase()}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable
+          onPress={onShutter}
+          disabled={busy && !recording}
+          accessibilityLabel={recording ? "Stop recording" : "Take proof"}
+          style={styles.shutterRing}
+        >
+          <View
+            style={[
+              styles.shutter,
+              mode === "video" && styles.shutterVideo,
+              recording && styles.shutterRecording,
+            ]}
+          />
+        </Pressable>
+        <View style={styles.side}>
+          <Pressable disabled={!idle} onPress={onFlip} hitSlop={8} accessibilityLabel="Flip camera">
+            <Text style={styles.mode}>FLIP</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bar: { alignItems: "center", gap: spacing.md, paddingVertical: spacing.lg },
+  counter: { color: colors.background, fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", alignSelf: "stretch", paddingHorizontal: spacing.xl },
+  side: { width: 80, gap: spacing.md, alignItems: "center" },
+  mode: { color: colors.background, fontSize: 13, fontWeight: "700", letterSpacing: 1, opacity: 0.6 },
+  modeActive: { opacity: 1 },
+  shutterRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 4, borderColor: colors.background, alignItems: "center", justifyContent: "center" },
+  shutter: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.background },
+  shutterVideo: { backgroundColor: RECORD_RED },
+  shutterRecording: { width: 34, height: 34, borderRadius: 6 },
+});
