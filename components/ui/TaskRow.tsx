@@ -30,11 +30,13 @@ export function TaskRow({ task, highlighted = false, onPress, right }: Props) {
       <PositionPill slot={task.slot} />
       <Avatar uri={task.thumbUrl} slot={task.slot} />
       <View style={styles.text}>
+        {/* Up Next shares its row with a button, so its tag sits above the title and the title may wrap: beside the title, the two left a narrow phone one letter of it. */}
+        {highlighted ? <Text style={[styles.tag, styles.tagUpNext]}>UP NEXT</Text> : null}
         <View style={styles.titleLine}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={styles.title} numberOfLines={highlighted ? 2 : 1}>
             {task.title}
           </Text>
-          <Text style={[styles.tag, highlighted && styles.tagUpNext]}>{highlighted ? "UP NEXT" : SLOT_NAME[task.slot]}</Text>
+          {highlighted ? null : <Text style={styles.tag}>{SLOT_NAME[task.slot]}</Text>}
         </View>
         <Text style={styles.meta} numberOfLines={1}>
           {taskStatusLine(task)}
@@ -75,6 +77,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.md,
+    // Room above and below for the Up Next row, the one that can grow past the minimum.
+    paddingVertical: spacing.sm,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
@@ -85,7 +89,8 @@ const styles = StyleSheet.create({
   text: { flex: 1, gap: 1 },
   titleLine: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   title: { flexShrink: 1, fontSize: font.title, fontWeight: "700", color: colors.text },
-  tag: { fontSize: font.label, color: colors.textMuted },
+  // Never shrinks: on the web a squeezed tag wraps onto a second line.
+  tag: { flexShrink: 0, fontSize: font.label, color: colors.textMuted },
   tagUpNext: { color: colors.accent, fontWeight: "700", letterSpacing: 0.3 },
   meta: { fontSize: font.meta, color: colors.textMuted },
 });

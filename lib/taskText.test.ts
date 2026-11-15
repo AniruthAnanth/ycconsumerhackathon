@@ -39,8 +39,8 @@ describe("taskStatusLine", () => {
     expect(taskStatusLine({ ...base, status: "verified", verifiedAt })).toBe("Verified 2:14 PM");
   });
 
-  it("invites a retry after a failed proof", () => {
-    expect(taskStatusLine({ ...base, proofType: "photo", status: "failed" })).toBe("Photo | Not verified, try again");
+  it("closes a drop task nobody proved, with no invitation to retry", () => {
+    expect(taskStatusLine({ ...base, proofType: "photo", status: "failed" })).toBe("Missed");
   });
 
   it("marks a challenged proof", () => {

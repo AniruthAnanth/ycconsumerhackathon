@@ -95,7 +95,14 @@ export type Standing = {
   paid: boolean;
 };
 
-export type Payout = { userId: Id<"users">; name: string; kind: "refund" | "winnings"; amountUsd: number };
+export type Payout = {
+  userId: Id<"users">;
+  name: string;
+  kind: "refund" | "winnings";
+  amountUsd: number;
+  /** Whop's id for the refund or transfer; present only once Whop has accepted the money movement. */
+  whopId?: string;
+};
 
 export type Pot = {
   stakeUsd: number;
