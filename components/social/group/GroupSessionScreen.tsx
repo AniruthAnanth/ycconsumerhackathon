@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { leaveScreen } from "@/components/social/leave";
 import { notify } from "@/components/social/notify";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
@@ -31,7 +32,7 @@ export function GroupSessionScreen() {
   if (drops === undefined || myUserId === undefined) {
     return (
       <Screen>
-        <Header title="Group Session" onBack={router.back} />
+        <Header title="Group Session" onBack={leaveScreen} />
         <ScreenState loading />
       </Screen>
     );
@@ -39,7 +40,7 @@ export function GroupSessionScreen() {
   if (!drop?.place) {
     return (
       <Screen>
-        <Header title="Group Session" onBack={router.back} />
+        <Header title="Group Session" onBack={leaveScreen} />
         <ScreenState message="This session has ended" />
       </Screen>
     );
@@ -71,7 +72,7 @@ export function GroupSessionScreen() {
 
   return (
     <Screen>
-      <Header title="Group Session" onBack={router.back} />
+      <Header title="Group Session" onBack={leaveScreen} />
       <ScrollView>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{drop.title}</Text>

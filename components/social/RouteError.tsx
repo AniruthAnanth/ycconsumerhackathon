@@ -1,10 +1,11 @@
-import { type ErrorBoundaryProps, useRouter } from "expo-router";
+import type { ErrorBoundaryProps } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { colors, font, spacing } from "@/theme";
 
 import { errorMessage } from "./errorMessage";
+import { leaveScreen } from "./leave";
 
 /**
  * What a social route shows when its screen throws. For these screens that means a query the
@@ -13,10 +14,9 @@ import { errorMessage } from "./errorMessage";
  * costs one screen with a way to retry rather than the whole app.
  */
 export function RouteError({ error, retry }: ErrorBoundaryProps) {
-  const router = useRouter();
   return (
     <Screen>
-      <Header title="Lineup" onBack={router.back} />
+      <Header title="Lineup" onBack={leaveScreen} />
       <Failure error={error} retry={retry} />
     </Screen>
   );

@@ -1,11 +1,11 @@
 import { useAction } from "convex/react";
-import { useRouter } from "expo-router";
 import { useReducer, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { leaveScreen } from "@/components/social/leave";
 import { ScreenState } from "@/components/social/ScreenState";
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -16,7 +16,6 @@ import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 
 export function ChatScreen() {
-  const router = useRouter();
   const { leagueId } = useCurrentLeague();
   const chat = useAction(socialApi.keiki.chat);
   const insets = useSafeAreaInsets();
@@ -57,7 +56,7 @@ export function ChatScreen() {
 
   return (
     <Screen>
-      <Header title="League Agent" onBack={router.back} />
+      <Header title="League Agent" onBack={leaveScreen} />
       {leagueId ? (
         <KeyboardAvoidingView
           style={styles.body}

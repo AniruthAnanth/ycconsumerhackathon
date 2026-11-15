@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
@@ -7,6 +7,7 @@ import { colors, font, hairline, spacing } from "@/theme";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { socialApi } from "../contract";
+import { leaveScreen } from "../leave";
 import { ScreenState } from "../ScreenState";
 import { formatDuration, formatPercent, formatPoints, formatStreak } from "./profileLogic";
 import { StatRow } from "./StatRow";
@@ -14,15 +15,12 @@ import { StatRow } from "./StatRow";
 const NO_VALUE = "\u2014";
 
 export function ProfileScreen() {
-  const router = useRouter();
-  // A reload or deep link opens this screen with no history, where router.back() throws.
-  const leave = () => (router.canGoBack() ? router.back() : router.replace("/"));
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const profile = useQuery(socialApi.profile.get, { userId: userId as Id<"users"> });
 
   return (
     <Screen scroll>
-      <Header title="Profile" onBack={leave} />
+      <Header title="Profile" onBack={leaveScreen} />
       {profile === undefined ? (
         <ScreenState loading />
       ) : (
