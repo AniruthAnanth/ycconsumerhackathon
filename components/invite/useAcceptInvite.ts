@@ -3,11 +3,11 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 
 import { errorMessage } from "@/components/join/errorMessage";
+import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
 
-import { referrals } from "./backend";
 import { routeAfterAccept } from "./inviteRoute";
 
 /**
@@ -18,9 +18,9 @@ import { routeAfterAccept } from "./inviteRoute";
 export function useAcceptInvite(token: string) {
   const router = useRouter();
   const { me, setLeagueId } = useCurrentLeague();
-  const preview = useQuery(referrals.preview, token ? { token } : "skip");
+  const preview = useQuery(api.referrals.preview, token ? { token } : "skip");
   const createUser = useMutation(backend.users.createUser);
-  const accept = useMutation(referrals.accept);
+  const accept = useMutation(api.referrals.accept);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export function useAcceptInvite(token: string) {
   function open() {
     if (!preview) return;
     setLeagueId(preview.leagueId);
-    router.replace(preview.mode === "versus" ? "/(tabs)/matchup" : "/(tabs)/league");
+    router.replace(routeAfterAccept({ hadLeagues: true, mode: preview.mode }));
   }
 
   return { me, preview, join, open, saving, error, clearError: () => setError(null) };

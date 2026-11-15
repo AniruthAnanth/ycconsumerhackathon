@@ -2,9 +2,10 @@ import { useQuery } from "convex/react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Divider, SectionLabel } from "@/components/ui";
+import { api } from "@/convex/_generated/api";
+import { REFERRAL_POINTS } from "@/convex/lib/referralRules";
 import { colors, font, hairline, spacing, ROW_HEIGHT_COMPACT } from "@/theme";
 
-import { referrals } from "./backend";
 import { friendStatusLine } from "./inviteRoute";
 
 /**
@@ -12,7 +13,7 @@ import { friendStatusLine } from "./inviteRoute";
  * in. Recruiter points are kept apart from league points, so this never moves a pot.
  */
 export function RecruiterCard() {
-  const mine = useQuery(referrals.mine);
+  const mine = useQuery(api.referrals.mine);
   if (!mine) return null;
   return (
     <View>
@@ -22,7 +23,7 @@ export function RecruiterCard() {
         <Total label="Invited" value={String(mine.invited)} />
         <Total label="Locked" value={String(mine.locked)} />
       </View>
-      <Text style={styles.rule}>A friend who locks a first lineup earns you 25 Recruiter points.</Text>
+      <Text style={styles.rule}>{`A friend who locks a first lineup earns you ${REFERRAL_POINTS} Recruiter points.`}</Text>
       <SectionLabel left="Friends" />
       {mine.friends.length === 0 ? <Text style={styles.empty}>No friends invited yet</Text> : null}
       {mine.friends.map((friend) => (

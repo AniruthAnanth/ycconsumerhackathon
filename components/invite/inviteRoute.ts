@@ -1,3 +1,5 @@
+import { formatUsd } from "@/lib/leagueText";
+
 import type { InviteMode, RecruitedFriend, RecruiterSummary } from "./backend";
 
 /**
@@ -12,7 +14,7 @@ export function routeAfterAccept({ hadLeagues, mode }: { hadLeagues: boolean; mo
 
 /** "$5 buy-in", or "Free" for a league with no stake. */
 export function stakeLabel(stakeUsd: number): string {
-  return stakeUsd > 0 ? `$${Number.isInteger(stakeUsd) ? stakeUsd : stakeUsd.toFixed(2)} buy-in` : "Free";
+  return stakeUsd > 0 ? `${formatUsd(stakeUsd)} buy-in` : "Free";
 }
 
 /** The line under the league name on the landing screen: "1v1 challenge · $5 buy-in · 4 players". */
