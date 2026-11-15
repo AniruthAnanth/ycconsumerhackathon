@@ -8,16 +8,9 @@
  * (lineupProblem refuses it).
  */
 import { isValidLatLng } from "./geo";
-
-/** The five slots every lineup must fill, in roster order. */
-export const CORE_SLOTS = ["body", "mind", "recharge", "chores", "people"] as const;
-export type CoreSlot = (typeof CORE_SLOTS)[number];
-export type Slot = CoreSlot | "flex";
+import { CORE_SLOTS, clampTaskPoints, type CoreSlot, type Slot } from "./scoring";
 
 export const MAX_FLEX_TASKS = 3;
-export const MIN_TASK_POINTS = 10;
-export const MAX_TASK_POINTS = 50;
-const POINTS_STEP = 5;
 const MAX_TITLE_LENGTH = 60;
 
 export type Place = { name: string; lat: number; lng: number };
@@ -49,13 +42,6 @@ const FALLBACK_TASKS: Record<CoreSlot, DraftTask> = {
   chores: { slot: "chores", title: "Tidy your room", points: 10, proofType: "photo" },
   people: { slot: "people", title: "Call a friend", points: 10, proofType: "photo" },
 };
-
-/** Rounds to the nearest step of 5 and keeps the result within 10 to 50. */
-export function clampTaskPoints(points: number): number {
-  if (!Number.isFinite(points)) return MIN_TASK_POINTS;
-  const stepped = Math.round(points / POINTS_STEP) * POINTS_STEP;
-  return Math.min(MAX_TASK_POINTS, Math.max(MIN_TASK_POINTS, stepped));
-}
 
 /**
  * Makes one task self-consistent: a trimmed title, points in range, and a

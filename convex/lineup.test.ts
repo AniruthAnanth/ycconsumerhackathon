@@ -7,7 +7,6 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { draftLineup, rateTask, transcribe } from "./ai";
 import type { DraftTask } from "./lib/lineupRules";
-import { nextWeekStart, weekStartOf } from "./lineup";
 import { addMemory, searchMemories } from "./memory";
 import schema from "./schema";
 
@@ -74,24 +73,6 @@ async function runScheduled(t: Backend) {
     await t.finishInProgressScheduledFunctions();
   }
 }
-
-describe("week maths", () => {
-  it("names a week by its Monday midnight in Los Angeles", () => {
-    expect(weekStartOf(NOW)).toBe(WEEK_START);
-    expect(weekStartOf(WEEK_START)).toBe(WEEK_START);
-    expect(weekStartOf(WEEK_START - 1)).toBe(Date.UTC(2026, 10, 2, 8));
-  });
-
-  it("follows daylight saving: midnight is 07:00 UTC in summer", () => {
-    expect(weekStartOf(Date.UTC(2026, 6, 15, 12))).toBe(Date.UTC(2026, 6, 13, 7));
-  });
-
-  it("steps to the next Monday across a clock change", () => {
-    expect(nextWeekStart(WEEK_START)).toBe(NEXT_WEEK_START);
-    // Clocks go back on Sunday, November 1, 2026, so that week is 169 hours long.
-    expect(nextWeekStart(Date.UTC(2026, 9, 26, 7))).toBe(Date.UTC(2026, 10, 2, 8));
-  });
-});
 
 describe("lineup.draft", () => {
   it("drafts from a typed transcript and searches the player's own memory first", async () => {

@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  CORE_SLOTS,
-  clampTaskPoints,
-  lineupProblem,
-  shapeDraft,
-  tidyTask,
-  type DraftTask,
-  type Slot,
-} from "./lineupRules";
+import { lineupProblem, shapeDraft, tidyTask, type DraftTask } from "./lineupRules";
+import { CORE_SLOTS, type Slot } from "./scoring";
 
 function task(slot: Slot, title: string, overrides: Partial<DraftTask> = {}): DraftTask {
   return { slot, title, points: 30, proofType: "photo", ...overrides };
@@ -20,24 +13,6 @@ const fullLineup = [
   task("chores", "Do laundry"),
   task("people", "Dinner with Maya"),
 ];
-
-describe("clampTaskPoints", () => {
-  it("keeps points within 10 to 50", () => {
-    expect(clampTaskPoints(2)).toBe(10);
-    expect(clampTaskPoints(10)).toBe(10);
-    expect(clampTaskPoints(50)).toBe(50);
-    expect(clampTaskPoints(400)).toBe(50);
-  });
-
-  it("rounds to steps of 5", () => {
-    expect(clampTaskPoints(32)).toBe(30);
-    expect(clampTaskPoints(33)).toBe(35);
-  });
-
-  it("falls back to the minimum for a non-number", () => {
-    expect(clampTaskPoints(Number.NaN)).toBe(10);
-  });
-});
 
 describe("tidyTask", () => {
   it("trims the title and clamps the points", () => {
