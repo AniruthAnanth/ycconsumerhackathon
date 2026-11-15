@@ -91,15 +91,21 @@ export function VoiceDraftScreen() {
             </View>
           ) : null}
         </ScrollView>
-        <View style={styles.footer}>
-          {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
-          <Button label="Lock Lineup" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
-          {lockRefused ? (
-            <Pressable accessibilityRole="button" style={styles.leave} onPress={() => router.replace("/(tabs)")} hitSlop={8}>
-              <Text style={styles.redo}>Go to Roster</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        {/* One primary action at a time: Lock Lineup appears with the lineup it locks. Pinned while
+            the player is still talking or typing, it covered "Draft from text" on a short phone. */}
+        {showsLineup || state.error ? (
+          <View style={styles.footer}>
+            {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
+            {showsLineup ? (
+              <Button label="Lock Lineup" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
+            ) : null}
+            {lockRefused ? (
+              <Pressable accessibilityRole="button" style={styles.leave} onPress={() => router.replace("/(tabs)")} hitSlop={8}>
+                <Text style={styles.redo}>Go to Roster</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
     </Screen>
   );
