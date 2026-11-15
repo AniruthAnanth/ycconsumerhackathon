@@ -1,5 +1,3 @@
-import { colors } from "@/theme";
-
 import type { WrappedCard } from "../contract";
 
 type Kind = WrappedCard["kind"];
@@ -12,13 +10,16 @@ export const KIND_LABEL: Record<Kind, string> = {
   your_week: "YOUR WEEK",
 };
 
-/** Solid fill for a card that has no photo or video behind it. */
+/**
+ * Solid fill for a card that has no photo or video behind it. Plain hex rather
+ * than theme tokens: the theme imports react-native, which vitest cannot load.
+ */
 export const KIND_BACKGROUND: Record<Kind, string> = {
-  champion: colors.accent,
-  best_proof: colors.tabActive,
-  comeback: colors.danger,
+  champion: "#0B69FF",
+  best_proof: "#00A651",
+  comeback: "#E8590C",
   fastest: "#6741D9",
-  your_week: colors.text,
+  your_week: "#121213",
 };
 
 /** The page a horizontal paging scroll has settled on. */
