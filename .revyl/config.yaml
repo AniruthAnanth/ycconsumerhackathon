@@ -1,0 +1,47 @@
+# Revyl project config for Lineup. Docs: https://docs.revyl.com/reference/cli/configuration.md
+#
+# What this turns on: for a pull request carrying the "revyl-proof" label, Revyl builds the
+# pull request's commit for the iOS Simulator, installs it on a cloud iPhone, exercises what
+# the diff changed, and posts a verdict with screenshots on the pull request.
+# Validate edits with: revyl config validate
+
+project:
+  id: "03ba1514-4860-4ff0-8ee8-c08061dad552"
+
+build:
+  framework: expo
+  env:
+    # Expo inlines EXPO_PUBLIC_* at bundle time; this is the crew's shared Convex dev deployment.
+    EXPO_PUBLIC_CONVEX_URL: https://sensible-guineapig-9.convex.cloud
+  profiles:
+    pull-request:
+      ios:
+        app_id: "6ba3bfeb-f358-4407-8088-aa75619a7363"
+        # One script holds the whole recipe so this profile, Capy's mobile build tool and a
+        # developer's Mac all build the same way. See scripts/README.md.
+        build_commands:
+          - bash scripts/build-ios-sim.sh
+        output_path: build/Lineup-sim.zip
+        timeout_seconds: 2700
+
+pr_review:
+  enabled: true
+  triggers:
+    # Label-gated on purpose: the crew merges small pull requests within minutes of green CI,
+    # and a 10-minute simulator build on each one would hold every merge back. Add the label
+    # (or comment "@revyl proof ios") on a pull request worth proving on a device.
+    labels: [revyl-proof]
+  build:
+    kind: revyl
+    profile: pull-request
+  proof_of_changes:
+    enabled: true
+    harness:
+      kind: revyl
+    always_verify:
+      - "The app launches to its first screen with no crash, no red error screen and no blank white screen"
+    system_prompt: >-
+      Lineup is an ESPN-Fantasy-style app. A fresh install opens on one onboarding screen that
+      asks for a name and a phone number; any name and a phone number like +14155550123 work,
+      and there is no password. The cloud simulator has no camera, microphone or GPS, so the
+      app offers sample photos, a typed transcript and a fixed location in their place.

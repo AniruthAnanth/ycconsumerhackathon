@@ -1,0 +1,38 @@
+[
+  {
+    "name": "roster",
+    "file": "roster.png",
+    "headline": "Your week is a roster.",
+    "sub": "Five slots. Clear them and you keep your money."
+  },
+  {
+    "name": "voice-draft",
+    "file": "voice-draft.png",
+    "headline": "Draft your week by talking.",
+    "sub": "Thirty seconds of voice becomes a locked lineup."
+  },
+  {
+    "name": "verdict",
+    "file": "verdict.png",
+    "headline": "An AI referee checks every proof.",
+    "sub": "Every photo gets a verdict and a reason."
+  },
+  {
+    "name": "league",
+    "file": "league.png",
+    "headline": "Real money on the line.",
+    "sub": "Score the most and you take everyone else's."
+  },
+  {
+    "name": "feed",
+    "file": "feed.png",
+    "headline": "Your league sees everything.",
+    "sub": "Proofs, reactions and challenges, live."
+  },
+  {
+    "name": "wrapped",
+    "file": "wrapped.png",
+    "headline": "Every week ends with a recap.",
+    "sub": "Champion, best proof, comeback, your week."
+  }
+]
