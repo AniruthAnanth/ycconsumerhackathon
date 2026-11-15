@@ -112,9 +112,12 @@ export type SettlementLedgerRow<UserId> = {
 /**
  * The ledger rows a settlement produces: a refund and (when non-zero) a winnings
  * row per paid-out member, and one fee row. Their amounts sum to the pot.
+ *
+ * `scope` names what is being settled, a week id or a league's season, and
+ * prefixes every key, so each member has at most one refund and one winnings row in it.
  */
 export function settlementLedgerRows<UserId extends string>(
-  weekId: string,
+  scope: string,
   settlement: Settlement<UserId>,
 ): SettlementLedgerRow<UserId>[] {
   const rows: SettlementLedgerRow<UserId>[] = [];
@@ -123,14 +126,14 @@ export function settlementLedgerRows<UserId extends string>(
       userId,
       kind: "refund",
       amountUsd: refundCents / 100,
-      idempotencyKey: `${weekId}:${userId}:refund`,
+      idempotencyKey: `${scope}:${userId}:refund`,
     });
     if (winningsCents > 0) {
       rows.push({
         userId,
         kind: "winnings",
         amountUsd: winningsCents / 100,
-        idempotencyKey: `${weekId}:${userId}:winnings`,
+        idempotencyKey: `${scope}:${userId}:winnings`,
       });
     }
   }
@@ -138,7 +141,7 @@ export function settlementLedgerRows<UserId extends string>(
     rows.push({
       kind: "fee",
       amountUsd: settlement.feeCents / 100,
-      idempotencyKey: `${weekId}:fee`,
+      idempotencyKey: `${scope}:fee`,
     });
   }
   return rows;
