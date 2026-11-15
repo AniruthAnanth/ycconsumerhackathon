@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { Icon } from "@/components/ui";
-import { leaderboards } from "@/components/leaderboards/backend";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { colors, font, hairline, spacing } from "@/theme";
 
@@ -13,7 +13,7 @@ import { useProjection } from "./useProjection";
 /** One row for the League and Roster screens: where you stand this week, what you are projected to win, and a way in to the boards. */
 export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null }) {
   const router = useRouter();
-  const week = useQuery(leaderboards.board, leagueId ? { leagueId, board: "week" } : "skip");
+  const week = useQuery(api.leaderboards.board, leagueId ? { leagueId, board: "week" } : "skip");
   const projection = useProjection(leagueId);
   if (!leagueId) return null;
 
