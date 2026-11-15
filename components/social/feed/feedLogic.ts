@@ -1,4 +1,5 @@
 import type { FeedChallenge, FeedItem, FeedReaction } from "@/components/social/contract";
+import { formatScore } from "@/lib/taskText";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -71,4 +72,12 @@ export function challengeStatus(challenge: Pick<FeedChallenge, "status" | "close
   if (challenge.status === "upheld") return "Upheld · points stand";
   if (challenge.status === "overturned") return "Overturned · task reopened";
   return `Points on hold · ${timeLeft(challenge.closesAt, now)}`;
+}
+
+/** What the post's Share action sends: who did what for how many points, and the photo when there is one. */
+export function proofShareText(
+  item: Pick<FeedItem, "user" | "taskTitle" | "points" | "mediaUrl" | "mediaType">,
+): string {
+  const line = `${item.user.name} proved "${item.taskTitle}" for ${formatScore(item.points)} pts on Lineup.`;
+  return item.mediaUrl && item.mediaType !== "canvas" ? `${line}\n${item.mediaUrl}` : line;
 }
