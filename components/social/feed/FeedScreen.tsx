@@ -12,6 +12,7 @@ import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/th
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
+import { UpForVeto } from "../veto/UpForVeto";
 import { ProofPost } from "./ProofPost";
 
 const PostDivider = () => <Divider inset={SCREEN_MARGIN} />;
@@ -26,6 +27,7 @@ export function FeedScreen() {
   const { leagueId } = useCurrentLeague();
   const myUserId = useMyUserId();
   const feed = useQuery(socialApi.feed.list, leagueId ? { leagueId } : "skip");
+  const board = useQuery(socialApi.vetoes.board, leagueId ? { leagueId } : "skip");
   const memberCount = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip")?.memberCount;
   const now = useNow(60_000);
 
@@ -43,6 +45,7 @@ export function FeedScreen() {
         )}
         ItemSeparatorComponent={PostDivider}
         ListHeaderComponent={
+          <>
           <View style={styles.shortcuts}>
             <View style={styles.shortcutRow}>
               <OutlinedPillButton label="Week Wrapped" onPress={() => router.push("/wrapped")} style={styles.shortcut} />
@@ -56,6 +59,8 @@ export function FeedScreen() {
               onPress={() => router.push("/group/new")}
             />
           </View>
+          <UpForVeto board={board} leagueId={leagueId} myUserId={myUserId} now={now} />
+          </>
         }
         ListEmptyComponent={<Text style={styles.empty}>No proofs yet</Text>}
       />

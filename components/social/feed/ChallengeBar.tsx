@@ -34,7 +34,7 @@ export function ChallengeBar({
   return (
     <View style={styles.box}>
       <View style={styles.heading}>
-        <Text style={styles.title}>CHALLENGED</Text>
+        <Text style={styles.title}>{challenge.byReferee ? "REFEREE UNSURE · LEAGUE DECIDES" : "VETO VOTE"}</Text>
         <Text style={styles.status}>{challengeStatus(challenge, now)}</Text>
       </View>
       <ProgressFill ratio={share} color={progress.fill} track={colors.danger} />
@@ -69,7 +69,7 @@ export function ChallengeBar({
 const styles = StyleSheet.create({
   box: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.lg, gap: spacing.sm },
   heading: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  title: { color: colors.text, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  title: { flexShrink: 1, color: colors.text, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.meta },
   sides: { flexDirection: "row", gap: spacing.sm },
   side: {

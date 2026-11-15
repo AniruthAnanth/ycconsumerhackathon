@@ -11,6 +11,7 @@ import { spacing } from "@/theme";
 
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
+import { boardByTask } from "../veto/vetoLogic";
 import { MatchupBody } from "./MatchupBody";
 
 export default function MatchupScreen() {
@@ -18,6 +19,7 @@ export default function MatchupScreen() {
   // standings.matchup takes no week, so it only ever answers for the current one; weekStart is set once the header steps away from it.
   const otherWeek = weekStart !== undefined;
   const matchup = useQuery(socialApi.standings.matchup, leagueId && !otherWeek ? { leagueId } : "skip");
+  const board = useQuery(socialApi.vetoes.board, leagueId && !otherWeek ? { leagueId } : "skip");
   const versus = useQuery(api.versus.get, leagueId ? { leagueId } : "skip");
 
   if (otherWeek) return <ScreenState message={`Matchups are only shown for the current week (Week ${league?.week.number}).`} />;
@@ -34,7 +36,11 @@ export default function MatchupScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
-      <MatchupBody matchup={matchup} belowHero={<MatchupMarkets />} />
+      <MatchupBody
+        matchup={matchup}
+        belowHero={<MatchupMarkets />}
+        vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined}
+      />
       <ChallengeButton />
       <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />
     </ScrollView>

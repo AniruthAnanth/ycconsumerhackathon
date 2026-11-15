@@ -47,9 +47,9 @@ export function ProofPost({
   // A failed challenge costs the challenger points, so it takes a second tap.
   const confirmChallenge = () =>
     confirmAction({
-      title: "Challenge this proof?",
+      title: "Veto this proof?",
       message: "The league votes. If the vote goes against you, you lose 10 points.",
-      confirmLabel: "Challenge",
+      confirmLabel: "Veto",
       onConfirm: () =>
         openChallenge({ proofId: item.proofId, leagueId }).catch((error) => notify(errorMessage(error))),
     });
@@ -99,7 +99,7 @@ export function ProofPost({
             </Link.Menu>
             {challengeable ? (
               <Link.MenuAction icon="flag" onPress={confirmChallenge}>
-                Challenge
+                Veto
               </Link.MenuAction>
             ) : null}
             <Link.MenuAction icon="square.and.arrow.up" onPress={() => shareText(proofShareText(item))}>
@@ -128,8 +128,8 @@ export function ProofPost({
         <View style={styles.actions}>
           <ReactionBar proofId={item.proofId} reactions={item.reactions} />
           {challengeable ? (
-            <PressScale accessibilityRole="button" accessibilityLabel="Challenge" style={styles.challengeHit} onPress={confirmChallenge}>
-              <Text style={styles.challenge}>Challenge</Text>
+            <PressScale accessibilityRole="button" accessibilityLabel="Veto" style={styles.challengeHit} onPress={confirmChallenge}>
+              <Text style={styles.challenge}>Veto</Text>
             </PressScale>
           ) : null}
         </View>
