@@ -346,7 +346,9 @@ export const context = internalQuery({
       gesture: drop?.gesture,
       imageTypes: files.map((file) => (file ? (file.contentType ?? "").split(";")[0].toLowerCase() : null)),
       imageHashes,
-      reusedImage: earlier.some((proof) => proof.imageHashes?.some((hash) => imageHashes.includes(hash))),
+      // Only an image that already scored (or waits on a vote) counts as used: a player whose
+      // proof failed may send the same shots again once they fix what was wrong.
+      reusedImage: earlier.some((proof) => proof.pass && proof.imageHashes?.some((hash) => imageHashes.includes(hash))),
     };
   },
 });
