@@ -1,12 +1,12 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
 import { Divider, OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { useNow } from "@/lib/useNow";
 import { colors } from "@/theme";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
@@ -24,7 +24,7 @@ export function FeedScreen() {
   const myUserId = useMyUserId();
   const feed = useQuery(socialApi.feed.list, leagueId ? { leagueId } : "skip");
   const memberCount = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip")?.memberCount;
-  const now = useNow();
+  const now = useNow(60_000);
 
   if (!leagueId || feed === undefined) return <ScreenState loading />;
 
@@ -54,16 +54,6 @@ export function FeedScreen() {
       />
     </Screen>
   );
-}
-
-/** The current time, refreshed each minute so ages and vote countdowns stay honest while the feed sits open. */
-function useNow(): number {
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
 }
 
 const styles = StyleSheet.create({

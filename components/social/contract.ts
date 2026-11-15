@@ -1,15 +1,16 @@
 /**
  * The slice of API.md that the social screens call, as typed function references.
  *
- * Backend modules land from several threads in no fixed order. Binding to the
- * documented names here lets every social screen typecheck against the agreed
- * contract rather than against whatever happens to be on main, and keeps the
- * shapes a screen renders readable in one place. Names and shapes mirror API.md
- * exactly; change them there first.
+ * Names and shapes mirror API.md by hand; change them there first.
  */
 import { makeFunctionReference } from "convex/server";
 
 import type { Id } from "@/convex/_generated/dataModel";
+import { backend, type Place, type Task as TaskRow } from "@/lib/backend";
+import type { Slot } from "@/lib/slots";
+
+export type { Slot } from "@/lib/slots";
+export type { Place, Me, Drop, Task as TaskRow } from "@/lib/backend";
 
 type NoArgs = Record<string, never>;
 
@@ -19,37 +20,6 @@ const mutation = <Args extends Record<string, unknown>, Result>(name: string) =>
   makeFunctionReference<"mutation", Args, Result>(name);
 const action = <Args extends Record<string, unknown>, Result>(name: string) =>
   makeFunctionReference<"action", Args, Result>(name);
-
-export type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
-
-export type Place = { name: string; lat: number; lng: number };
-
-export type TaskRow = {
-  taskId: Id<"tasks">;
-  slot: Slot;
-  title: string;
-  points: number;
-  proofType: "photo" | "photo_location" | "canvas";
-  place?: Place;
-  status: "open" | "verified" | "held" | "failed";
-  source: "draft" | "flex" | "drop" | "group";
-  /** Points earned so far; null until a proof is verified. */
-  score: number | null;
-  verifiedAt?: number;
-  thumbUrl?: string;
-  dueLabel: string;
-  upNext: boolean;
-};
-
-export type Me = {
-  _id: Id<"users">;
-  name?: string;
-  phone?: string;
-  onboarded: boolean;
-  /** Set while Switch Player (demo controls) has this device playing as someone else. */
-  actingAs?: { _id: Id<"users">; name: string };
-  leagues: { _id: Id<"leagues">; name: string; stakeUsd: number; paid: boolean }[];
-};
 
 export type MatchupSide = {
   userId: Id<"users">;
@@ -134,27 +104,9 @@ export type CanvasAssignment = {
   dueAt?: number;
 };
 
-export type Drop = {
-  dropId: Id<"drops">;
-  kind: "quicktime" | "group";
-  title: string;
-  slot: Slot;
-  points: number;
-  gesture?: string;
-  place?: Place;
-  opensAt: number;
-  closesAt: number;
-  /**
-   * The caller's task for this drop, present only while they can submit a proof against it. For a
-   * group session that is while check-in is open: 30 minutes before the start until 2 hours after.
-   */
-  taskId?: Id<"tasks">;
-  attendees?: { userId: Id<"users">; name: string; checkedIn: boolean }[];
-};
-
 export const socialApi = {
   users: {
-    me: query<NoArgs, Me | null>("users:me"),
+    me: backend.users.me,
   },
   standings: {
     matchup: query<{ leagueId: Id<"leagues"> }, Matchup | null>("standings:matchup"),
@@ -181,7 +133,7 @@ export const socialApi = {
     addTask: mutation<{ courseId: string; assignmentId: string; title: string }, Id<"tasks">>("canvas:addTask"),
   },
   drops: {
-    active: query<{ leagueId: Id<"leagues"> }, Drop[]>("drops:active"),
+    active: backend.drops.active,
     createGroupSession: mutation<
       { leagueId: Id<"leagues">; title: string; place: Place; startsAt: number },
       Id<"drops">
