@@ -19,6 +19,7 @@ import type * as lib_dropRules from "../lib/dropRules.js";
 import type * as lib_settlement from "../lib/settlement.js";
 import type * as profile from "../profile.js";
 import type * as whop from "../whop.js";
+import type * as wrapped from "../wrapped.js";
 
 import type {
   ApiFromModules,
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   "lib/settlement": typeof lib_settlement;
   profile: typeof profile;
   whop: typeof whop;
+  wrapped: typeof wrapped;
 }>;
 
 /**
