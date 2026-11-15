@@ -244,7 +244,8 @@ export const react = mutation({
   },
 });
 
-async function shareALeague(ctx: QueryCtx, a: Id<"users">, b: Id<"users">): Promise<boolean> {
+/** Whether two players are in at least one league together. A player always shares a league with themselves. */
+export async function shareALeague(ctx: QueryCtx, a: Id<"users">, b: Id<"users">): Promise<boolean> {
   if (a === b) return true;
   const [mine, theirs] = await Promise.all(
     [a, b].map((userId) =>

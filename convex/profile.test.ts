@@ -114,6 +114,9 @@ describe("profile.get", () => {
       const leagueId = await ctx.db.insert("leagues", {
         name: "YC", inviteCode: "YC", stakeUsd: 5, visibility: "private", maxMembers: 8, createdBy: maya,
       });
+      for (const userId of [maya, viewer]) {
+        await ctx.db.insert("memberships", { leagueId, userId, paid: true, joinedAt: WEEK });
+      }
       const dropId = await ctx.db.insert("drops", {
         leagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40, sealed: false,
         opensAt: WEEK + 2 * DAY, closesAt: WEEK + 2 * DAY + 7_200_000, status: "closed",
@@ -166,6 +169,17 @@ describe("profile.get", () => {
       bestWeek: 190,
       fastestQuickTimeSec: 42,
     });
+  });
+
+  it("turns away a viewer who shares no league with the player", async () => {
+    const t = convexTest(schema, modules);
+    const { maya, stranger } = await t.run(async (ctx) => ({
+      maya: await ctx.db.insert("users", { name: "Maya" }),
+      stranger: await ctx.db.insert("users", { name: "Zed" }),
+    }));
+    await expect(
+      t.withIdentity({ subject: stranger + "|test-session" }).query(api.profile.get, { userId: maya }),
+    ).rejects.toThrow("You can only see profiles of players in your leagues.");
   });
 
   it("returns zeros, not errors, for a player who has not started", async () => {

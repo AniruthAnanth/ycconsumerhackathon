@@ -6,6 +6,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
 import { query } from "./_generated/server";
+import { shareALeague } from "./feed";
 import { requireUser } from "./lib/auth";
 import { currentStreak, longestStreak, scoreWeek, type ScorableTask } from "./lib/scoring";
 import { pacificDay } from "./lib/week";
@@ -92,9 +93,13 @@ export const get = query({
     fastestQuickTimeSec: v.optional(v.number()),
   }),
   handler: async (ctx, { userId }) => {
-    await requireUser(ctx);
+    const viewer = await requireUser(ctx);
     const player = await ctx.db.get("users", userId);
     if (!player) throw new ConvexError("That player doesn't exist.");
+    // A profile is a player's whole record, so it is for the players they share a league with.
+    if (!(await shareALeague(ctx, viewer._id, userId))) {
+      throw new ConvexError("You can only see profiles of players in your leagues.");
+    }
 
     const [tasks, proofs, avatarUrl] = await Promise.all([
       ctx.db.query("tasks").withIndex("by_user_week", (q) => q.eq("userId", userId)).take(MAX_TASKS),
