@@ -15,15 +15,13 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
  * the evening reminder is, so the presenter can press it, lock the screen and show what a drop
  * looks like when it arrives. The words come from the same builder as a real drop's.
  *
- * Throws when the phone won't show it, so the control's row can say so.
+ * Resolves false when the phone won't show it: notifications are denied, or this is the web.
  */
-export async function previewDropNotification(): Promise<void> {
+export function previewDropNotification(): Promise<boolean> {
   const now = Date.now();
   const preview = dropOpened(
     { dropId: "preview", title: "20 push-ups", points: 40, gesture: "a thumbs up", closesAt: now + TWO_HOURS_MS },
     now,
   );
-  if (!(await raiseAfter(preview, PREVIEW_DELAY_S))) {
-    throw new Error("Notifications are off for Lineup on this device.");
-  }
+  return raiseAfter(preview, PREVIEW_DELAY_S);
 }

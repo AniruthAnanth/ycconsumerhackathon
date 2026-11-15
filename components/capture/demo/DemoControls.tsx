@@ -7,6 +7,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 
 import { capture } from "@/components/capture/backend";
+import { DeviceError } from "@/components/capture/errorMessage";
 import { Header, Screen, SectionLabel } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -73,7 +74,12 @@ export function DemoControls() {
 
       <SectionLabel left="NOTIFICATIONS" />
       {/* Five seconds out, so there is time to lock the phone and show it arriving. */}
-      <ActionRow label="Preview Drop Notification (5 s)" run={previewDropNotification} />
+      <ActionRow
+        label="Preview Drop Notification (5 s)"
+        run={async () => {
+          if (!(await previewDropNotification())) throw new DeviceError("Notifications are off for Lineup on this device.");
+        }}
+      />
 
       <SectionLabel left="SWITCH PLAYER" />
       <ActionRow label="Me" tag={actingAsId ? undefined : "PLAYING"} run={() => actAs({ userId: null })} />
