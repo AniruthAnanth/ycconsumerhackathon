@@ -3,23 +3,18 @@
  * wording of both.
  *
  * Lineup does not wait for a player to remember a task. Roster shows one prompt with one button,
- * and the league's Keiki agent texts when a day or the week is about to slip away, or when a
- * rival goes past. Everything that decides or words those moments is here as pure functions, so
- * each rule is tested without a database. convex/checkins.ts loads the rows and calls these.
+ * and the league's Keiki agent texts when a day or the week is about to slip away, when a rival
+ * goes past, or when the player arrives at a task's place. Everything that decides or words those
+ * moments is here as pure functions, so each rule is tested without a database.
+ * convex/checkins.ts loads the rows and calls these.
  *
  * The voice is a scoreboard's: short, and it names the rival and the gap.
  */
-
 import { distanceMeters, isValidLatLng, type LatLng } from "./geo";
-
-export type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
+import { CORE_SLOTS, scoreWeek, type Slot } from "./scoring";
+import { DAY_MS, HOUR_MS, pacificOffsetHours } from "./week";
 
 const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
-
-/** The five slots a player must clear to keep their stake. Flex only adds points. */
-const CORE_SLOTS: readonly Slot[] = ["body", "mind", "recharge", "chores", "people"];
 
 const SLOT_LABEL: Record<Slot, string> = {
   body: "Body",
@@ -61,6 +56,8 @@ export type CheckInTask<TaskId> = {
   closesAt: number;
 };
 
+type SlotFacts = Pick<CheckInTask<unknown>, "slot" | "status" | "source">;
+
 export type CheckIn<TaskId> =
   | { kind: "drop"; task: CheckInTask<TaskId> }
   | { kind: "nearby"; task: CheckInTask<TaskId>; meters: number }
@@ -71,7 +68,8 @@ export type CheckIn<TaskId> =
  *
  *   1. a live quick-time drop: it closes within hours and the whole league is racing for it;
  *   2. a task whose pinned place the player has just arrived at: it will never be easier;
- *   3. the task most at risk: the least time left, and an uncleared slot before anything else.
+ *   3. the task most at risk: the least time left, and one that clears a slot before one that
+ *      only adds points, because the five slots are what the stake rides on.
  *
  * Nothing is asked once the week is settled or over, or when every task is proven.
  */
@@ -105,50 +103,70 @@ export function pickCheckIn<TaskId>(input: {
   }
 
   const proven = provenSlots(tasks);
+  const clearsASlot = (task: SlotFacts) => slotsClearedBy(task).some((slot) => !proven.has(slot));
   const atRisk = [...provable].sort(
     (a, b) =>
       a.closesAt - b.closesAt ||
-      slotUrgency(a.slot, proven) - slotUrgency(b.slot, proven) ||
+      Number(clearsASlot(b)) - Number(clearsASlot(a)) ||
       b.points - a.points,
   )[0];
   return atRisk === undefined ? null : { kind: "at_risk", task: atRisk };
 }
 
 /**
- * Slots that need no more proof this week. A held task counts: its proof is in and only a league
- * vote can change it. A group session is a workout with friends, so it proves Body and People.
+ * The core slots a task clears once it is verified. As in lib/scoring.ts, only the drafted lineup
+ * clears a slot, because bonus tasks must never decide the stake; the one exception is a group
+ * session, which counts for both Body and People.
  */
-export function provenSlots(
-  tasks: readonly Pick<CheckInTask<unknown>, "slot" | "status" | "source">[],
-): Set<Slot> {
+function slotsClearedBy(task: SlotFacts): Slot[] {
+  if (task.source === "group") return ["body", "people"];
+  return task.source === "draft" && task.slot !== "flex" ? [task.slot] : [];
+}
+
+/**
+ * Slots that need no more proof from the player this week. A held task counts: its proof is in
+ * and only a league vote can change it, so there is nothing to ask the player for.
+ */
+export function provenSlots(tasks: readonly SlotFacts[]): Set<Slot> {
   const proven = new Set<Slot>();
   for (const task of tasks) {
     if (task.status !== "verified" && task.status !== "held") continue;
-    proven.add(task.slot);
-    if (task.source === "group") proven.add("body").add("people");
+    for (const slot of slotsClearedBy(task)) proven.add(slot);
   }
   return proven;
 }
 
-/** Core slots that still have an open task and no proof, in roster order: what the stake rides on. */
-export function slotsAtStake(
-  tasks: readonly Pick<CheckInTask<unknown>, "slot" | "status" | "source">[],
-): Slot[] {
+/** The core slots with an open task and no proof yet, in roster order: what the stake rides on. */
+export function slotsAtStake(tasks: readonly SlotFacts[]): Slot[] {
   const proven = provenSlots(tasks);
-  const open = new Set(tasks.filter((task) => task.status === "open").map((task) => task.slot));
+  const open = new Set(tasks.filter((task) => task.status === "open").flatMap(slotsClearedBy));
   return CORE_SLOTS.filter((slot) => open.has(slot) && !proven.has(slot));
 }
 
-/** 0: an uncleared core slot, which decides the stake. 1: flex, extra points. 2: a slot already cleared. */
-function slotUrgency(slot: Slot, proven: ReadonlySet<Slot>): number {
-  if (slot === "flex") return 1;
-  return proven.has(slot) ? 2 : 0;
+/**
+ * What proving the task would add to the player's points in the standings: its own points plus
+ * the slot, sweep and streak bonuses the proof would earn. It is the League tab's own scoreWeek,
+ * run on the week as it stands and as it would be, so "flips it" is never a guess.
+ *
+ * proofDays are the Pacific days (lib/week.ts pacificDay) on which the player already has a
+ * verified proof; today is the day the new proof would land on.
+ */
+export function pointsIfProven<TaskId>(
+  task: CheckInTask<TaskId>,
+  tasks: readonly CheckInTask<TaskId>[],
+  proofDays: readonly number[],
+  today: number,
+): number {
+  const proven = tasks.map((other) => (other.taskId === task.taskId ? { ...other, status: "verified" as const } : other));
+  return scoreWeek(proven, [...proofDays, today]).total - scoreWeek(tasks, proofDays).total;
 }
 
 // ─── The rival ───────────────────────────────────────────────────────────────────────────────
 
 /** gap is the rival's points minus the player's: positive when the rival leads. */
 export type Rival<UserId> = { userId: UserId; name: string; gap: number };
+
+type RivalGap = Pick<Rival<unknown>, "name" | "gap">;
 
 /**
  * Who the copy names. This week's head-to-head opponent when there is one, because that is the
@@ -187,65 +205,63 @@ export function passedBy<UserId>(input: {
 // ─── Wording ─────────────────────────────────────────────────────────────────────────────────
 
 /** "Maya's up 15." A first name is how league mates talk, and it keeps the prompt on one line. */
-export function rivalLine(rival: Pick<Rival<unknown>, "name" | "gap">): string {
+export function rivalLine(rival: RivalGap): string {
   const name = firstName(rival.name);
   if (rival.gap > 0) return `${name}'s up ${rival.gap}.`;
   if (rival.gap < 0) return `${name}'s ${-rival.gap} back.`;
   return `Tied with ${name}.`;
 }
 
-/** What proving the task does to the gap: "Leg day flips it." */
-function swingLine(task: { title: string; points: number }, rival: Pick<Rival<unknown>, "gap">): string {
-  const { gap } = rival;
-  if (gap === 0) return `${task.title} breaks the tie.`;
-  if (gap < 0) return `${task.title} makes it ${task.points - gap}.`;
-  if (task.points > gap) return `${task.title} flips it.`;
-  if (task.points === gap) return `${task.title} ties it.`;
-  return `${task.title} cuts it to ${gap - task.points}.`;
+/** What proving the task does to the gap: "Leg day flips it." worth comes from pointsIfProven. */
+function swingLine(title: string, worth: number, gap: number): string {
+  if (gap === 0) return `${title} breaks the tie.`;
+  if (gap < 0) return `${title} makes it ${worth - gap}.`;
+  if (worth > gap) return `${title} flips it.`;
+  if (worth === gap) return `${title} ties it.`;
+  return `${title} cuts it to ${gap - worth}.`;
 }
 
 /**
  * The Roster prompt: a ticker tag and one sentence. The rival comes before the task wherever both
  * appear, so when a long title is cut off at the edge of the screen the gap is still readable.
+ *
+ * A "+40" is the task's own points, the number on its roster row. worth (pointsIfProven) includes
+ * the bonuses the proof would earn, and is only used to say what the proof does to the gap.
  */
 export function promptCopy(
   checkIn: CheckIn<unknown>,
-  now: number,
-  rival: Pick<Rival<unknown>, "name" | "gap"> | null,
+  context: { now: number; rival: RivalGap | null; worth: number },
 ): { label: string; line: string } {
   const { task } = checkIn;
+  const { now, rival, worth } = context;
   const left = shortDuration(task.closesAt - now);
-  const worth = `${task.title}, +${task.points}.`;
+  const value = `${task.title}, +${task.points}.`;
   switch (checkIn.kind) {
     case "drop":
-      return { label: `LIVE ${left}`, line: rival ? `${worth} ${rivalLine(rival)}` : worth };
+      return { label: `LIVE ${left}`, line: rival ? `${value} ${rivalLine(rival)}` : value };
     case "nearby":
       // Arriving is the whole message, so this one line leaves the rival out.
       return { label: "HERE", line: `You're at ${task.place?.name ?? "the spot"}. Check in?` };
     case "at_risk":
       return {
         label: `${left} LEFT`,
-        line: rival ? `${rivalLine(rival)} ${swingLine(task, rival)}` : `${task.title} is open. +${task.points}.`,
+        line: rival
+          ? `${rivalLine(rival)} ${swingLine(task.title, worth, rival.gap)}`
+          : `${task.title} is open. +${task.points}.`,
       };
   }
 }
 
 /** Evening, nothing proven today: "Leg day isn't on the board yet. Maya's up 15. Reply with a photo." */
-export function eveningText(
-  task: Pick<CheckInTask<unknown>, "title" | "proofType">,
-  rival: Pick<Rival<unknown>, "name" | "gap"> | null,
-): string {
+export function eveningText(task: Pick<CheckInTask<unknown>, "title" | "proofType">, rival: RivalGap | null): string {
   const gap = rival ? ` ${rivalLine(rival)}` : "";
   return `${task.title} isn't on the board yet.${gap} ${howToProve(task.proofType)}`;
 }
 
 /** Last day: "Last day. Body and Chores are still open. $20 is on the line. Maya's up 15." */
-export function lastDayText(input: {
-  slots: readonly Slot[];
-  stakeUsd: number;
-  rival: Pick<Rival<unknown>, "name" | "gap"> | null;
-}): string {
-  const open = `${listOf(input.slots.map((slot) => SLOT_LABEL[slot]))} ${input.slots.length === 1 ? "is" : "are"} still open.`;
+export function lastDayText(input: { slots: readonly Slot[]; stakeUsd: number; rival: RivalGap | null }): string {
+  const names = listOf(input.slots.map((slot) => SLOT_LABEL[slot]));
+  const open = `${names} ${input.slots.length === 1 ? "is" : "are"} still open.`;
   const stake = input.stakeUsd > 0 ? ` ${dollars(input.stakeUsd)} is on the line.` : "";
   const gap = input.rival ? ` ${rivalLine(input.rival)}` : "";
   return `Last day. ${open}${stake}${gap}`;
@@ -256,11 +272,13 @@ export function passedText(input: {
   rivalName: string;
   gap: number;
   leagueName: string;
-  task: Pick<CheckInTask<unknown>, "title" | "points" | "proofType"> | null;
+  /** The passed player's way back, with what proving it is worth (pointsIfProven), when they have one. */
+  wayBack: (Pick<CheckInTask<unknown>, "title" | "proofType"> & { worth: number }) | null;
 }): string {
-  const passed = `${firstName(input.rivalName)} just passed you in ${input.leagueName}, up ${input.gap}.`;
-  if (input.task === null) return passed;
-  return `${passed} ${swingLine(input.task, input)} ${howToProve(input.task.proofType)}`;
+  const { gap, wayBack } = input;
+  const passed = `${firstName(input.rivalName)} just passed you in ${input.leagueName}, up ${gap}.`;
+  if (wayBack === null) return passed;
+  return `${passed} ${swingLine(wayBack.title, wayBack.worth, gap)} ${howToProve(wayBack.proofType)}`;
 }
 
 /** On arrival, to a player who plays by text: the photo is still required, but a reply is enough. */
@@ -347,29 +365,10 @@ export function scheduledNudge(input: {
 
 /**
  * The wall clock in America/Los_Angeles, the zone a Lineup week is defined in: the calendar day
- * (the text cap is per day), the hour (quiet hours) and when that day began (what "today" means
- * for "proven nothing today").
+ * ("2026-11-15", what the daily cap is counted over) and the hour (what quiet hours are measured in).
  */
-export function pacificClock(ts: number): { day: string; hour: number; startOfDay: number } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(new Date(ts));
-  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  const hour = part("hour") % 24; // some engines print midnight as 24
-  const sinceMidnight = ((hour * 60 + part("minute")) * 60 + part("second")) * 1000 + (ts % 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    day: `${part("year")}-${pad(part("month"))}-${pad(part("day"))}`,
-    hour,
-    // An hour out on the two days a year the clocks change, which only shifts what counts as
-    // "today" for the evening text.
-    startOfDay: ts - sinceMidnight,
-  };
+export function pacificClock(ts: number): { day: string; hour: number } {
+  // Shifted by the Pacific offset, the UTC getters read Pacific wall-clock time.
+  const wall = new Date(ts + pacificOffsetHours(ts) * HOUR_MS);
+  return { day: wall.toISOString().slice(0, 10), hour: wall.getUTCHours() };
 }

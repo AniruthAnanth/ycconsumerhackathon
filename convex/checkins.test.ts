@@ -93,7 +93,7 @@ async function textsTo(t: Backend, userId: Id<"users">): Promise<string[]> {
 }
 
 describe("checkins.prompt", () => {
-  it("names the rival and the gap on the task most at risk", async () => {
+  it("names the rival and the gap as the League tab scores them, on the task most at risk", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Me", "Maya Chen"]);
     const [me, maya] = userIds;
@@ -101,11 +101,12 @@ describe("checkins.prompt", () => {
     await addTask(t, me, { slot: "flex", title: "Sunset walk", points: 50 });
     await addTask(t, maya, { slot: "mind", title: "Problem set", points: 15, status: "verified" });
 
+    // Maya has 15 for the task and 25 for clearing Mind. Leg day would bring 40 + 25 + a streak day.
     expect(await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON })).toEqual({
       kind: "at_risk",
       taskId: legDay,
       label: "12H LEFT",
-      line: "Maya's up 15. Leg day flips it.",
+      line: "Maya's up 40. Leg day flips it.",
     });
   });
 
@@ -119,7 +120,8 @@ describe("checkins.prompt", () => {
     await t.run((ctx) => ctx.db.insert("matchups", { weekId, userA: sam, userB: me }));
 
     const prompt = await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON });
-    expect(prompt?.line).toBe("Sam's up 90. Leg day cuts it to 50.");
+    // Sam: 90 + 25 for the slot. Leg day is worth 70 with its slot and streak bonuses.
+    expect(prompt?.line).toBe("Sam's up 115. Leg day cuts it to 45.");
   });
 
   it("puts a live quick-time drop first, with its countdown", async () => {
@@ -285,13 +287,16 @@ describe("checkins.nudge", () => {
     const [me, maya] = userIds;
     await addTask(t, me, { weekStart });
     const run = await addTask(t, maya, { weekStart, title: "5k run" });
+    await addTask(t, maya, { weekStart, slot: "chores", title: "Laundry", points: 20 });
 
     expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBe(
       "Leg day isn't on the board yet. Tied with Maya. Reply with a photo.",
     );
 
-    await t.run((ctx) =>
-      ctx.db.insert("proofs", {
+    // Maya proved her run an hour ago. She still has laundry open, but her day is not empty.
+    await t.run(async (ctx) => {
+      await ctx.db.patch("tasks", run, { status: "verified" });
+      await ctx.db.insert("proofs", {
         taskId: run,
         userId: maya,
         weekStart,
@@ -303,8 +308,8 @@ describe("checkins.nudge", () => {
         caption: "5k done",
         via: "app",
         createdAt: wednesdayEvening - HOUR_MS,
-      }),
-    );
+      });
+    });
     expect(await t.mutation(internal.checkins.nudge, { userId: maya })).toBeNull();
   });
 

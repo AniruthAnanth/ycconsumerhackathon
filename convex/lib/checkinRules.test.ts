@@ -12,6 +12,7 @@ import {
   passedText,
   pickCheckIn,
   pickRival,
+  pointsIfProven,
   promptCopy,
   provenSlots,
   scheduledNudge,
@@ -78,14 +79,14 @@ describe("pickCheckIn", () => {
     expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [legDay, mystery] })).toEqual({ kind: "at_risk", task: mystery });
   });
 
-  it("with equal time left, puts an uncleared slot before flex, and flex before a cleared slot", () => {
-    const flex = task({ taskId: "flex", slot: "flex", points: 50 });
+  it("with equal time left, puts a task that clears a slot before one that only adds points", () => {
+    const flex = task({ taskId: "flex", slot: "flex", source: "flex", points: 50 });
     const bodyDone = task({ taskId: "run", status: "verified" });
-    const secondBody = task({ taskId: "swim", points: 50 });
     const chores = task({ taskId: "laundry", slot: "chores", points: 10 });
-    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [flex, bodyDone, secondBody, chores] })?.task.taskId).toBe("laundry");
-    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [flex, bodyDone, secondBody] })?.task.taskId).toBe("flex");
-    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [bodyDone, secondBody] })?.task.taskId).toBe("swim");
+    // A drop task sits in a slot but never clears it, so it ranks with flex.
+    const bonusChores = task({ taskId: "desk", slot: "chores", source: "mystery", points: 45 });
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [flex, bodyDone, bonusChores, chores] })?.task.taskId).toBe("laundry");
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [flex, bodyDone, bonusChores] })?.task.taskId).toBe("flex");
   });
 
   it("breaks a remaining tie on points", () => {
@@ -112,12 +113,12 @@ describe("pickCheckIn", () => {
 });
 
 describe("slots", () => {
-  it("counts a held proof and both slots of a group session as proven", () => {
+  it("counts a held proof and both slots of a group session as proven, but never a bonus task", () => {
     const proven = provenSlots([
       { slot: "mind", status: "held", source: "draft" },
       { slot: "body", status: "verified", source: "group" },
       { slot: "chores", status: "open", source: "draft" },
-      { slot: "recharge", status: "failed", source: "mystery" },
+      { slot: "recharge", status: "verified", source: "drop" },
     ]);
     expect([...proven].sort()).toEqual(["body", "mind", "people"]);
   });
@@ -129,8 +130,32 @@ describe("slots", () => {
       { slot: "body", status: "open", source: "draft" },
       { slot: "mind", status: "verified", source: "draft" },
       { slot: "mind", status: "open", source: "drop" },
+      { slot: "chores", status: "open", source: "drop" },
     ] as const;
     expect(slotsAtStake(tasks)).toEqual(["body", "people"]);
+  });
+});
+
+describe("pointsIfProven", () => {
+  const TODAY = 20772; // any Pacific day number
+  const legDay = task({ taskId: "leg" });
+
+  it("adds the slot bonus and the day's streak bonus to the task's own points", () => {
+    // 40 for the task, 25 for clearing Body, 5 for the first proof day of a run.
+    expect(pointsIfProven(legDay, [legDay], [], TODAY)).toBe(70);
+  });
+
+  it("adds the sweep bonus when the task clears the fifth slot", () => {
+    const others = (["mind", "recharge", "chores", "people"] as const).map((slot) =>
+      task({ taskId: slot, slot, status: "verified" }),
+    );
+    // Proofs already landed today, so no new streak points: 40 + 25 + 100.
+    expect(pointsIfProven(legDay, [legDay, ...others], [TODAY], TODAY)).toBe(165);
+  });
+
+  it("is only the task's points for a bonus task on a day that already has a proof", () => {
+    const pushUps = task({ taskId: "push", source: "drop" });
+    expect(pointsIfProven(pushUps, [pushUps], [TODAY], TODAY)).toBe(40);
   });
 });
 
@@ -199,27 +224,30 @@ describe("wording", () => {
   const legDay = task({ taskId: "leg" });
   const maya = { name: "Maya Chen", gap: 15 };
 
-  it("leads the at-risk prompt with the rival and the gap", () => {
-    const copy = (gap: number) => promptCopy({ kind: "at_risk", task: legDay }, NOW, { name: "Maya Chen", gap });
+  it("leads the at-risk prompt with the rival and the gap, and says what the proof is worth against it", () => {
+    const copy = (gap: number) =>
+      promptCopy({ kind: "at_risk", task: legDay }, { now: NOW, rival: { name: "Maya Chen", gap }, worth: 65 });
     expect(copy(15)).toEqual({ label: "12H LEFT", line: "Maya's up 15. Leg day flips it." });
-    expect(copy(40).line).toBe("Maya's up 40. Leg day ties it.");
-    expect(copy(55).line).toBe("Maya's up 55. Leg day cuts it to 15.");
-    expect(copy(-15).line).toBe("Maya's 15 back. Leg day makes it 55.");
+    expect(copy(65).line).toBe("Maya's up 65. Leg day ties it.");
+    expect(copy(80).line).toBe("Maya's up 80. Leg day cuts it to 15.");
+    expect(copy(-15).line).toBe("Maya's 15 back. Leg day makes it 80.");
     expect(copy(0).line).toBe("Tied with Maya. Leg day breaks the tie.");
   });
 
   it("still asks when the player has no rival", () => {
-    expect(promptCopy({ kind: "at_risk", task: legDay }, NOW, null).line).toBe("Leg day is open. +40.");
+    expect(promptCopy({ kind: "at_risk", task: legDay }, { now: NOW, rival: null, worth: 65 }).line).toBe(
+      "Leg day is open. +40.",
+    );
   });
 
   it("shows a drop's countdown and a pinned place's name", () => {
     const pushUps = task({ taskId: "push", title: "20 push-ups", source: "drop", closesAt: NOW + 47 * 60 * 1000 });
-    expect(promptCopy({ kind: "drop", task: pushUps }, NOW, maya)).toEqual({
+    expect(promptCopy({ kind: "drop", task: pushUps }, { now: NOW, rival: maya, worth: 45 })).toEqual({
       label: "LIVE 47M",
       line: "20 push-ups, +40. Maya's up 15.",
     });
     const office = task({ taskId: "office", place: YC_OFFICE });
-    expect(promptCopy({ kind: "nearby", task: office, meters: 20 }, NOW, maya)).toEqual({
+    expect(promptCopy({ kind: "nearby", task: office, meters: 20 }, { now: NOW, rival: maya, worth: 65 })).toEqual({
       label: "HERE",
       line: "You're at YC office. Check in?",
     });
@@ -257,10 +285,14 @@ describe("wording", () => {
   });
 
   it("names who passed the player, by how much, and the way back", () => {
-    expect(passedText({ rivalName: "Maya Chen", gap: 15, leagueName: "YC Hackathon", task: legDay })).toBe(
+    const wayBack = { ...legDay, worth: 65 };
+    expect(passedText({ rivalName: "Maya Chen", gap: 15, leagueName: "YC Hackathon", wayBack })).toBe(
       "Maya just passed you in YC Hackathon, up 15. Leg day flips it. Reply with a photo.",
     );
-    expect(passedText({ rivalName: "Maya", gap: 15, leagueName: "YC Hackathon", task: null })).toBe(
+    expect(passedText({ rivalName: "Maya", gap: 90, leagueName: "YC Hackathon", wayBack })).toBe(
+      "Maya just passed you in YC Hackathon, up 90. Leg day cuts it to 25. Reply with a photo.",
+    );
+    expect(passedText({ rivalName: "Maya", gap: 15, leagueName: "YC Hackathon", wayBack: null })).toBe(
       "Maya just passed you in YC Hackathon, up 15.",
     );
   });
@@ -325,24 +357,12 @@ describe("when the agent may text", () => {
 
 describe("pacificClock", () => {
   it("reads the day and hour in Los Angeles, in winter and in summer", () => {
-    expect(pacificClock(Date.UTC(2026, 10, 15, 20, 30, 15))).toEqual({
-      day: "2026-11-15",
-      hour: 12,
-      startOfDay: Date.UTC(2026, 10, 15, 8, 0),
-    });
+    expect(pacificClock(Date.UTC(2026, 10, 15, 20, 30, 15))).toEqual({ day: "2026-11-15", hour: 12 });
     // 05:30 UTC on 1 July is still 30 June, 10:30 PM, in Los Angeles (UTC-7).
-    expect(pacificClock(Date.UTC(2026, 6, 1, 5, 30))).toEqual({
-      day: "2026-06-30",
-      hour: 22,
-      startOfDay: Date.UTC(2026, 5, 30, 7, 0),
-    });
+    expect(pacificClock(Date.UTC(2026, 6, 1, 5, 30))).toEqual({ day: "2026-06-30", hour: 22 });
   });
 
   it("calls midnight hour 0 of the new day", () => {
-    expect(pacificClock(Date.UTC(2026, 10, 16, 8, 0))).toEqual({
-      day: "2026-11-16",
-      hour: 0,
-      startOfDay: Date.UTC(2026, 10, 16, 8, 0),
-    });
+    expect(pacificClock(Date.UTC(2026, 10, 16, 8, 0))).toEqual({ day: "2026-11-16", hour: 0 });
   });
 });
