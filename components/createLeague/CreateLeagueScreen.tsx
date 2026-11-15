@@ -101,9 +101,6 @@ export function CreateLeagueScreen() {
             <OutlinedPillButton label="Back" onPress={back} disabled={busy} />
             {step === "review" ? (
               <Button label="Create League" onPress={create} loading={busy} disabled={blocker !== null} style={styles.flex} />
-            ) : step === "season" ? (
-              // "Use recommended" is this step's one filled button; Next keeps whatever Advanced has picked.
-              <OutlinedPillButton label="Next" onPress={next} disabled={blocker !== null} style={styles.flex} />
             ) : (
               <Button label="Next" onPress={next} disabled={blocker !== null} style={styles.flex} />
             )}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
-import { Button, Icon, TextField } from "@/components/ui";
+import { Icon, OutlinedPillButton, TextField } from "@/components/ui";
 import { BORDER, colors, hairline, layout, radius, spacing, tabular, type } from "@/theme";
 
 import { ChoiceCard } from "./ChoiceCard";
@@ -180,7 +180,8 @@ export function SeasonStep({ draft, change, disabled, onUseRecommended }: StepPr
             {line}
           </Text>
         ))}
-        <Button label="Use recommended" onPress={onUseRecommended} disabled={disabled} style={styles.panelButton} />
+        {/* Secondary: the screen's one filled button is Next at the bottom. */}
+        <OutlinedPillButton label="Use recommended" onPress={onUseRecommended} disabled={disabled} style={styles.panelButton} />
       </View>
       <PressScale
         style={styles.expander}
