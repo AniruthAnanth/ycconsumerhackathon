@@ -320,8 +320,8 @@ describe("canvas functions", () => {
     expect(await t.run((ctx) => ctx.db.get("tasks", taskId))).toMatchObject({
       userId: maya.userId,
       weekStart: THIS_MONDAY,
-      slot: "mind",
-      source: "draft",
+      slot: "flex",
+      source: "flex",
       proofType: "canvas",
       canvas: { courseId: "demo-cs161", assignmentId: "demo-ps6" },
       status: "open",
@@ -410,7 +410,7 @@ describe("canvas functions", () => {
     expect(await proofsOf(unmatchedId)).toHaveLength(0);
   });
 
-  it("puts an assignment in Mind while it is free and the lineup is unlocked, and in flex otherwise, up to three", async () => {
+  it("adds an assignment as a flex task, up to three a week, whether or not the lineup is locked", async () => {
     const { t, maya, signIn } = await setUp();
     const add = (as: typeof maya.as, assignmentId: string) =>
       as.mutation(api.canvas.addTask, { courseId: "c", assignmentId, title: "Assignment " + assignmentId });
@@ -419,20 +419,19 @@ describe("canvas functions", () => {
       return [task?.slot, task?.source];
     };
 
+    // Never Mind, even while it is empty: locking the lineup would add a second Mind task.
     const first = await add(maya.as, "1");
-    expect(await slotOf(first)).toEqual(["mind", "draft"]);
+    expect(await slotOf(first)).toEqual(["flex", "flex"]);
     // It is playable at once at the starting points, then rated like a flex task.
     expect((await t.run((ctx) => ctx.db.get("tasks", first)))?.points).toBe(20);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect((await t.run((ctx) => ctx.db.get("tasks", first)))?.points).toBe(35);
     // The same assignment again is the same task, not a second one.
     expect(await add(maya.as, "1")).toBe(first);
-    expect(await slotOf(await add(maya.as, "2"))).toEqual(["flex", "flex"]);
+    await add(maya.as, "2");
     await add(maya.as, "3");
-    await add(maya.as, "4");
-    await expect(add(maya.as, "5")).rejects.toThrow(/already have 3 flex tasks/);
+    await expect(add(maya.as, "4")).rejects.toThrow(/already have 3 flex tasks/);
 
-    // A locked lineup only takes flex tasks, even with Mind empty.
     const sam = await signIn("Sam");
     await t.run((ctx) =>
       ctx.db.insert("lineups", { userId: sam.userId, weekStart: THIS_MONDAY, lockedAt: SUNDAY_AFTERNOON }),
