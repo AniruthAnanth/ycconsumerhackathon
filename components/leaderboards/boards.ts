@@ -6,6 +6,7 @@ export const BOARDS: readonly { key: BoardKey; label: string }[] = [
   { key: "season", label: "Season" },
   { key: "allTime", label: "All-Time" },
   { key: "global", label: "Global" },
+  { key: "globalAllTime", label: "Global All-Time" },
   { key: "body", label: "Body" },
   { key: "mind", label: "Mind" },
   { key: "recharge", label: "Recharge" },

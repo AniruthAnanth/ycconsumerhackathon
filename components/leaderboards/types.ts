@@ -17,7 +17,8 @@ export type BoardKey =
   | "quickTime"
   | "headToHead"
   | "money"
-  | "global";
+  | "global"
+  | "globalAllTime";
 
 export type BoardRow = {
   /** 1-based; equal values share a rank. */
@@ -32,7 +33,7 @@ export type BoardRow = {
   detail?: string;
   /** Places gained since yesterday: 2 is up two, -1 is down one. */
   movement: number;
-  /** "15 behind Maya"; absent for the leader. */
+  /** "15 behind Maya", or "15 ahead of Sam" for the leader. */
   gapLabel?: string;
   isMe: boolean;
   /** The caller's closest rival on this board. */

@@ -25,11 +25,19 @@ export function rowSubtitle(row: Pick<BoardRow, "gapLabel" | "detail">): string 
   return [row.gapLabel, row.detail].filter(Boolean).join(" · ");
 }
 
-/** "2nd · 15 behind Maya", or just "1st" for the leader. Undefined until the caller has a row. */
+/** "2nd · 15 behind Maya" or "1st · 15 ahead of Sam". Undefined until the caller has a row. */
 export function placeLabel(rows: readonly BoardRow[]): string | undefined {
   const me = rows.find((row) => row.isMe);
   if (!me) return undefined;
   return [ordinal(me.rank), me.gapLabel].filter(Boolean).join(" · ");
+}
+
+/**
+ * The projection query takes the time so the server never reads its clock; rounding
+ * to the hour keeps the argument stable, and so the result cached, between renders.
+ */
+export function hourStart(now: number): number {
+  return Math.floor(now / 3_600_000) * 3_600_000;
 }
 
 export function isProjectedGain(label: string): boolean {
