@@ -54,6 +54,13 @@ if (!existsSync(join(root, "node_modules", "expo", "bundledNativeModules.json"))
   console.error("Run npm install first: node_modules/expo is missing.");
   process.exit(2);
 }
+// A dependency that is listed but not installed has no folder to inspect and would pass unseen,
+// which is exactly the case after a pull that added a native package.
+const notInstalled = dependencies.filter((name) => !existsSync(join(root, "node_modules", name)));
+if (notInstalled.length > 0) {
+  console.error(`Run npm ci first: package.json lists packages that are not installed, so they can't be checked: ${notInstalled.join(", ")}`);
+  process.exit(2);
+}
 const bundled = readJson(join(root, "node_modules", "expo", "bundledNativeModules.json"));
 const expoVersion = readJson(join(root, "node_modules", "expo", "package.json")).version;
 
