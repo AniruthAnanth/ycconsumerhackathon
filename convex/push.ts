@@ -23,6 +23,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
+import { membersInJoinOrder } from "./leagues";
 import { requireSignedInUser } from "./lib/auth";
 
 /** Expo holds the APNs key and asks for no credential of ours, so there is no secret in this module. */
@@ -31,7 +32,7 @@ const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_BATCH = 100;
 /** What getExpoPushTokenAsync returns: "ExponentPushToken[…]", or "ExpoPushToken[…]" from newer clients. */
 const EXPO_PUSH_TOKEN = /^Expo(nent)?PushToken\[[^\]\s]+\]$/;
-/** A league's roster and the devices acting as one player are far smaller; this only bounds the reads. */
+/** The devices acting as one player and the accounts holding one token are far fewer; this only bounds the reads. */
 const MAX_ROWS = 200;
 
 // ─── The one-alert rule ──────────────────────────────────────────────────────────────────────
@@ -229,11 +230,7 @@ export const tokensOf = internalQuery({
     const players = new Set<Id<"users">>();
     if (userId !== undefined) players.add(userId);
     if (leagueId !== undefined) {
-      const members = await ctx.db
-        .query("memberships")
-        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-        .take(MAX_ROWS);
-      for (const member of members) players.add(member.userId);
+      for (const member of await membersInJoinOrder(ctx, leagueId)) players.add(member.userId);
     }
 
     // A set: one device can stand for two of these players, its own account and the one it acts as.
