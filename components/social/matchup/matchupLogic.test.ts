@@ -25,9 +25,8 @@ describe("winBarSplit", () => {
 describe("statusLine", () => {
   const task = { status: "open", dueLabel: "Due Thu", verifiedAt: undefined } as const;
 
-  it("shows when a verified task was verified", () => {
-    const verifiedAt = new Date(2026, 10, 15, 14, 14).getTime();
-    expect(statusLine({ ...task, status: "verified", verifiedAt })).toBe("Verified 2:14 PM");
+  it("says Verified without a clock time, which truncated beside the score", () => {
+    expect(statusLine({ ...task, status: "verified" })).toBe("Verified");
   });
 
   it("shows the due label while open", () => {
@@ -35,7 +34,7 @@ describe("statusLine", () => {
   });
 
   it("flags held and failed tasks", () => {
-    expect(statusLine({ ...task, status: "held" })).toBe("Under review");
+    expect(statusLine({ ...task, status: "held" })).toBe("Up for veto");
     expect(statusLine({ ...task, status: "failed" })).toBe("Not verified");
   });
 });

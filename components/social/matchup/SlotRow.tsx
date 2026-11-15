@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { PositionPill, RowDivider, Score } from "@/components/ui";
+import { Icon, PositionPill, RowDivider, Score } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { colors, font, fontFamily, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 
@@ -51,6 +51,7 @@ function TaskSide({ task, side, vetoes }: { task?: TaskRow; side: "mine" | "thei
         {task.title}
       </Text>
       <View style={[styles.meta, mirrored && styles.sideMirrored]}>
+        {task.status === "verified" ? <Icon name="checkmark-circle" size={14} color={colors.accent} /> : null}
         <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
           {statusLine(task)}
         </Text>
