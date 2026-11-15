@@ -292,6 +292,8 @@ export const record = internalMutation({
       // A pass can carry the player past a league mate. Check-ins tells whoever was passed; it
       // is scheduled after the drop bonus above so it compares the final points.
       await ctx.scheduler.runAfter(0, internal.checkins.afterProof, { taskId: task._id });
+      // Leaderboards keep a stored copy of each player's week; this rebuilds theirs.
+      await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: args.userId, weekStart: task.weekStart });
     }
     return null;
   },
