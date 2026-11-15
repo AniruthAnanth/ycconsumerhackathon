@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { errorMessage } from "@/components/capture/errorMessage";
@@ -14,18 +14,33 @@ type Props = {
   disabled?: boolean;
 };
 
+/** How long DONE stays up before the row shows its tag again. */
+const DONE_MS = 1500;
+
 /**
  * One demo action per row. The row itself reports the outcome, so the presenter can fire an
  * action and see that it landed without leaving the screen.
  */
 export function ActionRow({ label, run, tag, disabled }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const settling = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (settling.current) clearTimeout(settling.current);
+    },
+    [],
+  );
 
   const onPress = async () => {
+    if (settling.current) clearTimeout(settling.current);
     setPhase({ kind: "running" });
     try {
       await run();
       setPhase({ kind: "done" });
+      // DONE confirms the tap and then steps aside: left up, it would hide PLAYING on the player
+      // just switched to, and a second tap on the same action would look like it did nothing.
+      settling.current = setTimeout(() => setPhase({ kind: "idle" }), DONE_MS);
     } catch (error) {
       setPhase({ kind: "failed", message: errorMessage(error) });
     }
