@@ -1,4 +1,5 @@
-import { errorMessage } from "../errorMessage";
+import { errorMessage } from "@/lib/errorMessage";
+
 import { chatReducer, initialChatState, type ChatAction, type ChatState } from "./chatLogic";
 
 export type ChatStore = {

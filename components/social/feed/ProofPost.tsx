@@ -4,11 +4,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedItem, socialApi } from "@/components/social/contract";
-import { errorMessage } from "@/components/social/errorMessage";
 import { confirmAction, notify } from "@/components/social/notify";
 import { Avatar, PositionPill, Score } from "@/components/ui";
 import { colors } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
+import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
 import { shareText } from "@/lib/native/share";
 
