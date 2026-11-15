@@ -17,7 +17,7 @@ export function GroupActions({ view }: { view: GroupView }) {
     <View style={styles.row}>
       <View style={styles.info}>
         <Text style={styles.countdown}>{view.countdown}</Text>
-        <Text style={styles.details} numberOfLines={1}>{`${phase}  ·  ${view.attending} ${view.started ? "IN" : "GOING"}`}</Text>
+        <Text style={styles.details} numberOfLines={1}>{`${phase}  ·  ${view.attending} ${view.started ? "HERE" : "GOING"}`}</Text>
       </View>
       <OutlinedPillButton label="View" onPress={() => router.push(`/group/${view.dropId}`)} />
     </View>
