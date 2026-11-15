@@ -55,6 +55,7 @@ import {
   QUICK_TIME_WINDOW_MS,
   quickTimeText,
 } from "./lib/dropRules";
+import { currentWeek } from "./leagues";
 import { clampWager, groupSessionScore, mysteryScore, quickTimeScore } from "./lib/scoring";
 import { weekStartOf } from "./lib/week";
 import { searchMemories } from "./memory";
@@ -168,7 +169,8 @@ export const triggerQuickTime = mutation({
     }
     // One live quick-time drop per league: a texted photo has to mean exactly one drop, and
     // pressing the demo button twice must not stack banners.
-    for (const drop of await dropsIn(ctx, leagueId, "open")) {
+    // "scheduled" too: a second press can land before the first drop's openDrop has run.
+    for (const drop of [...(await dropsIn(ctx, leagueId, "open")), ...(await dropsIn(ctx, leagueId, "scheduled"))]) {
       if (drop.kind === "quicktime") await close(ctx, drop);
     }
 
@@ -227,10 +229,21 @@ export const mysteryForLeague = internalMutation({
   args: { leagueId: v.id("leagues") },
   returns: v.null(),
   handler: async (ctx, { leagueId }) => {
-    const open = await dropsIn(ctx, leagueId, "open");
+    // Running the job twice in a day must not hand anyone a second envelope, and that includes
+    // a player who already passed, finished or lost today's. An envelope's window is its day,
+    // so "today's" is any envelope whose window has not run out, whatever its status. Closed
+    // drops are read newest first: the old ones are the ones that can be left out.
+    const now = Date.now();
+    const closed = await ctx.db
+      .query("drops")
+      .withIndex("by_league_status", (q) => q.eq("leagueId", leagueId).eq("status", "closed"))
+      .order("desc")
+      .take(MAX_ROWS);
+    const todays = [...(await dropsIn(ctx, leagueId, "open")), ...closed].filter(
+      (drop) => drop.kind === "mystery" && drop.closesAt > now,
+    );
     for (const member of await membersOf(ctx, leagueId)) {
-      // Running the job twice in a day must not hand anyone a second envelope.
-      if (open.some((drop) => drop.kind === "mystery" && drop.userId === member.userId)) continue;
+      if (todays.some((drop) => drop.userId === member.userId)) continue;
       await ctx.scheduler.runAfter(0, internal.drops.writeMystery, { leagueId, userId: member.userId });
     }
     return null;
@@ -364,7 +377,9 @@ async function openEnvelope(
   const drop = await sealedEnvelope(ctx, userId, dropId);
   // A wager is "of their own points", so it is capped at what the player has in this league.
   // An over-sized one is cut down rather than refused, so "OPEN 80" by text still opens.
-  const wager = clampWager(requestedWager ?? 0, await pointsInLeague(ctx, drop.leagueId, userId));
+  // A league that has not started its first week has no table to read, and nobody in it has points.
+  const banked = (await currentWeek(ctx, drop.leagueId)) === null ? 0 : await pointsInLeague(ctx, drop.leagueId, userId);
+  const wager = clampWager(requestedWager ?? 0, banked);
   await ctx.db.patch("drops", dropId, { sealed: false, wager });
   // Priced for success now. If the envelope closes unfinished, close() turns this negative.
   await giveTask(ctx, drop, userId, weekStartOf(Date.now()), mysteryScore(drop.points, wager, true));
