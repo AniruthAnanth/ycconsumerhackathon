@@ -289,6 +289,9 @@ export const record = internalMutation({
       if (task.dropId) {
         await ctx.scheduler.runAfter(0, internal.drops.onTaskVerified, { taskId: task._id });
       }
+      // A pass can carry the player past a league mate. Check-ins tells whoever was passed; it
+      // is scheduled after the drop bonus above so it compares the final points.
+      await ctx.scheduler.runAfter(0, internal.checkins.afterProof, { taskId: task._id });
     }
     return null;
   },
