@@ -302,6 +302,53 @@ describe("fixtures.remove", () => {
     expect(await removeFixtures(t, scope)).toBe(0);
   });
 
+  test("`everything` leaves a league an account in `keep` made or is in, and takes the testers out of it", async () => {
+    const t = convexTest(schema, modules);
+    const { device, kept, gone } = await world(t);
+    // What real phones do on the shared deployment: Quick Match makes one a league of its own,
+    // and puts it in a public league that a tester made first. A tester plays in both.
+    const more = await t.run(async (ctx) => {
+      const friend = await ctx.db.insert("users", { name: "A friend" });
+      const tester = await ctx.db.insert("users", { name: "Riley Park" });
+      const ownLeague = await league(ctx, "Quick Match Free", "QMFREE", device);
+      const ownWeek = await ctx.db.insert("weeks", { leagueId: ownLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
+      const joinedLeague = await league(ctx, "Quick Match $5", "QMFIVE", tester);
+      const joinedWeek = await ctx.db.insert("weeks", { leagueId: joinedLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
+      const testLeague = await league(ctx, "Riley's league", "RILEY1", tester);
+      return {
+        friend,
+        kept: [
+          friend,
+          ownLeague,
+          ownWeek,
+          joinedLeague,
+          joinedWeek,
+          ...Object.values(await playIn(ctx, ownLeague, ownWeek, device, friend)),
+          ...Object.values(await playIn(ctx, joinedLeague, joinedWeek, device, friend)),
+        ],
+        gone: [
+          tester,
+          testLeague,
+          ...Object.values(await ownRows(ctx, tester)),
+          ...Object.values(await playIn(ctx, ownLeague, ownWeek, tester, device)),
+          ...Object.values(await playIn(ctx, joinedLeague, joinedWeek, tester, device)),
+        ],
+      };
+    });
+    const scope = { everything: true, keep: [device, more.friend] };
+
+    // The league named as a fixture goes although the real phone is in it.
+    expect(await t.query(internal.fixtures.list, scope)).toEqual({
+      leagues: ["zz check (safe to delete)", "Riley's league"],
+      players: ["zz Tester", "Riley Park"],
+    });
+    await removeFixtures(t, scope);
+
+    expect(await stillThere(t, [...gone, ...more.gone])).toEqual([]);
+    expect(await stillThere(t, [...kept, ...more.kept])).toEqual([...kept, ...more.kept]);
+    expect(await removeFixtures(t, scope)).toBe(0);
+  });
+
   test("`everything` takes an account that is not in `keep`, a real phone's included", async () => {
     const t = convexTest(schema, modules);
     const { device } = await world(t);

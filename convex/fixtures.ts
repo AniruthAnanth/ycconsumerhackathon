@@ -15,7 +15,8 @@
  *
  * Before a recording that is not enough, because most test players were given ordinary names.
  * `everything` takes every league and player the seed did not make, and `keep` lists the
- * accounts of real phones, which stay:
+ * accounts of real phones, which stay. So does a league one of them made or is in, with the
+ * testers taken out of it, unless its name says it is a fixture:
  *
  *   npx convex run fixtures:list '{"everything": true, "keep": ["<user id>"]}'
  *   npx convex run fixtures:remove '{"everything": true, "keep": ["<user id>"]}'
@@ -25,7 +26,7 @@
 import { v, type ObjectType } from "convex/values";
 
 import { internal } from "./_generated/api";
-import type { Doc, TableNames } from "./_generated/dataModel";
+import type { Doc, Id, TableNames } from "./_generated/dataModel";
 import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 
 /** "zz …", "Whop E2E …", "Canvas check …", or any name carrying a thread code such as "(YCCO-7)". */
@@ -45,7 +46,8 @@ const SEEDED_LEAGUE_INVITE_CODES = ["YCHACK", "MATCHA", "MATCHB", "VSMAYA"];
 const scope = {
   // Every league and player the seed did not make, whatever they are called.
   everything: v.optional(v.boolean()),
-  // Players who stay all the same: the accounts of real phones.
+  // Players who stay all the same: the accounts of real phones. The leagues they made or are in
+  // stay with them, unless named as fixtures.
   keep: v.optional(v.array(v.id("users"))),
 };
 type Scope = ObjectType<typeof scope>;
@@ -61,9 +63,21 @@ async function fixtures(
   ctx: QueryCtx,
   { everything = false, keep = [] }: Scope,
 ): Promise<{ leagues: Doc<"leagues">[]; players: Doc<"users">[] }> {
+  // A real phone quick-matches into a public league or makes one of its own, and that league is
+  // not a tester's to delete, whoever else is in it.
+  const keptLeagueIds = new Set<Id<"leagues">>();
+  for (const userId of keep) {
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .take(PAGE);
+    for (const membership of memberships) keptLeagueIds.add(membership.leagueId);
+  }
+  const isKept = (league: Doc<"leagues">) => keep.includes(league.createdBy) || keptLeagueIds.has(league._id);
   const leagues = (await ctx.db.query("leagues").take(MAX_ROOTS)).filter(
     (league) =>
-      !SEEDED_LEAGUE_INVITE_CODES.includes(league.inviteCode) && (everything || isFixtureName(league.name)),
+      !SEEDED_LEAGUE_INVITE_CODES.includes(league.inviteCode) &&
+      (isFixtureName(league.name) || (everything && !isKept(league))),
   );
   const players = (await ctx.db.query("users").take(MAX_ROOTS)).filter(
     (user) => !user.isSeed && !keep.includes(user._id) && (everything || isFixtureName(user.name)),
