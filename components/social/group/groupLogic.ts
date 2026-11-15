@@ -19,12 +19,14 @@ function atHour(now: Date, dayOffset: number, hour: number): number {
 export function startTimeOptions(now: number): StartOption[] {
   const today = new Date(now);
   const options: StartOption[] = [
+    // Check-in opens 30 minutes before the start, so only "Now" lets a session be checked into straight away.
+    { label: "Now", startsAt: now },
     { label: "In 1 hour", startsAt: now + HOUR_MS },
     { label: "Tonight 7 PM", startsAt: atHour(today, 0, 19) },
     { label: "Tomorrow 7 AM", startsAt: atHour(today, 1, 7) },
     { label: "Tomorrow 6 PM", startsAt: atHour(today, 1, 18) },
   ];
-  return options.filter((option) => option.startsAt > now);
+  return options.filter((option) => option.startsAt >= now);
 }
 
 /** "Sun 7:00 PM" */
