@@ -11,6 +11,7 @@ import { Header, Screen, SectionLabel } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { setDevFlag, useDevFlags } from "@/lib/devFlags";
+import { previewDropNotification } from "@/lib/notifications/preview";
 
 import { deviceGps, requestLocationFor } from "../camera/deviceLocation";
 import { ActionRow } from "./ActionRow";
@@ -69,6 +70,10 @@ export function DemoControls() {
       <SectionLabel left="CHECK-IN" />
       {/* The location check-in passes only within 150 m of its pin, so the pin moves to the stage. */}
       <ActionRow label="Pin check-in here" run={async () => pinCheckIn(await phoneCoords(PHONE_GPS))} />
+
+      <SectionLabel left="NOTIFICATIONS" />
+      {/* Five seconds out, so there is time to lock the phone and show it arriving. */}
+      <ActionRow label="Preview Drop Notification (5 s)" run={previewDropNotification} />
 
       <SectionLabel left="SWITCH PLAYER" />
       <ActionRow label="Me" tag={actingAsId ? undefined : "PLAYING"} run={() => actAs({ userId: null })} />

@@ -118,12 +118,13 @@ function registerButtons(module: ExpoNotifications): Promise<void> {
   return buttonsReady;
 }
 
-function contentOf(notification: LineupNotification) {
+/** `planned` marks a reminder as syncScheduled's own, so it never cancels anything else that is pending. */
+function contentOf(notification: LineupNotification, planned = false) {
   return {
     title: notification.title,
     body: notification.body,
     // The same three fields convex/push.ts sends, so a tap is handled one way for both.
-    data: { id: notification.id, kind: notification.kind, url: notification.url },
+    data: { id: notification.id, kind: notification.kind, url: notification.url, ...(planned ? { planned } : {}) },
     sound: true,
     categoryIdentifier: notification.category,
   };
@@ -157,6 +158,7 @@ export async function syncScheduled(planned: (LineupNotification & { fireAt: num
   try {
     const wanted = new Map((enabled ? planned : []).map((notification) => [notification.id, notification]));
     for (const pending of await Notifications.getAllScheduledNotificationsAsync()) {
+      if (pending.content.data?.planned !== true) continue;
       const same = wanted.get(pending.identifier);
       if (same && pending.content.title === same.title && pending.content.body === same.body) {
         wanted.delete(pending.identifier);
@@ -168,12 +170,35 @@ export async function syncScheduled(planned: (LineupNotification & { fireAt: num
     for (const notification of wanted.values()) {
       await Notifications.scheduleNotificationAsync({
         identifier: notification.id,
-        content: contentOf(notification),
+        content: contentOf(notification, true),
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: notification.fireAt },
       });
     }
   } catch {
     // As in raise(): a reminder that can't be scheduled is silently skipped.
+  }
+}
+
+/**
+ * Shows a notification after a short wait, whatever the app is doing by then, and resolves
+ * with whether it will appear. This is for an action the player took on purpose (the demo's
+ * preview), so unlike raise() it asks for permission when that was never answered, and it
+ * does not consult the Push switch.
+ */
+export async function raiseAfter(notification: LineupNotification, seconds: number): Promise<boolean> {
+  if (!Notifications) return false;
+  try {
+    const allowed = await getPermission();
+    if ((allowed === "undetermined" ? await requestPermission() : allowed) !== "granted") return false;
+    await registerButtons(Notifications);
+    await Notifications.scheduleNotificationAsync({
+      identifier: notification.id,
+      content: contentOf(notification),
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 
