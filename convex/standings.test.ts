@@ -237,9 +237,9 @@ describe("standings.matchup", () => {
     const matchup = await as(t, ids.Sam).query(api.standings.matchup, { leagueId });
     if (matchup === null) throw new Error("Sam has no matchup");
 
-    // Sam projects to 285 + half of the 20 still open, against Maya's finished 500.
-    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.37 });
-    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.63 });
+    // Sam projects to 285 + half of the 50 still open, against Maya's finished 500.
+    expect(matchup.me).toEqual({ userId: ids.Sam, name: "Sam Patel", total: 285, winProbability: 0.38 });
+    expect(matchup.opponent).toEqual({ userId: ids.Maya, name: "Maya Chen", total: 500, winProbability: 0.62 });
 
     expect(matchup.rows.map((row) => [row.slot, row.mine?.title, row.theirs?.title])).toEqual([
       ["body", "Bike to work", "Leg day at the gym"],
@@ -247,10 +247,12 @@ describe("standings.matchup", () => {
       ["recharge", "Journal for ten minutes", "Read for 30 minutes"],
       ["chores", "Clean my room", "Do the laundry"],
       ["people", "Call mom", "Dinner with friends"],
-      ["flex", "20 push-ups", "Sunset walk"],
+      ["flex", "Check in at the YC office", "Sunset walk"],
+      ["flex", "20 push-ups", undefined],
     ]);
     expect(matchup.rows[4].mine?.score).toBeNull();
-    expect(matchup.rows[5].mine?.score).toBe(50);
+    expect(matchup.rows[5].mine).toMatchObject({ proofType: "photo_location", place: { name: "YC office" }, score: null });
+    expect(matchup.rows[6].mine?.score).toBe(50);
   });
 
   test("is null for a player with no opponent, and a seventh member gets one", async () => {
