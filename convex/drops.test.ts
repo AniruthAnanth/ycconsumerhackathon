@@ -36,7 +36,8 @@ let texts: string[];
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  // keiki.send does not exist in this backend, so every text ends up in the shim's warning.
+  // Keiki is not configured here, and keiki.send then logs the text it would have sent.
+  vi.stubEnv("KEIKI_AGENT_ID", "");
   texts = [];
   vi.spyOn(console, "warn").mockImplementation((message: unknown) => void texts.push(String(message)));
   // By default the model is down and memory is empty, which is the path that must still work.
@@ -45,6 +46,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
