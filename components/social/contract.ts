@@ -57,6 +57,8 @@ export type MatchupSide = {
   total: number;
   /** 0 to 1; the two sides sum to 1. */
   winProbability: number;
+  /** The server's count of cleared lineup slots (0 to 5), group sessions included. */
+  slotsCleared: number;
 };
 
 export type Matchup = {

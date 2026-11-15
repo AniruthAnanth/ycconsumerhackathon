@@ -41,14 +41,14 @@ function scoreboard(matchup: Matchup | null) {
   if (!matchup) {
     return { myName: "", opponentName: "", myScore: 0, opponentScore: 0, slotsCleared: 0, slotsTotal: SLOTS_TOTAL };
   }
-  // Flex rows come after the five slots and do not count towards the lineup.
-  const slotsCleared = matchup.rows.filter((row) => row.slot !== "flex" && row.mine?.status === "verified").length;
   return {
     myName: firstName(matchup.me.name),
     opponentName: firstName(matchup.opponent.name),
     myScore: Math.round(matchup.me.total),
     opponentScore: Math.round(matchup.opponent.total),
-    slotsCleared,
+    // The server's count, not one rebuilt from rows: a verified group session clears Body and People
+    // from a flex row, which the rows alone would miss.
+    slotsCleared: matchup.me.slotsCleared,
     slotsTotal: SLOTS_TOTAL,
   };
 }
@@ -84,8 +84,9 @@ export function matchupState(
  * The one state to show right now, or null when there is nothing worth a lock-screen slot.
  *
  * A quick-time drop that can still be submitted wins, the soonest to close first, because
- * its countdown is the thing the player can act on. A taskId marks "can still submit": the
- * backend leaves it off once the player's task is verified. Otherwise the week's matchup.
+ * its countdown is the thing the player can act on. drops.active lists a quick-time drop only
+ * until the player's task is verified or the drop closes, so listed and not yet closed by our
+ * clock is the whole test. Otherwise the week's matchup.
  */
 export function activityFor({
   drops,
@@ -101,7 +102,7 @@ export function activityFor({
   now: number;
 }): LiveActivityState | null {
   const live = drops
-    .filter((drop) => drop.kind === "quicktime" && drop.closesAt > now && drop.taskId !== undefined)
+    .filter((drop) => drop.kind === "quicktime" && drop.closesAt > now)
     .sort((a, b) => a.closesAt - b.closesAt)[0];
   if (live) return dropState(live, { leagueName, matchup });
   if (matchup) return matchupState(matchup, { leagueName, weekEndsAtMs });
