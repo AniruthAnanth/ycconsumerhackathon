@@ -386,6 +386,21 @@ describe("closeWeek", () => {
     ]);
   });
 
+  test("a week ended early is over from that moment; one settled after its end keeps its end", async () => {
+    const t = convexTest(schema, modules);
+    const early = await leagueAfterWeekOne(t, FOUR_PLAYERS);
+    const sunday = Date.now() + WEEK_MS;
+    await t.run((ctx) => ctx.db.patch("weeks", early.weekId, { endsAt: sunday }));
+    const late = await leagueAfterWeekOne(t, [{ name: "zoe" }]);
+
+    await t.mutation(internal.whop.closeWeek, { leagueId: early.leagueId });
+    await t.mutation(internal.whop.closeWeek, { leagueId: late.leagueId });
+
+    const endOf = async (weekId: Id<"weeks">) => (await t.run((ctx) => ctx.db.get("weeks", weekId)))?.endsAt;
+    expect(await endOf(early.weekId)).toBeLessThanOrEqual(Date.now());
+    expect(await endOf(late.weekId)).toBe(WEEK_MS);
+  });
+
   test("run twice, it pays nobody twice", async () => {
     const t = convexTest(schema, modules);
     const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
