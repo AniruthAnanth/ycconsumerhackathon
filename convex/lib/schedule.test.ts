@@ -411,4 +411,53 @@ describe("bracket", () => {
     expect(bracketFor(["a"], 8, [])).toBeNull();
     expect(scheduleFor("bracket", ["a"], 8, [])).toEqual([]);
   });
+
+  it("keeps a player who joins during the playoffs out of the bracket", () => {
+    const four = ["a", "b", "c", "d"];
+    const regular = play("bracket", four, 1, 6);
+    const five = [...four, "e"];
+    const joined = new Map([["e", 7]]);
+
+    // Five players would fill a bracket of eight, which starts in week 6:
+    // a week these four already played as regular season.
+    const bracket = bracketFor(five, 7, regular, 8, joined);
+    expect(bracket?.firstWeek).toBe(7);
+    expect(bracket?.rounds).toEqual(bracketFor(four, 7, regular)?.rounds);
+    expect(bracket?.seeds).toEqual(["a", "b", "c", "d", "e"]);
+
+    // The final, then a consolation game for the semifinal losers. The
+    // latecomer is the odd one out and gets a stand-in.
+    const semifinals = play("bracket", four, 7, 7, regular);
+    expect(scheduleFor("bracket", five, 8, semifinals, 8, joined)).toEqual([
+      { a: "a", b: "b" },
+      { a: "c", b: "d" },
+    ]);
+  });
+
+  it("lets in a player who joined before the playoffs began", () => {
+    const five = ["a", "b", "c", "d", "e"];
+    const bracket = bracketFor(five, 5, play("bracket", five, 1, 4), 8, new Map([["e", 5]]));
+    expect(bracket?.firstWeek).toBe(6);
+    expect(bracket?.rounds[0].matches.flatMap((m) => [m.a, m.b])).toContain("e");
+  });
+
+  it("does not start in the week a league fills up", () => {
+    const five = ["a", "b", "c", "d", "e"];
+    const inWeekOne = new Map(five.map((id) => [id, 1]));
+
+    // Three rounds would take all three weeks, and week 1 is already being
+    // played as a round robin by whoever had joined.
+    const bracket = bracketFor(five, 1, [], 3, inWeekOne);
+    expect(bracket?.projected).toBe(true);
+    expect(bracket?.rounds.map((round) => [round.week, round.name])).toEqual([
+      [2, "Semifinals"],
+      [3, "Final"],
+    ]);
+    expect(scheduleFor("bracket", five, 1, [], 3, inWeekOne)).toEqual(
+      scheduleFor("round_robin", five, 1, []),
+    );
+
+    // A one-week season has no week to spare, so it has no bracket.
+    expect(bracketFor(five, 1, [], 1, inWeekOne)).toBeNull();
+  });
 });

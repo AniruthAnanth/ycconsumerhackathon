@@ -400,6 +400,7 @@ describe("buildSeason", () => {
             members: members.map((id) => ({ id, joinedAt: 0 })),
             openedWeeks: Array.from({ length: week }, (_, i) => ({
               number: i + 1,
+              startsAt: i * WEEK_MS,
               endsAt: (i + 1) * WEEK_MS,
               live: i + 1 === week && newestIsLive,
             })),
