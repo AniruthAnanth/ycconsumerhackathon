@@ -7,15 +7,17 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import { CLOSE_CALL_CONFIDENCE } from "./lib/verdict";
 import { slot } from "./schema";
 
 // ---- Rules (pure) -----------------------------------------------------------------------------
 
-/** The referee passes a proof at 0.6. Below 0.75 it was not sure, and the feed says so to invite a challenge. */
-export const CLOSE_CALL_BELOW = 0.75;
-
+/**
+ * A pass the referee was not sure about; the feed flags it to invite a challenge. The threshold is
+ * the one the verdict screen uses, so a proof is never a close call in one place and not the other.
+ */
 export function isCloseCall(proof: { pass: boolean; confidence: number }): boolean {
-  return proof.pass && proof.confidence < CLOSE_CALL_BELOW;
+  return proof.pass && proof.confidence <= CLOSE_CALL_CONFIDENCE;
 }
 
 export type FeedKind = "proof" | "drop" | "group";
