@@ -8,7 +8,7 @@ import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
-import { TextLineupBanner } from "@/components/shell/TextLineupBanner";
+import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
 import { useNow } from "@/lib/useNow";
 import { OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
@@ -41,7 +41,7 @@ export default function LeagueScreen() {
       />
       <SeasonLink leagueId={leagueId} />
       {pot.payouts ? <PayoutRows payouts={pot.payouts} /> : null}
-      <TextLineupBanner />
+      <PlayByTextRow />
       <LeagueDetails league={league} pot={pot} now={now} />
       <View style={styles.actions}>
         <OutlinedPillButton
