@@ -27,7 +27,7 @@ export function ChallengeBar({
   const vote = useMutation(socialApi.challenges.vote);
   const share = legitShare(challenge.legit, challenge.notLegit);
   const cast = (legit: boolean) => {
-    haptics.select();
+    haptics.veto();
     vote({ challengeId: challenge.challengeId, legit }).catch((error) => notify(errorMessage(error)));
   };
 
