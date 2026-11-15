@@ -97,23 +97,23 @@ type ProofSubmission = {
   lat?: number;
   lng?: number;
   frameStorageIds?: Id<"_storage">[];
+  beforeStorageId?: Id<"_storage">;
+  durationSec?: number;
+  capturedAt?: number;
+  frameTimes?: number[];
   /** Omitted for the app, where the caller is the signed-in player. */
   userId?: Id<"users">;
   via: "app" | "keiki";
 };
 
 async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Promise<Verdict> {
-  // What the model looks at: the photo itself, or the stills of a video.
-  const imageIds =
-    submission.mediaType === "photo"
-      ? [submission.storageId]
-      : (submission.frameStorageIds ?? []).slice(0, MAX_VIDEO_FRAMES);
+  const { proofType } = await ctx.runQuery(internal.proofs.proofTypeOf, { taskId: submission.taskId });
+  const imageIds = proofImages(proofType, submission);
 
-  const { userId, task, gesture, imageTypes }: ProofContext = await ctx.runQuery(internal.proofs.context, {
-    taskId: submission.taskId,
-    userId: submission.userId,
-    imageIds,
-  });
+  const { userId, task, gesture, imageTypes, imageHashes, reusedImage }: ProofContext = await ctx.runQuery(
+    internal.proofs.context,
+    { taskId: submission.taskId, userId: submission.userId, imageIds },
+  );
 
   // A group session is proven by GPS and by who is in the photo (drops.ts then counts them), so
   // its scene is not held to the pinned place: a stand-up on the lawn outside the office counts.
@@ -128,7 +128,9 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
     };
   }
 
-  let verdict = await rejectionBeforeJudging(ctx, submission, rules, imageTypes);
+  let verdict =
+    (await rejectionBeforeJudging(ctx, submission, rules, imageTypes)) ??
+    antiCheatRejection(task, submission, imageIds, reusedImage);
   if (verdict === null) {
     const judgement = await judgeProof({
       taskTitle: task.title,
@@ -138,6 +140,11 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
       gesture,
       placeName: groupSession ? undefined : rules.location?.placeName,
       groupSession,
+      proofType: task.proofType,
+      targetMinutes: task.targetMinutes,
+      durationSec: timelapseSeconds(submission),
+      frameTimes: submission.frameTimes,
+      today: new Date().toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", weekday: "long", month: "long", day: "numeric" }),
     }).catch((error) => {
       console.error("judgeProof failed:", error instanceof Error ? error.message : error);
       throw new ConvexError("The referee couldn't be reached. Try again in a moment.");
@@ -155,9 +162,73 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
     lat: submission.lat,
     lng: submission.lng,
     via: submission.via,
+    beforeStorageId: submission.beforeStorageId,
+    imageHashes,
     verdict,
   });
   return verdict;
+}
+
+// A timelapse is up to 8 stills; a before/after is the before photo then the after.
+const MAX_TIMELAPSE_FRAMES = 8;
+const MIN_TIMELAPSE_FRAMES = 3;
+// The app captures and submits within seconds; anything older was taken some other time.
+const STALE_CAPTURE_MS = 15 * 60 * 1000;
+// A timelapse may stop a little short of its target, for the seconds lost starting and stopping.
+const TIMELAPSE_SLACK = 0.9;
+
+/** What the model looks at, by the task's proof type. */
+function proofImages(proofType: Doc<"tasks">["proofType"], submission: ProofSubmission): Id<"_storage">[] {
+  if (proofType === "before_after") {
+    return submission.beforeStorageId ? [submission.beforeStorageId, submission.storageId] : [submission.storageId];
+  }
+  if (proofType === "timelapse") {
+    const frames = submission.frameStorageIds ?? [];
+    return frames.length > 0 ? frames.slice(0, MAX_TIMELAPSE_FRAMES) : [submission.storageId];
+  }
+  return submission.mediaType === "photo"
+    ? [submission.storageId]
+    : (submission.frameStorageIds ?? []).slice(0, MAX_VIDEO_FRAMES);
+}
+
+/** A timelapse's elapsed seconds: as the app measured it, else from the first and last still's times. */
+function timelapseSeconds(submission: ProofSubmission): number | undefined {
+  if (submission.durationSec !== undefined) return submission.durationSec;
+  const times = submission.frameTimes;
+  return times && times.length > 1 ? (times[times.length - 1] - times[0]) / 1000 : undefined;
+}
+
+/**
+ * The rules that catch a recycled proof before the model is paid to look at it: an image the
+ * player already used, a shot from earlier in the day, and the shape each proof type needs.
+ */
+function antiCheatRejection(
+  task: Doc<"tasks">,
+  submission: ProofSubmission,
+  imageIds: Id<"_storage">[],
+  reusedImage: boolean,
+): Verdict | null {
+  if (reusedImage) {
+    return rejectWithoutJudging("That photo was already used for an earlier proof. Take a new one.", ["reused_image"]);
+  }
+  if (submission.capturedAt !== undefined && Date.now() - submission.capturedAt > STALE_CAPTURE_MS) {
+    return rejectWithoutJudging("That shot was taken too long ago. Take it again now.", ["stale_capture"]);
+  }
+  if (task.proofType === "before_after" && (!submission.beforeStorageId || submission.beforeStorageId === submission.storageId)) {
+    return rejectWithoutJudging("This task needs a before photo and an after photo.", ["no_change"]);
+  }
+  if (task.proofType === "timelapse") {
+    if (imageIds.length < MIN_TIMELAPSE_FRAMES) {
+      return rejectWithoutJudging("That timelapse is too short to check. Record it again.", ["too_short"]);
+    }
+    const target = task.targetMinutes ?? 30;
+    const seconds = timelapseSeconds(submission);
+    if (seconds === undefined || seconds < target * 60 * TIMELAPSE_SLACK) {
+      const covered = seconds === undefined ? "no time" : `${Math.round(seconds / 60)} minutes`;
+      return rejectWithoutJudging(`That timelapse covers ${covered}; this task needs ${target}.`, ["too_short"]);
+    }
+  }
+  return null;
 }
 
 /**
@@ -222,7 +293,20 @@ type ProofContext = {
   gesture?: string;
   /** Content type of each image, "" when the upload declared none, null when the file is missing. */
   imageTypes: (string | null)[];
+  /** sha256 of each image, as the file store recorded it. */
+  imageHashes: string[];
+  /** One of the images is byte for byte an image from one of the player's earlier proofs. */
+  reusedImage: boolean;
 };
+
+/** The task's proof type, which decides which uploads the referee looks at. */
+export const proofTypeOf = internalQuery({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args): Promise<{ proofType: Doc<"tasks">["proofType"] }> => {
+    const task = await ctx.db.get("tasks", args.taskId);
+    return { proofType: task?.proofType ?? "photo" };
+  },
+});
 
 const NOT_OPEN: Record<Exclude<Doc<"tasks">["status"], "open">, string> = {
   verified: "This task is already verified.",
@@ -249,11 +333,20 @@ export const context = internalQuery({
     }
     const drop = task.dropId ? await ctx.db.get("drops", task.dropId) : null;
     const files = await Promise.all(args.imageIds.map((id) => ctx.db.system.get("_storage", id)));
+    // Identical bytes, not a look-alike: the same file re-sent or re-uploaded from the camera roll.
+    const imageHashes = files.flatMap((file) => (file ? [file.sha256] : []));
+    const earlier = await ctx.db
+      .query("proofs")
+      .withIndex("by_user_week", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(1000);
     return {
       userId,
       task,
       gesture: drop?.gesture,
       imageTypes: files.map((file) => (file ? (file.contentType ?? "").split(";")[0].toLowerCase() : null)),
+      imageHashes,
+      reusedImage: earlier.some((proof) => proof.imageHashes?.some((hash) => imageHashes.includes(hash))),
     };
   },
 });
@@ -266,6 +359,8 @@ export const verdictFields = v.object({
   caption: v.string(),
   points: v.number(),
   closeCall: v.boolean(),
+  flags: v.optional(v.array(v.string())),
+  needsVote: v.optional(v.boolean()),
 });
 
 /**
@@ -282,6 +377,8 @@ export const record = internalMutation({
     lat: v.optional(v.number()),
     lng: v.optional(v.number()),
     via: v.union(v.literal("app"), v.literal("keiki")),
+    beforeStorageId: v.optional(v.id("_storage")),
+    imageHashes: v.optional(v.array(v.string())),
     verdict: verdictFields,
   },
   handler: async (ctx, args): Promise<null> => {
@@ -291,8 +388,8 @@ export const record = internalMutation({
     if (task === null || task.status !== "open") {
       throw new ConvexError("This task closed while the referee was looking.");
     }
-    const { pass, confidence, reason, highlight, caption } = args.verdict;
-    await ctx.db.insert("proofs", {
+    const { pass, confidence, reason, highlight, caption, flags, needsVote } = args.verdict;
+    const proofId = await ctx.db.insert("proofs", {
       taskId: task._id,
       userId: args.userId,
       weekStart: task.weekStart,
@@ -307,7 +404,18 @@ export const record = internalMutation({
       caption,
       via: args.via,
       createdAt: Date.now(),
+      beforeStorageId: args.beforeStorageId,
+      imageHashes: args.imageHashes,
+      flags,
+      ...(needsVote && { needsVote: true }),
     });
+    if (needsVote) {
+      // The referee wasn't sure, so the league decides. The task is held, scoring nothing, until
+      // challenges.ts settles the vote: the proof stands or the task reopens.
+      await ctx.db.patch("tasks", task._id, { status: "held" });
+      await ctx.scheduler.runAfter(0, internal.challenges.refereeVote, { proofId });
+      return null;
+    }
     // The prover hears the call, pass or fail, on a phone where the app is closed: a proof
     // texted to the league agent, or one the referee was still judging when they left. Scheduled
     // rather than called, like the follow-ups below, so a push can never undo a proof.

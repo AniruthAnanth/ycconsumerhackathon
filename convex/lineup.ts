@@ -300,6 +300,8 @@ type TaskRow = {
   points: number;
   proofType: Doc<"tasks">["proofType"];
   place?: Doc<"tasks">["place"];
+  /** Timelapse only: the minutes the stills must span. */
+  targetMinutes?: number;
   status: Doc<"tasks">["status"];
   source: Doc<"tasks">["source"];
   /** Points on the board for this row: null until it scores. */
@@ -447,6 +449,7 @@ async function toRow(ctx: QueryCtx, task: Doc<"tasks">, drop: Doc<"drops"> | nul
     points: task.points,
     proofType: task.proofType,
     place: task.place,
+    ...(task.targetMinutes !== undefined && { targetMinutes: task.targetMinutes }),
     status: task.status,
     source: task.source,
     score: taskScore(task),

@@ -16,10 +16,14 @@ import { ConvexError } from "convex/values";
 
 import { env } from "./_generated/server";
 import type { DraftTask } from "./lib/lineupRules";
-import { CLOSE_CALL_CONFIDENCE, PASS_CONFIDENCE, type Judgement } from "./lib/verdict";
+import { CLOSE_CALL_CONFIDENCE, PASS_CONFIDENCE, VOTE_CONFIDENCE, type Judgement } from "./lib/verdict";
 
 // The owner's choice for every text and vision call.
 const MODEL = "gpt-6-luna";
+
+// The referee's model: the strongest vision model on the key that answers a photo in about 3
+// seconds (gpt-6-luna takes about 2.5). judgeProof falls back to MODEL when it fails.
+const REVIEW_MODEL = "gpt-6.1-sol";
 
 // gpt-6-luna answers "Audio input is not available", so speech goes through
 // the transcription endpoint first and the model only ever sees text.
@@ -52,6 +56,8 @@ export type JsonRequest = {
   schema: Record<string, unknown>;
   /** How long the model thinks before it answers. Defaults to "low". */
   effort?: "none" | "low";
+  /** Defaults to MODEL. */
+  model?: string;
 };
 
 /**
@@ -61,7 +67,7 @@ export type JsonRequest = {
  */
 export async function askJson<T>(request: JsonRequest): Promise<T> {
   const response = await client().responses.create({
-    model: MODEL,
+    model: request.model ?? MODEL,
     // These are quick judgement calls, and low effort keeps them to a couple of seconds.
     reasoning: { effort: request.effort ?? "low" },
     instructions: request.instructions,
@@ -245,18 +251,71 @@ How to call it:
 - confidence is how sure you are that the player really did the task, from 0 to 1:
   - 0.85 to 1: what is visible fits the task directly. This is the normal score for an honest proof.
   - ${PASS_CONFIDENCE} to ${CLOSE_CALL_CONFIDENCE}: related but thin. It could be this task, and could as easily be something else.
-  - under ${PASS_CONFIDENCE}: unrelated, contradictory or unreadable.
+  - ${VOTE_CONFIDENCE} to ${PASS_CONFIDENCE}: you genuinely can't tell either way. The league will vote on it.
+  - under ${VOTE_CONFIDENCE}: unrelated, contradictory or unreadable.
   pass is true only when confidence is at least ${PASS_CONFIDENCE}.
 - reason is the call the whole league will read: one sentence of at most 16 words that names what is actually visible and why it does or does not match. Like "Barbell rack and mirror visible, matches leg day." or "That's a cat chasing a lizard, not leg day." Never mention confidence, rules or GPS.
 - highlight is 1 to 10: how impressive or entertaining this proof would be in the league feed. Most proofs are 3 to 6.
 - caption is a short, dry feed caption of at most eight words. No hashtags, no emoji.
 - gestureSeen: when a required gesture is given, true only if a person in the shot is clearly making it, otherwise false. A proof without its required gesture fails, and the reason says the gesture is missing. null when no gesture is required.
+- flags: short tags for what is wrong, from the list in the schema; an empty list for a clean proof. The task's proof rubric below says which apply.
 - sceneMatchesPlace: when a place is given, the task is a check-in and GPS has already confirmed the phone is there, so being there is the whole task. Do not look for a sign or a logo. The scene matches, with high confidence, unless it plainly shows a different kind of place (a beach for an office, a gym for a library). A desk or any indoor workspace fits an office, and a close-up that shows little of the surroundings still matches when nothing in it contradicts the place. null when no place is given.`;
+
+/** What the referee may flag. lib/verdict.ts and proofs.ts add their own rule flags beside these. */
+const JUDGEMENT_FLAGS = [
+  "different_place",
+  "no_change",
+  "scene_changed",
+  "not_doing_task",
+  "too_short",
+  "not_a_screenshot",
+  "wrong_app",
+  "wrong_date",
+  "looks_edited",
+] as const;
+
+/**
+ * The extra rubric each proof type adds to the referee's instructions. A plain photo or a
+ * check-in needs none: REFEREE_INSTRUCTIONS already covers them.
+ */
+function proofRubric(input: {
+  proofType: string;
+  imageCount: number;
+  targetMinutes?: number;
+  durationSec?: number;
+  frameTimes?: number[];
+  today?: string;
+}): string[] {
+  switch (input.proofType) {
+    case "before_after":
+      return [
+        "Proof type: before and after. The first image is BEFORE the task, the second is AFTER.",
+        'Pass only when both show the same place (the same room, furniture or fixtures; the angle may differ) and the after shows the real change the task asks for: a tidied room, folded laundry, an empty sink. Flag "different_place" when they are not the same place, and "no_change" when nothing the task asks for changed. Either one fails.',
+      ];
+    case "timelapse": {
+      const minutes = input.durationSec !== undefined ? Math.round(input.durationSec / 60) : undefined;
+      const times = input.frameTimes?.length
+        ? ` They were taken at these minutes from the first: ${input.frameTimes.map((t) => Math.round((t - input.frameTimes![0]) / 60000)).join(", ")}.`
+        : "";
+      return [
+        `Proof type: timelapse. These ${input.imageCount} stills are in time order${minutes !== undefined ? ` and span ${minutes} minutes` : ""}.${times} The task needs ${input.targetMinutes ?? 30} minutes.`,
+        'Pass only when the same person or the same scene persists across the stills, the activity is actually happening in them (pages turning, work progressing, the player still there), and they span the task\'s time. Flag "scene_changed" when the stills look like different places or people, "not_doing_task" when the activity is not happening, and "too_short" when they cover less than the task\'s time. Any of these fails.',
+      ];
+    }
+    case "screenshot":
+      return [
+        `Proof type: screenshot from the player's phone. Today is ${input.today ?? "this week"}.`,
+        'Pass only when it is a real screenshot (not a photo of a screen) from an app that plausibly proves the task (Screen Time, Strava, a fitness app, a grade portal), the numbers shown meet the task, and any date shown falls this week. Flag "not_a_screenshot", "wrong_app" for an unrelated app, "wrong_date" for a date outside this week, and "looks_edited" when the numbers or text look altered. Any of these fails.',
+      ];
+    default:
+      return [];
+  }
+}
 
 const JUDGEMENT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["pass", "confidence", "reason", "highlight", "caption", "gestureSeen", "sceneMatchesPlace"],
+  required: ["pass", "confidence", "reason", "highlight", "caption", "gestureSeen", "sceneMatchesPlace", "flags"],
   properties: {
     pass: { type: "boolean" },
     confidence: { type: "number" },
@@ -265,6 +324,7 @@ const JUDGEMENT_SCHEMA = {
     caption: { type: "string" },
     gestureSeen: { type: ["boolean", "null"] },
     sceneMatchesPlace: { type: ["boolean", "null"] },
+    flags: { type: "array", items: { type: "string", enum: [...JUDGEMENT_FLAGS] } },
   },
 };
 
@@ -288,6 +348,13 @@ export async function judgeProof(input: {
   placeName?: string;
   /** True for a group session's check-in, where the proof is the people who came. */
   groupSession?: boolean;
+  /** The task's proof type; before_after, timelapse and screenshot add their own rubric. */
+  proofType?: string;
+  targetMinutes?: number;
+  durationSec?: number;
+  frameTimes?: number[];
+  /** Today's date in words, for a screenshot's date check. */
+  today?: string;
 }): Promise<Judgement | null> {
   const lines = [`Task: ${input.taskTitle}`, `Roster slot: ${input.slot}`];
   if (input.gesture) lines.push(`Required gesture: ${input.gesture}`);
@@ -300,19 +367,31 @@ export async function judgeProof(input: {
   if (input.fromVideo) {
     lines.push("These are stills from one clip of at most 10 seconds, in order. Judge them together as one proof.");
   }
-  return await askJson<Judgement>({
-    name: "proof_judgement",
-    instructions: REFEREE_INSTRUCTIONS,
-    text: lines.join("\n"),
-    imageUrls: input.imageUrls,
-    schema: JUDGEMENT_SCHEMA,
-  }).catch((error) => {
+  lines.push(...proofRubric({ proofType: input.proofType ?? "photo", imageCount: input.imageUrls.length, ...input }));
+  const ask = (model: string) =>
+    askJson<Judgement>({
+      name: "proof_judgement",
+      instructions: REFEREE_INSTRUCTIONS,
+      text: lines.join("\n"),
+      imageUrls: input.imageUrls,
+      schema: JUDGEMENT_SCHEMA,
+      model,
+    });
+  try {
+    // The stronger model first. A failure that isn't about the photo (an outage, a limit on the
+    // key) falls back to the everyday model, so the referee is never down while one model is.
+    return await ask(REVIEW_MODEL).catch((error) => {
+      if (isUnreadableImage(error)) throw error;
+      console.warn(`${REVIEW_MODEL} failed, falling back to ${MODEL}:`, error instanceof Error ? error.message : error);
+      return ask(MODEL);
+    });
+  } catch (error) {
     if (isUnreadableImage(error)) {
       console.warn("The model could not read a proof:", error.message);
       return null;
     }
     throw error;
-  });
+  }
 }
 
 /**
