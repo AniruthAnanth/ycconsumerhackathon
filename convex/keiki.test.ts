@@ -155,6 +155,17 @@ describe("keiki.linkPhone", () => {
     expect(await t.query(internal.keiki.phonesOf, { userId: maya })).toEqual([PHONE]);
   });
 
+  it("refuses a number a seeded player holds, as onboarding does", async () => {
+    const t = convexTest(schema, modules);
+    const maya = await t.run((ctx) => ctx.db.insert("users", { name: "Maya Chen", phone: PHONE, isSeed: true }));
+    const me = await t.run((ctx) => ctx.db.insert("users", { isAnonymous: true }));
+
+    expect(await t.mutation(internal.keiki.linkPhone, { phone: PHONE, ...(await linkCodeFor(t, me)) })).toBe(false);
+
+    expect(await playerOn(t, PHONE)).toMatchObject({ accountId: maya });
+    expect(await t.run((ctx) => ctx.db.get("users", me))).not.toHaveProperty("phone");
+  });
+
   it("links nothing for a code this backend did not write", async () => {
     const t = convexTest(schema, modules);
     const me = await t.run((ctx) => ctx.db.insert("users", { isAnonymous: true }));
