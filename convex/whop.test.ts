@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { weekEndOf, weekStartOf } from "./lib/week";
 import { addMemory } from "./memory";
 import schema from "./schema";
 import { paidBuyIn } from "./whop";
@@ -267,7 +268,7 @@ const CORE = ["body", "mind", "recharge", "chores", "people"] as const;
 async function leagueOf(
   t: ReturnType<typeof convexTest>,
   members: Member[],
-  settings: { payout?: "weekly" | "season"; seasonWeeks?: number; whopCompanyId?: string } = {},
+  settings: { payout?: "weekly" | "season"; seasonWeeks?: number; whopCompanyId?: string; mode?: "versus" } = {},
 ) {
   return await t.run(async (ctx) => {
     const userIds: Record<string, Id<"users">> = {};
@@ -655,7 +656,8 @@ describe("closeWeek in a season league", () => {
   });
 });
 
-describe("settleWeek", () => {
+/** Gives every test of the describe it is called in a sandbox key for the Whop client. */
+function withWhopSandbox() {
   beforeEach(() => {
     vi.stubEnv("WHOP_API_KEY", "apik_unit_test");
     vi.stubEnv("WHOP_ENVIRONMENT", "sandbox");
@@ -664,30 +666,36 @@ describe("settleWeek", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+}
+
+/** Stubs Whop's API and records each request as "METHOD path". */
+function whopAnswers(answer: () => Response) {
+  const requests: string[] = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init);
+    expect(request.url.startsWith("https://sandbox-api.whop.com/")).toBe(true);
+    requests.push(`${request.method} ${new URL(request.url).pathname.replace("/api/v1", "")}`);
+    return answer();
+  });
+  return requests;
+}
+
+const whopAccepts = () => Response.json({ id: "ctt_1", object: "transfer" });
+const whopRefuses = () =>
+  Response.json(
+    { error: { type: "bad_request", message: "Please verify your business before transferring funds." } },
+    { status: 400 },
+  );
+
+describe("settleWeek", () => {
+  withWhopSandbox();
 
   /** Signs the caller in the way Convex Auth does: the subject is "userId|sessionId". */
   const as = (t: ReturnType<typeof convexTest>, userId: Id<"users">) =>
     t.withIdentity({ subject: `${userId}|session` });
 
-  /** Stubs Whop's API and records each request as "METHOD path". */
-  function whopAnswers(answer: () => Response) {
-    const requests: string[] = [];
-    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-      const request = input instanceof Request ? input : new Request(input, init);
-      expect(request.url.startsWith("https://sandbox-api.whop.com/")).toBe(true);
-      requests.push(`${request.method} ${new URL(request.url).pathname.replace("/api/v1", "")}`);
-      return answer();
-    });
-    return requests;
-  }
-
   test("keeps the ledger rows when Whop refuses, and retries on the next call", async () => {
-    const requests = whopAnswers(() =>
-      Response.json(
-        { error: { type: "bad_request", message: "Please verify your business before transferring funds." } },
-        { status: 400 },
-      ),
-    );
+    const requests = whopAnswers(whopRefuses);
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
@@ -704,7 +712,7 @@ describe("settleWeek", () => {
   });
 
   test("refunds each stake on its Whop payment, transfers the winnings, and does neither twice", async () => {
-    const requests = whopAnswers(() => Response.json({ id: "ctt_1", object: "transfer" }));
+    const requests = whopAnswers(whopAccepts);
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
@@ -731,6 +739,195 @@ describe("settleWeek", () => {
 
     await expect(as(t, strangerId).action(api.whop.settleWeek, { leagueId })).rejects.toThrow(
       "Only a member",
+    );
+    expect(await settlementRows(t)).toEqual([]);
+  });
+});
+
+describe("closeWeek after a league's first season", () => {
+  test("the second season settles under its own keys, so it is paid out as well", async () => {
+    const t = convexTest(schema, modules);
+    const players: Member[] = [
+      { name: "maya", boughtIn: true, clearedFive: true, points: 100 },
+      { name: "sam", boughtIn: true, clearedFive: true, points: 100 },
+    ];
+    const { leagueId, userIds } = await leagueAfterWeekOne(t, players, { payout: "season", seasonWeeks: 1 });
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+
+    // Season 2 is week 2 of this league: both buy in again, and both clear their five.
+    await t.run(async (ctx) => {
+      const weekId = await ctx.db.insert("weeks", {
+        leagueId,
+        number: 2,
+        startsAt: WEEK_MS,
+        endsAt: 2 * WEEK_MS,
+        status: "open",
+      });
+      for (const name of ["maya", "sam"]) {
+        await ctx.db.insert("ledger", {
+          leagueId,
+          weekId,
+          userId: userIds[name],
+          kind: "buy_in",
+          amountUsd: 5,
+          idempotencyKey: `buy_in:pay_${name}_2`,
+          createdAt: 0,
+        });
+      }
+    });
+    for (const name of ["maya", "sam"]) {
+      await playWeek(t, userIds[name], WEEK_MS, { clearedFive: true, points: 100 });
+    }
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+
+    expect((await settlementRows(t)).map((row) => row.idempotencyKey)).toEqual([
+      `${leagueId}:season:${userIds.maya}:refund`,
+      `${leagueId}:season:${userIds.sam}:refund`,
+      `${leagueId}:season-2:${userIds.maya}:refund`,
+      `${leagueId}:season-2:${userIds.sam}:refund`,
+    ]);
+  });
+});
+
+describe("endWeek", () => {
+  withWhopSandbox();
+
+  const weeksOf = (t: ReturnType<typeof convexTest>) =>
+    t.run(async (ctx) =>
+      (await ctx.db.query("weeks").collect()).map(({ number, status, startsAt }) => ({ number, status, startsAt })),
+    );
+  const paidFlags = (t: ReturnType<typeof convexTest>) =>
+    t.run(async (ctx) => (await ctx.db.query("memberships").collect()).map((membership) => membership.paid));
+
+  test("leaves a league alone while the calendar is still in its latest week, settled early or not", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, weekId } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
+    const startsAt = weekStartOf(Date.now());
+    await t.run((ctx) => ctx.db.patch("weeks", weekId, { startsAt, endsAt: weekEndOf(startsAt) }));
+
+    await t.action(internal.whop.endWeek, { leagueId });
+
+    expect(await weeksOf(t)).toEqual([{ number: 1, status: "open", startsAt }]);
+    expect(await settlementRows(t)).toEqual([]);
+
+    // End Week Now on a Wednesday: the next week still opens on Monday, not now.
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+    await t.action(internal.whop.endWeek, { leagueId });
+
+    expect(await weeksOf(t)).toEqual([{ number: 1, status: "settled", startsAt }]);
+  });
+
+  test("once the week has run out, settles it, opens the next with its matchups and makes the stake due again", async () => {
+    const requests = whopAnswers(whopAccepts);
+    const t = convexTest(schema, modules);
+    const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS, { whopCompanyId: "biz_league" });
+
+    await t.action(internal.whop.endWeek, { leagueId });
+    await t.action(internal.whop.endWeek, { leagueId });
+
+    expect(await weeksOf(t)).toEqual([
+      { number: 1, status: "settled", startsAt: 0 },
+      { number: 2, status: "open", startsAt: weekStartOf(Date.now()) },
+    ]);
+    // Four members make two pairs, and week 1 had no matchup rows in this league.
+    expect(await t.run((ctx) => ctx.db.query("matchups").collect())).toHaveLength(2);
+    expect(await paidFlags(t)).toEqual([false, false, false, false]);
+    expect(await settlementRows(t)).toHaveLength(5);
+    // The money moved once, with the call that closed the week.
+    expect(requests).toEqual(["POST /payments/pay_maya/refund", "POST /payments/pay_sam/refund", "POST /transfers"]);
+  });
+
+  test("a season league rolls on without paying, or asking for a new stake, until its last week", async () => {
+    whopAnswers(whopAccepts);
+    const t = convexTest(schema, modules);
+    const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS, { payout: "season", seasonWeeks: 2 });
+
+    await t.action(internal.whop.endWeek, { leagueId });
+
+    expect(await weeksOf(t)).toMatchObject([
+      { number: 1, status: "settled" },
+      { number: 2, status: "open" },
+    ]);
+    expect(await settlementRows(t)).toEqual([]);
+    expect(await paidFlags(t)).toEqual([true, true, true, false]);
+
+    // The season's last week runs out too: one settlement over both weeks, then season 2 opens
+    // with every stake due again.
+    await t.run(async (ctx) => {
+      const [, weekTwo] = await ctx.db.query("weeks").collect();
+      await ctx.db.patch("weeks", weekTwo._id, { startsAt: WEEK_MS, endsAt: 2 * WEEK_MS });
+    });
+    await t.action(internal.whop.endWeek, { leagueId });
+
+    expect(await weeksOf(t)).toMatchObject([
+      { number: 1, status: "settled" },
+      { number: 2, status: "settled" },
+      { number: 3, status: "open" },
+    ]);
+    const keys = (await settlementRows(t)).map((row) => row.idempotencyKey);
+    expect(keys).toHaveLength(5);
+    expect(keys.every((key) => key.startsWith(`${leagueId}:season:`))).toBe(true);
+    expect(await paidFlags(t)).toEqual([false, false, false, false]);
+  });
+
+  test("a versus game is settled when its week runs out, and no second week opens", async () => {
+    const requests = whopAnswers(whopAccepts);
+    const t = convexTest(schema, modules);
+    const rivals: Member[] = [
+      { name: "maya", boughtIn: true, points: 300 },
+      { name: "sam", boughtIn: true, points: 100 },
+    ];
+    const { leagueId } = await leagueAfterWeekOne(t, rivals, { mode: "versus" });
+
+    await t.action(internal.whop.endWeek, { leagueId });
+    const sent = requests.length;
+    await t.action(internal.whop.endWeek, { leagueId });
+
+    expect(await weeksOf(t)).toEqual([{ number: 1, status: "settled", startsAt: 0 }]);
+    const cents = (await settlementRows(t)).reduce((sum, row) => sum + Math.round(row.amountUsd * 100), 0);
+    expect(cents).toBe(1000);
+    expect(requests).toHaveLength(sent);
+  });
+});
+
+describe("retryPayouts", () => {
+  withWhopSandbox();
+
+  test("sends an earlier week's unsent payouts once the league has moved on, and sends nothing twice", async () => {
+    let answer = whopRefuses;
+    const requests = whopAnswers(() => answer());
+    const t = convexTest(schema, modules);
+    const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
+      whopCompanyId: "biz_league",
+    });
+    await t.action(internal.whop.endWeek, { leagueId });
+    answer = whopAccepts;
+    // The league is in week 2 now, so the week's end no longer reaches week 1.
+    await t.action(internal.whop.endWeek, { leagueId });
+    expect(requests).toHaveLength(3);
+
+    await t.action(internal.whop.retryPayouts, { leagueId, weekId });
+    await t.action(internal.whop.retryPayouts, { leagueId, weekId });
+
+    expect((await settlementRows(t)).map(({ userId, kind, whopId }) => ({ userId, kind, whopId }))).toEqual([
+      { userId: userIds.maya, kind: "refund", whopId: "pay_maya" },
+      { userId: userIds.maya, kind: "winnings", whopId: "ctt_1" },
+      { userId: userIds.sam, kind: "refund", whopId: "pay_sam" },
+      { userId: userIds.sam, kind: "winnings", whopId: undefined },
+      { userId: undefined, kind: "fee", whopId: undefined },
+    ]);
+    expect(requests).toHaveLength(6);
+    const weeks = await t.run((ctx) => ctx.db.query("weeks").collect());
+    expect(weeks.map((week) => week.status)).toEqual(["settled", "open"]);
+  });
+
+  test("refuses a week that belongs to another league", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
+    const other = await leagueWithMember(t);
+
+    await expect(t.action(internal.whop.retryPayouts, { leagueId, weekId: other.weekId })).rejects.toThrow(
+      "not this league's",
     );
     expect(await settlementRows(t)).toEqual([]);
   });
