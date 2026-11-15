@@ -44,7 +44,7 @@ describe("labels", () => {
   test("format chances, deltas and nets the way the cards print them", () => {
     expect(formatChance(0.624)).toBe("62%");
     expect(formatChance(1.2)).toBe("100%");
-    expect(formatChance(0)).toBe("0%");
+    expect(formatChance(0)).toBe("<1%");
     expect(formatChance(0.001)).toBe("<1%");
     expect(formatChance(0.999)).toBe(">99%");
     expect(deltaLabel(14)).toBe("+14 today");
