@@ -2,15 +2,13 @@
 
 Lineup is a fantasy league for your own life. Each week you draft your tasks by voice into five slots (body, mind, recharge, chores, people), put a stake on them with your league, and prove each one with a photo that an AI referee checks. Clear all five and you get your stake back, plus a share of the stakes of the players who did not finish.
 
-This page says how Convex, Capy and Revyl were each used, with the file to open for every claim. For more:
+This page says how Convex, Capy and Revyl were each used, with the file to open for every claim. Engineering detail is in:
 
 | Read | For |
 | --- | --- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | One diagram, the boundary rules, and a paragraph on every module. |
-| [docs/tracks/whop.md](docs/tracks/whop.md) | What moves through Whop, and what the sandbox could not do. |
-| [docs/tracks/keiki.md](docs/tracks/keiki.md) | What a player can do entirely by text. |
-| [docs/demo/SCRIPT.md](docs/demo/SCRIPT.md) | The two-minute demo, tap by tap, with a fallback for each step. |
-| [docs/JUDGES.md](docs/JUDGES.md) | Ten questions a judge is likely to ask, with short answers. |
+| [docs/SCHEMA.md](docs/SCHEMA.md) | Every Convex table, its indexes and why each exists. |
+| [docs/SCORING.md](docs/SCORING.md) | The scoring, referee and settlement rules. |
 
 ## The numbers
 
@@ -67,8 +65,8 @@ The machines that write the code have no Xcode. Every binary is built on Revyl's
 
 ## Whop, Keiki, OpenAI and Supermemory
 
-- **Whop** carries the money. Each league is its own Whop company, a buy-in is a hosted checkout on that company, and only the verified webhook marks a member paid (`convex/whop.ts`). The split is a pure function in `convex/lib/settlement.ts`. More in [docs/tracks/whop.md](docs/tracks/whop.md).
-- **Keiki** is the league's text agent. A player who opts in can prove a task by texting a photo, and the league gets drops, lead changes and nudges as texts (`convex/keiki.ts`). More in [docs/tracks/keiki.md](docs/tracks/keiki.md).
+- **Whop** carries the money. Each league is its own Whop company, a buy-in is a hosted checkout on that company, and only the verified webhook marks a member paid (`convex/whop.ts`). The split is a pure function in `convex/lib/settlement.ts`. The rules are in [docs/SCORING.md](docs/SCORING.md).
+- **Keiki** is the league's text agent. A player who opts in can prove a task by texting a photo, and the league gets drops, lead changes and nudges as texts (`convex/keiki.ts`).
 - **OpenAI** does three jobs from one file, `convex/ai.ts`: it transcribes the voice note, turns the transcript into a lineup, and describes proof photos for the referee.
 - **Supermemory** keeps each player's past weeks in a namespace of their own (`convex/memory.ts`), so the next draft can react to what they finished and what they skipped.
 
