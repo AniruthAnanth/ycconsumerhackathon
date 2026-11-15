@@ -30,6 +30,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { askJson } from "./ai";
+import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
 import {
   firstFinisher,
@@ -84,7 +85,7 @@ export const active = query({
   returns: v.array(activeDrop),
   handler: async (ctx, { leagueId }) => {
     const me = await requireUser(ctx);
-    if ((await membership(ctx, leagueId, me._id)) === null) return [];
+    if ((await membershipOf(ctx, leagueId, me._id)) === null) return [];
 
     // A group session is listed from the moment it is announced, so members can RSVP; every
     // other drop only once it is open.
@@ -146,7 +147,7 @@ export const triggerQuickTime = mutation({
   returns: v.id("drops"),
   handler: async (ctx, { leagueId, random }) => {
     const me = await requireUser(ctx);
-    if ((await membership(ctx, leagueId, me._id)) === null) {
+    if ((await membershipOf(ctx, leagueId, me._id)) === null) {
       throw new ConvexError("Only a member of the league can start a drop");
     }
     // One live quick-time drop per league: a texted photo has to mean exactly one drop, and
@@ -233,7 +234,7 @@ async function startGroupSession(
   userId: Id<"users">,
   session: { leagueId: Id<"leagues">; title: string; place: Infer<typeof place>; startsAt: number },
 ): Promise<Id<"drops">> {
-  if ((await membership(ctx, session.leagueId, userId)) === null) {
+  if ((await membershipOf(ctx, session.leagueId, userId)) === null) {
     throw new ConvexError("Only a member of the league can start a group session");
   }
   const title = session.title.trim();
@@ -278,7 +279,7 @@ async function joinGroupSession(ctx: MutationCtx, userId: Id<"users">, dropId: I
   const drop = await ctx.db.get("drops", dropId);
   if (drop === null || drop.kind !== "group") throw new ConvexError("That group session doesn't exist");
   if (drop.status === "closed") throw new ConvexError("That group session is over");
-  if ((await membership(ctx, drop.leagueId, userId)) === null) {
+  if ((await membershipOf(ctx, drop.leagueId, userId)) === null) {
     throw new ConvexError("Join the league to join its group sessions");
   }
   // IN sent twice, or tapped twice, is still one RSVP.
@@ -377,7 +378,7 @@ export const openDrop = internalMutation({
       return null;
     }
 
-    for (const member of await membersOf(ctx, drop.leagueId)) {
+    for (const member of await membersInJoinOrder(ctx, drop.leagueId)) {
       await giveTask(ctx, drop, member.userId, weekStart);
     }
     await sendText(
@@ -598,24 +599,6 @@ async function tasksOf(ctx: QueryCtx, dropId: Id<"drops">): Promise<Doc<"tasks">
     .query("tasks")
     .withIndex("by_drop", (q) => q.eq("dropId", dropId))
     .take(MAX_ROWS);
-}
-
-async function membersOf(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"memberships">[]> {
-  return await ctx.db
-    .query("memberships")
-    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-    .take(MAX_ROWS);
-}
-
-async function membership(
-  ctx: QueryCtx,
-  leagueId: Id<"leagues">,
-  userId: Id<"users">,
-): Promise<Doc<"memberships"> | null> {
-  return await ctx.db
-    .query("memberships")
-    .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
-    .first();
 }
 
 // ─── Texts ───────────────────────────────────────────────────────────────────────────────────

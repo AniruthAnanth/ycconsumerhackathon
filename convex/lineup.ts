@@ -23,6 +23,7 @@ import {
 } from "./_generated/server";
 import { draftLineup, rateTask, transcribe } from "./ai";
 import { challengerPointsByUser } from "./challenges";
+import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { MAX_FLEX_TASKS, lineupProblem, shapeDraft, tidyTask, type DraftTask } from "./lib/lineupRules";
 import { CORE_SLOTS, clampTaskPoints, scoreWeek, taskScore } from "./lib/scoring";
@@ -209,10 +210,7 @@ export const rememberOutcomes = internalAction({
 export const weekOutcomes = internalQuery({
   args: { leagueId: v.id("leagues"), weekStart: v.number() },
   handler: async (ctx, args): Promise<{ userId: Id<"users">; summary: string }[]> => {
-    const members = await ctx.db
-      .query("memberships")
-      .withIndex("by_league", (q) => q.eq("leagueId", args.leagueId))
-      .take(200);
+    const members = await membersInJoinOrder(ctx, args.leagueId);
     const outcomes = [];
     for (const member of members) {
       // Only the player's own plan is worth remembering: drops are the league's idea, not a habit.
@@ -503,10 +501,7 @@ async function lineupFor(ctx: QueryCtx, userId: Id<"users">, weekStart: number):
 async function shareALeague(ctx: QueryCtx, a: Id<"users">, b: Id<"users">): Promise<boolean> {
   const mine = await ctx.db.query("memberships").withIndex("by_user", (q) => q.eq("userId", a)).take(100);
   for (const { leagueId } of mine) {
-    const theirs = await ctx.db
-      .query("memberships")
-      .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", b))
-      .first();
+    const theirs = await membershipOf(ctx, leagueId, b);
     if (theirs !== null) return true;
   }
   return false;

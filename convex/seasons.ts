@@ -12,6 +12,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
 import {
   bracketFor,
@@ -220,10 +221,7 @@ async function loadMembers(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
 ): Promise<{ id: UserId; joinedAt: number }[]> {
-  const memberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-    .take(MAX_MEMBERS);
+  const memberships = await membersInJoinOrder(ctx, leagueId);
   return memberships.map((m) => ({ id: m.userId, joinedAt: m.joinedAt }));
 }
 
@@ -412,12 +410,7 @@ export const overview = query({
     const league = await ctx.db.get("leagues", leagueId);
     if (league === null) throw new ConvexError("That league doesn't exist.");
     // A season names every member and what each scored, so only members read it.
-    const membership = await ctx.db
-      .query("memberships")
-      .withIndex("by_league_user", (q) =>
-        q.eq("leagueId", leagueId).eq("userId", me._id),
-      )
-      .first();
+    const membership = await membershipOf(ctx, leagueId, me._id);
     if (membership === null) throw new ConvexError("You are not in this league.");
 
     const input = await loadSeason(ctx, league);

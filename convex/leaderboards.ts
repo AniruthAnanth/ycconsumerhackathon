@@ -26,6 +26,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { challengerPointsByUser } from "./challenges";
+import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { projectionLabel, projectPayout, settledLabel, type Projection, type ProjectionMember } from "./lib/projection";
 import { FORMATS, rankBoard, type BoardFormat, type Entry } from "./lib/ranking";
@@ -573,10 +574,7 @@ async function loadLeague(ctx: ReadCtx, leagueId: Id<"leagues">): Promise<League
   if (doc === null) return null;
   const [memberships, newestWeeks] = await Promise.all([
     // memberships.by_league
-    ctx.db
-      .query("memberships")
-      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-      .take(MAX_MEMBERS),
+    membersInJoinOrder(ctx, leagueId),
     // weeks.by_league, newest first so an old league keeps its recent weeks.
     ctx.db
       .query("weeks")
@@ -810,10 +808,7 @@ export const sync = mutation({
   handler: async (ctx, { leagueId }) => {
     const me = await requireUser(ctx);
     // memberships.by_league_user
-    const membership = await ctx.db
-      .query("memberships")
-      .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", me._id))
-      .first();
+    const membership = await membershipOf(ctx, leagueId, me._id);
     if (membership !== null) await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
     return null;
   },
