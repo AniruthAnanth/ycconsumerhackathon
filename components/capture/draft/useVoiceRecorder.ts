@@ -1,5 +1,5 @@
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from "expo-audio";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 
 import { meterLevel } from "./recordingMeter";
@@ -10,6 +10,15 @@ const RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled:
 export function useVoiceRecorder() {
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
   const state = useAudioRecorderState(recorder, 100);
+
+  // Leaving the screen mid-recording releases the recorder. A native release stops the capture
+  // itself, but a browser's MediaRecorder keeps the microphone open until it is stopped.
+  useEffect(
+    () => () => {
+      if (Platform.OS === "web" && recorder.isRecording) void recorder.stop();
+    },
+    [recorder],
+  );
 
   const start = useCallback(async () => {
     const permission = await requestRecordingPermissionsAsync();
