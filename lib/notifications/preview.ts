@@ -1,6 +1,7 @@
 import { dropOpened } from "@/convex/lib/notificationContent";
 
 import { raiseAfter } from "./native";
+import { PREVIEW_DROP_ID } from "./rules";
 
 /** Long enough to lock the phone or go to the home screen after pressing the control. */
 const PREVIEW_DELAY_S = 5;
@@ -20,7 +21,7 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 export function previewDropNotification(): Promise<boolean> {
   const now = Date.now();
   const preview = dropOpened(
-    { dropId: "preview", title: "20 push-ups", points: 40, gesture: "a thumbs up", closesAt: now + TWO_HOURS_MS },
+    { dropId: PREVIEW_DROP_ID, title: "20 push-ups", points: 40, gesture: "a thumbs up", closesAt: now + TWO_HOURS_MS },
     now,
   );
   return raiseAfter(preview, PREVIEW_DELAY_S);
