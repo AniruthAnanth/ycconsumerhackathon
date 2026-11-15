@@ -2,7 +2,7 @@ import { StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 
 import { PressScale } from "@/components/motion";
 
-import { colors, font, fontFamily, MIN_TARGET, radius, spacing } from "@/theme";
+import { BORDER, colors, font, fontFamily, MIN_TARGET, radius, spacing } from "@/theme";
 
 import { Icon, type IconName } from "./Icon";
 
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.control,
-    borderWidth: 1,
+    borderWidth: BORDER,
     backgroundColor: colors.surface,
   },
   label: { fontSize: font.body, fontFamily: fontFamily.bold },

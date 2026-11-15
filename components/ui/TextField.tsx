@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 
-import { colors, font, fontFamily, layout, radius, spacing } from "@/theme";
+import { BORDER, colors, font, fontFamily, layout, radius, spacing } from "@/theme";
 
 type Props = TextInputProps & { label: string };
 
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     minHeight: layout.control,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.control,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.divider,
     backgroundColor: colors.surface,
     fontFamily: fontFamily.regular,

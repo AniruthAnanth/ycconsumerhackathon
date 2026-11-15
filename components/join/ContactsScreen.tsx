@@ -13,7 +13,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { inviteMessage } from "@/lib/leagueText";
 import { shareText } from "@/lib/native/share";
-import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 /**
  * After joining or creating a league: the league is ready, here is its code, now bring friends.
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     padding: spacing.xl,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.divider,
     backgroundColor: colors.surface,
   },

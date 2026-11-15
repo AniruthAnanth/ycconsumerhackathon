@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: colors.surface,
   },
-  league: { flex: 1, gap: 2 },
+  league: { flex: 1, gap: spacing.xs },
   label: { fontFamily: fontFamily.bold, fontSize: font.label, color: colors.textMuted, letterSpacing: 0.6 },
   leagueName: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text },
   muted: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },

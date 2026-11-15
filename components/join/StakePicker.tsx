@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, MIN_TARGET, radius, spacing, type } from "@/theme";
+import { BORDER, colors, MIN_TARGET, radius, spacing, type } from "@/theme";
 
 import { STAKES, type Stake } from "./stakes";
 
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.control,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.accent,
     backgroundColor: colors.background,
   },

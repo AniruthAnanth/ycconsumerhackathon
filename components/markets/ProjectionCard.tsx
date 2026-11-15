@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg from "react-native-svg";
 
 import { CountUp } from "@/components/motion";
-import { colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { formatChance, formatNet, sparkPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
@@ -58,16 +58,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.divider,
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   divided: { paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
-  grow: { flex: 1, gap: 2 },
+  grow: { flex: 1, gap: spacing.xs },
   eyebrow: { ...type.caption, color: colors.textMuted, letterSpacing: 0.6 },
   figure: { ...type.title, color: colors.text, fontVariant: ["tabular-nums"] },
   secondFigure: { ...type.heading, color: colors.text, fontVariant: ["tabular-nums"] },
-  range: { alignItems: "flex-end", gap: 2 },
+  range: { alignItems: "flex-end", gap: spacing.xs },
   rangeText: { fontFamily: fontFamily.extraBold, fontSize: type.label.fontSize, color: colors.text, fontVariant: ["tabular-nums"] },
   meta: { ...type.small, color: colors.textMuted },
 });

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 import { formatStart, type StartOption } from "./groupLogic";
 
 /** The quick start times as a row of pills, with the chosen one filled and its resolved time below. */
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     minHeight: layout.rowMin,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
