@@ -8,8 +8,15 @@ export function findTask(rows: Task[], taskId: string): Task | undefined {
   return rows.find((row) => row.taskId === taskId);
 }
 
+/** Read loosely: the shared Task type gains targetMinutes with the proof-type backend (YCCO-5), and only a timelapse has one. */
+function targetMinutesOf(task: Task): number | undefined {
+  const value = (task as { targetMinutes?: unknown }).targetMinutes;
+  return typeof value === "number" ? value : undefined;
+}
+
 export function toProofTarget(task: Task): ProofTarget {
   return {
+    targetMinutes: targetMinutesOf(task),
     taskId: task.taskId,
     title: task.title,
     points: task.points,

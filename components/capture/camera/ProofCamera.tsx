@@ -1,20 +1,23 @@
 import { CameraView, useCameraPermissions, type CameraType } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDevFlags } from "@/lib/devFlags";
 import { colors, font, fontFamily, spacing } from "@/theme";
 
+import { formatElapsed } from "../proofKinds";
 import type { ProofTarget } from "../proofRoute";
 import { CameraOverlay } from "./CameraOverlay";
 import { CameraPermissionPrompt } from "./CameraPermissionPrompt";
 import { cameraScreen } from "./cameraScreen";
 import { CameraUnavailable } from "./CameraUnavailable";
 import { requestLocationFor } from "./deviceLocation";
+import { GhostOverlay } from "./GhostOverlay";
 import { SampleTray } from "./SampleTray";
-import { ShutterBar } from "./ShutterBar";
+import { ScreenshotPicker } from "./ScreenshotPicker";
+import { modesFor, ShutterBar } from "./ShutterBar";
 import { useProofCapture, type CaptureMode } from "./useProofCapture";
 
 export function ProofCamera({ target }: { target: ProofTarget }) {
@@ -23,35 +26,75 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
   const { sampleMedia } = useDevFlags();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>("back");
-  const [mode, setMode] = useState<CaptureMode>("photo");
+  const modes = modesFor(target.proofType === "timelapse");
+  const [mode, setMode] = useState<CaptureMode>(modes[0]);
   const capture = useProofCapture(target);
 
   useEffect(() => {
     requestLocationFor(target.proofType);
   }, [target.proofType]);
 
+  if (target.proofType === "screenshot") {
+    return (
+      <View style={styles.screen}>
+        <CameraOverlay target={target} onClose={() => router.back()} />
+        <ScreenshotPicker busy={capture.busy} onPicked={(uri) => void capture.submitPicked(uri)} bottomInset={insets.bottom} />
+      </View>
+    );
+  }
+
   const screen = cameraScreen({ sampleMedia, permission, cameraFailed: capture.cameraFailed });
-  const shutter = mode === "photo" ? capture.takePhoto : capture.recording ? capture.stopRecording : capture.startRecording;
+  const start = { photo: capture.takePhoto, video: capture.startRecording, timelapse: capture.startTimelapse, interval: capture.startInterval }[mode];
+  const shutter = capture.recording ? capture.stopRecording : start;
+  const timelapse = target.proofType === "timelapse";
+  const counter = timelapse
+    ? capture.elapsedMs === null
+      ? null
+      : `${formatElapsed(capture.elapsedMs)} / ${capture.targetMinutes}:00`
+    : capture.secondsRemaining === null
+      ? null
+      : `0:${String(capture.secondsRemaining).padStart(2, "0")}`;
+  const reachedTarget = capture.elapsedMs !== null && capture.elapsedMs >= capture.targetMinutes * 60_000;
 
   return (
     <View style={styles.screen}>
       {screen.live ? (
-        <CameraView ref={capture.camera} style={StyleSheet.absoluteFill} facing={facing} mode={mode === "photo" ? "picture" : "video"} mute onMountError={capture.markCameraFailed} />
+        <CameraView
+          ref={capture.camera}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          mode={mode === "video" || mode === "timelapse" ? "video" : "picture"}
+          mute
+          onMountError={capture.markCameraFailed}
+        />
       ) : null}
+      {target.proofType === "before_after" ? <GhostOverlay beforeUri={capture.before?.uri ?? null} /> : null}
       {permission && screen.askPermission ? (
         <CameraPermissionPrompt canAskAgain={permission.canAskAgain} onRequest={requestPermission} />
       ) : null}
       {screen.unavailable ? <CameraUnavailable onRetry={capture.retryCamera} /> : null}
       <CameraOverlay target={target} onClose={() => router.back()} />
       <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
+        {timelapse && capture.recording ? (
+          <Text style={styles.hint} testID="camera-timelapse-status">
+            {reachedTarget ? "Target reached. Stop when you're done." : `Keep going: ${capture.targetMinutes} min target`}
+            {mode === "interval" ? ` · ${capture.frameCount} photos` : ""}
+          </Text>
+        ) : null}
+        {capture.before && !capture.busy ? (
+          <Pressable onPress={capture.retakeBefore} hitSlop={8} testID="camera-retake-before">
+            <Text style={styles.hint}>Retake before</Text>
+          </Pressable>
+        ) : null}
         {screen.live ? (
           <ShutterBar
+            modes={modes}
             mode={mode}
             recording={capture.recording}
-            secondsRemaining={capture.secondsRemaining}
+            counter={counter}
             busy={capture.busy}
             onModeChange={setMode}
-            onShutter={shutter}
+            onShutter={() => void shutter()}
             onFlip={() => setFacing(facing === "back" ? "front" : "back")}
           />
         ) : null}

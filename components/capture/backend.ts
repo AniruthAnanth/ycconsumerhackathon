@@ -26,6 +26,10 @@ export type Verdict = {
   points: number;
   /** Passed, but narrowly enough that the feed invites a challenge. */
   closeCall: boolean;
+  /** Machine tags such as "stale_capture" or "too_short". Absent from a backend older than the proof types. */
+  flags?: string[];
+  /** Neither passed nor failed: the task is held while the league votes on it. */
+  needsVote?: boolean;
 };
 
 export type SeedPlayer = { _id: Id<"users">; name: string };
@@ -48,6 +52,14 @@ export const capture = {
         frameStorageIds?: Id<"_storage">[];
         lat?: number;
         lng?: number;
+        /** Before/after: the before photo; storageId is the after. */
+        beforeStorageId?: Id<"_storage">;
+        /** Timelapse: how long it ran. */
+        durationSec?: number;
+        /** Epoch ms the shot was taken; the referee refuses one older than 15 minutes. */
+        capturedAt?: number;
+        /** Epoch ms of each frame, in the order of frameStorageIds. */
+        frameTimes?: number[];
       },
       Verdict
     >("proofs:verify"),

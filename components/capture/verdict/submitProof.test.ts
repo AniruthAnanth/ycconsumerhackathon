@@ -26,6 +26,27 @@ function fakeBackend(overrides: Partial<ProofBackend> = {}): ProofBackend {
   };
 }
 
+describe("submitProof for the newer proof types", () => {
+  it("uploads the before photo too and names it beforeStorageId", async () => {
+    const backend = fakeBackend();
+    await submitProof(backend, "t", { mediaType: "photo", uri: "file:///after.jpg", beforeUri: "file:///before.jpg", capturedAt: 5 });
+    expect(backend.verifyMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ storageId: "storage-1", beforeStorageId: "storage-2", mediaType: "photo", capturedAt: 5 }),
+    );
+  });
+
+  it("sends a timelapse as its stills in order, the last being the proof image, with times and length", async () => {
+    const backend = fakeBackend();
+    const frames = [1, 2, 3].map((at) => ({ uri: `file:///f${at}.jpg`, at }));
+    await submitProof(backend, "t", { mediaType: "photo", uri: "file:///f3.jpg", frames, durationMs: 1_812_400, capturedAt: 3 });
+    const args = vi.mocked(backend.verifyMedia).mock.calls[0][0];
+    expect(args.frameStorageIds).toEqual(["storage-2", "storage-3", "storage-1"]);
+    expect(args.frameTimes).toEqual([1, 2, 3]);
+    expect(args.durationSec).toBe(1812);
+    expect(backend.uploadMedia).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe("submitProof", () => {
   it("uploads a photo as jpeg and verifies it by storage id", async () => {
     const backend = fakeBackend();

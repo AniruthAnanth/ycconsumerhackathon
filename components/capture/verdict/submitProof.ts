@@ -9,6 +9,10 @@ export type VerifyMediaArgs = {
   frameStorageIds?: string[];
   lat?: number;
   lng?: number;
+  beforeStorageId?: string;
+  durationSec?: number;
+  capturedAt?: number;
+  frameTimes?: number[];
 };
 
 /** The calls submitProof needs, injected so it runs without React, a network or a camera. */
@@ -44,8 +48,28 @@ export async function submitProof(backend: ProofBackend, taskId: string, capture
   const { lat, lng } = capture;
 
   if (capture.mediaType === "photo") {
-    const storageId = await upload(capture.uri, contentTypeFor("photo", capture.uri));
-    return backend.verifyMedia({ taskId, storageId, mediaType: "photo", lat, lng });
+    const { beforeUri, frames, capturedAt } = capture;
+    // A timelapse sends only its stills: half an hour of video is too big to upload. The last still is the proof's own image.
+    const stills = frames?.slice(0, -1) ?? [];
+    const [storageId, beforeStorageId, ...frameIds] = await Promise.all([
+      upload(capture.uri, "image/jpeg"),
+      beforeUri ? upload(beforeUri, "image/jpeg") : Promise.resolve(undefined),
+      ...stills.map((frame) => upload(frame.uri, "image/jpeg")),
+    ]);
+    return backend.verifyMedia({
+      taskId,
+      storageId,
+      mediaType: "photo",
+      lat,
+      lng,
+      ...(capturedAt !== undefined && { capturedAt }),
+      ...(beforeStorageId && { beforeStorageId }),
+      ...(frames?.length && {
+        frameStorageIds: [...(frameIds as string[]), storageId],
+        frameTimes: frames.map((frame) => frame.at),
+        durationSec: Math.round((capture.durationMs ?? 0) / 1000),
+      }),
+    });
   }
 
   const stills = await Promise.all(stillTimes(capture.durationMs).map((time) => backend.captureStill(capture.uri, time)));
