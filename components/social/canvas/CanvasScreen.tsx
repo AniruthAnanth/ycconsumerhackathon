@@ -1,5 +1,4 @@
 import { useAction, useMutation } from "convex/react";
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
@@ -8,6 +7,7 @@ import { colors, font, spacing } from "@/theme";
 
 import { type CanvasAssignment, socialApi } from "../contract";
 import { errorMessage } from "../errorMessage";
+import { leaveScreen } from "../leave";
 import { notify } from "../notify";
 import { ScreenState } from "../ScreenState";
 import { AssignmentRow } from "./AssignmentRow";
@@ -16,7 +16,6 @@ import { ConnectForm } from "./ConnectForm";
 const rowKey = ({ courseId, assignmentId }: CanvasAssignment) => `${courseId}:${assignmentId}`;
 
 export function CanvasScreen() {
-  const router = useRouter();
   const connect = useMutation(socialApi.canvas.connect);
   const listAssignments = useAction(socialApi.canvas.listAssignments);
   const addTask = useMutation(socialApi.canvas.addTask);
@@ -68,7 +67,7 @@ export function CanvasScreen() {
 
   return (
     <Screen>
-      <Header title="Canvas" onBack={router.back} />
+      <Header title="Canvas" onBack={leaveScreen} />
       {checking ? (
         <ScreenState loading />
       ) : (

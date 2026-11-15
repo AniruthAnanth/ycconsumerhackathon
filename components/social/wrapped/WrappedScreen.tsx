@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -11,15 +11,13 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors } from "@/theme";
 
 import { socialApi } from "../contract";
+import { leaveScreen } from "../leave";
 import { ScreenState } from "../ScreenState";
 import { WrappedCard } from "./WrappedCard";
 import { indexAfterTap, pageIndexFromOffset, tapClosesStory } from "./wrappedLogic";
 
 const WHITE = colors.background;
 const SEGMENT_TRACK = "rgba(255,255,255,0.35)";
-
-// A reload or deep link opens this screen with no history, where router.back() throws.
-const leave = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
 /** The weekly Wrapped: five full-screen story cards with progress segments and tap paging. */
 export function WrappedScreen() {
@@ -40,7 +38,7 @@ export function WrappedScreen() {
   if (!wrapped || wrapped.cards.length === 0) {
     return (
       <Screen>
-        <Header title="Wrapped" onBack={leave} />
+        <Header title="Wrapped" onBack={leaveScreen} />
         <ScreenState loading={wrapped === undefined} message="No wrapped yet" />
       </Screen>
     );
@@ -75,7 +73,7 @@ export function WrappedScreen() {
             topInset={insets.top}
             onTap={(tapX) =>
               tapClosesStory(tapX, width, index, cards.length)
-                ? leave()
+                ? leaveScreen()
                 : goTo(indexAfterTap(tapX, width, index, cards.length))
             }
           />
@@ -87,7 +85,7 @@ export function WrappedScreen() {
             <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
           ))}
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leave} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leaveScreen} hitSlop={12}>
           <Text style={styles.close}>{"\u2715"}</Text>
         </Pressable>
       </View>

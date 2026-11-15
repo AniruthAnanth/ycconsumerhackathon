@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { leaveScreen } from "@/components/social/leave";
 import { notify } from "@/components/social/notify";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -84,7 +85,7 @@ export function NewGroupSessionScreen() {
 
   return (
     <Screen>
-      <Header title="New Session" onBack={router.back} />
+      <Header title="New Session" onBack={leaveScreen} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
         <View style={styles.fields}>
           <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Sunset run" />
