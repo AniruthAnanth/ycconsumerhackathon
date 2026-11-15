@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+
+import { PressScale } from "@/components/motion";
 
 import { SLOT_NAME } from "@/lib/slots";
 import { taskPlaceLine, taskRowLabel, taskStatusLine, type TaskRowData } from "@/lib/taskText";
@@ -53,20 +55,20 @@ export function TaskRow({ task, highlighted = false, onPress, right }: Props) {
     <View style={[styles.row, highlighted && styles.highlighted]}>
       {/* A control in `right` sits beside the row's button, not inside it: a screen reader cannot reach a button nested in another. */}
       {onPress && right ? (
-        <Pressable style={styles.lead} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+        <PressScale style={styles.lead} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
           {lead}
-        </Pressable>
+        </PressScale>
       ) : (
         lead
       )}
-      {right ?? <Score value={task.score} projected={task.points} />}
+      {right ?? <Score value={task.score} projected={task.points} animated />}
     </View>
   );
   if (!onPress || right) return row;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <PressScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
       {row}
-    </Pressable>
+    </PressScale>
   );
 }
 

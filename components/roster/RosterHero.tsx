@@ -1,26 +1,30 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { Artwork } from "@/components/art";
+import { CountUp, PressScale, ProgressFill } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
+import { formatScore } from "@/components/ui";
 import type { Roster } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { formatCountdown } from "@/lib/leagueText";
 import { useNow } from "@/lib/useNow";
 import { planProgress, planProgressLabel } from "@/lib/weeklyPlan";
-import { colors, fontFamily, hairline, progress, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
- * The top of Roster: which league and week this is, the head-to-head score, and how much of the
- * locked plan is confirmed. Every number comes from the league, the matchup and the roster rows;
- * until they load the card says so rather than showing a made-up 0. A tap opens the League tab.
+ * The top of Roster, laid out like a fantasy app's matchup card: the head-to-head score is the
+ * biggest thing on the screen, the win chance sits under it, then how much of the locked plan is
+ * confirmed, and the league and week in small type above. Every number comes from the league,
+ * the matchup and the roster rows; until they load the card says so rather than showing a 0.
+ * A tap opens the League tab.
  */
 export function RosterHero({ roster }: { roster: Roster | undefined }) {
   const router = useRouter();
   const { leagueId, league, weekNumber, weekStart } = useCurrentLeague();
   const now = useNow(60_000);
-  // standings.matchup only answers for the current week, so a browsed week shows no scoreboard.
+  // standings.matchup only answers for the current week, so a browsed week shows only my total.
   const matchup = useQuery(socialApi.standings.matchup, leagueId && weekStart === undefined ? { leagueId } : "skip");
 
   if (!league || roster === undefined) {
@@ -33,37 +37,61 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
 
   const plan = planProgress(roster.rows);
   const members = `${league.memberCount} ${league.memberCount === 1 ? "member" : "members"}`;
+  const week = `Week ${weekNumber ?? league.week.number}`;
   const timing =
     weekStart === undefined && league.week.status === "open" ? ` · ends in ${formatCountdown(league.week.endsAt - now)}` : "";
-  const scoreboard = matchup ? `${matchup.me.name} ${matchup.me.total}, ${matchup.opponent.name} ${matchup.opponent.total}` : "";
+  const chance = matchup ? Math.round(matchup.me.winProbability * 100) : null;
+  const scoreboard = matchup
+    ? `${matchup.me.name} ${formatScore(matchup.me.total)}, ${matchup.opponent.name} ${formatScore(matchup.opponent.total)}, ${chance}% to win`
+    : `${formatScore(roster.total)} points this week`;
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    <PressScale
+      style={styles.card}
       onPress={() => router.navigate("/league")}
       accessibilityRole="button"
-      accessibilityLabel={[`${league.name}, ${members}`, `Week ${weekNumber ?? league.week.number}${timing}`, scoreboard].filter(Boolean).join(". ")}
+      accessibilityLabel={[`${league.name}, ${members}`, `${week}${timing}`, scoreboard].join(". ")}
       testID="roster-hero"
     >
       <View style={styles.head}>
         <View style={styles.headText}>
+          <Text style={styles.league} numberOfLines={1}>
+            {league.name} · {members}
+          </Text>
           <Text style={styles.meta}>
-            Week {weekNumber ?? league.week.number}
+            {week}
             {timing}
           </Text>
-          <Text style={styles.league} numberOfLines={1}>
-            {league.name}
-          </Text>
-          <Text style={styles.meta}>{members}</Text>
         </View>
         <Artwork name="sunny" size={78} />
       </View>
 
       {matchup ? (
         <View style={styles.scores}>
-          <Side name={matchup.me.name} total={matchup.me.total} />
+          <View style={styles.side}>
+            <CountUp style={styles.myScore} value={matchup.me.total} format={formatScore} decimals={1} />
+            <Text style={styles.name} numberOfLines={1}>
+              {matchup.me.name}
+            </Text>
+          </View>
           <Text style={styles.vs}>vs</Text>
-          <Side name={matchup.opponent.name} total={matchup.opponent.total} alignEnd />
+          <View style={[styles.side, styles.sideEnd]}>
+            <CountUp style={styles.theirScore} value={matchup.opponent.total} format={formatScore} decimals={1} />
+            <Text style={styles.name} numberOfLines={1}>
+              {matchup.opponent.name}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.side}>
+          <CountUp style={styles.myScore} value={roster.total} format={formatScore} decimals={1} />
+          <Text style={styles.name}>points this week</Text>
+        </View>
+      )}
+      {chance !== null ? (
+        <View style={styles.chance}>
+          <Text style={styles.chanceLabel}>{chance}% to win</Text>
+          <ProgressFill ratio={chance / 100} height={6} />
         </View>
       ) : null}
 
@@ -78,24 +106,11 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           <Text style={styles.planLabel}>
             Your weekly plan · {plan.confirmed} / {plan.possible} pts
           </Text>
-          <View style={styles.track}>
-            <View style={[styles.fill, { width: `${plan.ratio * 100}%` }]} />
-          </View>
+          <ProgressFill ratio={plan.ratio} />
           {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}
         </View>
       ) : null}
-    </Pressable>
-  );
-}
-
-function Side({ name, total, alignEnd = false }: { name: string; total: number; alignEnd?: boolean }) {
-  return (
-    <View style={[styles.side, alignEnd && styles.sideEnd]}>
-      <Text style={styles.score}>{total}</Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {name}
-      </Text>
-    </View>
+    </PressScale>
   );
 }
 
@@ -110,20 +125,22 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     borderColor: colors.divider,
   },
-  loading: { minHeight: 120, alignItems: "center", justifyContent: "center" },
-  pressed: { opacity: 0.85 },
+  loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
   head: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   headText: { flex: 1, gap: 2 },
-  league: { ...type.heading, color: colors.text },
+  league: { ...type.label, color: colors.text },
   meta: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
-  scores: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  scores: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
   side: { flex: 1 },
   sideEnd: { alignItems: "flex-end" },
-  score: { ...type.title, color: colors.text, fontVariant: ["tabular-nums"] },
-  vs: { ...type.caption, color: colors.textFaint },
-  plan: { gap: spacing.sm },
+  // The one number that matters most is the biggest type on the screen; the opponent's is a step down.
+  myScore: { ...type.display, color: colors.text, fontVariant: ["tabular-nums"] },
+  theirScore: { ...type.title, color: colors.textMuted, fontVariant: ["tabular-nums"] },
+  name: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
+  vs: { ...type.caption, color: colors.textFaint, paddingBottom: spacing.lg },
+  chance: { gap: spacing.xs },
+  chanceLabel: { ...type.caption, color: colors.accent },
+  plan: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
   planLabel: { ...type.label, color: colors.text },
-  track: { height: progress.height, borderRadius: radius.pill, backgroundColor: progress.track, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: radius.pill, backgroundColor: progress.fill },
   pending: { ...type.small, color: colors.warning },
 });

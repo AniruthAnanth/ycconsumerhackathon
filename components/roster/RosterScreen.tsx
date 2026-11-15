@@ -6,6 +6,7 @@ import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CheckInPrompt } from "@/components/checkin";
 import { ProjectionLine } from "@/components/leaderboards";
 import { HomeWidgetSync, LiveActivitySync } from "@/components/liveActivity";
+import { Entrance } from "@/components/motion";
 import { AddFlexTask } from "@/components/roster/AddFlexTask";
 import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
@@ -77,9 +78,13 @@ export function RosterScreen() {
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}
       <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-        {leagueId ? <RosterHero roster={roster} /> : null}
-        {lead ? row(lead, true) : null}
-        <View style={styles.actions}>
+        {leagueId ? (
+          <Entrance index={0}>
+            <RosterHero roster={roster} />
+          </Entrance>
+        ) : null}
+        {lead ? <Entrance index={1}>{row(lead, true)}</Entrance> : null}
+        <Entrance index={2} style={styles.actions}>
           <OutlinedPillButton label="Voice Draft" icon="mic-outline" style={styles.action} onPress={() => router.push("/draft")} />
           <OutlinedPillButton
             label="Week Stats"
@@ -87,17 +92,17 @@ export function RosterScreen() {
             style={styles.action}
             onPress={() => router.push({ pathname: "/wrapped", params: { leagueId: leagueId ?? undefined, weekNumber } })}
           />
-        </View>
+        </Entrance>
         {noLineup ? (
           <Text style={styles.none}>No lineup this week</Text>
         ) : (
-          <>
+          <Entrance index={3}>
             <SectionLabel left="Starters" right="Score" />
             {starters.map(({ slot, task }) => (task ? listed(task) : <EmptySlotRow key={slot} slot={slot} onPress={draft} />))}
             {extras.length > 0 || takesFlex ? <SectionLabel left="Flex and bonus" /> : null}
             {extras.map(listed)}
             {takesFlex ? <AddFlexTask /> : null}
-          </>
+          </Entrance>
         )}
       </ScrollView>
       {undrafted ? (
