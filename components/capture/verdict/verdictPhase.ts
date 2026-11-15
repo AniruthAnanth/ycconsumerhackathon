@@ -1,4 +1,4 @@
-import type { Verdict } from "./submitProof";
+import type { Verdict } from "@/components/capture/backend";
 
 export type VerdictPhase =
   | { name: "reviewing" }

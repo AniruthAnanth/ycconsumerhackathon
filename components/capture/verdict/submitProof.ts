@@ -1,14 +1,6 @@
-import type { Capture } from "../proofRoute";
+import type { Verdict } from "@/components/capture/backend";
 
-export type Verdict = {
-  pass: boolean;
-  confidence: number;
-  reason: string;
-  highlight: number;
-  caption: string;
-  points: number;
-  closeCall: boolean;
-};
+import type { Capture } from "../proofRoute";
 
 export type VerifyMediaArgs = {
   taskId: string;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { Verdict } from "./submitProof";
+import type { Verdict } from "@/components/capture/backend";
+
 import { initialPhase, nextPhase } from "./verdictPhase";
 
 const verdict: Verdict = {

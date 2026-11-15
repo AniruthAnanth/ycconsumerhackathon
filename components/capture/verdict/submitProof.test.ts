@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { contentTypeFor, stillTimes, submitProof, type ProofBackend, type Verdict } from "./submitProof";
+import type { Verdict } from "@/components/capture/backend";
+
+import { contentTypeFor, stillTimes, submitProof, type ProofBackend } from "./submitProof";
 
 const verdict: Verdict = {
   pass: true,
