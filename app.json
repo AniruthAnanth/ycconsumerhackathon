@@ -12,6 +12,9 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSSupportsLiveActivities": true
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.lineup.app"]
       }
     },
     "android": {
