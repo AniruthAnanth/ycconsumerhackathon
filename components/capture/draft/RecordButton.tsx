@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fontFamily, palette, spacing, type } from "@/theme";
+import { colors, duration, fontFamily, palette, spacing, type } from "@/theme";
 
 import { formatElapsed } from "./recordingMeter";
 
@@ -22,7 +22,7 @@ export function RecordButton({ recording, disabled, durationMillis, level, onPre
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(pulse, { toValue: recording ? level : 0, duration: 100, useNativeDriver: true }).start();
+    Animated.timing(pulse, { toValue: recording ? level : 0, duration: duration.fast, useNativeDriver: true }).start();
   }, [pulse, recording, level]);
 
   return (

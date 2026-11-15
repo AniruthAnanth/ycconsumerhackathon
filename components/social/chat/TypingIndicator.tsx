@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
-import { colors, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, duration, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 const DOT_COUNT = 3;
-const STEP_MS = 200;
+const STEP_MS = duration.base;
 
 /** Three pulsing dots in the agent's bubble position while a reply is pending. */
 export function TypingIndicator() {

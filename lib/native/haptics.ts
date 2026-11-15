@@ -33,6 +33,10 @@ export const haptics = {
   success() {
     fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
   },
+  /** A veto was raised or a veto vote cast: the warning double-tap, heavier than a selection, lighter than the stamp. */
+  veto() {
+    fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+  },
   /** Something the player tried did not go through. */
   error() {
     fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));

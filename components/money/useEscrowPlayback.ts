@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Easing, type SharedValue, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
+import { ease } from "@/components/motion";
 import type { EscrowMember } from "@/lib/escrow";
 import { ESCROW_DROP_MS, ESCROW_PULSE_MS, ESCROW_SETTLE_MS } from "@/lib/native/motion";
 
@@ -70,8 +71,8 @@ export function useEscrowPlayback({ members, stakeUsd, potUsd, ready, reduceMoti
     };
     const swell = () => {
       pulse.value = withSequence(
-        withTiming(1, { duration: ESCROW_PULSE_MS * 0.35, easing: Easing.out(Easing.quad) }),
-        withTiming(0, { duration: ESCROW_PULSE_MS * 0.65, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: ESCROW_PULSE_MS * 0.35, easing: ease.standard }),
+        withTiming(0, { duration: ESCROW_PULSE_MS * 0.65, easing: ease.standard }),
       );
     };
 
