@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { Entrance } from "@/components/motion";
@@ -13,6 +14,7 @@ import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
 import { UpForVeto } from "../veto/UpForVeto";
+import { FocusFlash } from "./FocusFlash";
 import { ProofPost } from "./ProofPost";
 
 const PostDivider = () => <Divider inset={SCREEN_MARGIN} />;
@@ -30,20 +32,41 @@ export function FeedScreen() {
   const board = useQuery(socialApi.vetoes.board, leagueId ? { leagueId } : "skip");
   const memberCount = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip")?.memberCount;
   const now = useNow(60_000);
+  const list = useRef<FlatList<NonNullable<typeof feed>[number]>>(null);
+  const { proofId } = useLocalSearchParams<{ proofId?: string }>();
+  const [focused, setFocused] = useState<string>();
+
+  // A live toast opens this tab with ?proofId=. Scroll that post into view once it is in the list,
+  // flash it, then clear the param so coming back to the tab does not jump again.
+  const focusIndex = proofId && feed ? feed.findIndex((item) => item.proofId === proofId) : -1;
+  useEffect(() => {
+    if (focusIndex < 0) return;
+    list.current?.scrollToIndex({ index: focusIndex, viewPosition: 0 });
+    setFocused(proofId);
+    router.setParams({ proofId: undefined });
+  }, [focusIndex, proofId, router]);
 
   if (!leagueId || feed === undefined) return <ScreenState loading />;
 
   return (
     <Screen edges={["bottom"]}>
       <FlatList
+        ref={list}
         data={feed}
         keyExtractor={(item) => item.proofId}
         renderItem={({ item, index }) => (
           <Entrance index={index}>
-            <ProofPost item={item} leagueId={leagueId} memberCount={memberCount} myUserId={myUserId} now={now} />
+            <FocusFlash active={item.proofId === focused}>
+              <ProofPost item={item} leagueId={leagueId} memberCount={memberCount} myUserId={myUserId} now={now} />
+            </FocusFlash>
           </Entrance>
         )}
         ItemSeparatorComponent={PostDivider}
+        // Posts vary in height, so a far post may not be measured yet: jump near it, then retry.
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          list.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
+          setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0 }), 100);
+        }}
         ListHeaderComponent={
           <>
           <View style={styles.shortcuts}>
