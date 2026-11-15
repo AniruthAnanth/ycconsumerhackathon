@@ -5,8 +5,10 @@ import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { LeagueSwitcher } from "@/components/shell/LeagueSwitcher";
+import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
 import { Header, TopTabs, WeekSelector } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { haptics } from "@/lib/native/haptics";
 import { colors } from "@/theme";
 
 const TABS = [
@@ -31,6 +33,7 @@ export default function TabsLayout() {
   // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others.
   const tabSegment = (useSegments() as string[])[1];
   const active = TABS.find((tab) => tab.key === tabSegment) ?? TABS[0];
+  usePaidHaptic(membership);
 
   if (me === undefined) return <View style={styles.page} />;
   // A league is proof the player has been through the front door. `onboarded`
@@ -51,12 +54,15 @@ export default function TabsLayout() {
         <TopTabs
           tabs={TABS}
           active={active.key}
-          onChange={(key) => router.navigate(TABS.find((tab) => tab.key === key)!.href)}
+          onChange={(key) => {
+            if (key !== active.key) haptics.select();
+            router.navigate(TABS.find((tab) => tab.key === key)!.href);
+          }}
         />
         <WeekSelector
           label={weekNumber === undefined ? "Week" : `Week ${weekNumber}`}
-          onPrev={showPreviousWeek}
-          onNext={showNextWeek}
+          onPrev={withSelectHaptic(showPreviousWeek)}
+          onNext={withSelectHaptic(showNextWeek)}
           onLongPress={() => router.push("/demo")}
         />
       </SafeAreaView>
@@ -71,6 +77,7 @@ export default function TabsLayout() {
         leagues={me.leagues}
         currentId={leagueId}
         onPick={(id) => {
+          if (id !== leagueId) haptics.select();
           setLeagueId(id);
           setSwitching(false);
         }}
@@ -82,6 +89,15 @@ export default function TabsLayout() {
       />
     </View>
   );
+}
+
+/** Keeps an absent handler absent, so WeekSelector still greys the chevron at either end. */
+function withSelectHaptic(action: (() => void) | undefined) {
+  if (!action) return undefined;
+  return () => {
+    haptics.select();
+    action();
+  };
 }
 
 const styles = StyleSheet.create({
