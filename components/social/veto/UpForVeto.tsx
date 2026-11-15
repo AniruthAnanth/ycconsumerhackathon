@@ -62,7 +62,9 @@ export function UpForVeto({
             <Text style={styles.owner} numberOfLines={1}>
               {veto.ownerName}
             </Text>
-            <VetoChip veto={veto} leagueId={leagueId} />
+            <View style={styles.chip}>
+              <VetoChip veto={veto} leagueId={leagueId} />
+            </View>
           </View>
           <Text style={styles.points}>{veto.points}</Text>
           <RowDivider inset={TEXT_INSET} />
@@ -89,6 +91,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   text: { flex: 1, gap: spacing.xs },
+  chip: { alignItems: "flex-start" },
   more: { minHeight: layout.rowMin, justifyContent: "center", paddingLeft: TEXT_INSET, paddingRight: SCREEN_MARGIN },
   moreText: { color: colors.accent, fontSize: font.meta, fontFamily: fontFamily.bold },
   title: {
