@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { draftReducer, initialDraftState, type DraftAction, type DraftState } from "./draftState";
-import type { DraftTask } from "./types";
+import type { DraftTask } from "../backend";
 
 const body: DraftTask = { slot: "body", title: "Leg day", points: 10, proofType: "photo_location" };
 const flex: DraftTask = { slot: "flex", title: "5k run", points: 5, proofType: "photo" };

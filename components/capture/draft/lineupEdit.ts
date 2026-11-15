@@ -1,4 +1,4 @@
-import type { DraftTask } from "./types";
+import type { DraftTask } from "../backend";
 
 export function renameTask(tasks: DraftTask[], index: number, title: string): DraftTask[] {
   return tasks.map((task, i) => (i === index ? { ...task, title } : task));

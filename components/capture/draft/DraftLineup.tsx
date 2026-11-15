@@ -4,7 +4,7 @@ import { View } from "react-native";
 import { SLOT_ORDER, SectionLabel } from "@/components/ui";
 
 import { DraftRow } from "./DraftRow";
-import type { DraftTask } from "./types";
+import type { DraftTask } from "../backend";
 
 type Props = {
   tasks: DraftTask[];

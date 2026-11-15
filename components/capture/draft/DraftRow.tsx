@@ -4,7 +4,7 @@ import { Avatar, PositionPill, Score, taskPlaceLine, taskStatusLine } from "@/co
 import { ROW_HEIGHT, colors, font, hairline, spacing } from "@/theme";
 
 import { canRemoveTask } from "./lineupEdit";
-import type { DraftTask } from "./types";
+import type { DraftTask } from "../backend";
 
 type Props = {
   task: DraftTask;

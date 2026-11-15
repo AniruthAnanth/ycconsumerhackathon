@@ -1,5 +1,6 @@
+import type { Draft, DraftTask } from "../backend";
+
 import { removeTask, renameTask } from "./lineupEdit";
-import type { DraftResult, DraftTask } from "./types";
 
 export type DraftPhase = "idle" | "recording" | "drafting" | "revealing" | "review" | "locking";
 
@@ -16,7 +17,7 @@ export type DraftAction =
   | { type: "recordingStarted" }
   | { type: "recordingFailed"; message: string }
   | { type: "draftRequested" }
-  | { type: "draftSucceeded"; result: DraftResult }
+  | { type: "draftSucceeded"; result: Draft }
   | { type: "draftFailed"; message: string }
   | { type: "revealFinished" }
   | { type: "taskRenamed"; index: number; title: string }

@@ -4,9 +4,9 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import type { Id } from "@/convex/_generated/dataModel";
 
+import { capture } from "../backend";
 import { errorMessage } from "../errorMessage";
 import { uploadToConvex } from "../uploadToConvex";
-import { draftApi } from "./draftApi";
 import { draftReducer, initialDraftState } from "./draftState";
 import { canLock, tasksToLock } from "./lineupEdit";
 import { hasReachedLimit } from "./recordingMeter";
@@ -23,9 +23,9 @@ export function useVoiceDraft() {
   const router = useRouter();
   const [state, dispatch] = useReducer(draftReducer, initialDraftState);
   const recorder = useVoiceRecorder();
-  const generateUploadUrl = useMutation(draftApi.generateUploadUrl);
-  const draft = useAction(draftApi.draft);
-  const lock = useMutation(draftApi.lock);
+  const generateUploadUrl = useMutation(capture.proofs.generateUploadUrl);
+  const draft = useAction(capture.lineup.draft);
+  const lock = useMutation(capture.lineup.lock);
   const starting = useRef(false);
 
   const requestDraft = useCallback(
