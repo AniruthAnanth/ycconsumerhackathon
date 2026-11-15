@@ -117,7 +117,7 @@ export function rankBoard<UserId>(
   const rivalAt = closestRival(today, mine);
 
   const rows = today.map(({ entry, place }, i): RankedRow<UserId> => {
-    const gapLabel = gapTo(today, i, format);
+    const gapLabel = gapTo(today, i, format, splitTies);
     // A player with nothing on a board has no place to lose: without this, everyone still on
     // zero shows a fall each time somebody else scores.
     const idle = entry.value === 0 && (entry.previous ?? 0) === 0;
@@ -174,11 +174,18 @@ function placed<UserId>(
  * What a row says about its neighbour: the distance to the player above, or
  * for the leader the cushion over the player below.
  */
-function gapTo<UserId>(board: Placed<UserId>[], i: number, format: BoardFormat): string | undefined {
+function gapTo<UserId>(
+  board: Placed<UserId>[],
+  i: number,
+  format: BoardFormat,
+  splitTies: boolean,
+): string | undefined {
   const neighbour = board[i === 0 ? 1 : i - 1];
   if (neighbour === undefined) return undefined;
   const difference = Math.abs(neighbour.entry.value - board[i].entry.value);
-  if (difference === 0) return `Level with ${neighbour.entry.name}`;
+  // On a board that numbers level players straight through, "level" beside two different
+  // places reads as a contradiction; the score is what the two share.
+  if (difference === 0) return `${splitTies ? "Same score as" : "Level with"} ${neighbour.entry.name}`;
   return `${format.gap(difference)} ${i === 0 ? "ahead of" : "behind"} ${neighbour.entry.name}`;
 }
 
