@@ -1,0 +1,6 @@
+# Everything under .revyl/ is local runtime state except the shared project files below.
+*
+!.gitignore
+!config.yaml
+!tests/
+!tests/**

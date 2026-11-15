@@ -55,3 +55,9 @@ Backend modules and who owns them:
 A player drafts one lineup per calendar week and it scores in every league they belong to, so lineups, tasks and proofs are keyed by `(userId, weekStart)`, not by league. `weekStart` is the epoch milliseconds of that week's Monday 00:00 in America/Los_Angeles, and each league's `weeks` row for that week has `startsAt` equal to it. A task with a `dropId` scores only in that drop's league.
 
 See [hackathon.md](hackathon.md) for how Convex, Capy and Revyl are used.
+
+## Device builds and the real phone
+
+- Cloud iPhone builds: one recipe, `scripts/build-ios-sim.sh`, run on Revyl through Capy's mobile build tool. The exact calls are in [scripts/README.md](scripts/README.md).
+- Pull requests labelled `revyl-proof` are built and exercised on a cloud iPhone by Revyl proof of changes (`.revyl/config.yaml`).
+- Your own iPhone: [docs/demo/REAL_PHONE.md](docs/demo/REAL_PHONE.md) opens the app in Expo Go from a QR code. `node scripts/check-expo-go.mjs` fails if a dependency would force a custom build.
