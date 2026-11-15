@@ -7,7 +7,7 @@ import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, spacing } from "@/theme";
 
-import { canSubmitProof, findTask, submitProofHref } from "./taskSheet";
+import { canSubmitProof, findTask, submitProofHref } from "./taskSheetRules";
 
 export function TaskSheet({ taskId }: { taskId: string }) {
   const router = useRouter();
