@@ -427,6 +427,46 @@ describe("mystery task", () => {
     const samsBanners = await as(t, userIds[1]).query(api.drops.active, { leagueId });
     expect(samsBanners.map((banner) => banner.dropId)).not.toContain(envelope._id);
   });
+
+  it("seals an envelope for the caller alone when the demo control is pressed", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+
+    await as(t, userIds[0]).mutation(api.drops.triggerMystery, { leagueId });
+    await runScheduled(t);
+
+    const [banner] = await as(t, userIds[0]).query(api.drops.active, { leagueId });
+    expect(banner).toMatchObject({ kind: "mystery", sealed: true, title: "Mystery task" });
+    expect(await as(t, userIds[1]).query(api.drops.active, { leagueId })).toEqual([]);
+    expect(texts.filter((text) => text.includes("Mystery task:"))).toHaveLength(1);
+  });
+
+  it("replaces the envelope the caller holds on a second press, at the usual price", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
+    const opened = await envelopeFor(t, leagueId, userIds[0]);
+    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: opened._id });
+
+    await as(t, userIds[0]).mutation(api.drops.triggerMystery, { leagueId });
+    await runScheduled(t);
+
+    // The opened one closed unfinished, which costs 20, and a fresh sealed one took its place.
+    expect(await tasksOfDrop(t, opened._id)).toMatchObject([{ status: "failed", points: -20 }]);
+    const banners = await as(t, userIds[0]).query(api.drops.active, { leagueId });
+    expect(banners).toHaveLength(1);
+    expect(banners[0]).toMatchObject({ kind: "mystery", sealed: true });
+    expect(banners[0].dropId).not.toBe(opened._id);
+  });
+
+  it("refuses the demo control to someone who is not in the league", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId } = await startLeague(t, ["Maya"]);
+    const outsider = await t.run((ctx) => ctx.db.insert("users", { name: "Stranger" }));
+
+    await expect(as(t, outsider).mutation(api.drops.triggerMystery, { leagueId })).rejects.toThrow(/member/);
+    await runScheduled(t);
+    expect(await t.run((ctx) => ctx.db.query("drops").take(5))).toEqual([]);
+  });
 });
 
 describe("group session", () => {

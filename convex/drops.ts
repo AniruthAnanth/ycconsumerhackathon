@@ -221,6 +221,28 @@ export const dailyMystery = internalMutation({
 });
 
 /**
+ * Demo control: seals an envelope for the caller now instead of at 8 AM. Like the quick-time
+ * button it replaces what is live, so every press shows a fresh sealed envelope. The one it
+ * replaces closes by the ordinary rule: opened and unfinished costs 20 and the wager, anything
+ * else costs nothing. The envelope appears a few seconds later, once the task has been chosen.
+ */
+export const triggerMystery = mutation({
+  args: { leagueId: v.id("leagues") },
+  returns: v.null(),
+  handler: async (ctx, { leagueId }) => {
+    const me = await requireUser(ctx);
+    if ((await membership(ctx, leagueId, me._id)) === null) {
+      throw new ConvexError("Only a member of the league can start a mystery task");
+    }
+    for (const drop of await dropsIn(ctx, leagueId, "open")) {
+      if (drop.kind === "mystery" && drop.userId === me._id) await close(ctx, drop);
+    }
+    await ctx.scheduler.runAfter(0, internal.drops.writeMystery, { leagueId, userId: me._id });
+    return null;
+  },
+});
+
+/**
  * Chooses one player's mystery task, then seals it. Supermemory is searched before the model is
  * asked, so the task reflects the player's past weeks ("you skipped Body twice, so here's an
  * easy one").
