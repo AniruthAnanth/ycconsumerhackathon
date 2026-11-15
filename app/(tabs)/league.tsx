@@ -6,11 +6,14 @@ import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
+import { TextLineupBanner } from "@/components/shell/TextLineupBanner";
 import { useNow } from "@/lib/useNow";
 import { OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { spacing } from "@/theme";
+
+export { TabError as ErrorBoundary } from "@/components/social/RouteError";
 
 /** LEAGUE: the pot, the standings table, payouts once settled, and the invite code. */
 export default function LeagueScreen() {
@@ -34,6 +37,7 @@ export default function LeagueScreen() {
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
       {pot.payouts ? <PayoutRows payouts={pot.payouts} /> : null}
+      <TextLineupBanner />
       <LeagueDetails league={league} pot={pot} now={now} />
       <View style={styles.actions}>
         <OutlinedPillButton
