@@ -173,7 +173,7 @@ export const socialApi = {
   canvas: {
     connect: mutation<{ baseUrl: string; token: string }, null>("canvas:connect"),
     listAssignments: action<NoArgs, CanvasAssignment[]>("canvas:listAssignments"),
-    /** Adds an upcoming assignment to the week as a Mind task that canvas.verify can check. */
+    /** Adds an upcoming assignment to the week as a flex task (limit of 3 a week) that canvas.verify can check. */
     addTask: mutation<{ courseId: string; assignmentId: string; title: string }, Id<"tasks">>("canvas:addTask"),
   },
   drops: {

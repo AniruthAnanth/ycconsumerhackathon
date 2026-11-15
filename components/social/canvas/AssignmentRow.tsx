@@ -26,7 +26,7 @@ export function AssignmentRow({
 
   return (
     <View style={styles.row}>
-      <PositionPill slot="mind" />
+      <PositionPill slot="flex" />
       <View style={styles.text}>
         <Text style={styles.title} numberOfLines={1}>
           {assignment.title}
