@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import { RecruiterBadge } from "@/components/invite";
 import { Avatar, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
 import { colors, font, hairline, spacing } from "@/theme";
 
@@ -27,9 +28,12 @@ export function ProfileScreen() {
         <>
           <View style={styles.top}>
             <Avatar uri={profile.avatarUrl} name={profile.name} size={72} />
-            <Text style={styles.name} numberOfLines={2}>
-              {profile.name}
-            </Text>
+            <View style={styles.nameBlock}>
+              <Text style={styles.name} numberOfLines={2}>
+                {profile.name}
+              </Text>
+              <RecruiterBadge userId={userId as Id<"users">} />
+            </View>
             <View style={styles.total}>
               <Score value={profile.totalPoints} size="total" />
               <Text style={styles.totalLabel}>TOTAL POINTS</Text>
@@ -72,6 +76,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
+  nameBlock: { flex: 1, gap: spacing.xs },
   name: { flex: 1, fontSize: 22, fontWeight: "700", color: colors.text },
   total: { alignItems: "flex-end" },
   totalLabel: { fontSize: font.label, fontWeight: "600", letterSpacing: 0.6, color: colors.textMuted },
