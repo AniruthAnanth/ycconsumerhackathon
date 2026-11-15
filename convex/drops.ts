@@ -418,6 +418,34 @@ export const closeDrop = internalMutation({
 });
 
 /**
+ * Scheduled by whop.ts in the transaction that settles a league's week, whether End Week Now
+ * ended it or the calendar did. The week's drops end with it: a live one closes as it would at
+ * its own time, and one that had not opened yet never will. Without this a quick-time banner
+ * outlives its week by up to two hours. Safe to run twice: a closed drop is not looked at
+ * again, and the closeDrop scheduled for the drop's own time then finds it closed.
+ */
+export const closeForWeek = internalMutation({
+  args: { leagueId: v.id("leagues"), weekStart: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { leagueId, weekStart }) => {
+    for (const drop of [...(await dropsIn(ctx, leagueId, "open")), ...(await dropsIn(ctx, leagueId, "scheduled"))]) {
+      // A session called for a later week is not this week's to end.
+      if (weekStartOf(goesLiveAt(drop)) === weekStart) await close(ctx, drop);
+    }
+    return null;
+  },
+});
+
+/**
+ * When openDrop runs for a drop, which is what decides the week its tasks belong to. A group
+ * session's check-in opens ahead of its start, or at once when it was called at the last minute.
+ */
+function goesLiveAt(drop: Doc<"drops">): number {
+  if (drop.kind !== "group") return drop.opensAt;
+  return Math.max(drop._creationTime, drop.opensAt - GROUP_REMINDER_LEAD_MS);
+}
+
+/**
  * Scheduled by proofs.record whenever a proof passes on a task that has a dropId. This is what
  * makes a drop bonus show up in standings the instant the proof lands.
  */

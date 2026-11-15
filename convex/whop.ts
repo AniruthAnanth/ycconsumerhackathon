@@ -530,6 +530,12 @@ async function settleInLedger(ctx: MutationCtx, league: Doc<"leagues">, week: Do
       leagueId,
       weekStart: week.startsAt,
     });
+    // The week's drops end with it, so no drop banner stays on Roster after the week is over.
+    // Scheduled for the same reasons as the call above.
+    await ctx.scheduler.runAfter(0, internal.drops.closeForWeek, {
+      leagueId,
+      weekStart: week.startsAt,
+    });
   }
 
   return {

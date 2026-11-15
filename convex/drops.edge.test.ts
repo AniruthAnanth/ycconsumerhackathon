@@ -14,6 +14,7 @@ import schema from "./schema";
 vi.mock("./ai", async (original) => ({ ...(await original<typeof import("./ai")>()), askJson: vi.fn() }));
 vi.mock("./memory", async (original) => ({
   ...(await original<typeof import("./memory")>()),
+  addMemory: vi.fn(),
   searchMemories: vi.fn(),
 }));
 
@@ -701,5 +702,84 @@ describe("after a challenge ruling", () => {
 
     expect((await taskOf(t, dropId, maya)).points).toBe(40);
     expect((await taskOf(t, dropId, sam)).points).toBe(30);
+  });
+});
+
+// ─── The end of the week ─────────────────────────────────────────────────────────────────────
+
+describe("when the league's week is settled", () => {
+  it("closes a live quick-time drop, so End Week Now leaves no banner behind", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const [maya, sam] = userIds;
+    const dropId = await as(t, maya).mutation(api.drops.triggerQuickTime, { leagueId });
+    await runScheduled(t);
+    await passProof(t, (await taskOf(t, dropId, maya))._id);
+    expect(await as(t, sam).query(api.drops.active, { leagueId })).toHaveLength(1);
+
+    // What End Week Now runs before any money moves.
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+    await runScheduled(t);
+
+    expect(await as(t, sam).query(api.drops.active, { leagueId })).toEqual([]);
+    expect((await getDrop(t, dropId)).status).toBe("closed");
+    // Maya keeps the drop and its first-finisher bonus. Sam never proved it, so he missed it.
+    expect(await taskOf(t, dropId, maya)).toMatchObject({ status: "verified", points: 50 });
+    expect(await taskOf(t, dropId, sam)).toMatchObject({ status: "failed", points: 40 });
+    expect(await failedScheduledFunctions(t)).toEqual([]);
+  });
+
+  it("changes nothing when it runs again, or when the drop's own closing time comes", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const dropId = await as(t, userIds[0]).mutation(api.drops.triggerQuickTime, { leagueId });
+    await runScheduled(t);
+    await passProof(t, (await taskOf(t, dropId, userIds[0]))._id);
+
+    await t.mutation(internal.drops.closeForWeek, { leagueId, weekStart: WEEK_START });
+    await runScheduled(t);
+    const closed = await snapshotOf(t);
+    await t.mutation(internal.drops.closeForWeek, { leagueId, weekStart: WEEK_START });
+    await runScheduled(t, QUICK_TIME_WINDOW_MS);
+
+    expect(await snapshotOf(t)).toEqual(closed);
+  });
+
+  it("ends a group session of that week before its check-in opens, and keeps one called for next week", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const [maya, sam] = userIds;
+    const tonight = await callSession(t, leagueId, maya, [sam]);
+    const tuesday = await as(t, maya).mutation(api.drops.createGroupSession, {
+      leagueId,
+      title: "Track night",
+      place: park,
+      startsAt: NOW + 2 * DAY_MS,
+    });
+
+    await t.mutation(internal.drops.closeForWeek, { leagueId, weekStart: WEEK_START });
+    // Past the moment tonight's check-in would have opened.
+    await runScheduled(t, 2 * HOUR_MS);
+
+    expect((await getDrop(t, tonight)).status).toBe("closed");
+    expect(await tasksOfDrop(t, tonight)).toEqual([]);
+    expect((await getDrop(t, tuesday)).status).toBe("scheduled");
+    const banners = await as(t, sam).query(api.drops.active, { leagueId });
+    expect(banners.map((banner) => banner.dropId)).toEqual([tuesday]);
+  });
+
+  it("leaves a drop that opened after the week being settled, as when the hourly sweep settles last week late", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    // Half an hour into the next week, before the sweep has closed the old one.
+    vi.setSystemTime(WEEK_START + 7 * DAY_MS + HOUR_MS / 2);
+    const dropId = await as(t, userIds[0]).mutation(api.drops.triggerQuickTime, { leagueId });
+    await runScheduled(t);
+
+    await t.mutation(internal.drops.closeForWeek, { leagueId, weekStart: WEEK_START });
+    await runScheduled(t);
+
+    expect((await getDrop(t, dropId)).status).toBe("open");
+    expect(await as(t, userIds[1]).query(api.drops.active, { leagueId })).toHaveLength(1);
   });
 });
