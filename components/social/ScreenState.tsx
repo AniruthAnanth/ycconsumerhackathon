@@ -1,20 +1,4 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { EmptyState } from "@/components/ui";
 
-import { colors, font, fontFamily, spacing } from "@/theme";
-
-/**
- * What a social screen shows in place of its content: a spinner while its query
- * loads, otherwise one muted line (nothing here yet, or what went wrong).
- */
-export function ScreenState({ loading, message }: { loading?: boolean; message?: string }) {
-  return (
-    <View style={styles.state}>
-      {loading ? <ActivityIndicator color={colors.textMuted} /> : <Text style={styles.text}>{message}</Text>}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  state: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, backgroundColor: colors.background },
-  text: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center" },
-});
+/** The social screens' name for the shared EmptyState in components/ui. */
+export const ScreenState = EmptyState;
