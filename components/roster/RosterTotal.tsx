@@ -8,7 +8,7 @@ export function RosterTotal({ total }: { total: number | null }) {
   return (
     <View style={styles.bar}>
       <Text style={styles.label}>TOTAL</Text>
-      <Score value={total} size="total" />
+      <Score value={total} size="total" animated />
     </View>
   );
 }

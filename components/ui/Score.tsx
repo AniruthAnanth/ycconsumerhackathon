@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { CountUp } from "@/components/motion";
+
 import { formatScore } from "@/lib/taskText";
 import { colors, font } from "@/theme";
 
@@ -10,14 +12,21 @@ type Props = {
   projected?: number;
   /** "total" is the larger figure at the foot of a roster. */
   size?: "row" | "total";
+  /** Count to a new value instead of swapping digits; same look either way. */
+  animated?: boolean;
 };
 
 /** A right-aligned box-score number: a dash until scored, then one decimal. */
-export function Score({ value, projected, size = "row" }: Props) {
+export function Score({ value, projected, size = "row", animated = false }: Props) {
   const scored = value != null;
+  const style = [size === "total" ? styles.total : styles.row, !scored && styles.unscored];
   return (
     <View style={styles.box}>
-      <Text style={[size === "total" ? styles.total : styles.row, !scored && styles.unscored]}>{formatScore(value)}</Text>
+      {animated && scored ? (
+        <CountUp style={style} value={value} format={formatScore} decimals={1} />
+      ) : (
+        <Text style={style}>{formatScore(value)}</Text>
+      )}
       {!scored && projected != null ? <Text style={styles.projected}>{projected.toFixed(1)}</Text> : null}
     </View>
   );
