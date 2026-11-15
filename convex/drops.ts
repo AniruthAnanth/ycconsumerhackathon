@@ -56,6 +56,7 @@ import {
   quickTimeText,
 } from "./lib/dropRules";
 import { currentWeek } from "./leagues";
+import { dropOpened } from "./lib/notificationContent";
 import { clampWager, groupSessionScore, mysteryScore, quickTimeScore } from "./lib/scoring";
 import { weekStartOf } from "./lib/week";
 import { searchMemories } from "./memory";
@@ -617,6 +618,16 @@ export const openDrop = internalMutation({
         windowMs: drop.closesAt - drop.opensAt,
       }),
     );
+    // The notification the app raises itself while it is open, pushed to phones where it is
+    // closed (see push.send for who gets which). One message goes to the whole league, so it
+    // names no single task and a tap lands on Roster, where the drop's banner is.
+    await ctx.scheduler.runAfter(0, internal.push.send, {
+      leagueId: drop.leagueId,
+      notification: dropOpened(
+        { dropId, title: drop.title, points: drop.points, gesture: drop.gesture, closesAt: drop.closesAt },
+        Date.now(),
+      ),
+    });
     return null;
   },
 });
