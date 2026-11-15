@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import type { Id } from "@/convex/_generated/dataModel";
+import { haptics } from "@/lib/native/haptics";
 
 import { capture } from "../backend";
 import { errorMessage } from "../errorMessage";
@@ -76,8 +77,10 @@ export function useVoiceDraft() {
     dispatch({ type: "lockRequested" });
     try {
       await lock({ tasks: tasksToLock(state.tasks), transcript: state.transcript });
+      haptics.success();
       router.replace("/(tabs)");
     } catch (error) {
+      haptics.error();
       dispatch({ type: "lockFailed", message: errorMessage(error, LOCK_FAILED) });
     }
   }, [lock, router, state.phase, state.tasks, state.transcript]);
