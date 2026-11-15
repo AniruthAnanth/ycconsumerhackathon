@@ -156,7 +156,7 @@ struct MediumBoard: View {
       StandingColumn(heading: "THIS WEEK", snapshot: snapshot)
         .fixedSize(horizontal: true, vertical: false)
       Rectangle()
-        .fill(Color.white.opacity(0.15))
+        .fill(Brand.ink.opacity(0.15))
         .frame(width: 1)
       UpNextColumn(snapshot: snapshot)
     }
@@ -171,11 +171,11 @@ struct StandingColumn: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      BoardLabel(text: heading, color: Brand.blue)
+      BoardLabel(text: heading, color: Brand.lime)
       HStack(alignment: .firstTextBaseline, spacing: 4) {
         Text(snapshot.placeLabel)
           .font(.system(size: 38, weight: .heavy, design: .rounded))
-          .foregroundColor(snapshot.rank == 1 ? Brand.green : Color.white)
+          .foregroundColor(snapshot.rank == 1 ? Brand.lime : Brand.ink)
         Text("OF \(snapshot.memberCount)")
           .font(.system(size: 11, weight: .bold))
           .foregroundColor(Brand.dim)
@@ -187,7 +187,7 @@ struct StandingColumn: View {
         Text("\(snapshot.points)")
           .font(.system(size: 22, weight: .heavy, design: .rounded))
           .monospacedDigit()
-          .foregroundColor(Color.white)
+          .foregroundColor(Brand.ink)
         Text("PTS")
           .font(.system(size: 11, weight: .bold))
           .foregroundColor(Brand.dim)
@@ -198,7 +198,7 @@ struct StandingColumn: View {
         ClearedPips(cleared: snapshot.slotsCleared, total: snapshot.slotsTotal)
         Text("\(snapshot.slotsCleared)/\(snapshot.slotsTotal)")
           .font(.system(size: 12, weight: .semibold))
-          .foregroundColor(Color.white)
+          .foregroundColor(Brand.ink)
           .lineLimit(1)
       }
     }
@@ -211,7 +211,7 @@ struct UpNextColumn: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      BoardLabel(text: "UP NEXT", color: Brand.green)
+      BoardLabel(text: "UP NEXT", color: Brand.lime)
       Spacer(minLength: 2)
       if snapshot.nextTaskTitle.isEmpty {
         // Either the week is done or nothing is drafted; the snapshot does not say which.
@@ -222,12 +222,12 @@ struct UpNextColumn: View {
       } else {
         Text(snapshot.nextTaskTitle)
           .font(.system(size: 17, weight: .heavy))
-          .foregroundColor(Color.white)
+          .foregroundColor(Brand.ink)
           .lineLimit(2)
           .minimumScaleFactor(0.8)
         Text("+\(snapshot.nextTaskPoints) PTS")
           .font(.system(size: 13, weight: .bold, design: .rounded))
-          .foregroundColor(Brand.green)
+          .foregroundColor(Brand.lime)
           .lineLimit(1)
       }
       Spacer(minLength: 2)
@@ -241,11 +241,11 @@ struct UpNextColumn: View {
 struct StartYourWeek: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      BoardLabel(text: "LINEUP", color: Brand.blue)
+      BoardLabel(text: "LINEUP", color: Brand.lime)
       Spacer(minLength: 4)
       Text("Open Lineup to start your week")
         .font(.system(size: 17, weight: .heavy))
-        .foregroundColor(Color.white)
+        .foregroundColor(Brand.ink)
         .lineLimit(3)
         .minimumScaleFactor(0.8)
       Spacer(minLength: 4)
@@ -265,7 +265,7 @@ struct ClearedPips: View {
     HStack(spacing: 3) {
       ForEach(0..<max(total, 0), id: \.self) { (index: Int) in
         RoundedRectangle(cornerRadius: 2)
-          .fill(index < cleared ? Brand.green : Color.white.opacity(0.25))
+          .fill(index < cleared ? Brand.lime : Brand.ink.opacity(0.25))
           .frame(width: 10, height: 10)
       }
     }
