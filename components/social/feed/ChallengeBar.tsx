@@ -6,7 +6,7 @@ import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors, fontFamily, MIN_TARGET, progress, radius, SCREEN_MARGIN } from "@/theme";
+import { colors, font, fontFamily, MIN_TARGET, progress, radius, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import { challengeStatus, legitShare } from "./feedLogic";
 
@@ -67,18 +67,18 @@ export function ChallengeBar({
 }
 
 const styles = StyleSheet.create({
-  box: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: 14, gap: 8 },
+  box: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.lg, gap: spacing.sm },
   heading: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  title: { color: colors.text, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
-  status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: 12 },
-  sides: { flexDirection: "row", gap: 8 },
+  title: { color: colors.text, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.meta },
+  sides: { flexDirection: "row", gap: spacing.sm },
   side: {
     flex: 1,
     minHeight: MIN_TARGET,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.control,
     borderWidth: 1,
     borderColor: "transparent",
@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
   sideVotable: { borderColor: colors.divider },
   sideLegitMine: { borderColor: colors.tabActive },
   sideNotLegitMine: { borderColor: colors.danger },
-  sideLabel: { fontSize: 14, fontFamily: fontFamily.bold },
+  sideLabel: { fontSize: font.body, fontFamily: fontFamily.bold },
   legitText: { color: colors.tabActive },
   notLegitText: { color: colors.danger },
-  sideCount: { color: colors.text, fontSize: 14, fontFamily: fontFamily.bold, fontVariant: ["tabular-nums"] },
+  sideCount: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold, ...tabular },
 });

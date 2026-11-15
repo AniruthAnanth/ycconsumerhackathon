@@ -6,7 +6,7 @@ import { ErrorLine } from "@/components/join/ErrorLine";
 import { FormBody } from "@/components/join/FormBody";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
 import { phoneHint, toE164 } from "@/lib/phone";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { inviteDetailLine } from "./inviteRoute";
 import { useAcceptInvite } from "./useAcceptInvite";
@@ -106,11 +106,11 @@ export function InviteScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xl },
-  hero: { alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: SCREEN_MARGIN },
+  hero: { alignItems: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.xl },
   kicker: { fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.5, color: colors.accent, textTransform: "uppercase" },
   league: { fontSize: font.total, fontFamily: fontFamily.bold, color: colors.text, textAlign: "center" },
   muted: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted, textAlign: "center" },
-  fields: { padding: spacing.lg, gap: spacing.lg },
-  action: { flex: 1, justifyContent: "flex-end", gap: spacing.sm, padding: spacing.lg },
+  fields: { padding: SCREEN_MARGIN, gap: spacing.lg },
+  action: { flex: 1, justifyContent: "flex-end", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
 });

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Artwork } from "@/components/art";
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { WrappedCard as WrappedCardData } from "../contract";
 import { ProofMedia } from "../ProofMedia";
@@ -40,7 +40,7 @@ export function WrappedCard({
           <View style={[StyleSheet.absoluteFill, styles.scrim]} pointerEvents="none" />
         </>
       ) : null}
-      <View style={[styles.content, { paddingTop: topInset + 48 }]} pointerEvents="none">
+      <View style={[styles.content, { paddingTop: topInset + spacing.xxl + spacing.lg }]} pointerEvents="none">
         {card.kind === "your_week" ? <Artwork name="sunny" size={88} style={styles.sunny} /> : null}
         <Text style={styles.label}>{KIND_LABEL[card.kind]}</Text>
         <Text style={styles.stat} numberOfLines={1} adjustsFontSizeToFit>
@@ -56,10 +56,10 @@ export function WrappedCard({
 const styles = StyleSheet.create({
   card: { justifyContent: "center" },
   scrim: { backgroundColor: "rgba(0,0,0,0.5)" },
-  content: { paddingHorizontal: 24, paddingBottom: 48 },
-  sunny: { marginBottom: 12 },
-  label: { color: WHITE, fontSize: 13, fontFamily: fontFamily.bold, letterSpacing: 1.2, opacity: 0.85 },
-  stat: { color: WHITE, fontSize: 72, lineHeight: 84, fontFamily: fontFamily.extraBold, marginTop: 12 },
-  title: { color: WHITE, fontSize: 28, lineHeight: 34, fontFamily: fontFamily.extraBold, marginTop: 12 },
-  subtitle: { color: WHITE, fontFamily: fontFamily.regular, fontSize: 17, lineHeight: 24, marginTop: 8, opacity: 0.9 },
+  content: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.xxl + spacing.lg },
+  sunny: { marginBottom: spacing.md },
+  label: { color: WHITE, fontSize: font.meta, fontFamily: fontFamily.bold, letterSpacing: 1.2, opacity: 0.85 },
+  stat: { color: WHITE, fontSize: 72, lineHeight: 84, fontFamily: fontFamily.extraBold, marginTop: spacing.md },
+  title: { color: WHITE, fontSize: 28, lineHeight: 34, fontFamily: fontFamily.extraBold, marginTop: spacing.md },
+  subtitle: { color: WHITE, fontFamily: fontFamily.regular, fontSize: 17, lineHeight: 24, marginTop: spacing.sm, opacity: 0.9 },
 });

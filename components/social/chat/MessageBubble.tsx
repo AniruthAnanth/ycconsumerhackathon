@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import type { ChatMessage } from "./chatLogic";
 
@@ -31,14 +31,14 @@ export function MessageBubble({ message, onRetry }: { message: ChatMessage; onRe
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 16, paddingVertical: 4 },
+  row: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.xs },
   mineRow: { alignItems: "flex-end" },
   agentRow: { alignItems: "flex-start" },
-  bubble: { maxWidth: "80%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
+  bubble: { maxWidth: "80%", paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.control },
   mine: { backgroundColor: colors.accent },
   agent: { backgroundColor: colors.strip },
-  text: { color: colors.text, fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 21 },
+  text: { color: colors.text, fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: type.body.lineHeight },
   mineText: { color: colors.onAccent },
-  failed: { color: colors.danger, fontSize: 12, fontFamily: fontFamily.semiBold, marginTop: 4 },
-  reason: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 12, marginTop: 2 },
+  failed: { color: colors.danger, fontSize: font.meta, fontFamily: fontFamily.semiBold, marginTop: spacing.xs },
+  reason: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta, marginTop: spacing.xs },
 });

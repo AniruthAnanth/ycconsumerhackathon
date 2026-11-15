@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { OutlinedPillButton, PositionPill } from "@/components/ui";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { OutlinedPillButton, PositionPill, RowDivider } from "@/components/ui";
+import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { CanvasAssignment } from "../contract";
 import { dueLabel } from "./canvasLogic";
@@ -31,7 +31,7 @@ export function AssignmentRow({
     <View style={styles.row}>
       <PositionPill slot="flex" />
       <View style={styles.text}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={2}>
           {assignment.title}
         </Text>
         {/* The deadline gets its own line: after a long course name it was the part cut off. */}
@@ -43,21 +43,21 @@ export function AssignmentRow({
         </Text>
       </View>
       <OutlinedPillButton label={added ? "Added" : "Add"} disabled={added || blocked || adding} onPress={add} />
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    height: ROW_HEIGHT,
+    minHeight: ROW_HEIGHT,
+    paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
   },
-  text: { flex: 1, gap: 2 },
+  text: { flex: 1, gap: spacing.xs },
   title: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
   detail: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta },
 });

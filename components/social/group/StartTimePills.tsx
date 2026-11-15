@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 import { formatStart, type StartOption } from "./groupLogic";
 
 /** The quick start times as a row of pills, with the chosen one filled and its resolved time below. */
@@ -38,13 +38,13 @@ export function StartTimePills({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.sm, padding: spacing.lg },
+  wrap: { gap: spacing.sm, padding: SCREEN_MARGIN },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   pill: {
-    height: 32,
-    paddingHorizontal: spacing.md,
-    borderRadius: 16,
+    minHeight: layout.rowMin,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.accent,
     alignItems: "center",

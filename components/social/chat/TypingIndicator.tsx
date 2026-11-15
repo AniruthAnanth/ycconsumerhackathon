@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
-import { colors } from "@/theme";
+import { colors, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 const DOT_COUNT = 3;
 const STEP_MS = 200;
@@ -37,14 +37,14 @@ export function TypingIndicator() {
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 16, paddingVertical: 4, alignItems: "flex-start" },
+  row: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.xs, alignItems: "flex-start" },
   bubble: {
     flexDirection: "row",
-    gap: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 18,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.control,
     backgroundColor: colors.strip,
   },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.textMuted },
+  dot: { width: spacing.sm, height: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.textMuted },
 });

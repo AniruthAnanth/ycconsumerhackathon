@@ -13,7 +13,7 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 // drifted 70 m from it, too far for a check-in at the office to pass the at-the-place test.
 import { YC_OFFICE } from "@/lib/devFlags";
 import { errorMessage } from "@/lib/errorMessage";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { canStartSession, startTimeOptions, type StartOption } from "./groupLogic";
 import { PlaceMap } from "./PlaceMap";
@@ -112,7 +112,7 @@ export function NewGroupSessionScreen() {
 
 const styles = StyleSheet.create({
   form: { paddingBottom: spacing.lg },
-  fields: { gap: spacing.md, padding: spacing.lg },
+  fields: { gap: spacing.md, padding: SCREEN_MARGIN },
   find: { alignItems: "flex-end" },
-  footer: { padding: spacing.lg },
+  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
 });

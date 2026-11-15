@@ -6,7 +6,7 @@ import { Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/u
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { errorMessage } from "@/lib/errorMessage";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { type CanvasAssignment, socialApi } from "../contract";
 import { leaveScreen } from "../leave";
@@ -136,10 +136,10 @@ export function CanvasScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1 },
-  full: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  loadError: { color: colors.danger, fontFamily: fontFamily.regular, fontSize: font.body, padding: spacing.lg, textAlign: "center" },
+  content: { flexGrow: 1, paddingBottom: spacing.xl },
+  full: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  loadError: { color: colors.danger, fontFamily: fontFamily.regular, fontSize: font.body, padding: SCREEN_MARGIN, textAlign: "center" },
   retry: { alignSelf: "center" },
-  change: { alignSelf: "center", padding: spacing.lg },
+  change: { alignSelf: "center", minHeight: layout.rowMin, justifyContent: "center", padding: spacing.lg },
   changeText: { color: colors.accent, fontSize: font.body, fontFamily: fontFamily.bold },
 });
