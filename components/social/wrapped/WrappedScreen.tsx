@@ -18,6 +18,9 @@ import { indexAfterTap, pageIndexFromOffset } from "./wrappedLogic";
 const WHITE = colors.background;
 const SEGMENT_TRACK = "rgba(255,255,255,0.35)";
 
+// A reload or deep link opens this screen with no history, where router.back() throws.
+const leave = () => (router.canGoBack() ? router.back() : router.replace("/"));
+
 /** The weekly Wrapped: five full-screen story cards with progress segments and tap paging. */
 export function WrappedScreen() {
   const params = useLocalSearchParams<{ leagueId?: string; weekNumber?: string }>();
@@ -37,7 +40,7 @@ export function WrappedScreen() {
   if (!wrapped || wrapped.cards.length === 0) {
     return (
       <Screen>
-        <Header title="Wrapped" onBack={() => router.back()} />
+        <Header title="Wrapped" onBack={leave} />
         <ScreenState loading={wrapped === undefined} message="No wrapped yet" />
       </Screen>
     );
@@ -80,7 +83,7 @@ export function WrappedScreen() {
             <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
           ))}
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leave} hitSlop={12}>
           <Text style={styles.close}>{"\u2715"}</Text>
         </Pressable>
       </View>
