@@ -5,10 +5,10 @@ import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { errorMessage } from "@/lib/errorMessage";
 import { colors, font, spacing } from "@/theme";
 
 import { type CanvasAssignment, socialApi } from "../contract";
-import { errorMessage } from "../errorMessage";
 import { leaveScreen } from "../leave";
 import { notify } from "../notify";
 import { ScreenState } from "../ScreenState";

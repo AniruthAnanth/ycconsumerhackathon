@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
-import { errorMessage } from "@/components/social/errorMessage";
 import { leaveScreen } from "@/components/social/leave";
 import { notify } from "@/components/social/notify";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
@@ -13,6 +12,7 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 // The pin's starting point, shared with the demo's location override: a private copy here had
 // drifted 70 m from it, too far for a check-in at the office to pass the at-the-place test.
 import { YC_OFFICE } from "@/lib/devFlags";
+import { errorMessage } from "@/lib/errorMessage";
 import { spacing } from "@/theme";
 
 import { canStartSession, startTimeOptions, type StartOption } from "./groupLogic";

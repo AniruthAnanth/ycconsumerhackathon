@@ -2,9 +2,9 @@ import type { ErrorBoundaryProps } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
+import { errorMessage } from "@/lib/errorMessage";
 import { colors, font, spacing } from "@/theme";
 
-import { errorMessage } from "./errorMessage";
 import { leaveScreen } from "./leave";
 
 /**

@@ -2,8 +2,8 @@ import { useMutation } from "convex/react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { type FeedChallenge, socialApi } from "@/components/social/contract";
-import { errorMessage } from "@/components/social/errorMessage";
 import { notify } from "@/components/social/notify";
+import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
 import { colors } from "@/theme";
 

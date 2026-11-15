@@ -5,13 +5,13 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { socialApi } from "@/components/social/contract";
-import { errorMessage } from "@/components/social/errorMessage";
 import { leaveScreen } from "@/components/social/leave";
 import { notify } from "@/components/social/notify";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 import { Button, Header, Score, Screen, SectionLabel } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { errorMessage } from "@/lib/errorMessage";
 import { colors, font, spacing } from "@/theme";
 
 import { AttendeeRow } from "./AttendeeRow";
