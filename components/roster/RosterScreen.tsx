@@ -25,7 +25,7 @@ import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
  */
 export function RosterScreen() {
   const router = useRouter();
-  const { leagueId, membership, league, weekStart, weekNumber } = useCurrentLeague();
+  const { leagueId, membership, league, weekStart } = useCurrentLeague();
   // One lineup scores in every league, so the roster is the same whichever
   // league is selected; the league only decides which drop tasks count.
   const roster = useQuery(
@@ -102,25 +102,14 @@ export function RosterScreen() {
             )}
           </Entrance>
         )}
-        {/* Secondary actions sit under the lineup: the starters, not these, are what the first screen is for. */}
-        <Entrance index={3} style={styles.actions}>
-          <OutlinedPillButton label="Voice Draft" icon="mic-outline" style={styles.action} onPress={() => router.push("/draft")} />
-          <OutlinedPillButton
-            label="Week Stats"
-            icon="stats-chart-outline"
-            style={styles.action}
-            onPress={() => router.push({ pathname: "/wrapped", params: { leagueId: leagueId ?? undefined, weekNumber } })}
-          />
-        </Entrance>
       </ScrollView>
+      {/* The one way into the draft; Week Wrapped lives on the Feed, so Roster carries no second entry for either. */}
       {undrafted ? <Button label="Draft your week" style={styles.draft} onPress={() => router.push("/draft")} /> : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: "row", gap: spacing.md, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md },
-  action: { flex: 1 },
   none: { padding: spacing.xl, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   draft: { margin: SCREEN_MARGIN },
 });
