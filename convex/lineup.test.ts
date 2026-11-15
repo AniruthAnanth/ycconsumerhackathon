@@ -185,6 +185,24 @@ describe("lineup.lock", () => {
     expect(rows[0].place).toBeUndefined();
     expect(rows[5]).toMatchObject({ slot: "flex", proofType: "photo_location", place });
   });
+
+  it("stores each task's verification type, and a timelapse's minutes, as the player edited them", async () => {
+    const { as } = await signedIn();
+    await as.mutation(api.lineup.lock, {
+      tasks: [
+        FULL_LINEUP[0],
+        FULL_LINEUP[1],
+        { ...FULL_LINEUP[2], proofType: "timelapse", targetMinutes: 45 },
+        { ...FULL_LINEUP[3], proofType: "before_after", targetMinutes: 45 },
+        { ...FULL_LINEUP[4], proofType: "screenshot" },
+      ],
+    });
+    const { rows } = await as.query(api.lineup.roster, {});
+    expect(rows.map((row) => row.proofType)).toEqual(["photo", "photo", "timelapse", "before_after", "screenshot"]);
+    expect(rows[2].targetMinutes).toBe(45);
+    // Minutes mean nothing on a before/after task, so they aren't kept.
+    expect(rows[3].targetMinutes).toBeUndefined();
+  });
 });
 
 describe("lineup.addFlexTask", () => {

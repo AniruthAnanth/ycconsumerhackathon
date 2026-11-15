@@ -41,6 +41,18 @@ describe("tidyTask", () => {
   });
 });
 
+describe("tidyTask: verification types", () => {
+  const base = { slot: "recharge" as const, title: "Read", points: 20 };
+  it("gives a timelapse 5 to 180 minutes, 30 when the model gave none", () => {
+    expect(tidyTask({ ...base, proofType: "timelapse" }).targetMinutes).toBe(30);
+    expect(tidyTask({ ...base, proofType: "timelapse", targetMinutes: 2 }).targetMinutes).toBe(5);
+    expect(tidyTask({ ...base, proofType: "timelapse", targetMinutes: 600 }).targetMinutes).toBe(180);
+  });
+  it("drops minutes from every other type", () => {
+    expect(tidyTask({ ...base, proofType: "screenshot", targetMinutes: 30 })).toEqual({ ...base, proofType: "screenshot" });
+  });
+});
+
 describe("shapeDraft", () => {
   it("returns the five core slots in roster order", () => {
     const shuffled = [fullLineup[3], fullLineup[0], fullLineup[4], fullLineup[2], fullLineup[1]];
