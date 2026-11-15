@@ -10,7 +10,10 @@ import { ChallengeSection } from "@/components/versus/ChallengeSection";
 
 export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
 
-/** A 1v1 challenge, Quick Match, an invite code, or a new league: four ways in, one screen. */
+/**
+ * A 1v1 challenge, Quick Match, an invite code, or a new league: four ways in,
+ * one screen. The free Quick Match is the primary action; the rest are secondary.
+ */
 export default function JoinScreen() {
   const router = useRouter();
   const joining = useJoinLeague();
