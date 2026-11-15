@@ -1,13 +1,14 @@
 import { useAction, useMutation } from "convex/react";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { Header, Screen, SectionLabel } from "@/components/ui";
 import { colors, font, spacing } from "@/theme";
 
 import { type CanvasAssignment, socialApi } from "../contract";
 import { errorMessage } from "../errorMessage";
+import { notify } from "../notify";
 import { ScreenState } from "../ScreenState";
 import { AssignmentRow } from "./AssignmentRow";
 import { ConnectForm } from "./ConnectForm";
@@ -56,7 +57,7 @@ export function CanvasScreen() {
       });
       setAdded((current) => new Set(current).add(rowKey(assignment)));
     } catch (e) {
-      Alert.alert("Couldn't add assignment", errorMessage(e));
+      notify("Couldn't add assignment", errorMessage(e));
     }
   };
 

@@ -1,8 +1,9 @@
 import { useMutation } from "convex/react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { notify } from "@/components/social/notify";
 import { colors } from "@/theme";
 
 import { challengeStatus, legitShare } from "./feedLogic";
@@ -24,7 +25,7 @@ export function ChallengeBar({
   const vote = useMutation(socialApi.challenges.vote);
   const share = legitShare(challenge.legit, challenge.notLegit);
   const cast = (legit: boolean) =>
-    vote({ challengeId: challenge.challengeId, legit }).catch((error) => Alert.alert(errorMessage(error)));
+    vote({ challengeId: challenge.challengeId, legit }).catch((error) => notify(errorMessage(error)));
 
   return (
     <View style={styles.box}>
