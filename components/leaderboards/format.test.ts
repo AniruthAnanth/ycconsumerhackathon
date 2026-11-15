@@ -86,7 +86,9 @@ describe("projection text", () => {
   });
 
   it("spells out the range", () => {
-    expect(projectionDetail({ ifEndedNowUsd: 5, lowUsd: 0, highUsd: 27.5 })).toBe("If it ended now $5.00 · Low $0.00 · High $27.50");
+    expect(projectionDetail({ ifEndedNowUsd: 5, lowUsd: 0, highUsd: 27.5 })).toBe("If it ended now you'd be paid $5.00 · Range $0.00 to $27.50");
+    // A decided week has one outcome.
+    expect(projectionDetail({ ifEndedNowUsd: 110, lowUsd: 110, highUsd: 110 })).toBe("Paid out $110.00");
   });
 });
 
