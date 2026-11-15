@@ -27,6 +27,7 @@ function proofTargetFor(drop: Drop): ProofTarget | undefined {
     proofType: drop.place ? "photo_location" : "photo",
     place: drop.place,
     gesture: drop.gesture,
+    slot: drop.slot,
   };
 }
 
