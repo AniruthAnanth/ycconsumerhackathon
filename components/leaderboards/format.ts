@@ -20,6 +20,17 @@ export function movementMark(movement: number): MovementMark {
   return { text: "–", tone: "flat" };
 }
 
+/** Ranks that more than one row holds: the table shows them as "T2", the way a league table marks a tie. */
+export function tiedRanks(rows: readonly Pick<BoardRow, "rank">[]): Set<number> {
+  const seen = new Set<number>();
+  const tied = new Set<number>();
+  for (const { rank } of rows) {
+    if (seen.has(rank)) tied.add(rank);
+    seen.add(rank);
+  }
+  return tied;
+}
+
 /** The grey line under a name: how far behind, then what the score is made of. */
 export function rowSubtitle(row: Pick<BoardRow, "gapLabel" | "detail">): string {
   return [row.gapLabel, row.detail].filter(Boolean).join(" · ");

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BOARDS, parseBoardKey } from "./boards";
-import { formatUsd, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle } from "./format";
+import { formatUsd, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle, tiedRanks } from "./format";
 import type { BoardRow } from "./types";
 
 const row = (overrides: Partial<BoardRow>): BoardRow => ({
@@ -107,5 +107,16 @@ describe("boards", () => {
     expect(parseBoardKey(["streak", "week"])).toBe("streak");
     expect(parseBoardKey("nope")).toBeUndefined();
     expect(parseBoardKey(undefined)).toBeUndefined();
+  });
+});
+
+describe("tiedRanks", () => {
+  it("returns only the ranks held by more than one row", () => {
+    const rows = [1, 2, 2, 4, 5, 5, 5].map((rank) => row({ rank }));
+    expect([...tiedRanks(rows)]).toEqual([2, 5]);
+  });
+
+  it("is empty when every rank is unique", () => {
+    expect(tiedRanks([row({ rank: 1 }), row({ rank: 2 })]).size).toBe(0);
   });
 });

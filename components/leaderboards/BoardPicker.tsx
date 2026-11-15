@@ -1,9 +1,12 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
 
 import { colors, font, hairline, spacing, tabUnderlineHeight } from "@/theme";
 
 import { BOARDS } from "./boards";
 import type { BoardKey } from "./types";
+
+const TAB_PEEK = 48;
 
 type Props = {
   active: BoardKey;
@@ -12,15 +15,27 @@ type Props = {
 
 /** TopTabs, but scrollable: fourteen boards do not fit across a phone. */
 export function BoardPicker({ active, onChange }: Props) {
+  const scroll = useRef<ScrollViewInstance>(null);
+  const tabX = useRef<Partial<Record<BoardKey, number>>>({});
+
+  // A deep link can select a board that starts off-screen; bring it into view, with its left neighbour peeking.
+  useEffect(() => {
+    scroll.current?.scrollTo({ x: Math.max(0, (tabX.current[active] ?? 0) - TAB_PEEK), animated: true });
+  }, [active]);
+
   return (
     <View style={styles.bar}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist">
+      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist">
         {BOARDS.map((board) => {
           const selected = board.key === active;
           return (
             <Pressable
               key={board.key}
               style={styles.tab}
+              onLayout={(event) => {
+                tabX.current[board.key] = event.nativeEvent.layout.x;
+                if (board.key === active) scroll.current?.scrollTo({ x: Math.max(0, event.nativeEvent.layout.x - TAB_PEEK), animated: false });
+              }}
               onPress={() => onChange(board.key)}
               accessibilityRole="tab"
               accessibilityState={{ selected }}

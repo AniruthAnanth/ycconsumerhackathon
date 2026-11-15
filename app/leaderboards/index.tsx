@@ -23,7 +23,10 @@ export default function LeaderboardsScreen() {
 
   return (
     <Screen>
-      <Header title="Leaderboards" onBack={router.back} />
+      <Header
+        title={result?.title ?? "Leaderboards"}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/league"))}
+      />
       <BoardPicker active={board} onChange={setBoard} />
       <ScrollView>
         <RivalLine label={result?.rival?.label} />
