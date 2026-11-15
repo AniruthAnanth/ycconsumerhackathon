@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { haptics } from "@/lib/native/haptics";
 import { colors, font, spacing } from "@/theme";
 
 import { WAGER_MAX, stepWager } from "./wager";
@@ -27,7 +28,10 @@ function StepButton({ symbol, label, disabled, onPress }: StepProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled}
-      onPress={onPress}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
       hitSlop={6}
       style={[styles.step, disabled && styles.disabled]}
     >

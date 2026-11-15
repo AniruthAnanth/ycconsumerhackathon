@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
+import { haptics } from "@/lib/native/haptics";
 import { colors, font, spacing } from "@/theme";
 
 import { proofCameraHref } from "../proofRoute";
@@ -23,7 +24,16 @@ export function TimedActions({ view }: { view: TimedView }) {
           {details.filter(Boolean).join("  ·  ")}
         </Text>
       </View>
-      {proof ? <Button label="Submit" style={styles.submit} onPress={() => router.push(proofCameraHref(proof))} /> : null}
+      {proof ? (
+        <Button
+          label="Submit"
+          style={styles.submit}
+          onPress={() => {
+            haptics.select();
+            router.push(proofCameraHref(proof));
+          }}
+        />
+      ) : null}
     </View>
   );
 }
