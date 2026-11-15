@@ -24,9 +24,10 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireSignedInUser } from "./lib/auth";
+import { scheduleFor } from "./lib/schedule";
 import { quickTimeScore, type Slot } from "./lib/scoring";
 import { SEED_PHOTOS, type SeedPhotoKey } from "./lib/seedPhotos";
-import { HOUR_MS, pacificDay, startOfPacificDay, weekEndOf, weekPairings, weekStartOf } from "./lib/week";
+import { HOUR_MS, pacificDay, startOfPacificDay, weekEndOf, weekStartOf } from "./lib/week";
 
 const MINUTE_MS = 60 * 1000;
 /** More rows than a demo league ever holds under one parent. It keeps every read bounded. */
@@ -34,13 +35,29 @@ const SWEEP_LIMIT = 500;
 const PHOTO_KEYS = Object.keys(SEED_PHOTOS) as SeedPhotoKey[];
 
 // Public with a $20 stake, so Quick Match at $20 also lands a new player in this full league.
+// It plays an 8-week double round robin and pays out every week.
 const LEAGUE = {
   name: "YC Hackathon",
   inviteCode: "YCHACK",
   stakeUsd: 20,
   visibility: "public" as const,
   maxMembers: 12,
+  payout: "weekly" as const,
+  seasonWeeks: 8,
+  format: "double_round_robin" as const,
 };
+
+// The league is in week 5 of that season, so the Season screen has results behind it, a week in
+// play and a schedule ahead. Each row is one finished week: what the six scored, in PLAYERS
+// order. They leave Sam unbeaten at 4-0 and Maya 3-1 (Jordan beat her in week 2), which makes
+// this week's Maya v Sam the game at the top of the table.
+const EARLIER_WEEKS = [
+  [412, 298, 255, 150, 210, 365],
+  [301, 351, 322, 120, 265, 402],
+  [455, 322, 310, 205, 190, 340],
+  [431, 280, 275, 160, 245, 395],
+];
+const CURRENT_WEEK = EARLIER_WEEKS.length + 1;
 
 /** When something happened: whole days before the reset, at a Pacific clock time. */
 type When = [daysAgo: number, clock: string];
@@ -80,7 +97,7 @@ const QUICK_TIME = {
   closed: [1, "16:00"] as When,
 };
 
-// The order sets the matchups: week 1 pairs the first player with the last, then works inward
+// The order sets this week's matchups: the first player meets the last, then it works inward
 // (Maya v Sam, Priya v Ava, Jordan v Leo). Reset on a Sunday, the table reads Maya 500, Sam 285,
 // Priya 195, Jordan 120, Ava 60, Leo 0. The bottom is low on purpose: a new player's first
 // verified proof lifts them past two seeded players, which is the demo's live reorder.
@@ -580,20 +597,53 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   // Maya is connected to the demo Canvas school, so a Canvas proof can be shown without a token.
   await ctx.runMutation(internal.canvas.seedDemoConnection, { userId: playerIds[0] });
 
+  // The schedule seats members in the order they joined and moves all but the first up one seat
+  // a week. Joining in this order puts the six back in PLAYERS order in the current week, so its
+  // round of the rotation is the pairing PLAYERS was written for.
+  const [host, ...others] = playerIds;
+  const turns = (CURRENT_WEEK - 1) % others.length;
+  const joinOrder = [host, ...others.slice(-turns), ...others.slice(0, -turns)];
+  const pairingsIn = (week: number) => scheduleFor(LEAGUE.format, joinOrder, week, [], LEAGUE.seasonWeeks);
+
+  // A finished week is its matchups with the final scores on them, and nothing else: no lineups
+  // are kept and no stake was paid into it. It is left unsettled for that reason, which also
+  // keeps Wrapped (a recap of the latest settled week) on the week in play.
+  for (const [index, points] of EARLIER_WEEKS.entries()) {
+    const number = index + 1;
+    const startsAt = startOfPacificDay(pacificDay(weekStart) - 7 * (CURRENT_WEEK - number));
+    const earlierWeekId = await ctx.db.insert("weeks", {
+      leagueId,
+      number,
+      startsAt,
+      endsAt: weekEndOf(startsAt),
+      status: "open",
+    });
+    for (const { a, b } of pairingsIn(number)) {
+      await ctx.db.insert("matchups", {
+        weekId: earlierWeekId,
+        userA: a,
+        userB: b,
+        scoreA: points[playerIds.indexOf(a)],
+        scoreB: points[playerIds.indexOf(b)],
+      });
+    }
+  }
+
+  // Inserted last: the league's current week is its newest weeks row.
   const weekId = await ctx.db.insert("weeks", {
     leagueId,
-    number: 1,
+    number: CURRENT_WEEK,
     startsAt: weekStart,
     endsAt: weekEndOf(weekStart),
     status: "open",
   });
-  for (const [userA, userB] of weekPairings(playerIds, 1)) {
-    await ctx.db.insert("matchups", { weekId, userA, userB });
+  for (const { a, b } of pairingsIn(CURRENT_WEEK)) {
+    await ctx.db.insert("matchups", { weekId, userA: a, userB: b });
   }
 
   // All six have paid. Settlement pays out only members whose buy_in row is in the week's
   // ledger, so each membership comes with one. No Whop ids: these stakes never touched Whop.
-  for (const userId of playerIds) {
+  for (const userId of joinOrder) {
     await ctx.db.insert("memberships", { leagueId, userId, paid: true, joinedAt: weekStart });
     await ctx.db.insert("ledger", {
       leagueId,

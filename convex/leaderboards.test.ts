@@ -128,7 +128,9 @@ describe("leaderboards.board", () => {
   test("head-to-head shows the matchup in play", async () => {
     const { leagueId, as } = await seededLeague();
     const { rows } = await as("Sam").query(api.leaderboards.board, { leagueId, board: "headToHead" });
-    expect(rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "0-0", detail: "Leading Sam Patel 500-285" });
+    // The seeded season has four finished weeks: Sam won all four and Maya lost one.
+    expect(rows[0]).toMatchObject({ name: "Sam Patel", valueLabel: "4-0", detail: "Trailing Maya Chen 285-500" });
+    expect(rows[1]).toMatchObject({ name: "Maya Chen", valueLabel: "3-1", detail: "Leading Sam Patel 500-285" });
     expect(rows.find((row) => row.isMe)?.detail).toBe("Trailing Maya Chen 285-500");
   });
 
