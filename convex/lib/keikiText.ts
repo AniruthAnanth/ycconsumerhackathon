@@ -5,6 +5,21 @@
  * the in-app chat is written here, so the agent's voice lives in one file and
  * convex/keiki.ts only decides which sentence to send.
  */
+import {
+  CORE_SLOTS,
+  FIRST_FINISHER_BONUS,
+  GROUP_BONUS_CAP,
+  GROUP_BONUS_PER_ATTENDEE,
+  MATCHUP_WIN_BONUS,
+  MYSTERY_FAIL_PENALTY,
+  SLOT_CLEARED_BONUS,
+  STREAK_BONUS_DAILY_CAP,
+  STREAK_BONUS_PER_DAY,
+  SWEEP_BONUS,
+  TASK_POINTS_MAX,
+  TASK_POINTS_MIN,
+  WAGER_MAX,
+} from "./scoring";
 
 export type Command =
   /** OPEN, or "OPEN 30" to wager 30 of your own points on the mystery task. */
@@ -225,6 +240,20 @@ export function weekFacts(leagueName: string, rows: WeekRow[], userId: string, o
   return [`League: ${leagueName}. This week's table:`, ...table, matchup, rank].join("\n");
 }
 
+/**
+ * How the league scores, for "how does scoring work?". Written from the constants in
+ * scoring.ts, so what the agent says cannot drift from what the table adds up.
+ */
+export const SCORING_RULES = [
+  `A verified task pays its points, ${TASK_POINTS_MIN} to ${TASK_POINTS_MAX}.`,
+  `A roster has ${CORE_SLOTS.length} slots (${CORE_SLOTS.join(", ")}). Clearing a slot with its drafted task adds ${SLOT_CLEARED_BONUS}, and clearing all ${CORE_SLOTS.length} adds ${SWEEP_BONUS} more and keeps the player's stake.`,
+  `Streak: day n of an unbroken run of days with a verified proof adds ${STREAK_BONUS_PER_DAY} times n, at most ${STREAK_BONUS_DAILY_CAP} a day.`,
+  `Each week pairs the players head to head. When the week settles, the higher scorer of a pair gets ${MATCHUP_WIN_BONUS} more; a tie pays nobody.`,
+  `A quick-time drop pays its own points, plus ${FIRST_FINISHER_BONUS} to whoever finishes first.`,
+  `A mystery task pays double when finished and costs ${MYSTERY_FAIL_PENALTY} when opened and not finished. A wager of up to ${WAGER_MAX} of the player's own points comes back doubled or is lost.`,
+  `A group session pays its points plus ${GROUP_BONUS_PER_ATTENDEE} for each other attendee, at most ${GROUP_BONUS_CAP}.`,
+].join(" ");
+
 function sentence(text: string): string {
   const trimmed = text.trim();
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
@@ -232,10 +261,12 @@ function sentence(text: string): string {
 
 export const reply = {
   /** The referee's reason is always included: it is the product's signature moment. */
-  verdict(verdict: { pass: boolean; points: number; reason: string }, rank: string): string {
-    return verdict.pass
-      ? `Verified, +${verdict.points}. ${sentence(verdict.reason)} ${rank}`.trim()
-      : `Not verified. ${sentence(verdict.reason)} Send another photo to try again.`;
+  verdict(verdict: { pass: boolean; points: number; reason: string; confidence: number }, rank: string): string {
+    if (verdict.pass) return `Verified, +${verdict.points}. ${sentence(verdict.reason)} ${rank}`.trim();
+    // A proof turned away before the referee looked at it (confidence 0: a video, a place
+    // that needs a check-in) already says what to do instead.
+    const retry = verdict.confidence > 0 ? " Send another photo to try again." : "";
+    return `Not verified. ${sentence(verdict.reason)}${retry}`;
   },
 
   standings(leagueName: string, rows: StandingRow[], userId: string): string {

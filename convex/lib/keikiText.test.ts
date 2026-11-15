@@ -10,6 +10,7 @@ import {
   parseCommand,
   rankLine,
   reply,
+  SCORING_RULES,
   splitLeagueTag,
   taskNamedIn,
   unwrapOutbound,
@@ -214,6 +215,14 @@ describe("weekFacts", () => {
   });
 });
 
+describe("SCORING_RULES", () => {
+  it("states the bonuses with the numbers scoring.ts uses", () => {
+    expect(SCORING_RULES).toContain("the higher scorer of a pair gets 50 more; a tie pays nobody");
+    expect(SCORING_RULES).toContain("Clearing a slot with its drafted task adds 25, and clearing all 5 adds 100 more");
+    expect(SCORING_RULES).toContain("costs 20 when opened and not finished");
+  });
+});
+
 describe("ordinal", () => {
   it("covers the teens", () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal)).toEqual([
@@ -225,14 +234,22 @@ describe("ordinal", () => {
 describe("reply", () => {
   it("words a pass the way the spec shows it, with the referee's reason", () => {
     expect(
-      reply.verdict({ pass: true, points: 40, reason: "Barbell rack and mirror visible" }, "You're 2nd, 15 behind Maya."),
+      reply.verdict(
+        { pass: true, points: 40, reason: "Barbell rack and mirror visible", confidence: 0.9 },
+        "You're 2nd, 15 behind Maya.",
+      ),
     ).toBe("Verified, +40. Barbell rack and mirror visible. You're 2nd, 15 behind Maya.");
   });
 
   it("gives a fail its reason and the way to retry", () => {
-    expect(reply.verdict({ pass: false, points: 0, reason: "No gesture visible." }, "")).toBe(
+    expect(reply.verdict({ pass: false, points: 0, reason: "No gesture visible.", confidence: 0.8 }, "")).toBe(
       "Not verified. No gesture visible. Send another photo to try again.",
     );
+  });
+
+  it("adds no second instruction to a proof that was turned away unjudged", () => {
+    const unjudged = { pass: false, points: 0, confidence: 0, reason: "Videos can't be checked from a text yet. Send a photo instead." };
+    expect(reply.verdict(unjudged, "")).toBe("Not verified. Videos can't be checked from a text yet. Send a photo instead.");
   });
 
   it("lists the table with the player as You", () => {
