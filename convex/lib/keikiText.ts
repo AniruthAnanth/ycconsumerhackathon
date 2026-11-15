@@ -11,20 +11,15 @@ import {
   GROUP_BONUS_CAP,
   GROUP_BONUS_PER_ATTENDEE,
   MATCHUP_WIN_BONUS,
-  MYSTERY_FAIL_PENALTY,
   SLOT_CLEARED_BONUS,
   STREAK_BONUS_DAILY_CAP,
   STREAK_BONUS_PER_DAY,
   SWEEP_BONUS,
   TASK_POINTS_MAX,
   TASK_POINTS_MIN,
-  WAGER_MAX,
 } from "./scoring";
 
 export type Command =
-  /** OPEN, or "OPEN 30" to wager 30 of your own points on the mystery task. */
-  | { kind: "open"; wager: number }
-  | { kind: "pass" }
   | { kind: "standings" }
   | { kind: "in" }
   /** A bare digit, answering "Which task is this for?". */
@@ -35,9 +30,6 @@ export function parseCommand(raw: string): Command {
   const text = raw.trim().replace(/\s+/g, " ");
   const word = text.toUpperCase().replace(/[.!?]+$/, "");
 
-  const open = /^OPEN(?: (\d{1,3}))?$/.exec(word);
-  if (open) return { kind: "open", wager: open[1] ? Number(open[1]) : 0 };
-  if (word === "PASS") return { kind: "pass" };
   if (word === "STANDINGS") return { kind: "standings" };
   if (word === "IN" || word === "I'M IN" || word === "IM IN") return { kind: "in" };
   if (/^[1-9]$/.test(word)) return { kind: "pick", choice: Number(word) };
@@ -250,7 +242,6 @@ export const SCORING_RULES = [
   `Streak: day n of an unbroken run of days with a verified proof adds ${STREAK_BONUS_PER_DAY} times n, at most ${STREAK_BONUS_DAILY_CAP} a day.`,
   `Each week pairs the players head to head. When the week settles, the higher scorer of a pair gets ${MATCHUP_WIN_BONUS} more; a tie pays nobody.`,
   `A quick-time drop pays its own points, plus ${FIRST_FINISHER_BONUS} to whoever finishes first.`,
-  `A mystery task pays double when finished and costs ${MYSTERY_FAIL_PENALTY} when opened and not finished. A wager of up to ${WAGER_MAX} of the player's own points comes back doubled or is lost.`,
   `A group session pays its points plus ${GROUP_BONUS_PER_ATTENDEE} for each other attendee, at most ${GROUP_BONUS_CAP}.`,
 ].join(" ");
 
@@ -282,11 +273,6 @@ export const reply = {
     return `"${title}" needs a check-in${placeName ? ` at ${placeName}` : ""}. Open Lineup and tap Submit Proof there.`;
   },
 
-  mysteryOpened(mystery: { title: string; points: number; wager: number }): string {
-    const wager = mystery.wager > 0 ? ` ${mystery.wager} of your points are riding on it.` : "";
-    return `Mystery task: ${mystery.title}. +${mystery.points * 2} if you finish, -20 if you don't.${wager} Reply with a photo.`;
-  },
-
   joinedSession(session: { title: string; placeName: string; when: string }): string {
     return `You're in: ${session.title} at ${session.placeName}, ${session.when}. Check in there in the app.`;
   },
@@ -301,11 +287,9 @@ export const reply = {
   notMedia: "I can only judge a photo or a short video.",
   mediaFailed: "I couldn't read that file. Send it again as a photo.",
   noPendingPhoto: "Send the photo again and I'll judge it.",
-  noMystery: "No mystery task is waiting for you.",
-  mysteryPassed: "Passed. Nothing lost.",
   noSession: 'No group session is open. Propose one, like "run tomorrow 7am at Dolores Park".',
   sessionNeedsDetail: 'Say what, when and where, like "run tomorrow 7am at Dolores Park".',
   noLeague: "Join a league in the app first, then text me again.",
-  help: "Send a photo to prove a task. Commands: STANDINGS, OPEN, PASS, IN.",
+  help: "Send a photo to prove a task. Commands: STANDINGS, IN.",
   trouble: "Something went wrong on my side. Try that again in a minute.",
 };
