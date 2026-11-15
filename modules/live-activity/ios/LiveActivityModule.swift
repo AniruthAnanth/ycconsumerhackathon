@@ -68,7 +68,14 @@ public class LiveActivityModule: Module {
 
 @available(iOS 16.2, *)
 private func decodeState(_ json: String) throws -> LineupActivityAttributes.ContentState {
-  return try JSONDecoder().decode(LineupActivityAttributes.ContentState.self, from: Data(json.utf8))
+  do {
+    return try JSONDecoder().decode(LineupActivityAttributes.ContentState.self, from: Data(json.utf8))
+  } catch {
+    // lib/liveActivity.ts swallows every failure by design, so the device log is the only place
+    // a state that no longer matches ContentState would ever show.
+    NSLog("[LiveActivity] state did not decode: %@", String(describing: error))
+    throw error
+  }
 }
 
 /// The activity that can still be updated, if there is one.
