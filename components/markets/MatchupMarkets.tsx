@@ -1,6 +1,7 @@
 import { Entrance } from "@/components/motion";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
+import { hasLineups } from "./chartGeometry";
 import { ProjectionCard } from "./ProjectionCard";
 import { useMarket } from "./useMarket";
 import { WinProbChart } from "./WinProbChart";
@@ -9,7 +10,7 @@ import { WinProbChart } from "./WinProbChart";
 export function MatchupMarkets() {
   const { leagueId } = useCurrentLeague();
   const market = useMarket(leagueId);
-  if (!market) return null;
+  if (!market || !hasLineups([market.me, ...(market.matchup ? [market.matchup.opponent] : [])])) return null;
   return (
     <Entrance index={1}>
       {market.matchup ? <WinProbChart matchup={market.matchup} /> : null}
