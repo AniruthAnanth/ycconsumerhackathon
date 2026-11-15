@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { Artwork, artworkForTask } from "@/components/art";
 import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -36,6 +37,9 @@ export function TaskSheet({ taskId }: { taskId: string }) {
       />
       {task ? (
         <>
+          <View style={styles.hero}>
+            <Artwork name={artworkForTask(task.slot, task.title)} size={104} />
+          </View>
           <TaskRow task={task} />
           {canSubmitProof(task.status) ? (
             <View style={styles.action}>
@@ -50,6 +54,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
 }
 
 const styles = StyleSheet.create({
+  hero: { alignItems: "center", paddingTop: spacing.lg, paddingBottom: spacing.md },
   action: { padding: spacing.lg },
   missing: { padding: spacing.lg, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
 });
