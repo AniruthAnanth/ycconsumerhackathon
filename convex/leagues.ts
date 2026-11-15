@@ -30,6 +30,8 @@ const INVITE_CODE_ATTEMPTS = 20;
 const INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 // One settlement writes at most a buy-in, a refund and winnings per member, and a fee.
 const LEDGER_ROWS_PER_SETTLEMENT = 200;
+// Leagues looked at by one run of the week-end sweep. A longer table carries on in the next run.
+const SWEEP_PAGE = 200;
 
 const visibility = v.union(v.literal("private"), v.literal("public"));
 
@@ -128,6 +130,13 @@ export async function ensureCurrentWeek(
   const startsAt = weekStartOf(now);
   if (latest !== null && latest.startsAt === startsAt) {
     return latest;
+  }
+
+  // Settlement works on a league's latest week, so a week left behind unsettled would never be
+  // paid out. That happens when a join gets here before the hourly sweep does. Whop closes the
+  // old week by its id as soon as this transaction commits.
+  if (latest !== null && latest.status === "open") {
+    await ctx.scheduler.runAfter(0, internal.whop.retryPayouts, { leagueId, weekId: latest._id });
   }
 
   const number = latest === null ? 1 : latest.number + 1;
@@ -389,6 +398,35 @@ export const get = query({
         status: week.status,
       },
     };
+  },
+});
+
+/**
+ * Hands every league whose week is over to Whop's week-end action, which settles that week and
+ * opens the next one. The cron runs it every hour, so no time zone lives in the schedule and a
+ * league that could not be closed one hour is tried again the next.
+ */
+export const sweepEndedWeeks = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const thisWeek = weekStartOf(Date.now());
+    const { page, isDone, continueCursor } = await ctx.db
+      .query("leagues")
+      .paginate({ cursor: args.cursor ?? null, numItems: SWEEP_PAGE });
+    for (const league of page) {
+      const week = await currentWeek(ctx, league._id);
+      // The same test whop.endWeek makes: the calendar has moved past the league's latest week.
+      // A week closed early with End Week Now still waits for Monday.
+      if (week === null || week.startsAt === thisWeek) continue;
+      // A versus is one week long. Once that week is settled the game is over for good.
+      if (league.mode === "versus" && week.status === "settled") continue;
+      await ctx.scheduler.runAfter(0, internal.whop.endWeek, { leagueId: league._id });
+    }
+    if (!isDone) {
+      await ctx.scheduler.runAfter(0, internal.leagues.sweepEndedWeeks, { cursor: continueCursor });
+    }
+    return null;
   },
 });
 
