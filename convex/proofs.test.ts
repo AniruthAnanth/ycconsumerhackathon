@@ -114,6 +114,43 @@ describe("proofs.verify", () => {
     ]);
   });
 
+  it("has the league's lead rechecked after a pass, and not after a fail", async () => {
+    const { t, as, userId, taskId } = await playerWithTask();
+    const leagueId = await t.run(async (ctx) => {
+      const leagueId = await ctx.db.insert("leagues", {
+        name: "YC Hackathon",
+        inviteCode: "YCHACK",
+        stakeUsd: 5,
+        visibility: "private",
+        maxMembers: 12,
+        createdBy: userId,
+      });
+      await ctx.db.insert("memberships", { leagueId, userId, paid: true, joinedAt: NOW });
+      await ctx.db.insert("weeks", {
+        leagueId,
+        number: 1,
+        startsAt: WEEK_START,
+        endsAt: WEEK_START + 7 * 24 * 60 * 60 * 1000,
+        status: "open",
+      });
+      return leagueId;
+    });
+    const leaderOf = () => t.run(async (ctx) => (await ctx.db.get("leagues", leagueId))?.leaderId ?? null);
+    const settle = async () => {
+      vi.advanceTimersByTime(1);
+      await t.finishInProgressScheduledFunctions();
+    };
+
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ pass: false, confidence: 0.1 }));
+    await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    await settle();
+    expect(await leaderOf()).toBeNull();
+
+    await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    await settle();
+    expect(await leaderOf()).toBe(userId);
+  });
+
   it("leaves the task open after a failed proof, so the player can try again", async () => {
     const { t, as, taskId } = await playerWithTask();
     vi.mocked(judgeProof).mockResolvedValueOnce(

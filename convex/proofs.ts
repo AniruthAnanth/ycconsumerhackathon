@@ -297,6 +297,9 @@ export const record = internalMutation({
       if (task.dropId) {
         await ctx.scheduler.runAfter(0, internal.drops.onTaskVerified, { taskId: task._id });
       }
+      // The league is texted when this proof changes who is in front. Both follow-ups are
+      // scheduled rather than called, so a problem in either can never undo a verified proof.
+      await ctx.scheduler.runAfter(0, internal.leadChange.afterProof, { userId: args.userId });
       // A pass can carry the player past a league mate. Check-ins tells whoever was passed; it
       // is scheduled after the drop bonus above so it compares the final points.
       await ctx.scheduler.runAfter(0, internal.checkins.afterProof, { taskId: task._id });
