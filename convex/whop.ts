@@ -36,9 +36,8 @@ import {
 import { currentWeek as latestWeek } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
-import { scoreWeek, type WeekScore } from "./lib/scoring";
 import { computeSettlement, settlementLedgerRows, type Entrant } from "./lib/settlement";
-import { pacificDay } from "./lib/week";
+import { leagueStandings } from "./standings";
 
 // ---- The Whop client ----------------------------------------------------------------------------
 
@@ -420,6 +419,10 @@ export const recordTransfer = internalMutation({
  *
  * Paid means the ledger holds their buy-in for one of these weeks. The ledger decides, not
  * memberships.paid, so a stake can only ever be returned by the settlement it was paid into.
+ *
+ * Points and finishers come from the standings table (standings.ts), the one place a week is
+ * added up, so the pot is split on the numbers the League tab shows. `atSettlement` counts the
+ * matchup bonus of the week being closed, which the table only shows once that week is settled.
  */
 async function entrantsOver(
   ctx: QueryCtx,
@@ -432,65 +435,27 @@ async function entrantsOver(
       .filter((row) => row.kind === "buy_in" && weekIds.has(row.weekId))
       .map((row) => row.userId),
   );
+  const standings = (
+    await Promise.all(
+      weeks.map((week) => leagueStandings(ctx, leagueId, week._id, { atSettlement: true })),
+    )
+  ).flat();
   const memberships = await ctx.db
     .query("memberships")
     .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
     .take(MAX_MEMBERS);
 
-  return await Promise.all(
-    memberships.map(async ({ userId }) => {
-      const scores = await Promise.all(
-        weeks.map((week) => weekScore(ctx, leagueId, userId, week.startsAt)),
-      );
-      const weeksCleared = scores.filter((score) => score.finisher).length;
-      return {
-        userId,
-        paid: boughtIn.has(userId),
-        // In one week: cleared all five slots. Over a season: did so in at least half its weeks.
-        finished: weeksCleared > 0 && weeksCleared * 2 >= weeks.length,
-        points: scores.reduce((sum, score) => sum + score.total, 0),
-      };
-    }),
-  );
-}
-
-/**
- * A member's week in this league, scored by the same rules as the standings table
- * (lib/scoring.ts). A drop's task counts only in the league the drop belongs to.
- */
-async function weekScore(
-  ctx: QueryCtx,
-  leagueId: Id<"leagues">,
-  userId: Id<"users">,
-  weekStart: number,
-): Promise<WeekScore> {
-  const [tasks, proofs] = await Promise.all([
-    ctx.db
-      .query("tasks")
-      .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
-      .take(MAX_ROWS_PER_WEEK),
-    ctx.db
-      .query("proofs")
-      .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
-      .take(MAX_ROWS_PER_WEEK),
-  ]);
-
-  const tasksHere: Doc<"tasks">[] = [];
-  for (const task of tasks) {
-    if (task.dropId !== undefined) {
-      const drop = await ctx.db.get("drops", task.dropId);
-      if (drop?.leagueId !== leagueId) continue;
-    }
-    tasksHere.push(task);
-  }
-  // The streak counts the days a task was actually won: passing proofs of tasks that stand verified.
-  const verifiedHere = new Set(
-    tasksHere.filter((task) => task.status === "verified").map((task) => task._id),
-  );
-  const proofDays = proofs
-    .filter((proof) => proof.pass && verifiedHere.has(proof.taskId))
-    .map((proof) => pacificDay(proof.createdAt));
-  return scoreWeek(tasksHere, proofDays);
+  return memberships.map(({ userId }) => {
+    const mine = standings.filter((standing) => standing.userId === userId);
+    const weeksCleared = mine.filter((standing) => standing.finisher).length;
+    return {
+      userId,
+      paid: boughtIn.has(userId),
+      // In one week: cleared all five slots. Over a season: did so in at least half its weeks.
+      finished: weeksCleared > 0 && weeksCleared * 2 >= weeks.length,
+      points: mine.reduce((sum, standing) => sum + standing.points, 0),
+    };
+  });
 }
 
 /** The weeks of the season `week` belongs to that the league has played, `week` included. */
@@ -552,8 +517,6 @@ async function membershipOf(
 // Bounds on reads. Each is far above what a league of friends produces; they exist so that no
 // query here is unbounded.
 const MAX_MEMBERS = 200;
-/** One player's tasks, or their proofs, in one week. */
-const MAX_ROWS_PER_WEEK = 200;
 /** One weeks row per calendar week: ten years of them. */
 const MAX_WEEKS = 520;
 /** A week adds at most a buy-in, a refund and a winnings row per member, and one fee row. */
