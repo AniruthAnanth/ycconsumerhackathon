@@ -33,9 +33,12 @@ import {
   type ActionCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { currentWeek as latestWeek } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
+import { scoreWeek, type WeekScore } from "./lib/scoring";
 import { computeSettlement, settlementLedgerRows, type Entrant } from "./lib/settlement";
+import { pacificDay } from "./lib/week";
 
 // ---- The Whop client ----------------------------------------------------------------------------
 
@@ -385,6 +388,12 @@ export const closeWeek = internalMutation({
         }
       }
       await ctx.db.patch("weeks", week._id, { status: "settled" });
+      // Next week's draft learns from this one. It runs on its own, so it can't hold up or fail
+      // the settlement, and only the call that closes the week schedules it.
+      await ctx.scheduler.runAfter(0, internal.lineup.rememberOutcomes, {
+        leagueId,
+        weekStart: week.startsAt,
+      });
     }
 
     return {
@@ -430,51 +439,58 @@ async function entrantsOver(
 
   return await Promise.all(
     memberships.map(async ({ userId }) => {
-      const standings = await Promise.all(
-        weeks.map((week) => weekStanding(ctx, leagueId, userId, week.startsAt)),
+      const scores = await Promise.all(
+        weeks.map((week) => weekScore(ctx, leagueId, userId, week.startsAt)),
       );
-      const weeksCleared = standings.filter((standing) => standing.clearedFive).length;
+      const weeksCleared = scores.filter((score) => score.finisher).length;
       return {
         userId,
         paid: boughtIn.has(userId),
         // In one week: cleared all five slots. Over a season: did so in at least half its weeks.
         finished: weeksCleared > 0 && weeksCleared * 2 >= weeks.length,
-        points: standings.reduce((sum, standing) => sum + standing.points, 0),
+        points: scores.reduce((sum, score) => sum + score.total, 0),
       };
     }),
   );
 }
 
-const CORE_SLOTS = 5;
-
 /**
- * A member's week in this league: points from verified tasks, and whether all five roster
- * slots are cleared. A drop's task counts only in the drop's own league, and a group session
- * clears People as well as its own slot.
+ * A member's week in this league, scored by the same rules as the standings table
+ * (lib/scoring.ts). A drop's task counts only in the league the drop belongs to.
  */
-async function weekStanding(
+async function weekScore(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
   userId: Id<"users">,
   weekStart: number,
-): Promise<{ points: number; clearedFive: boolean }> {
-  const tasks = await ctx.db
-    .query("tasks")
-    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
-    .take(MAX_TASKS_PER_WEEK);
-  let points = 0;
-  const cleared = new Set<string>();
+): Promise<WeekScore> {
+  const [tasks, proofs] = await Promise.all([
+    ctx.db
+      .query("tasks")
+      .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
+      .take(MAX_ROWS_PER_WEEK),
+    ctx.db
+      .query("proofs")
+      .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
+      .take(MAX_ROWS_PER_WEEK),
+  ]);
+
+  const tasksHere: Doc<"tasks">[] = [];
   for (const task of tasks) {
-    if (task.status !== "verified") continue;
     if (task.dropId !== undefined) {
       const drop = await ctx.db.get("drops", task.dropId);
       if (drop?.leagueId !== leagueId) continue;
     }
-    points += task.points;
-    if (task.slot !== "flex") cleared.add(task.slot);
-    if (task.source === "group") cleared.add("people");
+    tasksHere.push(task);
   }
-  return { points, clearedFive: cleared.size === CORE_SLOTS };
+  // The streak counts the days a task was actually won: passing proofs of tasks that stand verified.
+  const verifiedHere = new Set(
+    tasksHere.filter((task) => task.status === "verified").map((task) => task._id),
+  );
+  const proofDays = proofs
+    .filter((proof) => proof.pass && verifiedHere.has(proof.taskId))
+    .map((proof) => pacificDay(proof.createdAt));
+  return scoreWeek(tasksHere, proofDays);
 }
 
 /** The weeks of the season `week` belongs to that the league has played, `week` included. */
@@ -536,7 +552,8 @@ async function membershipOf(
 // Bounds on reads. Each is far above what a league of friends produces; they exist so that no
 // query here is unbounded.
 const MAX_MEMBERS = 200;
-const MAX_TASKS_PER_WEEK = 100;
+/** One player's tasks, or their proofs, in one week. */
+const MAX_ROWS_PER_WEEK = 200;
 /** One weeks row per calendar week: ten years of them. */
 const MAX_WEEKS = 520;
 /** A week adds at most a buy-in, a refund and a winnings row per member, and one fee row. */
@@ -549,11 +566,11 @@ async function leagueWeeks(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<
     .take(MAX_WEEKS);
 }
 
-/** The week the league is playing now: its latest. Every league has one from the day it is created. */
+/** The week the league is playing now: its latest row. Every league has one from the day it is created. */
 async function currentWeek(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"weeks">> {
-  const weeks = await leagueWeeks(ctx, leagueId);
-  if (weeks.length === 0) throw new ConvexError("This league has no week to play in yet");
-  return weeks.reduce((latest, week) => (week.startsAt > latest.startsAt ? week : latest));
+  const week = await latestWeek(ctx, leagueId);
+  if (week === null) throw new ConvexError("This league has no week to play in yet");
+  return week;
 }
 
 async function leagueLedger(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"ledger">[]> {

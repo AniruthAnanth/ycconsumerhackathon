@@ -6,10 +6,26 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { addMemory } from "./memory";
 import schema from "./schema";
 import { paidBuyIn } from "./whop";
 
+// Closing a week schedules lineup.rememberOutcomes. No test may reach Supermemory, and the fake
+// timers hold that scheduled call until a test chooses to run it.
+vi.mock("./memory", async (original) => ({
+  ...(await original<typeof import("./memory")>()),
+  addMemory: vi.fn(),
+  searchMemories: vi.fn(),
+}));
+
 const modules = import.meta.glob("./**/*.ts");
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const WEBHOOK_SECRET = "ws_test_secret_for_unit_tests_only";
@@ -332,13 +348,14 @@ describe("closeWeek", () => {
 
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Ana forfeits $5: 50c fee, $4.50 split 3:1 between Maya and Sam. Leo never bought in.
+    // Ana forfeits $5: 50c fee, and $4.50 split by week score. Both swept their five (+225),
+    // so that is 525 to 325 between Maya and Sam. Leo never bought in.
     const rows = await settlementRows(t);
     expect(rows).toEqual([
       { userId: userIds.maya, kind: "refund", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.maya}:refund` },
-      { userId: userIds.maya, kind: "winnings", amountUsd: 3.38, idempotencyKey: `${weekId}:${userIds.maya}:winnings` },
+      { userId: userIds.maya, kind: "winnings", amountUsd: 2.78, idempotencyKey: `${weekId}:${userIds.maya}:winnings` },
       { userId: userIds.sam, kind: "refund", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.sam}:refund` },
-      { userId: userIds.sam, kind: "winnings", amountUsd: 1.12, idempotencyKey: `${weekId}:${userIds.sam}:winnings` },
+      { userId: userIds.sam, kind: "winnings", amountUsd: 1.72, idempotencyKey: `${weekId}:${userIds.sam}:winnings` },
       { userId: undefined, kind: "fee", amountUsd: 0.5, idempotencyKey: `${weekId}:fee` },
     ]);
     expect(Math.round(rows.reduce((sum, row) => sum + row.amountUsd, 0) * 100)).toBe(1500);
@@ -356,6 +373,21 @@ describe("closeWeek", () => {
     expect(await settlementRows(t)).toEqual(once);
   });
 
+  test("schedules remembering the week's outcomes once, when the week closes", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
+
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.map(({ name, args }) => ({ name, args }))).toEqual([
+      { name: "lineup:rememberOutcomes", args: [{ leagueId, weekStart: 0 }] },
+    ]);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(addMemory).toHaveBeenCalled();
+  });
+
   test("owes one transfer per member with a Whop user, until Whop has accepted it", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
@@ -369,7 +401,7 @@ describe("closeWeek", () => {
     expect(first.transfers).toHaveLength(1);
     expect(first.transfers[0]).toMatchObject({
       whopUserId: "user_maya",
-      amountUsd: 8.38,
+      amountUsd: 7.78,
       idempotenceKey: `${weekId}:${userIds.maya}`,
     });
     expect(first.transfers[0].ledgerIds).toHaveLength(2);
@@ -460,6 +492,35 @@ describe("closeWeek", () => {
   });
 });
 
+describe("closeWeek on the seeded demo league", () => {
+  test("End Week Now pays every seeded stake back out, with no Whop transfer owed", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(api.seed.reset, {});
+    const league = await t.run((ctx) =>
+      ctx.db
+        .query("leagues")
+        .withIndex("by_inviteCode", (q) => q.eq("inviteCode", "YCHACK"))
+        .unique(),
+    );
+    if (league === null) throw new Error("The seeded league is missing");
+    const buyIns = await t.run(async (ctx) =>
+      (await ctx.db.query("ledger").collect()).filter((row) => row.kind === "buy_in"),
+    );
+    expect(buyIns.length).toBeGreaterThan(0);
+
+    const owed = await t.mutation(internal.whop.closeWeek, { leagueId: league._id });
+
+    const rows = await settlementRows(t);
+    const cents = (usd: number) => Math.round(usd * 100);
+    expect(rows.reduce((sum, row) => sum + cents(row.amountUsd), 0)).toBe(
+      buyIns.reduce((sum, row) => sum + cents(row.amountUsd), 0),
+    );
+    expect(new Set(rows.map((row) => row.idempotencyKey)).size).toBe(rows.length);
+    // Seeded players never went through Whop, so their payouts are shown from the ledger alone.
+    expect(owed).toEqual({ whopCompanyId: null, transfers: [] });
+  });
+});
+
 describe("closeWeek in a season league", () => {
   const SEASON = { payout: "season" as const, seasonWeeks: 2 };
   const PLAYERS: Member[] = [
@@ -495,13 +556,13 @@ describe("closeWeek in a season league", () => {
     await t.mutation(internal.whop.closeWeek, { leagueId });
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Ana's $5 is forfeited: 50c fee, $4.50 split 300:100.
+    // Ana's $5 is forfeited: 50c fee, $4.50 split by season totals, 750 to 350.
     const season = `${leagueId}:season`;
     expect(await settlementRows(t)).toEqual([
       { userId: userIds.maya, kind: "refund", amountUsd: 5, idempotencyKey: `${season}:${userIds.maya}:refund` },
-      { userId: userIds.maya, kind: "winnings", amountUsd: 3.38, idempotencyKey: `${season}:${userIds.maya}:winnings` },
+      { userId: userIds.maya, kind: "winnings", amountUsd: 3.07, idempotencyKey: `${season}:${userIds.maya}:winnings` },
       { userId: userIds.sam, kind: "refund", amountUsd: 5, idempotencyKey: `${season}:${userIds.sam}:refund` },
-      { userId: userIds.sam, kind: "winnings", amountUsd: 1.12, idempotencyKey: `${season}:${userIds.sam}:winnings` },
+      { userId: userIds.sam, kind: "winnings", amountUsd: 1.43, idempotencyKey: `${season}:${userIds.sam}:winnings` },
       { userId: undefined, kind: "fee", amountUsd: 0.5, idempotencyKey: `${season}:fee` },
     ]);
     expect((await t.run((ctx) => ctx.db.get("weeks", finalWeekId)))?.status).toBe("settled");
