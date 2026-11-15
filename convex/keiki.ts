@@ -57,6 +57,7 @@ import {
   parseCommand,
   rankLine,
   reply,
+  SCORING_RULES,
   splitLeagueTag,
   unwrapOutbound,
   weekFacts,
@@ -91,6 +92,8 @@ type Player = {
 /** What proofTargets reads; answerPhoto adds whether the player has arrived at each place. */
 type OpenTasks = Pick<ProofTargets<Id<"tasks">>, "quickTime" | "photoTasks"> & {
   locationTasks: { taskId: Id<"tasks">; title: string; placeName?: string }[];
+  /** Open tasks no photo can prove. They are only ever listed, when a player asks what is left. */
+  canvasTasks: { title: string }[];
 };
 
 // ─── Inbound: POST /keiki/turn ───────────────────────────────────────────────────────────────
@@ -372,7 +375,8 @@ const UNDERSTAND_INSTRUCTIONS = [
   "otherwise) and startsAt (ISO 8601 with the America/Los_Angeles offset, resolving 'tomorrow' and weekday names from",
   "the current time given). Leave reply empty. If the place or the time is missing, it is not a proposal yet.",
   "2. Otherwise set isSessionProposal to false, set the session fields to null, and write reply: one or two short",
-  "lines, sports-desk tone, no emojis, answered only from the league facts given. Answer with the names and numbers",
+  "lines (up to six when the player asks you to explain something, with an example from their own numbers if they",
+  "ask for one), sports-desk tone, no emojis, answered only from the league facts given. Answer with the names and numbers",
   "the question is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I',",
   "the task titles for 'what's left'. Speak to the player as 'you'. If the facts don't answer it, say",
   "what you can do: judge a photo proof, STANDINGS, OPEN or PASS the mystery task, IN to join a group session.",
@@ -439,7 +443,12 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
 /** What the model is told about the league: enough to answer "how am I doing", nothing private. */
 async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text: string, now: number): Promise<string> {
   const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now });
-  const openTitles = [open.quickTime, ...open.photoTasks, ...open.locationTasks].flatMap((task) => (task ? [task.title] : []));
+  const openTasks = [
+    ...(open.quickTime ? [`${open.quickTime.title} (the live quick-time drop; reply with a photo)`] : []),
+    ...open.photoTasks.map((task) => `${task.title} (photo)`),
+    ...open.locationTasks.map((task) => `${task.title} (photo${task.placeName ? ` at ${task.placeName}` : ""})`),
+    ...open.canvasTasks.map((task) => `${task.title} (submitted on Canvas)`),
+  ];
   let week = "The player is not in a league yet.";
   if (player.league !== null) {
     const { leagueId, name } = player.league;
@@ -459,7 +468,8 @@ async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text
   return [
     `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
     week,
-    `This player's open tasks: ${openTitles.join("; ") || "none"}.`,
+    `This player's open tasks this week and how each is proved: ${openTasks.join("; ") || "none"}.`,
+    `How scoring works: ${SCORING_RULES}`,
     earlier.length > 0 ? `Earlier in this conversation:\n${earlier.join("\n")}` : "",
     `Message: ${text}`,
   ]
@@ -734,13 +744,14 @@ async function leagueInPlay(ctx: QueryCtx, userId: Id<"users">, leagueTag: strin
   return league === null ? null : { leagueId: league._id, name: league.name };
 }
 
-/** Everything a texted photo could prove for this player right now. */
+/** The player's open tasks this week, sorted by what a texted photo could prove right now. */
 export const proofTargets = internalQuery({
   args: { userId: v.id("users"), now: v.number() },
   returns: v.object({
     quickTime: v.union(v.null(), v.object({ taskId: v.id("tasks"), title: v.string() })),
     photoTasks: v.array(v.object({ taskId: v.id("tasks"), title: v.string() })),
     locationTasks: v.array(v.object({ taskId: v.id("tasks"), title: v.string(), placeName: v.optional(v.string()) })),
+    canvasTasks: v.array(v.object({ title: v.string() })),
   }),
   handler: async (ctx, { userId, now }) => {
     const newestFirst = await ctx.db
@@ -749,7 +760,7 @@ export const proofTargets = internalQuery({
       .order("desc")
       .take(MAX_ROWS);
 
-    const targets: OpenTasks = { quickTime: null, photoTasks: [], locationTasks: [] };
+    const targets: OpenTasks = { quickTime: null, photoTasks: [], locationTasks: [], canvasTasks: [] };
     for (const task of newestFirst.reverse()) {
       // Only this week: next week's lineup can already be drafted, and last week's is settled.
       const thisWeek = task.weekStart <= now && now < task.weekStart + WEEK_MS;
@@ -759,7 +770,10 @@ export const proofTargets = internalQuery({
         targets.locationTasks.push({ taskId: task._id, title: task.title, placeName: task.place?.name });
         continue;
       }
-      if (task.proofType !== "photo") continue;
+      if (task.proofType === "canvas") {
+        targets.canvasTasks.push({ title: task.title });
+        continue;
+      }
 
       const drop = task.dropId === undefined ? null : await ctx.db.get("drops", task.dropId);
       // A drop's task can only be proved while the drop's window is open.
