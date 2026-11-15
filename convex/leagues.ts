@@ -159,8 +159,8 @@ export async function ensureCurrentWeek(
     endsAt: weekEndOf(startsAt),
     status: "open",
   });
-  // The league's format decides who plays whom. For the default round robin
-  // these are exactly weekPairings' pairs, extra pair for an odd league included.
+  // The league's format decides who plays whom. The extra pair for an odd league
+  // is stored last: see withStandIns in lib/schedule.ts.
   for (const { a, b } of await pairingsForWeek(ctx, leagueId, number)) {
     await ctx.db.insert("matchups", { weekId, userA: a, userB: b });
   }
