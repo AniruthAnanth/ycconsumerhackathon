@@ -5,8 +5,9 @@ import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from "reac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi } from "@/components/social/contract";
-import { Header, OutlinedPillButton, Screen, useCurrentLeague } from "@/components/social/kit";
 import { ScreenState } from "@/components/social/ScreenState";
+import { Header, OutlinedPillButton, Screen } from "@/components/ui";
+import { useCurrentLeague } from "@/lib/currentLeague";
 
 import { ChatInputBar } from "./ChatInputBar";
 import { chatReducer, errorMessage, initialChatState, SUGGESTIONS } from "./chatLogic";

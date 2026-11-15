@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/components/social/kit";
+import { colors } from "@/theme";
 
 import type { ChatMessage } from "./chatLogic";
 
@@ -36,9 +36,9 @@ const styles = StyleSheet.create({
   agentRow: { alignItems: "flex-start" },
   bubble: { maxWidth: "80%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   mine: { backgroundColor: colors.accent },
-  agent: { backgroundColor: colors.wash },
+  agent: { backgroundColor: colors.strip },
   text: { color: colors.text, fontSize: 16, lineHeight: 21 },
-  mineText: { color: colors.bg },
-  failed: { color: colors.red, fontSize: 12, fontWeight: "600", marginTop: 4 },
-  reason: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  mineText: { color: colors.background },
+  failed: { color: colors.danger, fontSize: 12, fontWeight: "600", marginTop: 4 },
+  reason: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
 });

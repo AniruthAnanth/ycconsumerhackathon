@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
-import { colors } from "@/components/social/kit";
+import { colors } from "@/theme";
 
 const DOT_COUNT = 3;
 const STEP_MS = 200;
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 18,
-    backgroundColor: colors.wash,
+    backgroundColor: colors.strip,
   },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.muted },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.textMuted },
 });

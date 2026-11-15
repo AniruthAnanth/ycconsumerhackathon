@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { colors } from "@/components/social/kit";
+import { colors } from "@/theme";
 
 import { canSend } from "./chatLogic";
 
@@ -26,7 +26,7 @@ export function ChatInputBar({
         value={text}
         onChangeText={onChangeText}
         placeholder="Message"
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.textMuted}
         style={styles.input}
       />
       <Pressable
@@ -50,8 +50,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.hairline,
-    backgroundColor: colors.bg,
+    borderTopColor: colors.divider,
+    backgroundColor: colors.background,
   },
   input: {
     flex: 1,
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     borderRadius: 20,
-    backgroundColor: colors.wash,
+    backgroundColor: colors.strip,
     color: colors.text,
     fontSize: 16,
   },
@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendDisabled: { opacity: 0.4 },
-  sendText: { color: colors.bg, fontSize: 15, fontWeight: "700" },
+  sendText: { color: colors.background, fontSize: 15, fontWeight: "700" },
 });
