@@ -13,12 +13,17 @@ type Props = {
   onTitlePress?: () => void;
   /** Shows the chat icon that opens the league agent. */
   onChatPress?: () => void;
+  /** Shows the close cross on the right, for a sheet or modal; a pushed screen uses onBack instead. */
+  onClose?: () => void;
   /** Replaces the chat icon. */
   right?: ReactNode;
 };
 
-/** The bar at the top of every screen: back chevron, centred title, one action on the right. */
-export function Header({ title, onBack, onTitlePress, onChatPress, right }: Props) {
+/**
+ * The bar at the top of every screen and sheet: 44 pt tall, centred title, back
+ * chevron on the left for a pushed screen, close cross on the right for a sheet.
+ */
+export function Header({ title, onBack, onTitlePress, onChatPress, onClose, right }: Props) {
   return (
     <View style={styles.bar}>
       <View style={styles.side}>
@@ -45,7 +50,11 @@ export function Header({ title, onBack, onTitlePress, onChatPress, right }: Prop
       )}
       <View style={[styles.side, styles.right]}>
         {right ??
-          (onChatPress ? (
+          (onClose ? (
+            <Pressable onPress={onClose} style={[styles.action, styles.actionEnd]} accessibilityRole="button" accessibilityLabel="Close">
+              <Icon name="close" size={24} />
+            </Pressable>
+          ) : onChatPress ? (
             <Pressable onPress={onChatPress} style={[styles.action, styles.actionEnd]} accessibilityRole="button" accessibilityLabel="League chat">
               <Icon name="chatbubble-ellipses-outline" size={22} />
             </Pressable>
