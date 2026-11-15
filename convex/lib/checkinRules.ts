@@ -12,9 +12,7 @@
  */
 import { distanceMeters, isValidLatLng, type LatLng } from "./geo";
 import { CORE_SLOTS, scoreWeek, type Slot } from "./scoring";
-import { DAY_MS, HOUR_MS, dayOfWeek, pacificOffsetHours } from "./week";
-
-const MINUTE_MS = 60 * 1000;
+import { DAY_MS, HOUR_MS, MINUTE_MS, dayOfWeek, pacificWallClock } from "./week";
 
 /** Indexed by lib/week.ts dayOfWeek: 0 is Monday. */
 const WEEKDAY = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -587,6 +585,6 @@ export function relevantNudges(input: {
  */
 export function pacificClock(ts: number): { day: string; hour: number } {
   // Shifted by the Pacific offset, the UTC getters read Pacific wall-clock time.
-  const wall = new Date(ts + pacificOffsetHours(ts) * HOUR_MS);
+  const wall = pacificWallClock(ts);
   return { day: wall.toISOString().slice(0, 10), hour: wall.getUTCHours() };
 }

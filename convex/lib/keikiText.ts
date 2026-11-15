@@ -18,6 +18,7 @@ import {
   TASK_POINTS_MAX,
   TASK_POINTS_MIN,
 } from "./scoring";
+import { clockLabel, weekdayLabel } from "./week";
 
 export type Command =
   | { kind: "standings" }
@@ -155,12 +156,7 @@ function checkIn<TaskId>(task: { title: string; placeName?: string }): ProofChoi
 
 /** "Mon 7:00 AM", in the league's timezone: weeks and sessions all run on Pacific time. */
 export function leagueTime(epochMs: number): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(epochMs));
+  return `${weekdayLabel(epochMs)} ${clockLabel(epochMs)}`;
 }
 
 /**
