@@ -8,6 +8,8 @@ import {
   scheduleFor,
   seasonOf,
   seasonTable,
+  withoutStandIns,
+  withStandIns,
   type Pairing,
   type Result,
 } from "./schedule";
@@ -116,20 +118,28 @@ describe("round robin", () => {
     );
   });
 
-  it("does not depend on the order the members were loaded in", () => {
-    const shuffled = ["d", "a", "f", "c", "b", "e", "a"];
-    for (let week = 1; week <= 8; week++) {
-      expect(scheduleFor("round_robin", shuffled, week, [])).toEqual(
-        scheduleFor("round_robin", SIX, week, []),
-      );
-    }
+  it("seats members in the order given, which callers keep as join order", () => {
+    // Week 1 pairs the outside seats inwards; each week the rest move up one.
+    expect(scheduleFor("round_robin", SIX, 1, [])).toEqual([
+      { a: "a", b: "f" },
+      { a: "b", b: "e" },
+      { a: "c", b: "d" },
+    ]);
+    expect(scheduleFor("round_robin", SIX, 2, [])).toEqual([
+      { a: "a", b: "b" },
+      { a: "c", b: "f" },
+      { a: "d", b: "e" },
+    ]);
+    expect(scheduleFor("round_robin", ["a", "b", "a"], 1, [])).toEqual([
+      { a: "a", b: "b" },
+    ]);
   });
 
   it("pairs nobody in a league of one, and the only two in a league of two", () => {
     expect(scheduleFor("round_robin", [], 1, [])).toEqual([]);
     expect(scheduleFor("round_robin", ["a"], 1, [])).toEqual([]);
     expect(scheduleFor("round_robin", ["b", "a"], 3, [])).toEqual([
-      { a: "a", b: "b" },
+      { a: "b", b: "a" },
     ]);
   });
 
@@ -195,6 +205,14 @@ describe("seasonTable", () => {
     ]);
   });
 
+  it("ranks the earlier joiner first when wins and points are level", () => {
+    const table = seasonTable(
+      ["early", "late"],
+      [{ week: 1, a: "late", b: "early", scoreA: 50, scoreB: 50 }],
+    );
+    expect(table.map((row) => row.id)).toEqual(["early", "late"]);
+  });
+
   it("lists a member with no results and ignores one who has left", () => {
     const table = seasonTable(
       ["a", "b"],
@@ -202,6 +220,42 @@ describe("seasonTable", () => {
     );
     expect(table.map((row) => row.id)).toEqual(["a", "b"]);
     expect(table[0]).toMatchObject({ wins: 1, pointsFor: 40 });
+  });
+});
+
+describe("stand-ins", () => {
+  it("gives the member with the week off a matchup against the first paired member, last", () => {
+    const five = SIX.slice(0, 5);
+    const pairings = scheduleFor("round_robin", five, 1, []);
+    expect(pairings).toEqual([
+      { a: "b", b: "e" },
+      { a: "c", b: "d" },
+    ]);
+    expect(withStandIns(pairings, five)).toEqual([...pairings, { a: "a", b: "b" }]);
+  });
+
+  it("adds nothing when everyone plays or nobody does", () => {
+    const pairings = scheduleFor("round_robin", SIX, 1, []);
+    expect(withStandIns(pairings, SIX)).toEqual(pairings);
+    expect(withStandIns([], ["a"])).toEqual([]);
+  });
+
+  it("is taken out again when a stored week is read back", () => {
+    const five = SIX.slice(0, 5);
+    for (let week = 1; week <= 5; week++) {
+      const pairings = scheduleFor("round_robin", five, week, []);
+      expect(withoutStandIns(withStandIns(pairings, five))).toEqual(pairings);
+    }
+  });
+
+  it("covers every bye of a bracket round", () => {
+    const regular = play("bracket", SIX, 1, 5);
+    const stored = withStandIns(scheduleFor("bracket", SIX, 6, regular), SIX);
+    expect(stored.slice(2)).toEqual([
+      { a: "a", b: "d" },
+      { a: "b", b: "d" },
+    ]);
+    expect(withoutStandIns(stored)).toHaveLength(2);
   });
 });
 
