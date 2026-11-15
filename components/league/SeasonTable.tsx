@@ -3,15 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar, Divider, Score } from "@/components/ui";
 import { colors, font, hairline, spacing } from "@/theme";
 
-type SeasonPlayer = { userId: string; name: string; avatarUrl?: string };
-
-type SeasonTableRow = SeasonPlayer & {
-  rank: number;
-  wins: number;
-  losses: number;
-  ties: number;
-  pointsFor: number;
-};
+import type { SeasonTableRow } from "./types";
 
 type Props = {
   rows: SeasonTableRow[];

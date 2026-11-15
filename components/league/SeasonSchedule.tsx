@@ -3,23 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Divider, formatScore } from "@/components/ui";
 import { colors, font, hairline, spacing } from "@/theme";
 
-type SeasonPlayer = { userId: string; name: string; avatarUrl?: string };
-
-type SeasonMatchup = {
-  a: SeasonPlayer;
-  b: SeasonPlayer;
-  scoreA: number | null;
-  scoreB: number | null;
-  winnerId: string | null;
-};
-
-type SeasonWeek = {
-  number: number;
-  status: "final" | "live" | "upcoming";
-  round?: string;
-  matchups: SeasonMatchup[];
-  byes: SeasonPlayer[];
-};
+import type { SeasonMatchup, SeasonPlayer, SeasonWeek } from "./types";
 
 type Props = {
   weeks: SeasonWeek[];

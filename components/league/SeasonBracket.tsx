@@ -3,33 +3,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { formatScore } from "@/components/ui";
 import { colors, font, hairline, spacing } from "@/theme";
 
-export type SeasonPlayer = { userId: string; name: string; avatarUrl?: string };
-
-export type BracketSide = SeasonPlayer & { seed: number };
-
-export type BracketMatch = {
-  a: BracketSide | null;
-  b: BracketSide | null;
-  scoreA: number | null;
-  scoreB: number | null;
-  winnerId: string | null;
-  bye: boolean;
-};
-
-export type BracketRound = {
-  week: number;
-  name: string;
-  matches: BracketMatch[];
-};
-
-export type SeasonBracket = {
-  projected: boolean;
-  rounds: BracketRound[];
-  championId: string | null;
-};
+import type { Bracket, BracketMatch, BracketRound, BracketSide } from "./types";
 
 type Props = {
-  bracket: SeasonBracket;
+  bracket: Bracket;
   meId: string;
   onPlayerPress?: (userId: string) => void;
 };
