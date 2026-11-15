@@ -1,14 +1,14 @@
 import { useMutation, useQuery } from "convex/react";
 import { type Href, usePathname, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AppState } from "react-native";
 
 import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { eventsBetween, scheduledFor, type Snapshot } from "@/lib/notifications/events";
+import { eventsBetween, readyToSchedule, scheduledFor, type Snapshot } from "@/lib/notifications/events";
 import * as device from "@/lib/notifications/native";
 import { presentationFor } from "@/lib/notifications/rules";
+import { usePermission } from "@/lib/notifications/usePermission";
 
 import { SilentBoundary } from "./SilentBoundary";
 
@@ -51,9 +51,13 @@ function Notifier() {
   const pot = useQuery(backend.standings.pot, inLeague);
   const feed = useQuery(api.feed.list, inLeague);
 
-  const permission = usePermission(roster?.locked);
-  const enabled = permission === "granted" && settings?.pushOn === true;
-  useEffect(() => device.setEnabled(enabled), [enabled]);
+  const permission = usePermission();
+  useAskAfterLock(roster?.locked, permission);
+  // Undefined until the system's answer and the Push switch have both been read: not knowing
+  // yet is not the same as off, and the reminders below must be able to tell the two apart.
+  const enabled =
+    permission === undefined || settings === undefined ? undefined : permission === "granted" && settings.pushOn;
+  useEffect(() => device.setEnabled(enabled === true), [enabled]);
 
   // The foreground handler is registered once and outlives renders, so what it needs to know
   // about the current screen and settings is kept where it can read the latest value.
@@ -101,8 +105,15 @@ function Notifier() {
     for (const event of events) void device.raise(event);
   }, [snapshot]);
 
+  // syncScheduled cancels every pending reminder that is not in the list it is given, so it is
+  // only handed a list that can be trusted: the queries the reminders are worked out from have
+  // loaded (readyToSchedule), and it is known whether notifications are on. Acting sooner
+  // cancelled the reminders at every launch and scheduled them again a moment later, and lost
+  // them for good when the app was closed in between. Once all of it is known, off still
+  // cancels them.
   useEffect(() => {
-    if (snapshot) void device.syncScheduled(scheduledFor(snapshot, Date.now()));
+    if (!snapshot || enabled === undefined || !readyToSchedule(snapshot)) return;
+    void device.syncScheduled(scheduledFor(snapshot, Date.now()));
   }, [snapshot, enabled]);
 
   // The push path: hand the backend this device's token when it has one. In Expo Go and on a
@@ -123,30 +134,12 @@ function Notifier() {
 }
 
 /**
- * The system's answer to "may Lineup notify?". The question is put once, just after a lineup
- * is seen to lock: by then the player has a week worth being told about, where a dialog on
- * first launch would mostly be answered No. It is read again whenever the app returns to the
- * foreground, because the answer can change in Settings.
+ * Puts the system's question, "may Lineup notify?", once: just after a lineup is seen to lock.
+ * By then the player has a week worth being told about, where a dialog on first launch would
+ * mostly be answered No. The answer is not kept here: requestPermission publishes it, and
+ * usePermission hands it to this host and to the Push switch alike.
  */
-function usePermission(locked: boolean | undefined): device.Permission | undefined {
-  const [permission, setPermission] = useState<device.Permission>();
-
-  useEffect(() => {
-    let current = true;
-    const read = () =>
-      void device.getPermission().then((answer) => {
-        if (current) setPermission(answer);
-      });
-    read();
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") read();
-    });
-    return () => {
-      current = false;
-      subscription.remove();
-    };
-  }, []);
-
+function useAskAfterLock(locked: boolean | undefined, permission: device.Permission | undefined): void {
   // Only a change from unlocked to locked counts. A lineup that was already locked when the
   // app opened says nothing about this moment, and "loading" is not "unlocked".
   const wasLocked = useRef(locked);
@@ -158,9 +151,7 @@ function usePermission(locked: boolean | undefined): device.Permission | undefin
 
   useEffect(() => {
     if (!justLocked || permission !== "undetermined") return;
-    const timer = setTimeout(() => void device.requestPermission().then(setPermission), ASK_AFTER_LOCK_MS);
+    const timer = setTimeout(() => void device.requestPermission(), ASK_AFTER_LOCK_MS);
     return () => clearTimeout(timer);
   }, [justLocked, permission]);
-
-  return permission;
 }

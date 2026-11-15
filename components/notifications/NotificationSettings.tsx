@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
-import { AppState, Linking, StyleSheet, Switch, Text, View } from "react-native";
+import { Linking, StyleSheet, Switch, Text, View } from "react-native";
 
 import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
 import { SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { getPermission, isAvailable, requestPermission, type Permission } from "@/lib/notifications/native";
+import { isAvailable, requestPermission } from "@/lib/notifications/native";
+import { usePermission } from "@/lib/notifications/usePermission";
 import { colors, font, hairline, spacing } from "@/theme";
 
 import { pushCopy } from "./pushCopy";
@@ -29,28 +29,16 @@ export function NotificationSettings() {
 }
 
 /**
- * The Push switch. It is on only when the player wants it and the system allows it, and the
- * system's answer is re-read whenever the app returns to the foreground because the player can
- * change it in Settings. Renders nothing where there is no native notifications (the web).
+ * The Push switch. It is on only when the player wants it and the system allows it. The
+ * system's answer is the one the notifications host follows too (usePermission), so a grant
+ * made here enables the device at once, and a change made in Settings shows here when the app
+ * returns to the foreground. Renders nothing where there is no native notifications (the web).
  */
 function PushRow() {
   const available = isAvailable();
   const settings = useQuery(api.push.settings, available ? {} : "skip");
   const setEnabled = useMutation(api.push.setEnabled);
-  const [permission, setPermission] = useState<Permission | null>(null);
-
-  const refreshPermission = useCallback(() => {
-    getPermission().then(setPermission);
-  }, []);
-
-  useEffect(() => {
-    if (!available) return;
-    refreshPermission();
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") refreshPermission();
-    });
-    return () => subscription.remove();
-  }, [available, refreshPermission]);
+  const permission = usePermission();
 
   if (!available || !settings || !permission) return null;
 
@@ -61,7 +49,8 @@ function PushRow() {
       return;
     }
     if (!on) return;
-    if (permission === "undetermined") setPermission(await requestPermission());
+    // Nothing is done with the answer: requestPermission publishes it to this row and the host.
+    if (permission === "undetermined") await requestPermission();
     // iOS shows its dialog only once, so a player who said no has to change it in Settings.
     else if (permission === "denied") await Linking.openSettings().catch(() => {});
   }
