@@ -56,6 +56,24 @@ export function tallyVotes(votes: { userId: string; legit: boolean }[], viewerId
   return tally;
 }
 
+/**
+ * Whether the viewer may vote on a challenge, so the feed can hide the Legit / Not Legit buttons.
+ * The vote belongs to the rest of the challenge's league: the proof's owner and the challenger
+ * are the two parties and don't vote. challenges.vote enforces the same rule.
+ */
+export function canVoteOn(
+  challenge: { status: Doc<"challenges">["status"]; leagueId: string; challengerId: string },
+  viewer: { userId: string; leagueId: string },
+  proofOwnerId: string,
+): boolean {
+  return (
+    challenge.status === "open" &&
+    challenge.leagueId === viewer.leagueId &&
+    viewer.userId !== proofOwnerId &&
+    viewer.userId !== challenge.challengerId
+  );
+}
+
 /** An emoji can be several code points joined together (a flag, a family), but never a sentence. */
 export const MAX_EMOJI_LENGTH = 16;
 
@@ -92,6 +110,7 @@ const feedItem = v.object({
       legit: v.number(),
       notLegit: v.number(),
       myVote: v.optional(v.boolean()),
+      canVote: v.boolean(),
       closesAt: v.number(),
     }),
   ),
@@ -191,6 +210,7 @@ async function feedItemFor(
             challengeId: challenge._id,
             status: challenge.status,
             closesAt: challenge.closesAt,
+            canVote: canVoteOn(challenge, { userId: viewerId, leagueId }, proof.userId),
             ...tallyVotes(votes, viewerId),
           },
         }
