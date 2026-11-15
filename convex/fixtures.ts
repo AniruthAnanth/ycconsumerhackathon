@@ -3,7 +3,8 @@
  *
  * Threads that check the app against the deployed backend leave leagues and players behind, and
  * those show up in the global leaderboards, the screenshots and the demo recording. `remove`
- * deletes them with every row that hangs off them; `list` names what it would delete.
+ * deletes them with every row that hangs off them; `list` names what it would delete. A new
+ * table keyed to a league or a player needs a line in removeLeague or removePlayer below.
  *
  *   npx convex run fixtures:list
  *   npx convex run fixtures:remove
@@ -216,6 +217,31 @@ const leagueLedger = (sweep: Sweep, league: Doc<"leagues">["_id"]) =>
     .withIndex("by_league", (q) => q.eq("leagueId", league))
     .take(PAGE);
 
+/** A member's invite link to a league, and the referrals into that league they made or came by. */
+async function removeInvites(sweep: Sweep, { leagueId, userId }: Doc<"memberships">): Promise<boolean> {
+  const { db } = sweep.ctx;
+  const links = await db
+    .query("inviteLinks")
+    .withIndex("by_inviter_league", (q) => q.eq("inviterId", userId).eq("leagueId", leagueId))
+    .take(PAGE);
+  const made = await db
+    .query("referrals")
+    .withIndex("by_inviter", (q) => q.eq("inviterId", userId))
+    .take(PAGE);
+  const cameBy = await db
+    .query("referrals")
+    .withIndex("by_invitee", (q) => q.eq("inviteeId", userId))
+    .take(PAGE);
+  return (
+    (await clear(sweep, "inviteLinks", links)) &&
+    (await clear(
+      sweep,
+      "referrals",
+      [...made, ...cameBy].filter((referral) => referral.leagueId === leagueId),
+    ))
+  );
+}
+
 /**
  * A league and everything keyed to it. Its members' own lineups, tasks and proofs stay: they
  * belong to the player and score in their other leagues too.
@@ -224,8 +250,13 @@ async function removeLeague(sweep: Sweep, league: Doc<"leagues">): Promise<boole
   const { db } = sweep.ctx;
   const leagueId = league._id;
   const weeks = await leagueWeeks(sweep, leagueId);
+  const memberships = await db
+    .query("memberships")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .take(PAGE);
   return (
     (await clearEach(weeks, async (week) => clear(sweep, "matchups", await weekMatchups(sweep, week)))) &&
+    (await clearEach(memberships, (membership) => removeInvites(sweep, membership))) &&
     (await clearEach(await leagueDrops(sweep, leagueId), (drop) => removeDrop(sweep, drop))) &&
     (await clearEach(await leagueChallenges(sweep, leagueId), (challenge) => removeChallenge(sweep, challenge))) &&
     (await clear(sweep, "ledger", await leagueLedger(sweep, leagueId))) &&
@@ -245,14 +276,7 @@ async function removeLeague(sweep: Sweep, league: Doc<"leagues">): Promise<boole
         .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId))
         .take(PAGE),
     )) &&
-    (await clear(
-      sweep,
-      "memberships",
-      await db
-        .query("memberships")
-        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-        .take(PAGE),
-    )) &&
+    (await clear(sweep, "memberships", memberships)) &&
     (await clear(sweep, "weeks", weeks)) &&
     (await clear(sweep, "leagues", [league]))
   );
@@ -283,6 +307,7 @@ async function leaveLeague(sweep: Sweep, membership: Doc<"memberships">): Promis
       ),
     )) &&
     (await clearEach(await leagueDrops(sweep, leagueId), removeTheirs)) &&
+    (await removeInvites(sweep, membership)) &&
     (await clearEach(
       (await leagueChallenges(sweep, leagueId)).filter((challenge) => challenge.challengerId === userId),
       (challenge) => removeChallenge(sweep, challenge),
@@ -382,6 +407,38 @@ async function removePlayer(sweep: Sweep, player: Doc<"users">): Promise<boolean
       await db
         .query("canvasConnections")
         .withIndex("by_user", (q) => q.eq("userId", userId))
+        .take(PAGE),
+    )) &&
+    (await clear(
+      sweep,
+      "pushTokens",
+      await db
+        .query("pushTokens")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .take(PAGE),
+    )) &&
+    (await clear(
+      sweep,
+      "inviteLinks",
+      await db
+        .query("inviteLinks")
+        .withIndex("by_inviter_league", (q) => q.eq("inviterId", userId))
+        .take(PAGE),
+    )) &&
+    (await clear(
+      sweep,
+      "referrals",
+      await db
+        .query("referrals")
+        .withIndex("by_inviter", (q) => q.eq("inviterId", userId))
+        .take(PAGE),
+    )) &&
+    (await clear(
+      sweep,
+      "referrals",
+      await db
+        .query("referrals")
+        .withIndex("by_invitee", (q) => q.eq("inviteeId", userId))
         .take(PAGE),
     )) &&
     (await clearEach(

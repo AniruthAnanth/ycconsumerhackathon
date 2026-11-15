@@ -109,7 +109,14 @@ async function playIn(ctx: MutationCtx, leagueId: Id<"leagues">, weekId: Id<"wee
   });
   const rsvpId = await ctx.db.insert("rsvps", { dropId, userId, checkedIn: true });
   const dropTask = await provenTask(ctx, userId, dropId);
-  return { membershipId, matchupId, ledgerId, scoreId, markId, dropId, rsvpId, ...dropTask };
+  const linkId = await ctx.db.insert("inviteLinks", {
+    token: `${leagueId}:${userId}`,
+    inviterId: userId,
+    leagueId,
+    createdAt: 0,
+  });
+  const referralId = await ctx.db.insert("referrals", { inviterId: rival, inviteeId: userId, leagueId, joinedAt: 0 });
+  return { membershipId, matchupId, ledgerId, scoreId, markId, dropId, rsvpId, linkId, referralId, ...dropTask };
 }
 
 /** Everything a player owns outside any league, sign-in included. */
@@ -120,7 +127,8 @@ async function ownRows(ctx: MutationCtx, userId: Id<"users">) {
   const sessionId = await ctx.db.insert("authSessions", { userId, expirationTime: 1 });
   const tokenId = await ctx.db.insert("authRefreshTokens", { sessionId, expirationTime: 1 });
   const accountId = await ctx.db.insert("authAccounts", { userId, provider: "anonymous", providerAccountId: userId });
-  return { lineupId, nudgeId, canvasId, sessionId, tokenId, accountId, ...(await provenTask(ctx, userId)) };
+  const pushId = await ctx.db.insert("pushTokens", { userId, token: `ExponentPushToken[${userId}]`, updatedAt: 0 });
+  return { lineupId, nudgeId, canvasId, sessionId, tokenId, accountId, pushId, ...(await provenTask(ctx, userId)) };
 }
 
 /**
