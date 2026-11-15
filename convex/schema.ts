@@ -338,6 +338,8 @@ export default defineSchema({
     kind: v.union(
       v.literal("evening"),
       v.literal("last_day"),
+      v.literal("final_hours"),
+      v.literal("pace"),
       v.literal("rival_passed"),
       v.literal("arrival"),
     ),
@@ -346,6 +348,8 @@ export default defineSchema({
     sentAt: v.number(),
     // Set on an arrival text, which goes out at most once per task per day.
     taskId: v.optional(v.id("tasks")),
+    // Set on a falling-behind text, which goes out at most once per rival per day.
+    rivalId: v.optional(v.id("users")),
   }).index("by_user_day", ["userId", "day"]),
 
   // Each member's league points the last time convex/checkins.ts looked, so
