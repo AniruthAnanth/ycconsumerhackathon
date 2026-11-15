@@ -50,7 +50,8 @@ export default function TabsLayout() {
   // enters it, which clears the flag on the older one, and that must not throw
   // a player out of a week they are already playing.
   const playing = me !== null && me.leagues.length > 0;
-  if (!playing) return <Redirect href={me?.onboarded ? "/join" : "/onboarding"} />;
+  // A new player meets "How Lineup works" first; its Skip and its last card lead to sign-up.
+  if (!playing) return <Redirect href={me?.onboarded ? "/join" : "/how-it-works"} />;
 
   return (
     <View style={styles.page}>

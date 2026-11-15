@@ -1,9 +1,10 @@
 import { useQuery } from "convex/react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { RecruiterBadge } from "@/components/invite";
-import { Avatar, Divider, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
+import { Avatar, Divider, Header, OutlinedPillButton, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
+import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import type { Id } from "@/convex/_generated/dataModel";
@@ -18,6 +19,8 @@ const NO_VALUE = "\u2014";
 export function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const profile = useQuery(socialApi.profile.get, { userId: userId as Id<"users"> });
+  const router = useRouter();
+  const { me } = useCurrentLeague();
 
   return (
     <Screen scroll>
@@ -61,6 +64,15 @@ export function ProfileScreen() {
             label="Fastest quick-time"
             value={profile.fastestQuickTimeSec === undefined ? NO_VALUE : formatDuration(profile.fastestQuickTimeSec)}
           />
+          {me?._id === userId ? (
+            <View style={styles.help}>
+              <OutlinedPillButton
+                label="How Lineup works"
+                icon="help-circle-outline"
+                onPress={() => router.push({ pathname: "/how-it-works", params: { source: "profile" } })}
+              />
+            </View>
+          ) : null}
         </>
       )}
     </Screen>
@@ -76,6 +88,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
   },
   nameBlock: { flex: 1, gap: spacing.xs },
+  help: { padding: SCREEN_MARGIN },
   name: { ...type.heading, flexShrink: 1, color: colors.text },
   total: { alignItems: "flex-end", flexShrink: 0 },
   totalLabel: { fontSize: font.label, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textMuted },
