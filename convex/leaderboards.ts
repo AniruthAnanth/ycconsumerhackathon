@@ -163,7 +163,7 @@ const OTHER_BOARDS = {
   global: { title: "Global", valueHeader: "PTS", format: FORMATS.points },
   globalAllTime: { title: "Global All-Time", valueHeader: "PTS", format: FORMATS.points },
   headToHead: { title: "Head-to-Head", valueHeader: "W-L", format: FORMATS.wins },
-  money: { title: "Money Won", valueHeader: "WON", format: FORMATS.money },
+  money: { title: "Money", valueHeader: "NET", format: FORMATS.money },
 } satisfies Record<string, { title: string; valueHeader: string; format: BoardFormat }>;
 
 const boardRow = v.object({
@@ -188,7 +188,9 @@ const boardRow = v.object({
  * boards, which are public by design.
  */
 export const board = query({
-  args: { leagueId: v.id("leagues"), board: boardKey },
+  // `at` is the caller's clock, rounded to the hour so the query is not rerun every second. Only
+  // the money board reads it, to project a stake in play as leaderboards.projection does.
+  args: { leagueId: v.id("leagues"), board: boardKey, at: v.optional(v.number()) },
   returns: v.object({
     board: boardKey,
     title: v.string(),
@@ -202,12 +204,12 @@ export const board = query({
     const { title, valueHeader, format } = { ...STAT_BOARDS, ...OTHER_BOARDS }[args.board];
     const open = args.board === "global" || args.board === "globalAllTime";
     const allowed = league !== null && (open || league.members.some((member) => member.userId === me._id));
-    const entries = allowed ? await entriesFor(ctx, league, args.board) : [];
+    const entries = allowed ? await entriesFor(ctx, league, args.board, args.at) : [];
     return { board: args.board, title, valueHeader, ...rankBoard(entries, format, me._id) };
   },
 });
 
-async function entriesFor(ctx: QueryCtx, league: League, key: BoardKey): Promise<Entry<UserId>[]> {
+async function entriesFor(ctx: QueryCtx, league: League, key: BoardKey, at?: number): Promise<Entry<UserId>[]> {
   if (league.current === null) return [];
   switch (key) {
     case "global":
@@ -217,7 +219,7 @@ async function entriesFor(ctx: QueryCtx, league: League, key: BoardKey): Promise
     case "headToHead":
       return await headToHeadEntries(ctx, league);
     case "money":
-      return await moneyEntries(ctx, league);
+      return await moneyEntries(ctx, league, at);
     default:
       return await statEntries(ctx, league, STAT_BOARDS[key]);
   }
@@ -301,11 +303,12 @@ function versus(opponent: string | undefined, mine: number, theirs: number): str
 }
 
 /**
- * Money won: each player's winnings from settled weeks. The detail line and
- * the order among players level on winnings come from this week's projection,
- * so the board says something before the first payout.
+ * Money: what each player is up or down. What has been paid out is read from
+ * the ledger (winnings and refunds in, stakes out). A stake still in play
+ * counts at its projected payout, so the board ranks the league before the
+ * first payout and each number is the player's "Projected" line until then.
  */
-async function moneyEntries(ctx: QueryCtx, league: League): Promise<Entry<UserId>[]> {
+async function moneyEntries(ctx: QueryCtx, league: League, at?: number): Promise<Entry<UserId>[]> {
   // ledger.by_league: every movement of money in this league.
   const ledger = await ctx.db
     .query("ledger")
@@ -313,19 +316,48 @@ async function moneyEntries(ctx: QueryCtx, league: League): Promise<Entry<UserId
     .take(MAX_LEDGER_ROWS);
   const lastPayoutAt = Math.max(0, ...ledger.filter((row) => row.kind === "winnings").map((row) => row.createdAt));
   const won = winnings(ledger);
-  const wonYesterday = winnings(ledger, startOfPacificDay(pacificDay(lastPayoutAt)));
-  const projected =
-    league.members.length <= MAX_PROJECTED_MEMBERS ? await projections(ctx, league) : new Map<UserId, Projection>();
+  const net = netMoney(ledger);
+  const netYesterday = netMoney(ledger, startOfPacificDay(pacificDay(lastPayoutAt)));
+  // A settled week has paid out: its money is in the ledger and nothing is left to project.
+  const inPlay = league.current?.status !== "settled" && league.members.length <= MAX_PROJECTED_MEMBERS;
+  const projected = inPlay ? await projections(ctx, league, at) : new Map<UserId, Projection>();
 
   return league.members.map((member) => {
     const projection = projected.get(member.userId);
+    // The stake is already out of the ledger, so the whole expected payout comes back in.
+    const expected = projection?.eligible ? projection.expectedCents : 0;
+    const cents = (dollars: number | undefined) => Math.round((dollars ?? 0) * 100);
+    const wonSoFar = won.get(member.userId) ?? 0;
+    const detail = [
+      ...(wonSoFar > 0 ? [`Won $${wonSoFar.toFixed(2)}`] : []),
+      ...(projection?.eligible ? [projectionLabel(projection)] : []),
+    ].join(" · ");
     return {
       ...identity(member),
-      value: won.get(member.userId) ?? 0,
-      previous: wonYesterday.get(member.userId) ?? 0,
-      ...(projection?.eligible ? { tiebreak: projection.expectedCents, detail: projectionLabel(projection) } : {}),
+      value: (cents(net.get(member.userId)) + expected) / 100,
+      previous: (cents(netYesterday.get(member.userId)) + expected) / 100,
+      ...(detail === "" ? {} : { detail }),
     };
   });
+}
+
+/**
+ * Dollars each player is up or down in the ledger: winnings and refunds in,
+ * stakes out. `before` leaves out what was paid out from that moment on; a
+ * stake counts whenever it was paid, since it was at risk either way.
+ */
+export function netMoney(
+  ledger: Pick<Doc<"ledger">, "userId" | "kind" | "amountUsd" | "createdAt">[],
+  before = Infinity,
+): Map<UserId, number> {
+  const cents = new Map<UserId, number>();
+  for (const row of ledger) {
+    if (row.userId === undefined || row.kind === "fee") continue;
+    if (row.kind !== "buy_in" && row.createdAt >= before) continue;
+    const amount = Math.round(row.amountUsd * 100) * (row.kind === "buy_in" ? -1 : 1);
+    cents.set(row.userId, (cents.get(row.userId) ?? 0) + amount);
+  }
+  return new Map([...cents].map(([userId, total]) => [userId, total / 100]));
 }
 
 /** Dollars of winnings per player from ledger rows written before a moment. */

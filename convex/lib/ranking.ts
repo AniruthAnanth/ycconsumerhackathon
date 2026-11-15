@@ -58,7 +58,8 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 /** One format per kind of number a board can rank by. */
 export const FORMATS = {
   points: { order: "desc", value: (n) => String(n), gap: (n) => String(n) },
-  money: { order: "desc", value: (n) => (n < 0 ? `-${usd(n)}` : usd(n)), gap: usd },
+  // Signed, because the money board is what a player is up or down.
+  money: { order: "desc", value: (n) => (n === 0 ? usd(n) : `${n < 0 ? "-" : "+"}${usd(n)}`), gap: usd },
   wins: { order: "desc", value: (n) => String(n), gap: (n) => plural(n, "win") },
   days: { order: "desc", value: (n) => String(n), gap: (n) => plural(n, "day") },
   highlight: { order: "desc", value: (n) => `${n}/10`, gap: (n) => String(n) },
