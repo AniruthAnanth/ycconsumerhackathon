@@ -98,6 +98,9 @@ export default defineSchema({
     payout: v.optional(payout), // "season" holds every stake until the last week
     seasonWeeks: v.optional(v.number()),
     format: v.optional(leagueFormat),
+    // Who led the standings when a text last went out, so "took the lead" is
+    // sent once per change of leader and not on every proof.
+    leaderId: v.optional(v.id("users")),
   })
     .index("by_inviteCode", ["inviteCode"])
     .index("by_visibility_stake", ["visibility", "stakeUsd"]),
@@ -244,6 +247,10 @@ export default defineSchema({
     sealed: v.boolean(),
     wager: v.optional(v.number()),
     place: v.optional(place),
+    // Group sessions only: the most people the model counted in one check-in
+    // photo, and that photo. Attendees beyond the headcount earn no bonus.
+    headcount: v.optional(v.number()),
+    groupPhotoId: v.optional(v.id("_storage")),
     opensAt: v.number(),
     closesAt: v.number(),
     status: v.union(
