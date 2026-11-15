@@ -1,8 +1,7 @@
-import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 
-import type { Drop } from "../contract";
-import { canStartSession, errorMessage, formatStart, sessionAction, startTimeOptions } from "./groupLogic";
+import type { Drop } from "@/components/social/contract";
+import { canStartSession, formatStart, sessionAction, startTimeOptions } from "./groupLogic";
 
 // 15 Nov 2026 is a Sunday. Local-time constructors keep the tests independent of the machine's zone.
 const at = (day: number, hour: number, minute = 0) => new Date(2026, 10, day, hour, minute).getTime();
@@ -72,16 +71,5 @@ describe("sessionAction", () => {
   it("shows Checked In, disabled, once checked in", () => {
     const done = drop({ attendees: [{ userId: "me" as never, name: "Me", checkedIn: true }] });
     expect(sessionAction(done, "me")).toEqual({ kind: "checkedIn", label: "Checked In", disabled: true });
-  });
-});
-
-describe("errorMessage", () => {
-  it("uses a string ConvexError message", () => {
-    expect(errorMessage(new ConvexError("Session is full"))).toBe("Session is full");
-  });
-
-  it("falls back for anything else", () => {
-    expect(errorMessage(new ConvexError({ code: 1 }))).toBe("Something went wrong. Try again.");
-    expect(errorMessage(new Error("boom"))).toBe("Something went wrong. Try again.");
   });
 });

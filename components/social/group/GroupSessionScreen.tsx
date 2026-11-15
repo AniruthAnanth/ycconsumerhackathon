@@ -3,14 +3,17 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { socialApi } from "../contract";
+import { proofCameraHref } from "@/components/capture/proofRoute";
+import { socialApi } from "@/components/social/contract";
+import { errorMessage } from "@/components/social/errorMessage";
+import { ScreenState } from "@/components/social/ScreenState";
+import { useMyUserId } from "@/components/social/useMyUserId";
 import { Button, Header, Score, Screen, SectionLabel } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, spacing } from "@/theme";
-import { ScreenState } from "../ScreenState";
-import { useMyUserId } from "../useMyUserId";
+
 import { AttendeeRow } from "./AttendeeRow";
-import { errorMessage, formatStart, sessionAction } from "./groupLogic";
+import { formatStart, sessionAction } from "./groupLogic";
 import { PlaceMap } from "./PlaceMap";
 
 export function GroupSessionScreen() {
@@ -41,19 +44,25 @@ export function GroupSessionScreen() {
     );
   }
 
+  const { place, taskId } = drop;
   const action = sessionAction(drop, myUserId);
   const attendees = drop.attendees ?? [];
 
   const onAction = async () => {
     if (action.kind === "checkIn") {
-      router.push(`/proof/${drop.taskId}`);
+      // Checking in is a location proof: the camera needs the place to capture GPS against it.
+      if (taskId) {
+        router.push(
+          proofCameraHref({ taskId, title: drop.title, points: drop.points, proofType: "photo_location", place }),
+        );
+      }
       return;
     }
     setJoining(true);
     try {
       await rsvp({ dropId: drop.dropId });
     } catch (error) {
-      Alert.alert("Couldn't join", errorMessage(error));
+      Alert.alert(errorMessage(error, "Couldn't join. Try again."));
     } finally {
       setJoining(false);
     }
@@ -67,9 +76,9 @@ export function GroupSessionScreen() {
           <Text style={styles.title}>{drop.title}</Text>
           <Score value={drop.points} />
         </View>
-        <PlaceMap coordinate={drop.place} title={drop.place.name} />
+        <PlaceMap coordinate={place} title={place.name} />
         <View style={styles.details}>
-          <Text style={styles.place}>{drop.place.name}</Text>
+          <Text style={styles.place}>{place.name}</Text>
           <Text style={styles.start}>{formatStart(drop.opensAt)}</Text>
         </View>
         <SectionLabel left="Attendees" right={`${attendees.length}`} />

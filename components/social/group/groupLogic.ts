@@ -1,6 +1,4 @@
-import { ConvexError } from "convex/values";
-
-import type { Drop } from "../contract";
+import type { Drop } from "@/components/social/contract";
 
 export type StartOption = { label: string; startsAt: number };
 
@@ -49,10 +47,4 @@ export function sessionAction(drop: Drop, myUserId: string): SessionAction {
   if (me.checkedIn) return { kind: "checkedIn", label: "Checked In", disabled: true };
   // The task arrives with the next query update after joining; the proof camera needs it.
   return { kind: "checkIn", label: "Check In", disabled: drop.taskId === undefined };
-}
-
-/** The server's message when it sent one, otherwise a short fallback. */
-export function errorMessage(error: unknown): string {
-  if (error instanceof ConvexError && typeof error.data === "string") return error.data;
-  return "Something went wrong. Try again.";
 }
