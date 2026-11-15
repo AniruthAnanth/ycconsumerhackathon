@@ -3,13 +3,11 @@ import { describe, expect, test } from "vitest";
 import {
   type ScorableTask,
   clampTaskPoints,
-  clampWager,
   clearedSlots,
   currentStreak,
   groupSessionScore,
   longestStreak,
   matchupBonus,
-  mysteryScore,
   quickTimeScore,
   scoreWeek,
   slotBonus,
@@ -41,7 +39,7 @@ describe("task points", () => {
     expect(taskScore(task({ status: "failed" }))).toBeNull();
   });
 
-  test("a failed mystery task costs the penalty it carries", () => {
+  test("a failed task stored with negative points still costs them", () => {
     expect(taskScore(task({ source: "mystery", status: "failed", points: -50 }))).toBe(-50);
   });
 });
@@ -50,21 +48,6 @@ describe("bonus formulas", () => {
   test("a quick-time drop pays its points, plus 10 to the first finisher", () => {
     expect(quickTimeScore(40, false)).toBe(40);
     expect(quickTimeScore(40, true)).toBe(50);
-  });
-
-  test("a mystery task pays double, or costs 20, with the wager riding on it", () => {
-    expect(mysteryScore(30, 0, true)).toBe(60);
-    expect(mysteryScore(30, 0, false)).toBe(-20);
-    expect(mysteryScore(30, 25, true)).toBe(85);
-    expect(mysteryScore(30, 25, false)).toBe(-45);
-  });
-
-  test("a wager is at most 50 and never more than the player has", () => {
-    expect(clampWager(30, 200)).toBe(30);
-    expect(clampWager(80, 200)).toBe(50);
-    expect(clampWager(30, 12)).toBe(12);
-    expect(clampWager(-5, 200)).toBe(0);
-    expect(clampWager(30, -40)).toBe(0);
   });
 
   test("a group session pays 5 per other attendee, capped at 25", () => {
