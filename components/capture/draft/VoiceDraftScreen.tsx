@@ -38,7 +38,7 @@ export function VoiceDraftScreen() {
         onBack={() => leaveScreen("/(tabs)")}
         right={
           state.phase === "review" ? (
-            <Pressable accessibilityRole="button" onPress={draft.redo} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={draft.redo} style={styles.redoTarget}>
               <Text style={styles.redo}>Redo</Text>
             </Pressable>
           ) : undefined
@@ -133,4 +133,5 @@ const styles = StyleSheet.create({
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
   redo: { ...type.label, color: colors.accent },
+  redoTarget: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, alignItems: "flex-end", justifyContent: "center" },
 });

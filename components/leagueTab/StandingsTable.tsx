@@ -44,7 +44,7 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
     <View>
       <View style={styles.header}>
         <Text style={[styles.heading, { width: COL.rank }]}>RK</Text>
-        <Text style={[styles.heading, styles.playerCol]}>PLAYER</Text>
+        <Text style={[styles.heading, styles.playerCol, styles.playerHeading]}>PLAYER</Text>
         <Text style={[styles.heading, styles.right, { width: COL.record }]}>W-L</Text>
         <Text style={[styles.heading, styles.right, { width: COL.points }]}>PTS</Text>
         <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STRK</Text>
@@ -112,10 +112,12 @@ const styles = StyleSheet.create({
   row: { minHeight: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: SCREEN_MARGIN },
   viewer: { backgroundColor: colors.accentTint },
   playerCol: { flex: 1 },
+  // PLAYER sits over the names, past the avatar column, not over the avatars.
+  playerHeading: { paddingLeft: layout.avatarCompact + layout.columnGap },
   rankCell: { alignItems: "flex-start" },
   rank: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted, ...tabular },
   move: { fontSize: font.meta, fontFamily: fontFamily.bold, ...tabular },
-  player: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  player: { flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   nameBlock: { flex: 1 },
   name: { fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
   avatarRing: { width: layout.avatarCompact, height: layout.avatarCompact, borderRadius: layout.avatarCompact / 2, borderWidth: hairline, borderColor: colors.divider, overflow: "hidden" },

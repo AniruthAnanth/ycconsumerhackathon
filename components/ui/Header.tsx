@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, MIN_TARGET, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { Icon } from "./Icon";
 
@@ -23,7 +23,7 @@ export function Header({ title, onBack, onTitlePress, onChatPress, right }: Prop
     <View style={styles.bar}>
       <View style={styles.side}>
         {onBack ? (
-          <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Pressable onPress={onBack} style={styles.action} accessibilityRole="button" accessibilityLabel="Back">
             <Icon name="chevron-back" size={24} />
           </Pressable>
         ) : null}
@@ -46,7 +46,7 @@ export function Header({ title, onBack, onTitlePress, onChatPress, right }: Prop
       <View style={[styles.side, styles.right]}>
         {right ??
           (onChatPress ? (
-            <Pressable onPress={onChatPress} hitSlop={12} accessibilityRole="button" accessibilityLabel="League chat">
+            <Pressable onPress={onChatPress} style={[styles.action, styles.actionEnd]} accessibilityRole="button" accessibilityLabel="League chat">
               <Icon name="chatbubble-ellipses-outline" size={22} />
             </Pressable>
           ) : null)}
@@ -68,6 +68,9 @@ const styles = StyleSheet.create({
   // Equal-width sides keep the title centred whichever actions are present.
   side: { width: layout.barSide, flexDirection: "row", alignItems: "center" },
   right: { justifyContent: "flex-end" },
+  // A real 44-pt target whose glyph still sits on the margin edge.
+  action: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center" },
+  actionEnd: { alignItems: "flex-end" },
   center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
   title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },
 });
