@@ -8,9 +8,10 @@
  *   afterProof     scheduled when a proof passes: texts whoever the prover just went past
  *
  * Texts go only to players who opted in to playing by text, never between 10 PM and 8 AM Pacific,
- * and at most three a day each. A player who has not opted in gets the scheduled texts and the
- * rival text as a push instead, when a phone of theirs can be pushed (push.ts), under the same
- * limits.
+ * and at most three a day each. A phone using Switch Player gets the texts of the player it plays,
+ * as it does everywhere else Keiki sends. A player who has not opted in gets the scheduled texts
+ * and the rival text as a push instead, when a phone of theirs can be pushed (push.ts), under the
+ * same limits.
  *
  * This module loads rows and sends. Which check-in to ask for, when a text is allowed and every
  * word of copy are pure functions in lib/checkinRules.ts.
@@ -239,7 +240,7 @@ export const sweep = internalMutation({
     const page = await ctx.db.query("users").paginate({ numItems: SWEEP_PAGE, cursor: cursor ?? null });
     for (const user of page.page) {
       // sendText would refuse a player it can neither text nor push; skip the work too.
-      if (user.keikiOptIn !== true && !(await reachableByPush(ctx, user._id))) continue;
+      if (!(await reachableByText(ctx, user._id)) && !(await reachableByPush(ctx, user._id))) continue;
       await ctx.scheduler.runAfter(0, internal.checkins.nudge, { userId: user._id });
     }
     if (!page.isDone) {
@@ -296,7 +297,8 @@ export const nudge = internalMutation({
  * to the next kind, so pressing again shows another.
  *
  * It only ever reaches the caller's own phone, so it skips the daily cap and "already sent today"
- * and leaves no row behind: a stage demo must not use up the day's real nudges.
+ * and leaves no row behind: a stage demo must not use up the day's real nudges. On a phone using
+ * Switch Player the nudge is the played player's and the phone is still the caller's.
  */
 export const nudgeNow = mutation({
   args: { leagueId: v.optional(v.id("leagues")), turn: v.optional(v.number()) },
@@ -326,7 +328,7 @@ export const nudgeNow = mutation({
     const made = await nudgeOf(ctx, me._id, home, kinds[Math.abs(Math.trunc(turn ?? 0)) % kinds.length], now);
     if (made === null) return { text: null, delivered: false };
 
-    const texted = me.keikiOptIn === true;
+    const texted = await reachableByText(ctx, me._id);
     const pushed = !texted && (await reachableByPush(ctx, me._id));
     if (texted) await ctx.scheduler.runAfter(0, internal.keiki.send, { userId: me._id, text: made.text });
     if (pushed) await ctx.scheduler.runAfter(0, internal.push.send, { userId: me._id, notification: made.push });
@@ -515,7 +517,7 @@ async function sendText(
   // keiki.send drops a text to anyone who has not opted in, and push.send has no one to push
   // without a token. Checking here as well keeps a nudge that was never delivered from using
   // up the player's three for the day.
-  const texted = (await ctx.db.get("users", userId))?.keikiOptIn === true;
+  const texted = await reachableByText(ctx, userId);
   const push = also.push !== undefined && (await reachableByPush(ctx, userId)) ? also.push : undefined;
   if (!texted && push === undefined) return false;
   if (!mayText(clock.hour, (await sentOn(ctx, userId, clock.day)).length, kind === "final_hours")) return false;
@@ -532,6 +534,21 @@ async function sendText(
   if (texted) await ctx.scheduler.runAfter(0, internal.keiki.send, { userId, text });
   if (push !== undefined) await ctx.scheduler.runAfter(0, internal.push.send, { userId, notification: push });
   return true;
+}
+
+/**
+ * Whether a text for this player lands on a phone, by the rule keiki.phonesOf sends with: the
+ * player plays by text, or a phone using Switch Player to play as them does. The second half is
+ * what puts a seeded player's nudges on the demo phone that is playing them.
+ */
+async function reachableByText(ctx: QueryCtx, userId: Id<"users">): Promise<boolean> {
+  const playsByText = (account: Doc<"users"> | null) => account?.keikiOptIn === true && Boolean(account.phone);
+  if (playsByText(await ctx.db.get("users", userId))) return true;
+  const devices = await ctx.db
+    .query("users")
+    .withIndex("by_demoActAs", (q) => q.eq("demoActAs", userId))
+    .take(MAX_ROWS);
+  return devices.some(playsByText);
 }
 
 async function sentOn(ctx: QueryCtx, userId: Id<"users">, day: string): Promise<Doc<"checkinNudges">[]> {
