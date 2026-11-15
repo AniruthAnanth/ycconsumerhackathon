@@ -105,7 +105,11 @@ export const prompt = query({
     const checkIn = pickCheckIn({
       now,
       week: { endsAt: week.endsAt, settled: week.status === "settled" },
-      tasks,
+      // Roster already gives a live drop a banner of its own, with the countdown and Submit, and
+      // two strips for one drop read as two different things. So this line leaves the drop to
+      // that banner and asks for the next check-in. A text has no banner beside it, which is why
+      // nudge and afterProof still put the drop first.
+      tasks: tasks.filter((task) => task.source !== "drop"),
       coords: isValidLatLng(here) ? here : undefined,
       placeName,
     });
@@ -140,8 +144,9 @@ export const recordArrival = mutation({
     if (task === null || task.userId !== me._id || task.status !== "open") return null;
     const arrivedAt = arrivalPlace({ task, phone: { lat, lng }, placeName });
     if (arrivedAt === null) return null;
-
     const now = Date.now();
+    if (!(await stillInPlay(ctx, task, now))) return null;
+
     const last = await arrivalAt(ctx, me._id, taskId);
     if (last === null) await ctx.db.insert("arrivals", { userId: me._id, taskId, lat, lng, at: now });
     else await ctx.db.patch("arrivals", last._id, { lat, lng, at: now });
@@ -173,6 +178,28 @@ export const recentArrival = internalQuery({
     return { lat: arrival.lat, lng: arrival.lng, at: arrival.at };
   },
 });
+
+/**
+ * Whether anything can still come of proving the task: its week is being played in one of the
+ * player's leagues, and a drop's task only until the drop closes. An open task from a week that
+ * ended stays open for ever, and a drop's task stays open until its closing job runs; neither is
+ * something to invite a check-in for.
+ */
+async function stillInPlay(ctx: QueryCtx, task: Doc<"tasks">, now: number): Promise<boolean> {
+  if (task.dropId) {
+    const drop = await ctx.db.get("drops", task.dropId);
+    if (drop === null || drop.closesAt <= now) return false;
+  }
+  const memberships = await ctx.db
+    .query("memberships")
+    .withIndex("by_user", (q) => q.eq("userId", task.userId))
+    .take(MAX_ROWS);
+  for (const { leagueId } of memberships) {
+    const week = await weekInPlay(ctx, leagueId, now);
+    if (week !== null && week.startsAt === task.weekStart && week.status !== "settled" && now < week.endsAt) return true;
+  }
+  return false;
+}
 
 /** One row per player and task: recordArrival moves it forward rather than adding another. */
 async function arrivalAt(ctx: QueryCtx, userId: Id<"users">, taskId: Id<"tasks">): Promise<Doc<"arrivals"> | null> {
@@ -282,13 +309,15 @@ export const afterProof = internalMutation({
         .query("checkinMarks")
         .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId))
         .take(MAX_ROWS);
-      const markOf = (userId: Id<"users">) => marks.find((mark) => mark.userId === userId);
+      // Every week starts from zero, so a mark left in an earlier week says nothing about this one.
+      const markOf = (userId: Id<"users">) =>
+        marks.find((mark) => mark.userId === userId && mark.weekStart === week.startsAt);
 
       const passed = passedBy({
         prover: {
-          // No mark yet means this is the first proof the league has seen since marks began. The
-          // task's own points are the closest stand-in for what the proof added.
-          before: markOf(prover.userId)?.points ?? prover.points - task.points,
+          // No mark yet means this is the prover's first proof in the league. Where they stood
+          // before it is where they stand now, less everything the proof added.
+          before: markOf(prover.userId)?.points ?? prover.points - (await pointsAddedBy(ctx, task, week, now)),
           after: prover.points,
         },
         others: standings
@@ -312,20 +341,35 @@ export const afterProof = internalMutation({
         );
       }
 
-      for (const row of standings) {
-        const mark = markOf(row.userId);
-        if (mark === undefined) {
-          await ctx.db.insert("checkinMarks", { leagueId, userId: row.userId, points: row.points });
-        } else if (mark.points !== row.points) {
-          await ctx.db.patch("checkinMarks", mark._id, { points: row.points });
-        }
-      }
+      // Only the prover's mark moves. Two proofs can land together, and the standings already
+      // count both when the first hook runs: moving the other prover's mark here would leave
+      // their own hook nothing to report, and the pass they made would go unsaid.
+      const seen = { points: prover.points, weekStart: week.startsAt };
+      // One row per member and league, carried from week to week rather than added to.
+      const mark = marks.find((row) => row.userId === prover.userId);
+      if (mark === undefined) await ctx.db.insert("checkinMarks", { leagueId, userId: prover.userId, ...seen });
+      else await ctx.db.patch("checkinMarks", mark._id, seen);
     }
     return null;
   },
 });
 
 // ─── Sending ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What a proof that has just passed added to the prover's week: the task's points and every bonus
+ * that came with it (a cleared slot, the sweep, the day's streak). It is what proving the task
+ * would add if it were open again.
+ */
+async function pointsAddedBy(ctx: QueryCtx, task: Doc<"tasks">, week: Doc<"weeks">, now: number): Promise<number> {
+  if (task.status !== "verified") return 0;
+  const tasks = await tasksInLeague(ctx, task.userId, week);
+  const reopened = tasks.map((other) => (other.taskId === task._id ? { ...other, status: "open" as const } : other));
+  const proven = reopened.find((other) => other.taskId === task._id);
+  if (proven === undefined) return 0;
+  // The proof days are read with the task reopened, so this proof's own day is not among them.
+  return pointsIfProven(proven, reopened, await proofDaysOf(ctx, task.userId, week, reopened), pacificDay(now));
+}
 
 /**
  * The one door from check-ins to Keiki, and where the limits hold for every kind of text: only
