@@ -9,6 +9,8 @@ import {
   CHALLENGE_WINDOW_MS,
   CHALLENGER_STAKE,
   VOTE_WINDOW_MS,
+  challengeOpenedText,
+  challengeResultText,
   challengeWindowOpen,
   challengerDelta,
   challengerPointsByUser,
@@ -60,14 +62,46 @@ describe("challenge rules", () => {
   });
 });
 
+describe("challenge texts", () => {
+  it("tells the league who challenged whose proof and where to vote", () => {
+    expect(challengeOpenedText("Sam", "Maya", "Leg day at the gym")).toBe(
+      'Sam challenged Maya\'s "Leg day at the gym" proof. Vote in the app.',
+    );
+  });
+
+  it("tells the league the result and what it cost or paid the challenger", () => {
+    expect(
+      challengeResultText("upheld", "Sam", "Maya", "Leg day at the gym"),
+    ).toBe(
+      'The league upheld Maya\'s "Leg day at the gym" proof. The points are back and Sam loses 10.',
+    );
+    expect(
+      challengeResultText("overturned", "Sam", "Maya", "Leg day at the gym"),
+    ).toBe(
+      'The league overturned Maya\'s "Leg day at the gym" proof. The task reopens and Sam gets +10.',
+    );
+  });
+});
+
 describe("challenge lifecycle", () => {
   const NOW = Date.UTC(2026, 10, 15, 20, 0, 0);
+
+  // What the league was texted. Keiki is not configured in tests, and keiki.send
+  // then logs the text it would have sent as a warning.
+  let texts: string[];
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+    vi.stubEnv("KEIKI_AGENT_ID", "");
+    texts = [];
+    vi.spyOn(console, "warn").mockImplementation(
+      (message: unknown) => void texts.push(String(message)),
+    );
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -179,6 +213,12 @@ describe("challenge lifecycle", () => {
       closesAt: NOW + 60_000,
     });
     expect(await taskStatus()).toBe("open");
+    expect(texts).toEqual([
+      expect.stringContaining(
+        'Sam challenged Maya\'s "Leg day at the gym" proof. Vote in the app.',
+      ),
+      expect.stringContaining("The league overturned Maya's"),
+    ]);
   });
 
   it("upholds the proof and returns the points when the vote closes with no votes", async () => {
@@ -196,6 +236,10 @@ describe("challenge lifecycle", () => {
       closesAt: NOW + VOTE_WINDOW_MS,
     });
     expect(await taskStatus()).toBe("verified");
+    expect(texts).toEqual([
+      expect.stringContaining("Sam challenged Maya's"),
+      expect.stringContaining("The league upheld Maya's"),
+    ]);
   });
 
   it("upholds the proof on a tie", async () => {
