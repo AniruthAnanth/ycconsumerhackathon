@@ -8,7 +8,7 @@ export { formatClock, formatScore, taskPlaceLine, taskStatusLine, type TaskRowDa
 export { Avatar } from "./Avatar";
 export { Banner } from "./Banner";
 export { Button } from "./Button";
-export { Divider } from "./Divider";
+export { Divider, RowDivider } from "./Divider";
 export { Header } from "./Header";
 export { Icon, type IconName } from "./Icon";
 export { OutlinedPillButton } from "./OutlinedPillButton";

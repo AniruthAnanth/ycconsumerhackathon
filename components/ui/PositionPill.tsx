@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { SLOT_LABEL, type Slot } from "@/lib/slots";
-import { colors, font, fontFamily, radius } from "@/theme";
+import { colors, font, fontFamily, layout, radius } from "@/theme";
 
 /** The green position code at the start of a row: BOD, MND, RCH, CHR, PPL, FLX. */
 export function PositionPill({ slot }: { slot: Slot }) {
@@ -14,7 +14,7 @@ export function PositionPill({ slot }: { slot: Slot }) {
 
 const styles = StyleSheet.create({
   pill: {
-    width: 40,
+    width: layout.pillColumn,
     height: 22,
     borderRadius: radius.pill,
     backgroundColor: colors.greenSoft,

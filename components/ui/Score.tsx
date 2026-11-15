@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { CountUp } from "@/components/motion";
 
 import { formatScore } from "@/lib/taskText";
-import { colors, font, fontFamily } from "@/theme";
+import { colors, font, fontFamily, layout } from "@/theme";
 
 type Props = {
   /** Points earned; null until the task is verified. */
@@ -33,7 +33,7 @@ export function Score({ value, projected, size = "row", animated = false }: Prop
 }
 
 const styles = StyleSheet.create({
-  box: { minWidth: 48, alignItems: "flex-end" },
+  box: { minWidth: layout.numericColumn, alignItems: "flex-end" },
   row: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
   total: { fontSize: font.total, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
   unscored: { color: colors.textFaint },

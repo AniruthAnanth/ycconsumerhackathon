@@ -5,10 +5,11 @@ import { PressScale } from "@/components/motion";
 
 import { SLOT_NAME } from "@/lib/slots";
 import { taskPlaceLine, taskRowLabel, taskStatusLine, type TaskRowData } from "@/lib/taskText";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET } from "@/theme";
 
 import { Avatar } from "./Avatar";
 import { PositionPill } from "./PositionPill";
+import { RowDivider } from "./Divider";
 import { Score } from "./Score";
 
 type Props = {
@@ -64,6 +65,7 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
         lead
       )}
       {right ?? <Score value={task.score} projected={task.points} animated />}
+      <RowDivider inset={TASK_TEXT_INSET} />
     </View>
   );
   if (!onPress || right) return row;
@@ -79,17 +81,15 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: layout.columnGap,
     paddingHorizontal: SCREEN_MARGIN,
     // Room above and below for the Up Next row, the one that can grow past the minimum.
     paddingVertical: spacing.sm,
     backgroundColor: colors.background,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   highlighted: { backgroundColor: colors.accentTint },
   // The same columns as the row itself, stretched to its full height so the whole left side takes the tap.
-  lead: { flex: 1, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: spacing.md },
+  lead: { flex: 1, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   text: { flex: 1, gap: 1 },
   titleLine: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   title: { flexShrink: 1, fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
