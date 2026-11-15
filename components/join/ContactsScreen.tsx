@@ -6,11 +6,13 @@ import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } 
 
 import { InviteButton, useInviteMessage } from "@/components/invite";
 import { ErrorLine } from "@/components/join/ErrorLine";
+import { StepContext } from "@/components/join/StepContext";
 import { PersonRow } from "@/components/join/PersonRow";
 import { useContactMatch } from "@/components/join/useContactMatch";
 import { Button, Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
+import { useCurrentLeague } from "@/lib/currentLeague";
 import { inviteMessage } from "@/lib/leagueText";
 import { shareText } from "@/lib/native/share";
 import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
@@ -29,6 +31,7 @@ export function ContactsScreen() {
   const justJoined = params.next !== undefined;
 
   const league = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip");
+  const { me } = useCurrentLeague();
   const { state, allowAccess } = useContactMatch(leagueId);
   // Nobody is ticked to begin with: the player picks who gets a text.
   const [picked, setPicked] = useState<string[]>([]);
@@ -103,6 +106,7 @@ export function ContactsScreen() {
     <Screen>
       <Stack.Screen options={{ gestureEnabled: !justJoined }} />
       <Header title="Add Friends" onBack={justJoined ? undefined : leave} />
+      {justJoined && (me?.leagues.length ?? 0) <= 1 ? <StepContext step={3} label="Invite friends" /> : null}
       <ScrollView style={styles.list}>
         {league ? (
           <View style={styles.hero}>

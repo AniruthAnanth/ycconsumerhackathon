@@ -1,12 +1,14 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { CreateLeagueSection } from "@/components/join/CreateLeagueSection";
 import { FormBody } from "@/components/join/FormBody";
 import { InviteCodeSection } from "@/components/join/InviteCodeSection";
 import { QuickMatchSection } from "@/components/join/QuickMatchSection";
+import { StepContext } from "@/components/join/StepContext";
 import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { Header, Screen } from "@/components/ui";
 import { ChallengeSection } from "@/components/versus/ChallengeSection";
+import { useCurrentLeague } from "@/lib/currentLeague";
 
 export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
 
@@ -17,9 +19,14 @@ export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
 export default function JoinScreen() {
   const router = useRouter();
   const joining = useJoinLeague();
+  const { me } = useCurrentLeague();
+  const { replay } = useLocalSearchParams<{ replay?: string }>();
+  // Only on the way into a first league (or its replay) is this a step of something larger.
+  const firstLeague = replay === "1" || me?.leagues.length === 0;
   return (
     <Screen>
       <Header title="Join a League" onBack={router.canGoBack() ? router.back : undefined} />
+      {firstLeague ? <StepContext step={2} label="Join or start a league" /> : null}
       <FormBody>
         <ChallengeSection disabled={joining.busy} />
         <QuickMatchSection joining={joining} />

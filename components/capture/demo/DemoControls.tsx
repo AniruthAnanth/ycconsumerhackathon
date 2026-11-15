@@ -110,6 +110,10 @@ export function DemoControls() {
           />
         ))}
 
+        <SectionLabel left="ONBOARDING" />
+        {/* The intro, then the sign-up and join steps, without signing out or changing this account. */}
+        <ActionRow label="Replay onboarding" run={async () => router.push({ pathname: "/how-it-works", params: { source: "replay" } })} />
+
         <SectionLabel left="DEVELOPMENT" />
         <FlagRow label="Sample media" value={flags.sampleMedia} onChange={(on) => setDevFlag("sampleMedia", on)} />
         <FlagRow label="Sample voice note" value={flags.sampleVoice} onChange={(on) => setDevFlag("sampleVoice", on)} />
