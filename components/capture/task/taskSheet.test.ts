@@ -40,7 +40,7 @@ describe("toProofTarget", () => {
 describe("canSubmitProof", () => {
   it.each([
     ["open", true],
-    ["failed", true],
+    ["failed", false],
     ["verified", false],
     ["held", false],
   ] as const)("%s -> %s", (status, expected) => expect(canSubmitProof(status)).toBe(expected));

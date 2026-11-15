@@ -19,9 +19,12 @@ export function toProofTarget(task: Task): ProofTarget {
   };
 }
 
-/** A verified or held task has been ruled on; an open or failed one can be submitted again. */
+/**
+ * Only an open task takes a proof. A rejected proof leaves its task open, so "failed" means a drop
+ * closed unproven and the backend refuses any proof for it.
+ */
 export function canSubmitProof(status: Task["status"]): boolean {
-  return status === "open" || status === "failed";
+  return status === "open";
 }
 
 /** A Canvas task has nothing to photograph: the backend reads the submission itself. */
