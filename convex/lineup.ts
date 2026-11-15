@@ -32,7 +32,7 @@ import {
   tidyTask,
   type DraftTask,
 } from "./lib/lineupRules";
-import { searchMemories } from "./memory";
+import { addMemory, searchMemories } from "./memory";
 import { place, slot } from "./schema";
 
 const TIME_ZONE = "America/Los_Angeles";
@@ -57,10 +57,12 @@ export const draft = action({
   },
   handler: async (ctx, args): Promise<{ transcript: string; tasks: DraftTask[] }> => {
     const userId: Id<"users"> = await ctx.runQuery(internal.lineup.callerId, {});
-    const [transcript, memories] = await Promise.all([
+    const [transcript, recalled] = await Promise.all([
       spokenPlan(ctx, args),
       searchMemories(userId, MEMORY_QUERY),
     ]);
+    // A player in several leagues has the same week remembered once per league.
+    const memories = [...new Set(recalled)];
     // A draft from silence would be five tasks the player never asked for.
     if (transcript.split(/\s+/).filter(Boolean).length < 3) {
       throw new ConvexError("Couldn't hear a plan. Say a few things about your week and try again.");
@@ -165,16 +167,67 @@ export const lock = mutation({
 });
 
 function lineupMemory(weekStart: number, tasks: DraftTask[], transcript?: string): string {
-  const week = new Date(weekStart).toLocaleDateString("en-US", {
+  const lines = tasks.map((task) => `${task.slot}: ${task.title} (${task.points} points)`);
+  const said = transcript ? ` What they said about the week: "${transcript}"` : "";
+  return `Lineup locked for the week of ${weekName(weekStart)}. ${lines.join("; ")}.${said}`;
+}
+
+const weekName = (weekStart: number) =>
+  new Date(weekStart).toLocaleDateString("en-US", {
     timeZone: TIME_ZONE,
     month: "long",
     day: "numeric",
     year: "numeric",
   });
-  const lines = tasks.map((task) => `${task.slot}: ${task.title} (${task.points} points)`);
-  const said = transcript ? ` What they said about the week: "${transcript}"` : "";
-  return `Lineup locked for the week of ${week}. ${lines.join("; ")}.${said}`;
-}
+
+// ---------------------------------------------------------------------------
+// Remembering how the week went
+// ---------------------------------------------------------------------------
+
+/**
+ * Writes each league member's result for a finished week into their memory,
+ * so the next draft can react to it ("you skipped Body twice, so here's an
+ * easy one"). Settlement schedules this once per league week.
+ */
+export const rememberOutcomes = internalAction({
+  args: { leagueId: v.id("leagues"), weekStart: v.number() },
+  handler: async (ctx, args): Promise<null> => {
+    const outcomes: { userId: Id<"users">; summary: string }[] = await ctx.runQuery(
+      internal.lineup.weekOutcomes,
+      args,
+    );
+    await Promise.all(outcomes.map((outcome) => addMemory(outcome.userId, outcome.summary)));
+    return null;
+  },
+});
+
+export const weekOutcomes = internalQuery({
+  args: { leagueId: v.id("leagues"), weekStart: v.number() },
+  handler: async (ctx, args): Promise<{ userId: Id<"users">; summary: string }[]> => {
+    const members = await ctx.db
+      .query("memberships")
+      .withIndex("by_league", (q) => q.eq("leagueId", args.leagueId))
+      .take(200);
+    const outcomes = [];
+    for (const member of members) {
+      // Only the player's own plan is worth remembering: drops are the league's idea, not a habit.
+      const planned = (await weekTasks(ctx, member.userId, args.weekStart)).filter(
+        (task) => !isDropSource(task.source),
+      );
+      if (planned.length === 0) continue;
+      const name = (task: Doc<"tasks">) => `${task.slot} "${task.title}"`;
+      const done = planned.filter((task) => task.status === "verified");
+      const missed = planned.filter((task) => task.status !== "verified");
+      const summary = [
+        `Result for the week of ${weekName(args.weekStart)}: finished ${done.length} of ${planned.length} tasks.`,
+        done.length > 0 ? `Done: ${done.map(name).join("; ")}.` : "",
+        missed.length > 0 ? `Not done: ${missed.map(name).join("; ")}.` : "",
+      ];
+      outcomes.push({ userId: member.userId, summary: summary.filter(Boolean).join(" ") });
+    }
+    return outcomes;
+  },
+});
 
 // ---------------------------------------------------------------------------
 // Flex tasks
