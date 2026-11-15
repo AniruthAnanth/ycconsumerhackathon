@@ -13,6 +13,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
+import { currentWeek } from "./leagues";
 import { leagueStandings } from "./standings";
 
 /** A player is in a handful of leagues at most; this only bounds the read. */
@@ -47,32 +48,41 @@ export function leadChangeText(input: {
   return `${firstName(input.leader.name)} took the lead in ${input.leagueName}: ${input.leader.points} points${margin}.`;
 }
 
-/** Scheduled by proofs.record each time a proof passes. */
+/**
+ * Scheduled by proofs.record each time a proof passes. A player's proof counts in every league
+ * they are in, so each of them is checked.
+ */
 export const afterProof = internalMutation({
   args: { userId: v.id("users") },
   returns: v.null(),
   handler: async (ctx, { userId }) => {
-    await announceLeadChanges(ctx, userId);
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .take(MAX_LEAGUES);
+    for (const { leagueId } of memberships) await announceLeadChange(ctx, leagueId);
     return null;
   },
 });
 
-/** Checks every league this player is in: their proof counts in all of them. */
-async function announceLeadChanges(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
-  const memberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
-    .take(MAX_LEAGUES);
-  for (const { leagueId } of memberships) await announceLeadChange(ctx, leagueId);
-}
-
 /**
- * Checks one league. drops.ts calls it directly whenever it has changed what a drop's tasks
- * are worth, so a first-finisher +10 or a mystery penalty that decides the lead is announced.
+ * Scheduled by drops.ts whenever it has changed what a drop's tasks are worth, so a
+ * first-finisher +10 or a mystery penalty that decides the lead is announced too. Scheduled,
+ * not called, so nothing that goes wrong here can roll the bonus back.
  */
-export async function announceLeadChange(ctx: MutationCtx, leagueId: Id<"leagues">): Promise<void> {
+export const check = internalMutation({
+  args: { leagueId: v.id("leagues") },
+  returns: v.null(),
+  handler: async (ctx, { leagueId }) => {
+    await announceLeadChange(ctx, leagueId);
+    return null;
+  },
+});
+
+async function announceLeadChange(ctx: MutationCtx, leagueId: Id<"leagues">): Promise<void> {
   const league = await ctx.db.get("leagues", leagueId);
-  if (league === null) return;
+  // A league that has not started its first week has no table to lead.
+  if (league === null || (await currentWeek(ctx, leagueId)) === null) return;
   const lead = outrightLeader(await leagueStandings(ctx, leagueId));
   if (lead === null || lead.leader.userId === league.leaderId) return;
   await ctx.db.patch("leagues", leagueId, { leaderId: lead.leader.userId });
