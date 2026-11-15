@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CheckInPrompt } from "@/components/checkin";
 import { ProjectionLine } from "@/components/leaderboards";
+import { LiveActivitySync } from "@/components/liveActivity";
 import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
@@ -54,6 +55,8 @@ export default function RosterScreen() {
     <Screen edges={["bottom"]}>
       {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
       <CheckInPrompt leagueId={leagueId} />
+      {/* Renders nothing: it keeps the lock-screen Live Activity current, and is absent in Expo Go. */}
+      <LiveActivitySync leagueId={leagueId} />
       {leagueId ? <DropBanner leagueId={leagueId} /> : null}
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       <ScrollView>
