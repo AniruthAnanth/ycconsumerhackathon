@@ -26,11 +26,15 @@ const TABS = [
  */
 export default function TabsLayout() {
   const router = useRouter();
-  const { me, membership, weekNumber, showPreviousWeek, showNextWeek } = useCurrentLeague();
+  const { me, membership, league, weekNumber, showPreviousWeek, showNextWeek } = useCurrentLeague();
   // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others.
   const tabSegment = (useSegments() as string[])[1];
   const active = TABS.find((tab) => tab.key === tabSegment) ?? TABS[0];
   usePaidHaptic(membership);
+  // Only Roster can show another week. The other tabs always show the current
+  // one, so the header must say so instead of following the browsed week.
+  const browsable = active.key === "index";
+  const shownWeek = browsable ? weekNumber : league?.week.number;
 
   if (me === undefined) return <View style={styles.page} />;
   // A league is proof the player has been through the front door. `onboarded`
@@ -57,7 +61,8 @@ export default function TabsLayout() {
           }}
         />
         <WeekSelector
-          label={weekNumber === undefined ? "Week" : `Week ${weekNumber}`}
+          label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
+          arrows={browsable}
           onPrev={withSelectHaptic(showPreviousWeek)}
           onNext={withSelectHaptic(showNextWeek)}
           onLongPress={() => router.push("/demo")}

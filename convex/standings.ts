@@ -368,6 +368,8 @@ export const pot = query({
           name: v.string(),
           kind: v.union(v.literal("refund"), v.literal("winnings")),
           amountUsd: v.number(),
+          // Present once Whop has accepted the money movement, so a screen can show it was sent.
+          whopId: v.optional(v.string()),
         }),
       ),
     ),
@@ -395,12 +397,21 @@ export const pot = query({
       (hasPaid(membership.userId) ? paid : unpaid).push(member);
     }
 
+    // A ledger row names its week, so it was written after that week's own row. Starting the read
+    // there skips every earlier week however long the season has run. What is left is this week's
+    // rows and any payout of an earlier week that landed late, which the loop below passes over.
     const ledger = await ctx.db
       .query("ledger")
-      .withIndex("by_league", (q) => q.eq("leagueId", league._id))
+      .withIndex("by_league", (q) => q.eq("leagueId", league._id).gte("_creationTime", week._creationTime))
       .take(LEDGER_ROWS);
     let potCents = 0;
-    const payouts: { userId: Id<"users">; name: string; kind: "refund" | "winnings"; amountUsd: number }[] = [];
+    const payouts: {
+      userId: Id<"users">;
+      name: string;
+      kind: "refund" | "winnings";
+      amountUsd: number;
+      whopId?: string;
+    }[] = [];
     for (const row of ledger) {
       if (row.weekId !== week._id) continue;
       if (row.kind === "buy_in") {
@@ -411,6 +422,7 @@ export const pot = query({
           name: await nameOf(row.userId),
           kind: row.kind,
           amountUsd: row.amountUsd,
+          ...(row.whopId !== undefined && { whopId: row.whopId }),
         });
       }
     }

@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -16,6 +16,8 @@ export { RouteError as ErrorBoundary } from "@/components/social/RouteError";
 /** The first screen of a new player: name and phone, then straight on to picking a league. */
 export default function OnboardingScreen() {
   const router = useRouter();
+  // Set when a challenge link brought a new player here: accept it once they have a name.
+  const { versusCode } = useLocalSearchParams<{ versusCode?: string }>();
   const createUser = useMutation(backend.users.createUser);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -32,7 +34,7 @@ export default function OnboardingScreen() {
     setError(null);
     try {
       await createUser({ name: trimmedName, phone: e164 });
-      router.replace("/join");
+      router.replace(versusCode ? { pathname: "/versus/join", params: { code: versusCode } } : "/join");
     } catch (failure) {
       setError(errorMessage(failure));
       setSaving(false);
