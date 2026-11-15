@@ -77,7 +77,6 @@ flowchart LR
   LINEUP -->|"past weeks"| MEMORY
   PROOFS -->|"image URLs"| AI
   DROPS -->|"headcount"| AI
-  DROPS -->|"habits"| MEMORY
   KEIKI -->|"free text"| AI
   AI -->|"audio, text, images"| OPENAI
   MEMORY -->|"search, add"| SUPER
