@@ -164,7 +164,7 @@ describe("wrapped.get", () => {
       }
       await ctx.db.insert("weeks", { leagueId, number: 1, startsAt: WEEK, endsAt: WEEK + 7 * DAY, status: "open" });
       const dropId = await ctx.db.insert("drops", {
-        leagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40, sealed: false,
+        leagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40,
         opensAt: WEEK + 2 * DAY, closesAt: WEEK + 2 * DAY + 7_200_000, status: "closed",
       });
       const photo = await ctx.storage.store(new Blob(["photo"]));

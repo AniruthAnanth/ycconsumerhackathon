@@ -95,6 +95,7 @@ async function playIn(ctx: MutationCtx, leagueId: Id<"leagues">, weekId: Id<"wee
     activeDays: [0],
   });
   const markId = await ctx.db.insert("checkinMarks", { leagueId, userId, points: 10 });
+  // A drop stored by the removed daily mystery task, which the sweep must still delete.
   const dropId = await ctx.db.insert("drops", {
     leagueId,
     kind: "mystery",

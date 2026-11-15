@@ -281,7 +281,7 @@ type MatchupRow = { slot: Slot; mine?: TaskRow; theirs?: TaskRow };
 
 /**
  * Lines two rosters up the way the Matchup tab shows them: one row per roster slot with each
- * side's drafted task, then the rest (flex, drop, mystery and group tasks) side by side in
+ * side's drafted task, then the rest (flex, drop and group tasks) side by side in
  * roster order under the flex label.
  */
 function pairRows(mine: TaskRow[], theirs: TaskRow[]): MatchupRow[] {

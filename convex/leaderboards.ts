@@ -309,7 +309,7 @@ async function headToHeadEntries(ctx: ReadCtx, league: League): Promise<Entry<Us
 
 function versus(opponent: string | undefined, mine: number, theirs: number): string {
   const standing = mine > theirs ? "Leading" : mine < theirs ? "Trailing" : "Level with";
-  // "to", not a dash: a score can be negative after a mystery penalty.
+  // "to", not a dash, so a negative score never reads as a range.
   return `${standing} ${opponent ?? "a former member"} ${mine} to ${theirs}`;
 }
 

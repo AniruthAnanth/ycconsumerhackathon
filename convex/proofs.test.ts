@@ -267,7 +267,6 @@ describe("gesture check on a drop task", () => {
         slot: "body",
         points: 40,
         gesture: "three fingers up",
-        sealed: false,
         opensAt: NOW,
         closesAt: NOW + 60 * 60 * 1000,
         status: "open",

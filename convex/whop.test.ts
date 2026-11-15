@@ -553,7 +553,6 @@ describe("closeWeek", () => {
         title: "20 push-ups",
         slot: "body",
         points: 500,
-        sealed: false,
         opensAt: 0,
         closesAt: 1,
         status: "closed",

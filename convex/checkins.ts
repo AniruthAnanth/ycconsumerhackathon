@@ -439,7 +439,7 @@ export const afterProof = internalMutation({
           after: prover.points,
         },
         // Everyone else is measured where they stand now. A member's points also fall without a
-        // proof of their own (a proof held under challenge, a failed mystery task), and a figure
+        // proof of their own (a proof held under challenge), and a figure
         // remembered from before the fall would report a pass that never happened, again on
         // every later proof.
         others: standings.filter((row) => row.userId !== prover.userId),
