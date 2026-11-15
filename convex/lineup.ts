@@ -42,6 +42,9 @@ const TIME_ZONE = "America/Los_Angeles";
 const MEMORY_QUERY =
   "This player's past weekly lineups: tasks they finished, slots they skipped, habits and places.";
 
+// Reads right for a voice note and for a typed transcript.
+const NO_PLAN = "Couldn't find a plan in that. Name a few things you want to do this week and try again.";
+
 /**
  * Voice note (or typed transcript) in, proposed lineup out. Nothing is saved:
  * the player edits the tasks and lock() stores them.
@@ -61,7 +64,7 @@ export const draft = action({
     const memories = [...new Set(recalled)];
     // A draft from silence would be five tasks the player never asked for.
     if (transcript.split(/\s+/).filter(Boolean).length < 3) {
-      throw new ConvexError("Couldn't hear a plan. Say a few things about your week and try again.");
+      throw new ConvexError(NO_PLAN);
     }
     const today = new Date().toLocaleDateString("en-US", {
       timeZone: TIME_ZONE,
@@ -73,6 +76,11 @@ export const draft = action({
       console.error("draftLineup failed:", error instanceof Error ? error.message : error);
       throw new ConvexError("The draft desk is busy. Try again in a moment.");
     });
+    // Words with no plan in them ("hello, how are you") come back empty. shapeDraft would fill
+    // every slot, so they stop here.
+    if (drafted.length === 0) {
+      throw new ConvexError(NO_PLAN);
+    }
     return { transcript, tasks: shapeDraft(drafted) };
   },
 });
