@@ -21,6 +21,8 @@ import {
   seasonOf,
   seasonTable,
   winnerOf,
+  withoutStandIns,
+  withStandIns,
   type Bracket,
   type LeagueSettings,
   type Pairing,
@@ -235,10 +237,14 @@ async function loadSeason(
 
   const results: Result<UserId>[] = [];
   for (const week of seasonRows) {
-    const matchups = await ctx.db
+    const stored = await ctx.db
       .query("matchups")
       .withIndex("by_week", (q) => q.eq("weekId", week._id))
       .take(MAX_MEMBERS);
+    // A member with the week off has a stand-in row; the season shows a bye.
+    const matchups = withoutStandIns(
+      stored.map((matchup) => ({ ...matchup, a: matchup.userA, b: matchup.userB })),
+    );
     for (const matchup of matchups) {
       // Scores frozen on the row win; otherwise the week is scored from its tasks.
       const [scoreA, scoreB] = await Promise.all([
@@ -247,8 +253,8 @@ async function loadSeason(
       ]);
       results.push({
         week: week.number,
-        a: matchup.userA,
-        b: matchup.userB,
+        a: matchup.a,
+        b: matchup.b,
         scoreA,
         scoreB,
         ...(isLive(week) ? { live: true } : {}),
@@ -269,39 +275,41 @@ async function loadSeason(
 }
 
 /**
- * The pairings for a league week, for whoever opens that week: the league's
- * format applied to its current members. Only the bracket needs the earlier
- * results, so the round-robin formats don't pay for loading them.
+ * The matchups to store for a league week, for whoever opens that week: the
+ * league's format applied to its current members, plus a stand-in for anyone
+ * with the week off. Only the bracket needs the earlier results, so the
+ * round-robin formats don't pay for loading them.
  */
 export async function pairingsForWeek(
   ctx: QueryCtx,
-  league: Doc<"leagues">,
+  leagueId: Id<"leagues">,
   weekNumber: number,
 ): Promise<Pairing<UserId>[]> {
+  const league = await ctx.db.get("leagues", leagueId);
+  if (league === null) throw new ConvexError("That league doesn't exist.");
   const settings = resolveSettings(league);
-  if (settings.format !== "bracket") {
-    const members = await loadMembers(ctx, league._id);
-    return scheduleFor(
-      settings.format,
-      members.map((member) => member.id),
-      weekNumber,
-      [],
-      settings.seasonWeeks,
-    );
+
+  let memberIds: UserId[];
+  let earlier: Result<UserId>[] = [];
+  if (settings.format === "bracket") {
+    const season = await loadSeason(ctx, league);
+    memberIds = season.members.map((member) => member.id);
+    // Opening a week means the ones before it are over, even if the newest
+    // of them has not been marked settled yet.
+    earlier = season.results
+      .filter((result) => result.week < weekNumber)
+      .map((result) => ({ ...result, live: false }));
+  } else {
+    memberIds = (await loadMembers(ctx, leagueId)).map((member) => member.id);
   }
-  const { members, results } = await loadSeason(ctx, league);
-  // Opening a week means the ones before it are over, even if the newest of
-  // them has not been marked settled yet.
-  const earlier = results
-    .filter((result) => result.week < weekNumber)
-    .map((result) => ({ ...result, live: false }));
-  return scheduleFor(
+  const pairings = scheduleFor(
     settings.format,
-    members.map((member) => member.id),
+    memberIds,
     weekNumber,
     earlier,
     settings.seasonWeeks,
   );
+  return withStandIns(pairings, memberIds);
 }
 
 // ---- Query ------------------------------------------------------------------

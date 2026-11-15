@@ -8,9 +8,12 @@
 // - Week numbers are the league's own (weeks.number, starting at 1) and never
 //   reset. A league keeps playing after its season ends, so week
 //   seasonWeeks + 1 opens season 2; seasonOf maps a week to its season.
-// - Members are sorted by id before scheduling, so every caller gets the same
-//   schedule whatever order it loaded the memberships in.
-// - A member with no pairing in a week has a bye. Byes are never stored.
+// - Members are scheduled in the order given. Callers pass them in join order
+//   (the memberships by_league index), so every caller gets the same schedule
+//   and an earlier joiner wins a tie in the table.
+// - A member with no pairing in a week has a bye. leagues.ts stores a
+//   stand-in matchup for them (withStandIns) so their Matchup tab is not
+//   empty; it is not a result, and withoutStandIns takes it out again.
 
 export type Payout = "weekly" | "season";
 export type LeagueFormat = "round_robin" | "double_round_robin" | "bracket";
@@ -91,7 +94,7 @@ export function scheduleFor<Id extends string>(
   results: readonly Result<Id>[],
   seasonWeeks: number = DEFAULT_SETTINGS.seasonWeeks,
 ): Pairing<Id>[] {
-  const ids = sortedUnique(memberIds);
+  const ids = unique(memberIds);
   const season = seasonOf(weekNumber, seasonWeeks);
   const round = weekNumber - season.firstWeek;
 
@@ -130,11 +133,7 @@ function roundRobinRound<Id>(
   const roundsPerCycle = seats.length - 1;
   const turn = round % roundsPerCycle;
   const moving = seats.slice(1);
-  const table = [
-    seats[0],
-    ...moving.slice(moving.length - turn),
-    ...moving.slice(0, moving.length - turn),
-  ];
+  const table = [seats[0], ...moving.slice(turn), ...moving.slice(0, turn)];
   const returnLeg = double && Math.floor(round / roundsPerCycle) % 2 === 1;
 
   const pairings: Pairing<Id>[] = [];
@@ -171,15 +170,15 @@ export function winnerOf<Id>(result: Result<Id>): Id | null {
 
 /**
  * Wins, losses and points for every member, best first: most wins, then most
- * points for, then id so the order is stable. Live results are left out, and
- * so is a side that has since left the league.
+ * points for, then whoever joined first. Live results are left out, and so is
+ * a side that has since left the league.
  */
 export function seasonTable<Id extends string>(
   memberIds: readonly Id[],
   results: readonly Result<Id>[],
 ): TableRow<Id>[] {
   const rows = new Map<Id, TableRow<Id>>();
-  for (const id of sortedUnique(memberIds)) {
+  for (const id of memberIds) {
     rows.set(id, { id, wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0 });
   }
   for (const result of results) {
@@ -207,9 +206,9 @@ export function seasonTable<Id extends string>(
       }
     }
   }
+  // The sort is stable, so rows level on both counts stay in join order.
   return [...rows.values()].sort(
-    (x, y) =>
-      y.wins - x.wins || y.pointsFor - x.pointsFor || (x.id < y.id ? -1 : 1),
+    (x, y) => y.wins - x.wins || y.pointsFor - x.pointsFor,
   );
 }
 
@@ -262,7 +261,7 @@ export function bracketFor<Id extends string>(
   results: readonly Result<Id>[],
   seasonWeeks: number = DEFAULT_SETTINGS.seasonWeeks,
 ): Bracket<Id> | null {
-  const ids = sortedUnique(memberIds);
+  const ids = unique(memberIds);
   if (ids.length < 2) {
     return null;
   }
@@ -391,6 +390,47 @@ function playoffPairings<Id extends string>(
   return pairings;
 }
 
-function sortedUnique<Id extends string>(ids: readonly Id[]): Id[] {
-  return [...new Set(ids)].sort();
+// ---------------------------------------------------------------------------
+// Stand-ins
+
+/**
+ * What leagues.ts stores for a week: the pairings, then a stand-in matchup
+ * for every member they leave out, against the first paired member. Stand-ins
+ * come last and always put the member with the week off first; the mid-week
+ * join in lib/week.ts relies on both.
+ */
+export function withStandIns<Id>(
+  pairings: readonly Pairing<Id>[],
+  memberIds: readonly Id[],
+): Pairing<Id>[] {
+  if (pairings.length === 0) {
+    return [];
+  }
+  const playing = new Set(pairings.flatMap((pairing) => [pairing.a, pairing.b]));
+  const standIns = memberIds
+    .filter((id) => !playing.has(id))
+    .map((id) => ({ a: id, b: pairings[0].a }));
+  return [...pairings, ...standIns];
+}
+
+/**
+ * A stored week's real head-to-heads, in the order they were stored. A
+ * stand-in is the matchup of a player who already plays that week, so it is
+ * recognised without a flag on the row; that also covers the stand-in a
+ * mid-week joiner is given.
+ */
+export function withoutStandIns<P extends Pairing<unknown>>(stored: readonly P[]): P[] {
+  const playing = new Set<unknown>();
+  return stored.filter(({ a, b }) => {
+    if (playing.has(a) || playing.has(b)) {
+      return false;
+    }
+    playing.add(a);
+    playing.add(b);
+    return true;
+  });
+}
+
+function unique<Id>(ids: readonly Id[]): Id[] {
+  return [...new Set(ids)];
 }
