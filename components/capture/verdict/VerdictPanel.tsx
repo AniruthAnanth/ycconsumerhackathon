@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ShareChallenge } from "@/components/invite";
 import { Button, Divider } from "@/components/ui";
 import { colors, font, spacing } from "@/theme";
 
@@ -70,7 +71,10 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
       <View style={styles.spacer} />
       <FadeIn delay={ACTIONS_DELAY_MS}>
         {verdict.pass ? (
-          <Button label="Done" onPress={onDone} />
+          <View style={styles.actions}>
+            <Button label="Done" onPress={onDone} />
+            <ShareChallenge />
+          </View>
         ) : (
           <View style={styles.actions}>
             <Button label="Retry" onPress={onRetry} />
