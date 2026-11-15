@@ -53,6 +53,23 @@ describe("proof route params", () => {
     expect(params.uri).toBeUndefined();
   });
 
+  it("carries the slot to the camera and the verdict", () => {
+    const target: ProofTarget = { ...checkIn, slot: "body" };
+    expect(parseProofTarget(paramsOf(proofCameraHref(target)))).toMatchObject({ slot: "body" });
+    const params = paramsOf(verdictHref(target, { mediaType: "photo", uri: "file:///shot.jpg" }));
+    expect(parseProofTarget(params).slot).toBe("body");
+  });
+
+  it("leaves the slot out when the target has none", () => {
+    expect(paramsOf(proofCameraHref(checkIn))).not.toHaveProperty("slot");
+    expect(parseProofTarget(paramsOf(proofCameraHref(checkIn))).slot).toBeUndefined();
+  });
+
+  it("ignores a slot that is not a real one", () => {
+    expect(parseProofTarget({ taskId: "task4", slot: "nap" }).slot).toBeUndefined();
+    expect(parseProofTarget({ taskId: "task4", slot: "" }).slot).toBeUndefined();
+  });
+
   it("falls back to a plain photo task when params are missing or malformed", () => {
     expect(parseProofTarget({ taskId: ["task3", "ignored"], points: "many", placeName: "Gym" })).toEqual({
       taskId: "task3",

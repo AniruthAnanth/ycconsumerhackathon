@@ -42,6 +42,7 @@ describe("dropView", () => {
         proofType: "photo",
         place: undefined,
         gesture: "three fingers up",
+        slot: "body",
       },
     });
   });

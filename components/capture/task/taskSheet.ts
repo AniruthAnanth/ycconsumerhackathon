@@ -15,6 +15,7 @@ export function toProofTarget(task: Task): ProofTarget {
     points: task.points,
     proofType: task.proofType,
     place: task.place,
+    slot: task.slot,
   };
 }
 

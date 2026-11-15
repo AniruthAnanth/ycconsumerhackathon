@@ -5,6 +5,8 @@
  */
 import type { Href } from "expo-router";
 
+import { SLOT_ORDER, type Slot } from "@/lib/slots";
+
 export type ProofType = "photo" | "photo_location" | "canvas";
 
 /** What the camera and the verdict screen need to know about the task being proven. */
@@ -16,6 +18,8 @@ export type ProofTarget = {
   place?: { name: string; lat: number; lng: number };
   /** Quick-time drops require a gesture in frame, for example "three fingers up". */
   gesture?: string;
+  /** Optional because drops and check-ins may not have one; the on-device pre-check reads it. */
+  slot?: Slot;
 };
 
 /**
@@ -42,6 +46,7 @@ function targetParams(target: ProofTarget): Record<string, string> {
     params.placeLng = String(target.place.lng);
   }
   if (target.gesture) params.gesture = target.gesture;
+  if (target.slot) params.slot = target.slot;
   return params;
 }
 
@@ -82,6 +87,7 @@ export function parseProofTarget(params: RouteParams): ProofTarget {
   const placeName = text(params.placeName);
   const placeLat = number(params.placeLat);
   const placeLng = number(params.placeLng);
+  const slot = SLOT_ORDER.find((candidate) => candidate === text(params.slot));
   return {
     taskId: text(params.taskId) ?? "",
     title: text(params.title) ?? "",
@@ -92,6 +98,7 @@ export function parseProofTarget(params: RouteParams): ProofTarget {
         ? { name: placeName, lat: placeLat, lng: placeLng }
         : undefined,
     gesture: text(params.gesture),
+    slot,
   };
 }
 

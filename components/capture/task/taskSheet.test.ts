@@ -32,6 +32,7 @@ describe("toProofTarget", () => {
       points: 10,
       proofType: "photo_location",
       place: gym.place,
+      slot: "body",
     });
   });
 });
