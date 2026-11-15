@@ -16,7 +16,7 @@ import { api } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { challengerPointsByUser } from "./challenges";
-import { currentWeek, membersInJoinOrder } from "./leagues";
+import { currentWeek, membersInJoinOrder, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { withoutStandIns } from "./lib/schedule";
 import { CORE_SLOTS, currentStreak, matchupBonus, scoreWeek, winProbability, type Slot } from "./lib/scoring";
@@ -133,7 +133,8 @@ export async function leagueStandings(
   weekId?: Id<"weeks">,
   options: { atSettlement?: boolean } = {},
 ): Promise<MemberStanding[]> {
-  const { week } = await leagueAndWeek(ctx, leagueId, weekId);
+  const { league, week } = await leagueAndWeek(ctx, leagueId, weekId);
+  const hasPaid = await paidInto(ctx, league, week);
   const challengerPoints = await challengerPointsByUser(ctx, leagueId, { from: week.startsAt, to: week.endsAt });
   const dropLeagues = new Map<Id<"drops">, Id<"leagues"> | null>();
 
@@ -148,7 +149,7 @@ export async function leagueStandings(
       userId,
       name: user?.name ?? UNNAMED_PLAYER,
       ...(user?.avatarStorageId && { avatarStorageId: user.avatarStorageId }),
-      paid: membership.paid,
+      paid: hasPaid(userId),
       points: score.total + (challengerPoints.get(userId) ?? 0),
       slotsCleared: score.slotsCleared,
       finisher: score.finisher,
@@ -372,11 +373,12 @@ export const pot = query({
       return names.get(userId) ?? UNNAMED_PLAYER;
     };
 
+    const hasPaid = await paidInto(ctx, league, week);
     const paid: { userId: Id<"users">; name: string }[] = [];
     const unpaid: { userId: Id<"users">; name: string }[] = [];
     for (const membership of await membersInJoinOrder(ctx, league._id)) {
       const member = { userId: membership.userId, name: await nameOf(membership.userId) };
-      (membership.paid ? paid : unpaid).push(member);
+      (hasPaid(membership.userId) ? paid : unpaid).push(member);
     }
 
     const ledger = await ctx.db

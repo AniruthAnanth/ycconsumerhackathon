@@ -112,6 +112,38 @@ async function markAllPaid(t: Harness, leagueId: Id<"leagues">) {
   });
 }
 
+/** What the Whop webhook writes for a verified payment into the league's current week. */
+async function buyIn(t: Harness, leagueId: Id<"leagues">, userId: Id<"users">) {
+  await t.run(async (ctx) => {
+    const week = await ctx.db
+      .query("weeks")
+      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+      .order("desc")
+      .first();
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
+      .unique();
+    if (week === null || membership === null) throw new Error("missing week or membership");
+    await ctx.db.patch("memberships", membership._id, { paid: true });
+    await ctx.db.insert("ledger", {
+      leagueId,
+      weekId: week._id,
+      userId,
+      kind: "buy_in",
+      amountUsd: 20,
+      idempotencyKey: `buy_in:${userId}:${week.number}`,
+      createdAt: Date.now(),
+    });
+  });
+}
+
+/** Whether each of the player's leagues reads as paid on their own screens. */
+async function paidSays(t: Harness, userId: Id<"users">) {
+  const me = await asUser(t, userId).query(api.users.me, {});
+  return me?.leagues.map((league) => league.paid);
+}
+
 async function paidOf(t: Harness, leagueId: Id<"leagues">) {
   return await t.run(async (ctx) => {
     const rows = await ctx.db
@@ -475,6 +507,55 @@ describe("leagues.startWeek", () => {
     vi.setSystemTime(NOW + 2 * WEEK_MS);
     await t.mutation(internal.leagues.startWeek, { leagueId });
     expect(await paidOf(t, leagueId)).toEqual([false, false]);
+  });
+
+  it("counts a weekly league's buy-in only in the week it was paid into", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId, inviteCode } = await createLeague(t, ava, { stakeUsd: 20 });
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+
+    await buyIn(t, leagueId, ava);
+    expect(await paidSays(t, ava)).toEqual([true]);
+    expect(await paidSays(t, ben)).toEqual([false]);
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidSays(t, ava)).toEqual([false]);
+
+    await buyIn(t, leagueId, ben);
+    expect(await paidSays(t, ben)).toEqual([true]);
+  });
+
+  it("counts a season league's buy-in in every week of that season", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId } = await asUser(t, ava).mutation(api.leagues.create, {
+      name: "Season League",
+      stakeUsd: 20,
+      visibility: "private",
+      settings: { payout: "season", seasonWeeks: 2 },
+    });
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode: await codeOf(t, leagueId) });
+    await buyIn(t, leagueId, ava);
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidSays(t, ava)).toEqual([true]);
+    expect(await paidSays(t, ben)).toEqual([false]);
+
+    vi.setSystemTime(NOW + 2 * WEEK_MS);
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+    expect(await paidSays(t, ava)).toEqual([false]);
+  });
+
+  it("does not take the membership flag's word that a stake was paid", async () => {
+    const t = newHarness();
+    const ava = await addUser(t);
+    const { leagueId } = await createLeague(t, ava, { stakeUsd: 20 });
+    await markAllPaid(t, leagueId);
+
+    expect(await paidSays(t, ava)).toEqual([false]);
   });
 
   it("leaves a free league's members paid", async () => {
