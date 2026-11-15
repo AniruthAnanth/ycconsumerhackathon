@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 
-import { errorMessage } from "./errorMessage";
+import { DeviceError, errorMessage } from "./errorMessage";
 
 describe("errorMessage", () => {
   it("shows the text a ConvexError was thrown with", () => {
@@ -11,6 +11,12 @@ describe("errorMessage", () => {
   it("reads a message field from a structured ConvexError", () => {
     expect(errorMessage(new ConvexError({ message: "That task is already verified" }))).toBe(
       "That task is already verified",
+    );
+  });
+
+  it("shows what went wrong on the phone itself", () => {
+    expect(errorMessage(new DeviceError("Location access is off. Turn it on in Settings."))).toBe(
+      "Location access is off. Turn it on in Settings.",
     );
   });
 

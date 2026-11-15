@@ -72,6 +72,8 @@ export const capture = {
     acceptMystery: mutation<{ dropId: Id<"drops">; wager?: number }, null>("drops:acceptMystery"),
     passMystery: mutation<{ dropId: Id<"drops"> }, null>("drops:passMystery"),
     triggerQuickTime: mutation<{ leagueId: Id<"leagues"> }, Id<"drops">>("drops:triggerQuickTime"),
+    /** Seals a fresh envelope for the caller, replacing the one they hold. It appears a few seconds later. */
+    triggerMystery: mutation<{ leagueId: Id<"leagues"> }, null>("drops:triggerMystery"),
   },
   whop: {
     settleWeek: action<{ leagueId: Id<"leagues"> }, null>("whop:settleWeek"),
@@ -80,5 +82,9 @@ export const capture = {
     reset: mutation<NoArgs, null>("seed:reset"),
     players: query<NoArgs, SeedPlayer[]>("seed:players"),
     actAs: mutation<{ userId: Id<"users"> | null }, null>("seed:actAs"),
+  },
+  demo: {
+    /** Pins the player's open location check-in to these coordinates, adding one if they have none. */
+    pinCheckIn: mutation<{ lat: number; lng: number }, Id<"tasks">>("demo:pinCheckIn"),
   },
 } as const;

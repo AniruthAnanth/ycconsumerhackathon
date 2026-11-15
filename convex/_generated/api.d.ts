@@ -14,6 +14,7 @@ import type * as canvas from "../canvas.js";
 import type * as challenges from "../challenges.js";
 import type * as checkins from "../checkins.js";
 import type * as crons from "../crons.js";
+import type * as demo from "../demo.js";
 import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
 import type * as fixtures from "../fixtures.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   challenges: typeof challenges;
   checkins: typeof checkins;
   crons: typeof crons;
+  demo: typeof demo;
   drops: typeof drops;
   feed: typeof feed;
   fixtures: typeof fixtures;
