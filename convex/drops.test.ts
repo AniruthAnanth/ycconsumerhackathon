@@ -418,8 +418,8 @@ describe("mystery task", () => {
     expect(task).toMatchObject({ status: "failed", points: -50 });
   });
 
-  it("texts the league when the penalty hands the lead to someone else", async () => {
-    const t = convexTest(schema, modules);
+  /** Maya leads Sam by 10 and holds an opened envelope with 30 wagered: not finishing it costs her the lead. */
+  async function leaderWithAnOpenEnvelope(t: Backend) {
     const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
     await bank(t, userIds[0], 60);
     await bank(t, userIds[1], 50);
@@ -427,10 +427,29 @@ describe("mystery task", () => {
     await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id, wager: 30 });
     // Maya leads when her quick look at the table is recorded; no text for a first leader.
     await t.mutation(internal.leadChange.afterProof, { userId: userIds[0] });
+    return { leagueId, sam: userIds[1], envelope };
+  }
 
-    await runScheduled(t, MYSTERY_WINDOW_MS);
+  it("texts the league when the penalty hands the lead to someone else", async () => {
+    const t = convexTest(schema, modules);
+    const { envelope } = await leaderWithAnOpenEnvelope(t);
+
+    // Closed in the middle of the day, as the demo control does when it replaces an envelope.
+    await t.mutation(internal.drops.closeDrop, { dropId: envelope._id });
+    await runScheduled(t);
 
     expect(texts.join("\n")).toContain("Sam took the lead in YC Hackathon: 50 points, 40 ahead of Maya.");
+  });
+
+  it("wakes nobody when the envelope runs out overnight: the new leader is only recorded", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, sam } = await leaderWithAnOpenEnvelope(t);
+
+    // Sealed at noon here, so it runs out at 4 AM in Los Angeles.
+    await runScheduled(t, MYSTERY_WINDOW_MS);
+
+    expect(texts.join("\n")).not.toContain("took the lead");
+    expect((await t.run((ctx) => ctx.db.get("leagues", leagueId)))?.leaderId).toBe(sam);
   });
 
   it("keeps the doubled points when it is finished in time", async () => {
