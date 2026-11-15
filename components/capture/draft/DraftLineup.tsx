@@ -9,11 +9,13 @@ import type { DraftTask } from "../backend";
 type Props = {
   tasks: DraftTask[];
   editable: boolean;
+  /** The titles are suggestions the player has not chosen yet. */
+  suggested: boolean;
   onRename: (index: number, title: string) => void;
   onRemove: (index: number) => void;
 };
 
-export function DraftLineup({ tasks, editable, onRename, onRemove }: Props) {
+export function DraftLineup({ tasks, editable, suggested, onRename, onRemove }: Props) {
   const rows = useMemo(
     () =>
       tasks
@@ -30,6 +32,7 @@ export function DraftLineup({ tasks, editable, onRename, onRemove }: Props) {
           key={index}
           task={task}
           editable={editable}
+          suggested={suggested}
           onRename={(title) => onRename(index, title)}
           onRemove={() => onRemove(index)}
         />

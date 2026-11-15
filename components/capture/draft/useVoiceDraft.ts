@@ -13,6 +13,7 @@ import { uploadToConvex } from "../uploadToConvex";
 import { draftReducer, initialDraftState } from "./draftState";
 import { draftWeekNote } from "./draftWeek";
 import { canLock, tasksToLock } from "./lineupEdit";
+import { manualLineup } from "./manualLineup";
 import { hasReachedLimit } from "./recordingMeter";
 import { useVoiceRecorder } from "./useVoiceRecorder";
 
@@ -22,7 +23,7 @@ const DRAFT_FAILED = "Couldn't draft your week. Try again.";
 const LOCK_FAILED = "Couldn't lock your lineup. Try again.";
 const MIC_FAILED = "Couldn't record. Type your week instead.";
 
-/** Everything Voice Draft does: record, upload, draft, edit and lock. The screen only renders it. */
+/** Everything Voice Draft does: record, upload, draft (or skip to picking by hand), edit and lock. The screen only renders it. */
 export function useVoiceDraft() {
   const router = useRouter();
   const [state, dispatch] = useReducer(draftReducer, initialDraftState);
@@ -108,6 +109,7 @@ export function useVoiceDraft() {
     toggleRecording: state.phase === "recording" ? stopRecording : startRecording,
     draftFromText,
     lockLineup,
+    pickOwn: useCallback(() => dispatch({ type: "manualStarted", tasks: manualLineup() }), []),
     finishReveal: useCallback(() => dispatch({ type: "revealFinished" }), []),
     renameTask: useCallback((index: number, title: string) => dispatch({ type: "taskRenamed", index, title }), []),
     removeTask: useCallback((index: number) => dispatch({ type: "taskRemoved", index }), []),

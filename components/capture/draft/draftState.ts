@@ -11,6 +11,8 @@ export type DraftState = {
   error: string | null;
   /** Set once the microphone fails, so the typed fallback stays on screen instead of dead-ending. */
   micUnavailable: boolean;
+  /** The lineup under review was picked by hand, not drafted from what the player said. */
+  manual: boolean;
 };
 
 export type DraftAction =
@@ -20,6 +22,7 @@ export type DraftAction =
   | { type: "draftSucceeded"; result: Draft }
   | { type: "draftFailed"; message: string }
   | { type: "revealFinished" }
+  | { type: "manualStarted"; tasks: DraftTask[] }
   | { type: "taskRenamed"; index: number; title: string }
   | { type: "taskRemoved"; index: number }
   | { type: "lockRequested" }
@@ -32,6 +35,7 @@ export const initialDraftState: DraftState = {
   tasks: [],
   error: null,
   micUnavailable: false,
+  manual: false,
 };
 
 export function draftReducer(state: DraftState, action: DraftAction): DraftState {
@@ -54,6 +58,12 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
       return state.phase === "drafting" ? { ...state, phase: "idle", error: action.message } : state;
     case "revealFinished":
       return state.phase === "revealing" ? { ...state, phase: "review" } : state;
+    case "manualStarted":
+      // Skipping the voice note lands on the same review step a draft ends in, so editing and
+      // locking are one piece of code whichever way the lineup arrived.
+      return state.phase === "idle"
+        ? { ...state, phase: "review", transcript: "", tasks: action.tasks, error: null, manual: true }
+        : state;
     case "taskRenamed":
       return state.phase === "review" ? { ...state, tasks: renameTask(state.tasks, action.index, action.title) } : state;
     case "taskRemoved":

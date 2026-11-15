@@ -59,6 +59,41 @@ describe("review edits", () => {
   });
 });
 
+describe("skipping the voice note", () => {
+  const picked = draftReducer(initialDraftState, { type: "manualStarted", tasks: [body, flex] });
+
+  it("goes straight to review with the starter lineup and no transcript", () => {
+    expect(picked).toMatchObject({ phase: "review", tasks: [body, flex], transcript: "", manual: true });
+  });
+
+  it("drops the microphone's error on the way, and keeps the typed fallback for later", () => {
+    const failed = run([{ type: "recordingStarted" }, { type: "recordingFailed", message: "Microphone is off" }]);
+    const state = draftReducer(failed, { type: "manualStarted", tasks: [body] });
+    expect(state).toMatchObject({ phase: "review", error: null, micUnavailable: true });
+  });
+
+  it("edits and locks like a drafted lineup", () => {
+    const renamed = draftReducer(picked, { type: "taskRenamed", index: 0, title: "Back day" });
+    expect(renamed.tasks[0].title).toBe("Back day");
+    expect(draftReducer(renamed, { type: "taskRemoved", index: 1 }).tasks).toHaveLength(1);
+    expect(draftReducer(renamed, { type: "lockRequested" }).phase).toBe("locking");
+  });
+
+  it("is offered only before anything is recorded or drafted", () => {
+    const recording = run([{ type: "recordingStarted" }]);
+    expect(draftReducer(recording, { type: "manualStarted", tasks: [body] })).toBe(recording);
+    const drafting = run([{ type: "draftRequested" }]);
+    expect(draftReducer(drafting, { type: "manualStarted", tasks: [body] })).toBe(drafting);
+    expect(draftReducer(reviewing, { type: "manualStarted", tasks: [body] })).toBe(reviewing);
+  });
+
+  it("goes back to the microphone on Redo, and a draft after that is not a manual one", () => {
+    const again = draftReducer(picked, { type: "redone" });
+    expect(again).toEqual(initialDraftState);
+    expect(run([{ type: "draftRequested" }, { type: "draftSucceeded", result }], again).manual).toBe(false);
+  });
+});
+
 describe("locking", () => {
   it("returns to review with the message when locking fails", () => {
     const state = run([{ type: "lockRequested" }, { type: "lockFailed", message: "Try again" }], reviewing);
