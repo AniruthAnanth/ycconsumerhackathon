@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { Icon } from "./Icon";
 
@@ -57,16 +57,16 @@ export function Header({ title, onBack, onTitlePress, onChatPress, right }: Prop
 
 const styles = StyleSheet.create({
   bar: {
-    height: 48,
+    height: layout.bar,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
   // Equal-width sides keep the title centred whichever actions are present.
-  side: { width: 56, flexDirection: "row", alignItems: "center" },
+  side: { width: layout.barSide, flexDirection: "row", alignItems: "center" },
   right: { justifyContent: "flex-end" },
   center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
   title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },

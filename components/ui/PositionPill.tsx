@@ -15,7 +15,7 @@ export function PositionPill({ slot }: { slot: Slot }) {
 const styles = StyleSheet.create({
   pill: {
     width: layout.pillColumn,
-    height: 22,
+    height: layout.pillHeight,
     borderRadius: radius.pill,
     backgroundColor: colors.greenSoft,
     alignItems: "center",

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, tabUnderlineHeight } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, tabUnderlineHeight } from "@/theme";
 
 type Props<Key extends string> = {
   tabs: readonly { key: Key; label: string }[];
@@ -34,7 +34,7 @@ export function TopTabs<Key extends string>({ tabs, active, onChange }: Props<Ke
 
 const styles = StyleSheet.create({
   bar: {
-    height: 40,
+    height: layout.bar,
     flexDirection: "row",
     backgroundColor: colors.background,
     borderBottomWidth: hairline,

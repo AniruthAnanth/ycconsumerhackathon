@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { Icon, type IconName } from "./Icon";
 
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     justifyContent: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
     backgroundColor: colors.accentTint,
     borderBottomWidth: hairline,

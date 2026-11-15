@@ -85,6 +85,12 @@ export const layout = {
   numericColumn: 56,
   /** The gap between a row's columns. */
   columnGap: 12,
+  /** A nav bar, tab strip or week selector: the HIG's 44-pt bar. */
+  bar: 44,
+  /** Each side of a nav bar, wide enough for one 44-pt action, so the title stays centred. */
+  barSide: 56,
+  /** The position pill's height. */
+  pillHeight: 24,
 } as const;
 
 /** Where a task row's text starts; its inset divider starts here too, as in an iOS list. */
