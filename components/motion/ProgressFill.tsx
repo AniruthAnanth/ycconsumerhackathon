@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 
-import { SPRING } from "@/lib/native/motion";
-import { progress, radius } from "@/theme";
+import { progress, radius, spring } from "@/theme";
 
 import { useReduceMotion } from "./useReduceMotion";
 
@@ -26,7 +25,7 @@ export function ProgressFill({ ratio, color = progress.fill, track = progress.tr
   const target = Math.min(Math.max(ratio, 0), 1);
   const shown = useSharedValue(reduceMotion ? target : 0);
   useEffect(() => {
-    shown.value = reduceMotion ? target : withSpring(target, SPRING);
+    shown.value = reduceMotion ? target : withSpring(target, spring.gentle);
   }, [reduceMotion, shown, target]);
   const fill = useAnimatedStyle(() => ({ width: `${shown.value * 100}%` }));
   return (

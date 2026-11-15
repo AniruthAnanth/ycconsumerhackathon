@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { type StyleProp, type ViewStyle } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 
-import { REORDER_MS } from "@/lib/native/motion";
+import { spring } from "@/theme";
 
 import { useReduceMotion } from "./useReduceMotion";
 
-const slide = LinearTransition.duration(REORDER_MS);
+const slide = LinearTransition.springify().damping(spring.gentle.damping).stiffness(spring.gentle.stiffness).mass(spring.gentle.mass);
 
 /**
  * A list row that slides to its new place when the list reorders (a standings change), instead

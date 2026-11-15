@@ -3,9 +3,11 @@ import { Animated } from "react-native";
 
 import { useReduceMotion } from "@/components/motion";
 import { haptics } from "@/lib/native/haptics";
+import { duration } from "@/theme";
 
 const SHAKE_OFFSETS = [8, -8, 6, -5, 3, 0];
-const SHAKE_STEP_MS = 40;
+// Six steps inside one fast beat, so the shake reads as a single jolt.
+const SHAKE_STEP_MS = duration.fast / 3;
 
 /**
  * Shakes the screen and thuds the phone when the stamp lands; `pass` is undefined while there is

@@ -1,4 +1,5 @@
 export { CountUp } from "./CountUp";
+export { ease } from "./ease";
 export { Entrance } from "./Entrance";
 export { PressScale } from "./PressScale";
 export { ProgressFill } from "./ProgressFill";
