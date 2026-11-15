@@ -42,7 +42,11 @@ export function RosterScreen() {
   // Once the lineup is locked, the next task is why the player opened the app,
   // so it leads the screen above the banners and the pills. Its row stays in
   // the sheet below as an ordinary row, so the lineup keeps its five slots.
-  const lead = roster?.locked ? roster.rows.find((task) => task.upNext) : undefined;
+  // The lineup runs on the calendar week, so it still names a next task after the
+  // selected league's week has settled (End Week Now settles one early). That
+  // week's result is final, so Roster stops asking for a proof until the next opens.
+  const settled = league?.week.status === "settled";
+  const lead = roster?.locked && !settled ? roster.rows.find((task) => task.upNext) : undefined;
 
   const row = (task: Task, upNext: boolean) => (
     <TaskRow
@@ -59,7 +63,7 @@ export function RosterScreen() {
       }
     />
   );
-  const listed = (task: Task) => row(task, task.upNext && !lead);
+  const listed = (task: Task) => row(task, task.upNext && !lead && !settled);
 
   return (
     <Screen edges={["bottom"]}>
