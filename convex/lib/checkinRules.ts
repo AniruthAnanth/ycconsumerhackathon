@@ -41,6 +41,66 @@ export function hasArrived(phone: LatLng, place: LatLng): boolean {
   return isValidLatLng(phone) && distanceMeters(phone, place) <= ARRIVAL_METERS;
 }
 
+/**
+ * Words that mark a place as somewhere people work out, matched whole and ignoring case against
+ * what the phone's reverse geocoder calls where it is ("Fitness SF", "Mission Cliffs Climbing").
+ * Short on purpose: a wrong yes interrupts someone, and a wrong no only means they open the
+ * camera themselves. Whole-word matching keeps "gym" out of "Gymboree" and "fitness" out of
+ * "Fitzgerald".
+ */
+const GYM_WORDS = [
+  "gym",
+  "fitness",
+  "crossfit",
+  "barbell",
+  "yoga",
+  "pilates",
+  "climbing",
+  "bouldering",
+  "boxing",
+  "athletic club",
+  "sports club",
+  "rec center",
+  "recreation center",
+  "ymca",
+  "equinox",
+  "orangetheory",
+  "soulcycle",
+];
+const GYM_PATTERN = new RegExp("\\b(?:" + GYM_WORDS.map((word) => word.replace(" ", "[\\s-]+")).join("|") + ")s?\\b", "i");
+
+export function looksLikeGym(placeName: string): boolean {
+  return GYM_PATTERN.test(placeName);
+}
+
+const PLACE_NAME_MAX = 60;
+
+/**
+ * A geocoder's name as the copy uses it. The name comes from the phone, so it is cut to what
+ * fits the prompt's one line and one text before it is ever echoed back.
+ */
+export function tidyPlaceName(placeName: string | undefined): string | undefined {
+  return placeName?.trim().slice(0, PLACE_NAME_MAX).trim() || undefined;
+}
+
+/**
+ * The place a reported arrival counts for, or null when it does not count. A task with a pin
+ * counts only within 30 m of it, and the geocoder's name is ignored: the pin is the player's own
+ * word for where the task happens. A Body task with no pin, which is what most drafted workouts
+ * are, counts when the phone says it is at a gym, and the text names that place.
+ */
+export function arrivalPlace(input: {
+  task: Pick<CheckInTask<unknown>, "slot" | "place">;
+  phone: LatLng;
+  placeName?: string;
+}): string | null {
+  const { task, phone } = input;
+  const placeName = tidyPlaceName(input.placeName);
+  if (task.place !== undefined) return hasArrived(phone, task.place) ? task.place.name : null;
+  if (task.slot !== "body" || placeName === undefined || !isValidLatLng(phone)) return null;
+  return looksLikeGym(placeName) ? placeName : null;
+}
+
 /** A task as these rules see it: the tasks row plus the moment it can no longer be proven. */
 export type CheckInTask<TaskId> = {
   taskId: TaskId;
@@ -62,7 +122,7 @@ type SlotFacts = Pick<CheckInTask<unknown>, "slot" | "status" | "source">;
 
 export type CheckIn<TaskId> =
   | { kind: "drop"; task: CheckInTask<TaskId> }
-  | { kind: "nearby"; task: CheckInTask<TaskId>; meters: number }
+  | { kind: "nearby"; task: CheckInTask<TaskId>; meters: number; placeName?: string }
   | { kind: "at_risk"; task: CheckInTask<TaskId> };
 
 /**
@@ -70,7 +130,9 @@ export type CheckIn<TaskId> =
  *
  *   1. a live quick-time drop: it closes within hours and the whole league is racing for it;
  *   2. a task whose pinned place the player has just arrived at: it will never be easier;
- *   3. the task most at risk: the least time left, and one that clears a slot before one that
+ *   3. at a gym, a Body task with no pin: most drafted workouts pin nothing, so the place name the
+ *      phone reports stands in for the pin (a photo or text is still what proves it);
+ *   4. the task most at risk: the least time left, and one that clears a slot before one that
  *      only adds points, because the five slots are what the stake rides on.
  *
  * Nothing is asked once the week is settled or over, or when every task is proven.
@@ -81,8 +143,11 @@ export function pickCheckIn<TaskId>(input: {
   tasks: readonly CheckInTask<TaskId>[];
   /** Where the phone is, when the player has allowed location. */
   coords?: LatLng;
+  /** What the phone's reverse geocoder calls where it is, e.g. "Fitness SF". */
+  placeName?: string;
 }): CheckIn<TaskId> | null {
   const { now, week, tasks, coords } = input;
+  const placeName = tidyPlaceName(input.placeName);
   if (week.settled || now >= week.endsAt) return null;
 
   // The prompt's button opens the proof camera, so only a task the camera can prove qualifies:
@@ -106,6 +171,14 @@ export function pickCheckIn<TaskId>(input: {
 
   const proven = provenSlots(tasks);
   const clearsASlot = (task: SlotFacts) => slotsClearedBy(task).some((slot) => !proven.has(slot));
+
+  if (placeName !== undefined && looksLikeGym(placeName)) {
+    const workout = provable
+      .filter((task) => task.slot === "body" && task.place === undefined)
+      .sort((a, b) => Number(clearsASlot(b)) - Number(clearsASlot(a)) || b.points - a.points)[0];
+    if (workout !== undefined) return { kind: "nearby", task: workout, meters: 0, placeName };
+  }
+
   const atRisk = [...provable].sort(
     (a, b) =>
       a.closesAt - b.closesAt ||
@@ -243,7 +316,7 @@ export function promptCopy(
       return { label: `LIVE ${left}`, line: rival ? `${value} ${rivalLine(rival)}` : value };
     case "nearby":
       // Arriving is the whole message, so this one line leaves the rival out.
-      return { label: "HERE", line: `You're at ${task.place?.name ?? "the spot"}. Check in?` };
+      return { label: "HERE", line: `You're at ${checkIn.placeName ?? task.place?.name ?? "the spot"}. Check in?` };
     case "at_risk":
       return {
         label: `${left} LEFT`,

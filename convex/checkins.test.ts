@@ -173,6 +173,26 @@ describe("checkins.prompt", () => {
     expect(away?.kind).toBe("at_risk");
   });
 
+  it("asks for an unpinned Body task when the phone says it is at a gym, and not anywhere else", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    await addTask(t, me, { slot: "mind", title: "Problem set", points: 45 });
+    const legDay = await addTask(t, me);
+
+    expect(
+      await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON, ...DOWN_THE_STREET, placeName: "Fitness SF" }),
+    ).toEqual({
+      kind: "nearby",
+      taskId: legDay,
+      label: "HERE",
+      line: "You're at Fitness SF. Check in?",
+      task: { title: "Leg day", points: 40, proofType: "photo" },
+    });
+    const elsewhere = await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON, placeName: "2450 Mission St" });
+    expect(elsewhere?.kind).toBe("at_risk");
+  });
+
   it("leaves another league's drop task off this league's prompt", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Me"]);
@@ -262,6 +282,42 @@ describe("checkins.recordArrival", () => {
     await as(t, maya).mutation(api.checkins.recordArrival, { taskId: gym, ...AT_THE_GYM });
     expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: gym })).toBeNull();
     expect(await t.query(internal.checkins.recentArrival, { userId: maya, taskId: gym })).toBeNull();
+  });
+});
+
+describe("checkins.recordArrival at a gym", () => {
+  it("accepts an unpinned Body task only when the phone names a gym, and texts that place once", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    const legDay = await addTask(t, me);
+
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: legDay, ...AT_THE_GYM, placeName: "2450 Mission St" });
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: legDay, ...AT_THE_GYM });
+    expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: legDay })).toBeNull();
+    expect(await textsTo(t, me)).toEqual([]);
+
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: legDay, ...AT_THE_GYM, placeName: "Fitness SF" });
+    vi.setSystemTime(NOON + MINUTE_MS);
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: legDay, ...AT_THE_GYM, placeName: "Fitness SF" });
+    expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: legDay })).toMatchObject(AT_THE_GYM);
+    expect(await textsTo(t, me)).toEqual(["You're at Fitness SF. Reply with a photo to check in."]);
+  });
+
+  it("leaves a pinned task to the 30 m check, and an unpinned task outside Body alone", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    const pinned = await addTask(t, me, { proofType: "photo_location", place: GYM });
+    const reading = await addTask(t, me, { slot: "mind", title: "Problem set" });
+
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: pinned, ...DOWN_THE_STREET, placeName: "Fitness SF" });
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: reading, ...AT_THE_GYM, placeName: "Fitness SF" });
+    expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: pinned })).toBeNull();
+    expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: reading })).toBeNull();
+
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: pinned, ...AT_THE_GYM, placeName: "Somewhere Else" });
+    expect(await textsTo(t, me)).toEqual(["You're at Fitness SF. Reply with a photo to check in."]);
   });
 });
 

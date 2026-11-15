@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   type CheckInTask,
+  arrivalPlace,
   arrivalText,
   eveningText,
   hasArrived,
   lastDayText,
+  looksLikeGym,
   mayText,
   pacificClock,
   passedBy,
@@ -109,6 +111,85 @@ describe("pickCheckIn", () => {
     expect(pickCheckIn({ now: NOW, week: { ...WEEK, settled: true }, tasks: [legDay, pushUps] })).toBeNull();
     expect(pickCheckIn({ now: WEEK.endsAt, week: WEEK, tasks: [legDay] })).toBeNull();
     expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [] })).toBeNull();
+  });
+});
+
+describe("looksLikeGym", () => {
+  it("matches a gym word in any case, as a whole word", () => {
+    for (const name of ["Fitness SF", "24 Hour Fitness", "Mission Cliffs Climbing", "GOLD'S GYM", "Mission Yoga", "SF Boxing Club", "YMCA", "Rec Centers"]) {
+      expect(looksLikeGym(name), name).toBe(true);
+    }
+  });
+
+  it("rejects an address, a word that only starts like a gym word, and nothing", () => {
+    for (const name of ["2450 Mission St", "Fitzgerald Hotel", "Gymboree Play & Music", "Blue Bottle Coffee", "24 Hour Diner", ""]) {
+      expect(looksLikeGym(name), name).toBe(false);
+    }
+  });
+});
+
+describe("pickCheckIn at a gym", () => {
+  const legDay = task({ taskId: "leg" });
+  const office = task({ taskId: "office", slot: "mind", title: "Ship the demo", proofType: "photo_location", place: YC_OFFICE });
+  const gym = "Fitness SF";
+
+  it("asks for the Body task that pins no place, and names where the phone is", () => {
+    const pick = pickCheckIn({ now: NOW, week: WEEK, tasks: [office, legDay], placeName: gym });
+    expect(pick).toEqual({ kind: "nearby", task: legDay, meters: 0, placeName: gym });
+  });
+
+  it("picks the Body task that clears a slot first, then the one worth more", () => {
+    const bonus = task({ taskId: "bonus", source: "mystery", points: 90 });
+    const small = task({ taskId: "small", points: 20 });
+    const big = task({ taskId: "big", points: 50 });
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [bonus, small], placeName: gym })?.task.taskId).toBe("small");
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [small, big], placeName: gym })?.task.taskId).toBe("big");
+  });
+
+  it("is ignored when the name is not a gym, or no Body task is open and unpinned", () => {
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [legDay], placeName: "2450 Mission St" })?.kind).toBe("at_risk");
+    const noBody = [
+      office,
+      task({ taskId: "done", status: "verified" }),
+      task({ taskId: "pinned", place: { name: "Track", lat: 37.9, lng: -122.5 } }),
+      task({ taskId: "canvas", proofType: "canvas" }),
+      task({ taskId: "laundry", slot: "chores", title: "Laundry" }),
+    ];
+    const pick = pickCheckIn({ now: NOW, week: WEEK, tasks: noBody, placeName: gym });
+    expect(pick?.kind).toBe("at_risk");
+  });
+
+  it("yields to a live drop and to a pinned place within 30 m", () => {
+    const pushUps = task({ taskId: "push", title: "20 push-ups", source: "drop", closesAt: NOW + HOUR });
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [legDay, pushUps], placeName: gym })?.kind).toBe("drop");
+    const nearOffice = { lat: 37.7579, lng: -122.3882 };
+    const pick = pickCheckIn({ now: NOW, week: WEEK, tasks: [legDay, office], coords: nearOffice, placeName: gym });
+    expect(pick?.kind === "nearby" && pick.task.taskId).toBe("office");
+    expect(pick?.kind === "nearby" && pick.placeName).toBeUndefined();
+  });
+});
+
+describe("arrivalPlace", () => {
+  const phone = { lat: 37.7609, lng: -122.3884 };
+  const pinned = { slot: "mind" as const, place: { name: "Library", ...phone } };
+  const unpinnedBody = { slot: "body" as const };
+
+  it("counts a pinned task within 30 m under the pin's own name, whatever the geocoder says", () => {
+    expect(arrivalPlace({ task: pinned, phone, placeName: "Fitness SF" })).toBe("Library");
+    expect(arrivalPlace({ task: pinned, phone: { lat: phone.lat + 0.0004, lng: phone.lng }, placeName: "Fitness SF" })).toBeNull();
+  });
+
+  it("counts an unpinned Body task only at a gym, under the geocoder's name", () => {
+    expect(arrivalPlace({ task: unpinnedBody, phone, placeName: " Fitness SF " })).toBe("Fitness SF");
+    // The name comes from the phone and is echoed into a text, so it is cut to 60 characters.
+    expect(arrivalPlace({ task: unpinnedBody, phone, placeName: `Gym ${"x".repeat(200)}` })).toHaveLength(60);
+    expect(arrivalPlace({ task: unpinnedBody, phone, placeName: "2450 Mission St" })).toBeNull();
+    expect(arrivalPlace({ task: unpinnedBody, phone })).toBeNull();
+  });
+
+  it("never counts an unpinned task from another slot, or coordinates no phone could report", () => {
+    expect(arrivalPlace({ task: { slot: "mind" }, phone, placeName: "Fitness SF" })).toBeNull();
+    expect(arrivalPlace({ task: unpinnedBody, phone: { lat: Number.NaN, lng: 0 }, placeName: "Fitness SF" })).toBeNull();
   });
 });
 
@@ -251,6 +332,16 @@ describe("wording", () => {
       label: "HERE",
       line: "You're at YC office. Check in?",
     });
+  });
+
+  it("names the gym the phone reports for an unpinned task, but a pin's own name when there is no report", () => {
+    const unpinned = task({ taskId: "leg" });
+    expect(
+      promptCopy({ kind: "nearby", task: unpinned, meters: 0, placeName: "Fitness SF" }, { now: NOW, rival: maya, worth: 65 }),
+    ).toEqual({ label: "HERE", line: "You're at Fitness SF. Check in?" });
+    expect(promptCopy({ kind: "nearby", task: unpinned, meters: 0 }, { now: NOW, rival: maya, worth: 65 }).line).toBe(
+      "You're at the spot. Check in?",
+    );
   });
 
   it("tells a player who plays by text that a reply is enough on arrival", () => {
