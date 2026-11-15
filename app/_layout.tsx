@@ -34,9 +34,18 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: colors.background },
+                // Back is a swipe from anywhere on the left half of a pushed screen, as in iOS Mail, not only from the edge.
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
               }}
             >
               <Stack.Screen name="(tabs)" />
+              {/* Screens that draw, pan a map or scroll sideways keep the edge-only back swipe, so a sideways drag stays theirs. */}
+              <Stack.Screen name="canvas/index" options={{ fullScreenGestureEnabled: false }} />
+              <Stack.Screen name="group/[dropId]" options={{ fullScreenGestureEnabled: false }} />
+              <Stack.Screen name="how-it-works" options={{ fullScreenGestureEnabled: false }} />
+              <Stack.Screen name="leaderboards/index" options={{ fullScreenGestureEnabled: false }} />
+              <Stack.Screen name="league-settings/season" options={{ fullScreenGestureEnabled: false }} />
               {/* Every sheet shares one presentation (components/ui/Sheet), so the task sheet, switcher and group sheet look and move alike. */}
               <Stack.Screen name="task/[taskId]" options={sheetOptions()} />
               {/* The camera and the verdict photo fill the top of the screen, so their status bar is light, as on Wrapped. */}
