@@ -64,9 +64,9 @@ describe("sessionAction", () => {
     expect(sessionAction(joined, "me")).toEqual({ kind: "checkIn", label: "Check In", disabled: false });
   });
 
-  it("holds Check In until the task exists", () => {
-    const joined = drop({ attendees: [{ userId: "me" as never, name: "Me", checkedIn: false }] });
-    expect(sessionAction(joined, "me").disabled).toBe(true);
+  it("says when check-in opens until the server hands out the task", () => {
+    const joined = drop({ opensAt: at(16, 18), attendees: [{ userId: "me" as never, name: "Me", checkedIn: false }] });
+    expect(sessionAction(joined, "me")).toEqual({ kind: "checkIn", label: "Check-in opens Mon 5:30 PM", disabled: true });
   });
 
   it("shows Checked In, disabled, once checked in", () => {

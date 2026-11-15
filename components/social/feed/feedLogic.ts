@@ -2,6 +2,7 @@ import type { FeedChallenge, FeedItem, FeedReaction } from "@/components/social/
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
+// Also the challenge window: CHALLENGE_WINDOW_MS in convex/challenges.ts, which the server enforces.
 const DAY = 24 * HOUR;
 
 /** The reactions every proof offers, in a fixed order so the buttons never move under a thumb. */
@@ -28,23 +29,6 @@ export function canChallenge(
     myUserId !== undefined &&
     item.user._id !== myUserId &&
     now - item.createdAt < DAY
-  );
-}
-
-/**
- * Whether to offer the Legit and Not Legit buttons. The vote goes to the rest
- * of the league: the proof's owner has no say, and the server also turns away
- * the challenger, which it reports as canVote once it knows who is asking.
- */
-export function canVote(
-  item: Pick<FeedItem, "user"> & { challenge: Pick<FeedChallenge, "status" | "canVote"> },
-  myUserId: string | undefined,
-): boolean {
-  return (
-    item.challenge.status === "open" &&
-    item.challenge.canVote !== false &&
-    myUserId !== undefined &&
-    item.user._id !== myUserId
   );
 }
 

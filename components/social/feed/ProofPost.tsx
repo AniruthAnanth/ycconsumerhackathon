@@ -11,7 +11,7 @@ import { colors } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
 
 import { ChallengeBar } from "./ChallengeBar";
-import { canChallenge, canVote, KIND_LABEL, timeAgo } from "./feedLogic";
+import { canChallenge, KIND_LABEL, timeAgo } from "./feedLogic";
 import { ReactionBar } from "./ReactionBar";
 
 /**
@@ -96,7 +96,7 @@ export function ProofPost({
       {item.challenge ? (
         <ChallengeBar
           challenge={item.challenge}
-          votable={canVote({ user: item.user, challenge: item.challenge }, myUserId)}
+          votable={item.challenge.canVote}
           now={now}
         />
       ) : null}
