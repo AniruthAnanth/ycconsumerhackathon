@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
+import type * as boardRanks from "../boardRanks.js";
 import type * as canvas from "../canvas.js";
 import type * as challenges from "../challenges.js";
 import type * as checkins from "../checkins.js";
@@ -72,6 +73,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
+  boardRanks: typeof boardRanks;
   canvas: typeof canvas;
   challenges: typeof challenges;
   checkins: typeof checkins;
@@ -152,4 +154,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  boardRanks: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"boardRanks">;
+};
