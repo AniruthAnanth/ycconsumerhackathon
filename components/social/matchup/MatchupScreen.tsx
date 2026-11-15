@@ -22,8 +22,9 @@ export default function MatchupScreen() {
       <TeamHeaders me={matchup.me} opponent={matchup.opponent} />
       <WinProbabilityBar mine={matchup.me.winProbability} theirs={matchup.opponent.winProbability} />
       <SectionLabel left="Matchup" />
-      {matchup.rows.map((row) => (
-        <SlotRow key={row.slot} row={row} />
+      {/* A player can have several flex rows, so the slot alone is not a unique key. */}
+      {matchup.rows.map((row, index) => (
+        <SlotRow key={`${row.slot}-${index}`} row={row} />
       ))}
     </ScrollView>
   );
