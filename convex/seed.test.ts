@@ -118,6 +118,8 @@ describe("seed.reset", () => {
       ["Priya Shah", "Ava Kim"],
       ["Jordan Lee", "Leo Martinez"],
     ]);
+    // Its scores are the standings' own, bonuses included.
+    expect(season.weeks[4].matchups[0]).toMatchObject({ scoreA: 500, scoreB: 285, winnerId: null });
     // Everyone has met everyone else once when this week ends.
     const met = season.weeks.slice(0, 5).flatMap((week) =>
       week.matchups.map((matchup) => [matchup.a.name, matchup.b.name].sort().join(" v ")),

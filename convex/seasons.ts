@@ -30,6 +30,7 @@ import {
   type TableRow,
 } from "./lib/schedule";
 import { leagueFormat, payout } from "./schema";
+import { leagueStandings } from "./standings";
 
 type UserId = Id<"users">;
 
@@ -175,9 +176,8 @@ export function buildSeason<Id extends string>({
 
 // ---- Loading ----------------------------------------------------------------
 
-/** Bounds, not page sizes: a league is a group of friends. */
+/** A bound, not a page size: a league is a group of friends. */
 const MAX_MEMBERS = 200;
-const MAX_TASKS_PER_WEEK = 100;
 
 async function loadMembers(
   ctx: QueryCtx,
@@ -191,32 +191,16 @@ async function loadMembers(
 }
 
 /**
- * A member's points for one league week: what their verified tasks earned,
- * less any penalty a failed task carries (a failed mystery task has negative
- * points). A drop's task scores only in the league the drop belongs to.
+ * Every member's points for one league week. They come from standings.ts, so
+ * a matchup here shows the same numbers as the League and Matchup tabs.
  */
 async function weekPoints(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
-  weekStart: number,
-  userId: UserId,
-): Promise<number> {
-  const tasks = await ctx.db
-    .query("tasks")
-    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
-    .take(MAX_TASKS_PER_WEEK);
-  let total = 0;
-  for (const task of tasks) {
-    const counts =
-      task.status === "verified" || (task.status === "failed" && task.points < 0);
-    if (!counts) continue;
-    if (task.dropId !== undefined) {
-      const drop = await ctx.db.get("drops", task.dropId);
-      if (drop?.leagueId !== leagueId) continue;
-    }
-    total += task.points;
-  }
-  return total;
+  weekId: Id<"weeks">,
+): Promise<Map<UserId, number>> {
+  const standings = await leagueStandings(ctx, leagueId, weekId);
+  return new Map(standings.map((standing) => [standing.userId, standing.points]));
 }
 
 async function loadSeason(
@@ -245,18 +229,19 @@ async function loadSeason(
     const matchups = withoutStandIns(
       stored.map((matchup) => ({ ...matchup, a: matchup.userA, b: matchup.userB })),
     );
+    // Scores frozen on the rows win. A week without them is scored once, for
+    // everyone; a player who has since left the league scores nothing.
+    const frozen = matchups.every(
+      (matchup) => matchup.scoreA !== undefined && matchup.scoreB !== undefined,
+    );
+    const points = frozen ? null : await weekPoints(ctx, league._id, week._id);
     for (const matchup of matchups) {
-      // Scores frozen on the row win; otherwise the week is scored from its tasks.
-      const [scoreA, scoreB] = await Promise.all([
-        matchup.scoreA ?? weekPoints(ctx, league._id, week.startsAt, matchup.userA),
-        matchup.scoreB ?? weekPoints(ctx, league._id, week.startsAt, matchup.userB),
-      ]);
       results.push({
         week: week.number,
         a: matchup.a,
         b: matchup.b,
-        scoreA,
-        scoreB,
+        scoreA: matchup.scoreA ?? points?.get(matchup.a) ?? 0,
+        scoreB: matchup.scoreB ?? points?.get(matchup.b) ?? 0,
         ...(isLive(week) ? { live: true } : {}),
       });
     }
