@@ -30,7 +30,8 @@ export function ContactsScreen() {
 
   const league = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip");
   const { state, allowAccess } = useContactMatch(leagueId);
-  const [declined, setDeclined] = useState<string[]>([]);
+  // Nobody is ticked to begin with: the player picks who gets a text.
+  const [picked, setPicked] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const linkMessage = useInviteMessage();
@@ -60,7 +61,7 @@ export function ContactsScreen() {
   });
 
   const invitees = state.status === "done" ? state.invitees : [];
-  const selected = invitees.filter(({ phone }) => !declined.includes(phone));
+  const selected = invitees.filter(({ phone }) => picked.includes(phone));
 
   async function sendInvites() {
     if (!league) return;
@@ -77,7 +78,7 @@ export function ContactsScreen() {
   }
 
   function toggle(phone: string) {
-    setDeclined((current) => (current.includes(phone) ? current.filter((entry) => entry !== phone) : [...current, phone]));
+    setPicked((current) => (current.includes(phone) ? current.filter((entry) => entry !== phone) : [...current, phone]));
   }
 
   /** The web copies the code; elsewhere the share sheet, which has Copy, carries it. */
@@ -141,12 +142,12 @@ export function ContactsScreen() {
         {invitees.length > 0 ? (
           <>
             <SectionLabel left="Not on Lineup yet" />
-            {invitees.map(({ phone, name }) => (
+            {invitees.map(({ phone, name, otherPhones }) => (
               <PersonRow
                 key={phone}
                 name={name}
-                detail={name === phone ? undefined : phone}
-                selected={!declined.includes(phone)}
+                detail={[name === phone ? null : phone, ...otherPhones].filter(Boolean).join(" · ") || undefined}
+                selected={picked.includes(phone)}
                 onToggle={() => toggle(phone)}
               />
             ))}

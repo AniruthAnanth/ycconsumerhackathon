@@ -31,10 +31,10 @@ export function useContactMatch(leagueId: Id<"leagues"> | undefined) {
       const permission = await Contacts.requestPermissionsAsync();
       if (!permission.granted) return setState({ status: "empty" });
       const details = await Contacts.Contact.getAllDetails([Contacts.ContactField.FULL_NAME, Contacts.ContactField.PHONES]);
-      const { phones, nameByPhone } = collectContactPhones(details);
+      const { phones, people } = collectContactPhones(details);
       if (phones.length === 0) return setState({ status: "empty" });
       const { added, notOnLineup } = await matchContacts({ leagueId, phones });
-      setState({ status: "done", added, invitees: inviteesFrom(notOnLineup, nameByPhone) });
+      setState({ status: "done", added, invitees: inviteesFrom(notOnLineup, people) });
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     }

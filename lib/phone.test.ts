@@ -52,18 +52,21 @@ describe("phoneHint", () => {
 });
 
 describe("collectContactPhones", () => {
-  it("normalises, de-duplicates and keeps the first name for a number", () => {
-    const { phones, nameByPhone } = collectContactPhones([
-      { fullName: "Ada Lovelace", phones: [{ number: "(415) 555-0100" }, { number: "junk" }] },
+  it("normalises and de-duplicates the numbers, one person per contact, mobile first", () => {
+    const { phones, people } = collectContactPhones([
+      { fullName: "Ada Lovelace", phones: [{ number: "(415) 555-0100", label: "home" }, { number: "junk" }, { number: "415 555 0102", label: "mobile" }] },
       { fullName: "Ada Again", phones: [{ number: "+1 415 555 0100" }] },
       { fullName: null, phones: [{ number: "415 555 0101" }, {}] },
       { fullName: "No Number" },
     ]);
-    expect(phones).toEqual(["+14155550100", "+14155550101"]);
-    expect(nameByPhone).toEqual({ "+14155550100": "Ada Lovelace", "+14155550101": "+14155550101" });
+    expect(phones).toEqual(["+14155550102", "+14155550100", "+14155550101"]);
+    expect(people).toEqual([
+      { name: "Ada Lovelace", phones: ["+14155550102", "+14155550100"] },
+      { name: "+14155550101", phones: ["+14155550101"] },
+    ]);
   });
 
-  it("caps the list", () => {
+  it("caps the numbers sent", () => {
     const contacts = Array.from({ length: MAX_CONTACT_PHONES + 20 }, (_, index) => ({
       fullName: `Contact ${index}`,
       phones: [{ number: `+1415${String(5550000 + index)}` }],
@@ -73,13 +76,17 @@ describe("collectContactPhones", () => {
 });
 
 describe("inviteesFrom", () => {
-  it("names each number from the device, sorts by name and caps the list", () => {
-    expect(inviteesFrom(["+2", "+1", "+3"], { "+1": "Zed", "+2": "Amy" })).toEqual([
-      { phone: "+3", name: "+3" },
-      { phone: "+2", name: "Amy" },
-      { phone: "+1", name: "Zed" },
+  it("gives one row per person, texting their first number, sorted by name", () => {
+    const people = [
+      { name: "Zed", phones: ["+1", "+4"] },
+      { name: "Amy", phones: ["+2"] },
+      { name: "On Lineup", phones: ["+3", "+5"] },
+    ];
+    expect(inviteesFrom(["+1", "+2", "+4", "+5"], people)).toEqual([
+      { phone: "+2", name: "Amy", otherPhones: [] },
+      { phone: "+1", name: "Zed", otherPhones: ["+4"] },
     ]);
-    const many = Array.from({ length: MAX_INVITEES + 5 }, (_, index) => `+${index}`);
-    expect(inviteesFrom(many, {})).toHaveLength(MAX_INVITEES);
+    const many = Array.from({ length: MAX_INVITEES + 5 }, (_, index) => ({ name: `P${index}`, phones: [`+${index}`] }));
+    expect(inviteesFrom(many.map((person) => person.phones[0]), many)).toHaveLength(MAX_INVITEES);
   });
 });
