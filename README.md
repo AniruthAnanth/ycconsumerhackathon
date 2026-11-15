@@ -16,13 +16,10 @@ A week goes like this:
 
 | Document | What it covers |
 | --- | --- |
-| [hackathon.md](hackathon.md) | How Convex, Capy and Revyl were used, with counts and the file behind each claim. |
+| [hackathon.md](hackathon.md) | How the project was built with Convex, Capy and Revyl, with counts and the file behind each claim. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | One diagram, the boundary rules, and a paragraph on every module. |
-| [docs/tracks/whop.md](docs/tracks/whop.md) | What moves through Whop, and what the sandbox could not do. |
-| [docs/tracks/keiki.md](docs/tracks/keiki.md) | What a player can do entirely by text. |
-| [docs/JUDGES.md](docs/JUDGES.md) | Ten questions a judge is likely to ask, with short answers. |
-| [docs/demo/SCRIPT.md](docs/demo/SCRIPT.md) | The two-minute demo, tap by tap, with a fallback for each step. |
-| [docs/demo/SLIDES.md](docs/demo/SLIDES.md) | A headline and a supporting line for each pitch screenshot. |
+| [docs/SCHEMA.md](docs/SCHEMA.md) | Every Convex table, its indexes and why each exists. |
+| [docs/SCORING.md](docs/SCORING.md) | The scoring, referee and settlement rules, with the functions that hold them. |
 | [docs/demo/ACCEPTANCE.md](docs/demo/ACCEPTANCE.md) | The device checks and their status. |
 | [docs/demo/REAL_PHONE.md](docs/demo/REAL_PHONE.md) | Opening the app on your own iPhone with Expo Go. |
 
@@ -55,7 +52,7 @@ lib/          Client helpers: the Convex client, token storage, the current leag
 modules/      on-device-referee, the one native module. Standalone iOS builds only.
 convex/       The backend, one module per domain. convex/lib/ holds the pure rules, each with its test.
 scripts/      The cloud iPhone build recipe and the slide tooling.
-docs/         What a judge reads: architecture, prize tracks, the demo.
+docs/         Engineering docs: architecture, schema, scoring, device checks.
 ```
 
 Backend modules by area. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has a paragraph on each.
