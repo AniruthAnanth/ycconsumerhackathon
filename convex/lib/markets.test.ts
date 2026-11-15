@@ -7,8 +7,8 @@ import {
   PRIOR_COMPLETION_RATE,
   projectScore,
   remainingChance,
+  simulatePot,
   thin,
-  topChances,
   winChance,
 } from "./markets";
 
@@ -91,28 +91,52 @@ describe("winChance", () => {
   });
 });
 
-describe("topChances", () => {
-  test("splits a field of equals evenly and always sums to one", () => {
-    const even = topChances([fixed(10), fixed(10), fixed(10), fixed(10)]);
-    even.forEach((chance) => expect(chance).toBeCloseTo(0.25, 2));
-    const mixed = topChances([
-      projectScore({ confirmed: 200, openValues: [50], chance: 0.5 }),
-      projectScore({ confirmed: 180, openValues: [50, 50], chance: 0.5 }),
-      fixed(40),
-    ]);
-    expect(mixed.reduce((sum, chance) => sum + chance, 0)).toBeCloseTo(1, 9);
-    expect(mixed[2]).toBeLessThan(0.001);
+describe("simulatePot", () => {
+  const finished = (confirmed: number) => ({ inPot: true, confirmed, clearedSlots: 5, open: [], chance: 0 });
+  const chasing = (confirmed: number, slotsLeft: number, chance: number) => ({
+    inPot: true,
+    confirmed,
+    clearedSlots: 5 - slotsLeft,
+    open: ["body", "mind", "recharge", "chores", "people"].slice(0, slotsLeft).map((slot) => ({ value: 55, clearsSlot: slot })),
+    chance,
+  });
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+  test("the pot chances and nobody-finishes always add up to exactly 1", () => {
+    const fields = [
+      [finished(500), chasing(285, 1, 0.3), chasing(195, 2, 0.2), chasing(0, 5, 0.1)],
+      [chasing(100, 3, 0.5), chasing(120, 2, 0.5), chasing(90, 4, 0.9)],
+      [chasing(0, 5, 0), chasing(0, 5, 0)],
+      [finished(200), finished(200)],
+    ];
+    for (const field of fields) {
+      const odds = simulatePot(field);
+      expect(sum(odds.pot) + odds.nobody).toBeCloseTo(1, 9);
+      expect(sum(odds.top)).toBeCloseTo(1, 9);
+    }
   });
 
-  test("agrees with winChance for two players", () => {
-    const a = projectScore({ confirmed: 150, openValues: [40, 20], chance: 0.5 });
-    const b = projectScore({ confirmed: 140, openValues: [40], chance: 0.7 });
-    expect(topChances([a, b])[0]).toBeCloseTo(winChance(a, b), 2);
+  test("a finished leader no chaser can catch takes the whole pot", () => {
+    const odds = simulatePot([finished(500), chasing(285, 1, 0.9), chasing(60, 4, 0.9)]);
+    expect(odds.pot[0]).toBe(1);
+    expect(odds.nobody).toBe(0);
+    expect(odds.finish[0]).toBe(1);
+    expect(odds.finish[1]).toBeGreaterThan(0.85);
   });
 
-  test("handles the trivial fields", () => {
-    expect(topChances([])).toEqual([]);
-    expect(topChances([fixed(5)])).toEqual([1]);
+  test("nobody finishing returns the stakes, and an unpaid member never takes the pot", () => {
+    expect(simulatePot([chasing(10, 5, 0), chasing(20, 5, 0)]).nobody).toBe(1);
+    const odds = simulatePot([{ ...finished(500), inPot: false }, finished(100)]);
+    expect(odds.pot).toEqual([0, 1]);
+    expect(odds.top).toEqual([1, 0]);
+  });
+
+  test("ties split, and the same seed gives the same answer", () => {
+    expect(simulatePot([finished(200), finished(200)]).pot).toEqual([0.5, 0.5]);
+    const field = [chasing(100, 2, 0.6), chasing(110, 3, 0.7)];
+    expect(simulatePot(field)).toEqual(simulatePot(field));
+    // Each open task lands about `chance` of the time: finishing two slots at 0.6 is about 0.36.
+    expect(simulatePot(field).finish[0]).toBeCloseTo(0.36, 1);
   });
 });
 

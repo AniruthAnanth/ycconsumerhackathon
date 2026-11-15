@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 
+import { formatNet, useMarket } from "@/components/markets";
 import { Icon } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -15,6 +16,10 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
   const router = useRouter();
   const week = useQuery(api.leaderboards.board, leagueId ? { leagueId, board: "week" } : "skip");
   const projection = useProjection(leagueId);
+  // A weekly pot shows the Matchup card's own figure, so the two can never disagree; a season
+  // payout or a settled week keeps the leaderboards projection, which knows about both.
+  const market = useMarket(leagueId);
+  const live = market?.payout.eligible ? market.payout : undefined;
   if (!leagueId) return null;
 
   const place = week ? placeLabel(week.rows) : undefined;
@@ -25,7 +30,9 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
       <Text style={styles.place}>
         {place ?? "Leaderboards"}
       </Text>
-      {projection ? (
+      {live ? (
+        <Text style={[styles.projection, live.expectedNetUsd >= 0.5 && styles.gain]}>{`Projected ${formatNet(live.expectedNetUsd)}`}</Text>
+      ) : projection ? (
         <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]}>
           {projection.label}
         </Text>

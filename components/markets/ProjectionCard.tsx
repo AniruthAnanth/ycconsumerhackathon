@@ -24,11 +24,11 @@ export function ProjectionCard({ market }: { market: Market }) {
   return (
     <View style={styles.card} testID="projection-card">
       {payout.eligible ? (
-        <View style={styles.row} accessible accessibilityLabel={`Projected pot winnings ${formatNet(payout.expectedNetUsd)} this week, ${formatChance(payout.finishChance)} to win the pot, between ${formatNet(payout.lowNetUsd)} and ${formatNet(payout.highNetUsd)}`}>
+        <View style={styles.row} accessible accessibilityLabel={`Projected pot winnings ${formatNet(payout.expectedNetUsd)} this week, ${formatChance(payout.potChance)} to win the pot, between ${formatNet(payout.lowNetUsd)} and ${formatNet(payout.highNetUsd)}`}>
           <View style={styles.grow}>
             <Text style={styles.eyebrow}>PROJECTED WINNINGS (POT)</Text>
             <CountUp style={[styles.figure, { color: gaining ? colors.green : colors.danger }]} value={Math.round(payout.expectedNetUsd)} format={formatNet} fromZero />
-            <Text style={styles.meta}>{`${formatNet(payout.lowNetUsd)} to ${formatNet(payout.highNetUsd)} · ${formatChance(payout.finishChance)} to win the pot`}</Text>
+            <Text style={styles.meta}>{`${formatNet(payout.lowNetUsd)} to ${formatNet(payout.highNetUsd)} · ${formatChance(payout.potChance)} to win the pot`}</Text>
           </View>
           <Svg width={SPARK.width} height={SPARK.height} accessible={false}>
             <DrawLine d={d} length={SPARK.width * 2} color={gaining ? colors.green : colors.danger} width={2} />

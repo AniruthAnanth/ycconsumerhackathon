@@ -24,12 +24,13 @@ import {
   projectScore,
   remainingChance,
   thin,
-  topChances,
+  simulatePot,
   winChance,
   type HistoryPoint,
   type ScoreProjection,
 } from "./lib/markets";
-import { finishProbability, projectPayout } from "./lib/projection";
+import { projectPayout } from "./lib/projection";
+import { resolveSettings } from "./lib/schedule";
 import { clearedSlots, CORE_SLOTS, SLOT_CLEARED_BONUS, type ScorableTask } from "./lib/scoring";
 import { pacificDay, startOfPacificDay } from "./lib/week";
 import { leagueStandings, opponentInWeek, tasksCountingIn, type MemberStanding } from "./standings";
@@ -97,15 +98,20 @@ function stateAt(replay: Replay, at: number, week: Doc<"weeks">) {
     return sum + task.points + (task.source === "draft" && task.slot !== "flex" ? SLOT_CLEARED_BONUS : 0);
   }, 0);
   // An open drafted task in a slot not yet cleared also earns that slot's bonus when it lands.
-  const openValues = existing
+  const open = existing
     .filter(({ verifiedAt }) => verifiedAt === undefined || verifiedAt > at)
-    .map(({ task }) => task.points + (task.source === "draft" && task.slot !== "flex" && !cleared.has(task.slot) ? SLOT_CLEARED_BONUS : 0));
-  const fractionLeft = (week.endsAt - at) / (week.endsAt - week.startsAt);
+    .map(({ task }) => {
+      const clearsSlot = task.source === "draft" && task.slot !== "flex" && !cleared.has(task.slot) ? task.slot : undefined;
+      return { value: task.points + (clearsSlot ? SLOT_CLEARED_BONUS : 0), ...(clearsSlot && { clearsSlot }) };
+    });
+  const chance = remainingChance(replay.rate, (week.endsAt - at) / (week.endsAt - week.startsAt));
   const confirmed = Number.isFinite(at) ? Math.round(rawConfirmed * replay.scale) : replay.standing.points;
   return {
     rawConfirmed,
     slotsCleared: cleared.size,
-    projection: projectScore({ confirmed, openValues, chance: remainingChance(replay.rate, fractionLeft) }),
+    open,
+    chance,
+    projection: projectScore({ confirmed, openValues: open.map((task) => task.value), chance }),
   };
 }
 
@@ -168,12 +174,16 @@ export const week = query({
         expectedNetUsd: v.number(),
         lowNetUsd: v.number(),
         highNetUsd: v.number(),
-        finishChance: v.number(),
+        potChance: v.number(),
         history: v.array(v.object({ at: v.number(), netUsd: v.number() })),
       }),
-      odds: v.array(
-        v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), weekChance: v.number(), finishChance: v.number(), projected: v.number() }),
-      ),
+      odds: v.object({
+        /** "pot" in a staked league; "week" (chance of the top score) in a free one, which has no pot. */
+        kind: v.union(v.literal("pot"), v.literal("week")),
+        rows: v.array(v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), chance: v.number(), finishChance: v.number(), projected: v.number() })),
+        /** The chance nobody clears all five and every stake goes back; with the rows it sums to 1. */
+        nobody: v.number(),
+      }),
     }),
   ),
   handler: async (ctx, args) => {
@@ -230,19 +240,32 @@ export const week = query({
       return { at, netUsd: projection.eligible ? net(projection.expectedCents, projection.stakeCents) : 0 };
     });
 
-    const daysLeft = (week.endsAt - asOf) / DAY_MS;
-    const top = topChances(atNow.map((state) => state.projection));
-    const odds = replays
-      .map((replay, i) => ({
-        userId: replay.standing.userId,
-        name: replay.standing.name,
-        isMe: replay === mine,
-        // Rounded so a field of long shots sorts by projection, not by grid noise in the last decimals.
-        weekChance: Math.round(top[i] * 1000) / 1000,
-        finishChance: finishProbability(atNow[i].slotsCleared, daysLeft),
-        projected: Math.round(atNow[i].projection.mean),
-      }))
-      .sort((a, b) => b.weekChance - a.weekChance || b.projected - a.projected || a.name.localeCompare(b.name));
+    // A season-payout league settles once, at the season's end, so this week has no pot of its own to price.
+    const staked = league.stakeUsd > 0 && resolveSettings(league).payout !== "season";
+    const sim = simulatePot(
+      atNow.map((state, i) => ({
+        inPot: replays[i].standing.paid,
+        confirmed: state.projection.confirmed,
+        clearedSlots: state.slotsCleared,
+        open: state.open,
+        chance: state.chance,
+      })),
+    );
+    const chances = staked ? sim.pot : sim.top;
+    const odds = {
+      kind: staked ? ("pot" as const) : ("week" as const),
+      rows: replays
+        .map((replay, i) => ({
+          userId: replay.standing.userId,
+          name: replay.standing.name,
+          isMe: replay === mine,
+          chance: chances[i],
+          finishChance: sim.finish[i],
+          projected: Math.round(atNow[i].projection.mean),
+        }))
+        .sort((a, b) => b.chance - a.chance || b.projected - a.projected || a.name.localeCompare(b.name)),
+      nobody: staked ? sim.nobody : 0,
+    };
 
     return {
       asOf,
@@ -250,12 +273,13 @@ export const week = query({
       me: toRange(atNow[replays.indexOf(mine)].projection),
       matchup,
       payout: {
-        eligible: payoutNow.eligible,
+        // Once settled the payout is a fact, not a projection; the leaderboards strip says "Won" or "Lost" instead.
+        eligible: staked && payoutNow.eligible && week.status !== "settled",
         stakeUsd: league.stakeUsd,
         expectedNetUsd: net(payoutNow.expectedCents, payoutNow.stakeCents),
         lowNetUsd: net(payoutNow.lowCents, payoutNow.stakeCents),
         highNetUsd: net(payoutNow.highCents, payoutNow.stakeCents),
-        finishChance: payoutNow.finishProbability,
+        potChance: sim.pot[replays.indexOf(mine)],
         history: payoutHistory,
       },
       odds,
