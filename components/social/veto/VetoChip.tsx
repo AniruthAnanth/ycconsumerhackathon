@@ -30,7 +30,7 @@ export function VetoChip({
   const cast = useMutation(socialApi.vetoes.cast);
   const label = chipLabel(veto);
   const onPress = () => {
-    haptics.select();
+    haptics.veto();
     cast({ taskId: veto.taskId, leagueId }).catch((error) =>
       notify(errorMessage(error)),
     );
