@@ -36,5 +36,5 @@ function TeamHeader({ side, align }: { side: MatchupSide; align: "flex-start" | 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.lg },
   team: { flex: 1, gap: spacing.xs },
-  name: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold, maxWidth: "100%" },
+  name: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.extraBold, maxWidth: "100%" },
 });

@@ -6,7 +6,7 @@ import { type FeedReaction, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors, fontFamily } from "@/theme";
+import { colors, fontFamily, MIN_TARGET, radius } from "@/theme";
 
 import { reactionButtons } from "./feedLogic";
 
@@ -42,9 +42,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    height: 32,
+    minHeight: MIN_TARGET,
     paddingHorizontal: 10,
-    borderRadius: 16,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.divider,
   },

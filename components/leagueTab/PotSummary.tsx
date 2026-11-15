@@ -4,7 +4,7 @@ import { CountUp } from "@/components/motion";
 import { Divider, Icon } from "@/components/ui";
 import type { Pot } from "@/lib/backend";
 import { formatCountdown, formatUsd, isSettled } from "@/lib/leagueText";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 type Props = { pot: Pot; now: number };
 
@@ -59,17 +59,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    marginHorizontal: SCREEN_MARGIN,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   amount: { fontSize: font.pot, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
   meta: { alignItems: "flex-end", gap: 2 },
   muted: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
-  group: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs },
+  group: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, gap: spacing.xs },
   names: { flexDirection: "row", flexWrap: "wrap", columnGap: spacing.md, rowGap: spacing.xs },
   name: { flexDirection: "row", alignItems: "center", gap: 2 },
-  nameText: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text },
+  nameText: { fontFamily: fontFamily.semiBold, fontSize: font.body, color: colors.text },
   unpaid: { color: colors.textMuted },
 });

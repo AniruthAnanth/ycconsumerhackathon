@@ -4,7 +4,7 @@ import { CountUp, ReorderRow } from "@/components/motion";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing } from "@/theme";
 
 // Fixed widths keep every number in a column lined up whatever the names are.
 const COL = { rank: 28, slots: 44, points: 56, streak: 56 } as const;
@@ -63,26 +63,26 @@ export function StandingsTable({ rows, viewerId, onPressPlayer }: Props) {
 const styles = StyleSheet.create({
   // Same look as SectionLabel, which only has room for two labels.
   header: {
-    height: 28,
+    height: 36,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.strip,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
   heading: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   right: { textAlign: "right" },
-  row: { height: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md },
+  row: { height: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: SCREEN_MARGIN },
   viewer: { backgroundColor: colors.accentTint },
   playerCol: { flex: 1 },
-  rank: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.textMuted, fontVariant: ["tabular-nums"] },
+  rank: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   player: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   nameBlock: { flex: 1 },
   name: { fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
   unpaid: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   slots: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted, textAlign: "right", fontVariant: ["tabular-nums"] },
-  points: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text, textAlign: "right", fontVariant: ["tabular-nums"] },
+  points: { fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.text, textAlign: "right", fontVariant: ["tabular-nums"] },
   streak: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2 },
   streakText: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text, fontVariant: ["tabular-nums"] },
 });

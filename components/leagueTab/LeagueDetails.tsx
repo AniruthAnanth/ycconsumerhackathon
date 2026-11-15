@@ -5,7 +5,7 @@ import { Divider, Icon, SectionLabel } from "@/components/ui";
 import type { League, Pot } from "@/lib/backend";
 import { formatCountdown, formatUsd, inviteMessage, isSettled } from "@/lib/leagueText";
 import { shareText } from "@/lib/native/share";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 type Props = { league: League; pot: Pot; now: number };
 
@@ -50,9 +50,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  row: { height: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md },
+  row: { height: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: SCREEN_MARGIN },
   label: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   value: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
-  invite: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  invite: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md },
   valueWithIcon: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });
