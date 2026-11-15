@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
+import { Component, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/components/ui";
@@ -11,6 +12,14 @@ import { seasonProgress, settingsSummary } from "./settings";
 
 /** The League tab's way into the Season screen: one row saying where the season stands. */
 export function SeasonLink({ leagueId }: { leagueId: Id<"leagues"> }) {
+  return (
+    <HideOnError>
+      <SeasonRow leagueId={leagueId} />
+    </HideOnError>
+  );
+}
+
+function SeasonRow({ leagueId }: { leagueId: Id<"leagues"> }) {
   const router = useRouter();
   const season = useQuery(api.seasons.overview, { leagueId });
   // The row is a shortcut, not content: it appears once there is something to say.
@@ -30,6 +39,24 @@ export function SeasonLink({ leagueId }: { leagueId: Id<"leagues"> }) {
       <Icon name="chevron-forward" size={18} color={colors.textFaint} />
     </Pressable>
   );
+}
+
+/**
+ * This row is mounted in the League tab, which another module owns. A failed
+ * season query throws while rendering, and without a boundary of its own it
+ * would take the pot and standings down with it; losing one shortcut is the
+ * right price instead.
+ */
+class HideOnError extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
 const styles = StyleSheet.create({
