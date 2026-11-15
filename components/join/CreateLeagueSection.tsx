@@ -1,19 +1,17 @@
-import { useMutation } from "convex/react";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { OutlinedPillButton, SectionLabel, TextField } from "@/components/ui";
-import { backend } from "@/lib/backend";
 import { spacing } from "@/theme";
 
-import { ErrorLine } from "./ErrorLine";
 import { StakePicker } from "./StakePicker";
 import type { Stake } from "./stakes";
 import type { useJoinLeague } from "./useJoinLeague";
 
 export function CreateLeagueSection({ joining }: { joining: ReturnType<typeof useJoinLeague> }) {
-  const create = useMutation(backend.leagues.create);
-  const { join, busy, failure } = joining;
+  const router = useRouter();
+  const { busy } = joining;
   const [name, setName] = useState("");
   const [stakeUsd, setStakeUsd] = useState<Stake>(0);
   const leagueName = name.trim();
@@ -27,10 +25,15 @@ export function CreateLeagueSection({ joining }: { joining: ReturnType<typeof us
           <OutlinedPillButton
             label="Create"
             disabled={busy || !leagueName}
-            onPress={() => join("create", () => create({ name: leagueName, stakeUsd, visibility: "private" }))}
+            // The league is created on the next screen, once its payout, season length and format are picked.
+            onPress={() =>
+              router.push({
+                pathname: "/league-settings",
+                params: { name: leagueName, stakeUsd: String(stakeUsd), visibility: "private" },
+              })
+            }
           />
         </View>
-        {failure?.section === "create" ? <ErrorLine message={failure.message} /> : null}
       </View>
     </>
   );
