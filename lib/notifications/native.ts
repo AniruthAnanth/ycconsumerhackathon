@@ -8,8 +8,9 @@
  * there; what Expo Go and simulators can't supply is a push token, and expoPushToken() then
  * resolves with null.
  */
+import { isRunningInExpoGo } from "expo";
 import Constants from "expo-constants";
-import { Platform } from "react-native";
+import { LogBox, Platform } from "react-native";
 
 import {
   CHECK_IN_ACTION,
@@ -23,12 +24,20 @@ import { incomingOf, urlToOpen, type Incoming, type Presentation } from "./rules
 type ExpoNotifications = typeof import("expo-notifications");
 
 /**
+ * In Expo Go the package warns, as it loads, that push needs a development build. Lineup only
+ * uses what Expo Go does support (local notifications), and the warning would otherwise sit on
+ * the screen of the phone the demo runs on. It still reaches the terminal.
+ */
+const EXPO_GO_WARNING = "`expo-notifications` functionality is not fully supported in Expo Go";
+
+/**
  * Loaded with require rather than import: the package looks up its native modules as it loads
  * and throws when the binary has none, and an import would take the whole app down with it.
  */
 function load(): ExpoNotifications | null {
   if (Platform.OS === "web") return null;
   try {
+    LogBox.ignoreLogs([EXPO_GO_WARNING]);
     return require("expo-notifications") as ExpoNotifications;
   } catch {
     return null;
@@ -227,13 +236,14 @@ export function onOpen(open: (url: string) => void): () => void {
 const TOKEN_TIMEOUT_MS = 10 * 1000;
 
 /**
- * This device's Expo push token, or null when one can't be had: no EAS project id in the app
- * config (which is how Expo's push service knows whose app the token belongs to), Expo Go, a
- * simulator, or a build signed without the push entitlement. Null is the normal case today,
- * and it only means the backend has nowhere to push; local notifications are unaffected.
+ * This device's Expo push token, or null when one can't be had: Expo Go (which has had no
+ * remote push since SDK 53), no EAS project id in the app config (which is how Expo's push
+ * service knows whose app the token belongs to), a simulator, or a build signed without the
+ * push entitlement. Null is the normal case today, and it only means the backend has nowhere
+ * to push; local notifications are unaffected.
  */
 export async function expoPushToken(): Promise<string | null> {
-  if (!Notifications) return null;
+  if (!Notifications || isRunningInExpoGo()) return null;
   const projectId: unknown = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   if (typeof projectId !== "string" || projectId === "") return null;
   try {
