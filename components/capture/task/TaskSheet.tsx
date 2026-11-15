@@ -22,8 +22,9 @@ export function TaskSheet({ taskId }: { taskId: string }) {
   // Opened from a link or after a reload there is no screen underneath to go back to.
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
 
+  // Presented as a form sheet, which starts below the status bar, so only the bottom needs a safe-area inset.
   return (
-    <Screen>
+    <Screen edges={["bottom"]}>
       <Header
         title="Task"
         right={
