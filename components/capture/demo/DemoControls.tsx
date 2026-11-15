@@ -29,6 +29,7 @@ export function DemoControls() {
   const me = useQuery(backend.users.me);
   const players = useQuery(capture.seed.players);
   const triggerQuickTime = useMutation(capture.drops.triggerQuickTime);
+  const triggerMystery = useMutation(capture.drops.triggerMystery);
   const settleWeek = useAction(capture.whop.settleWeek);
   const resetSeed = useMutation(capture.seed.reset);
   const actAs = useMutation(capture.seed.actAs);
@@ -47,6 +48,13 @@ export function DemoControls() {
         disabled={!leagueId}
         run={async () => {
           if (leagueId) await triggerQuickTime({ leagueId });
+        }}
+      />
+      <ActionRow
+        label="Trigger Mystery Task"
+        disabled={!leagueId}
+        run={async () => {
+          if (leagueId) await triggerMystery({ leagueId });
         }}
       />
       <ActionRow
