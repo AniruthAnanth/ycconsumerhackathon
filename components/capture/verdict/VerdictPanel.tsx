@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Artwork } from "@/components/art";
 import { ShareChallenge } from "@/components/invite";
 import { Button, Divider } from "@/components/ui";
-import { colors, font, fontFamily, hairline, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, font, fontFamily, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { FadeIn } from "./FadeIn";
 import { PointsCounter } from "./PointsCounter";
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   closeCall: {
     color: colors.textMuted,
     borderColor: colors.divider,
-    borderWidth: hairline,
+    borderWidth: BORDER,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     fontSize: font.label,

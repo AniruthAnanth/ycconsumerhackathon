@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
 import { Icon } from "@/components/ui";
-import { colors, layout, radius, spacing, type } from "@/theme";
+import { BORDER, colors, layout, radius, spacing, type } from "@/theme";
 
 type Props = {
   label: string;
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     minHeight: layout.rowMin,
     padding: spacing.lg,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.divider,
     backgroundColor: colors.surface,
   },

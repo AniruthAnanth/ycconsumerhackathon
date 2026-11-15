@@ -159,4 +159,7 @@ export const ROW_HEIGHT_COMPACT = 60;
 
 export const hairline = StyleSheet.hairlineWidth;
 
+/** The one outline weight for cards, fields and outlined controls (colour: colors.divider, or the accent when selected). Lists use hairline dividers instead. */
+export const BORDER = 1;
+
 export const tabUnderlineHeight = 3;

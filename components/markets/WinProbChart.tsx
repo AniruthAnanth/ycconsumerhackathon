@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
 
 import { CountUp } from "@/components/motion";
-import { colors, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { areaPath, deltaLabel, formatChance, stepPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.surface,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.divider,
   },
   eyebrow: { ...type.caption, color: colors.textMuted, letterSpacing: 0.6 },

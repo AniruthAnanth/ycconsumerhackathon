@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SectionLabel } from "@/components/ui";
 import type { LeagueSettings } from "@/convex/lib/schedule";
-import { colors, font, fontFamily, MIN_TARGET, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { BORDER, colors, font, fontFamily, MIN_TARGET, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { FORMAT_CHOICES, PAYOUT_CHOICES, SEASON_WEEKS_CHOICES, type Choice } from "./settings";
 
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: colors.accent,
     backgroundColor: colors.background,
   },

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
 import type { DevFlags } from "@/lib/devFlags";
 import { RowDivider } from "@/components/ui";
-import { colors, font, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 /** A development flag with its switch. */
 export function FlagRow({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingVertical: spacing.sm,
-    borderWidth: hairline,
+    borderWidth: BORDER,
     borderColor: colors.accent,
     borderRadius: radius.pill,
   },

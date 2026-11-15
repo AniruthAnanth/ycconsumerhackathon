@@ -11,7 +11,7 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { formatCountdown } from "@/lib/leagueText";
 import { useNow } from "@/lib/useNow";
 import { planProgress, planProgressLabel } from "@/lib/weeklyPlan";
-import { colors, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
  * The top of Roster, laid out like a fantasy app's matchup card: the head-to-head score is the
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
-    borderWidth: hairline,
+    borderWidth: BORDER,
     borderColor: colors.divider,
   },
   loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },

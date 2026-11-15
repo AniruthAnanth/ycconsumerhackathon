@@ -6,7 +6,7 @@ import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors, font, fontFamily, MIN_TARGET, progress, radius, SCREEN_MARGIN, spacing, tabular } from "@/theme";
+import { BORDER, colors, font, fontFamily, MIN_TARGET, progress, radius, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import { challengeStatus, legitShare } from "./feedLogic";
 
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: spacing.md,
     borderRadius: radius.control,
-    borderWidth: 1,
+    borderWidth: BORDER,
     borderColor: "transparent",
   },
   sideVotable: { borderColor: colors.divider },
