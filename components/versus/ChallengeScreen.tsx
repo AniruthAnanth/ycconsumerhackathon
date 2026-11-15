@@ -9,7 +9,7 @@ import type { Stake } from "@/components/join/stakes";
 import { Button, Header, Screen, SectionLabel } from "@/components/ui";
 import { OpponentPicker } from "./OpponentPicker";
 import { type Opponent, useChallenge } from "./useChallenge";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 /** Pick a stake and one friend for a head-to-head week. */
 export function ChallengeScreen() {
@@ -40,5 +40,5 @@ export function ChallengeScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md, gap: spacing.sm },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
 });

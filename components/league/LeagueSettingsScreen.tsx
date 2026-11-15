@@ -8,7 +8,7 @@ import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { Button, Header, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { DEFAULT_SETTINGS } from "@/convex/lib/schedule";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { SettingsPicker } from "./SettingsPicker";
 
@@ -51,5 +51,5 @@ export function LeagueSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  footer: { gap: spacing.sm, padding: spacing.lg },
+  footer: { gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
 });

@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { formatScore } from "@/components/ui";
-import { colors, font, fontFamily, hairline, radius, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, MIN_TARGET, radius, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import type { Bracket, BracketMatch, BracketRound, BracketSide } from "./types";
 
@@ -13,9 +13,9 @@ type Props = {
 
 const LINE_HEIGHT = 28;
 const MATCH_HEIGHT = LINE_HEIGHT * 2 + hairline * 3;
-const MATCH_GAP = 14;
+const MATCH_GAP = spacing.md;
 const COLUMN_WIDTH = 168;
-const CONNECTOR_WIDTH = 16;
+const CONNECTOR_WIDTH = spacing.lg;
 
 /**
  * Every slot in round r is twice as tall as in round r-1, and a match is centred in its slot.
@@ -56,7 +56,7 @@ export function SeasonBracket({ bracket, meId, onPlayerPress }: Props) {
             <Text style={styles.columnLabel}>CHAMPION</Text>
             <View style={[styles.championSlot, { height: slotHeight(lastRoundIndex) }]}>
               <Pressable disabled={!onPlayerPress} onPress={() => onPlayerPress?.(champion.userId)}>
-                <Text style={[styles.championName, champion.userId === meId && styles.me]} numberOfLines={1}>
+                <Text style={[styles.championName, champion.userId === meId && styles.me]}>
                   {champion.name}
                 </Text>
               </Pressable>
@@ -174,6 +174,7 @@ function SideLine({ side, score, status, hasScore, meId, onPlayerPress }: SideLi
   return (
     <Pressable
       style={styles.line28}
+      hitSlop={spacing.sm}
       disabled={!onPlayerPress}
       onPress={() => onPlayerPress?.(side.userId)}
       accessibilityRole="button"
@@ -202,14 +203,14 @@ function SideLine({ side, score, status, hasScore, meId, onPlayerPress }: SideLi
 
 const styles = StyleSheet.create({
   projected: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingTop: spacing.md,
     fontSize: font.label,
     fontFamily: fontFamily.bold,
     letterSpacing: 0.6,
     color: colors.textMuted,
   },
-  content: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
+  content: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.lg },
   column: { width: COLUMN_WIDTH + CONNECTOR_WIDTH },
   columnLabel: {
     height: 36,
@@ -236,26 +237,26 @@ const styles = StyleSheet.create({
   line28: {
     height: LINE_HEIGHT,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "baseline",
     paddingHorizontal: spacing.sm,
   },
   seed: {
-    width: 16,
+    width: spacing.lg,
     fontFamily: fontFamily.regular, fontSize: font.label,
     color: colors.textMuted,
-    fontVariant: ["tabular-nums"],
+    ...tabular,
   },
   name: { flex: 1, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text },
   winnerName: { fontFamily: fontFamily.bold },
   mutedText: { color: colors.textMuted },
   me: { color: colors.accent },
   score: {
-    minWidth: 44,
+    minWidth: MIN_TARGET,
     textAlign: "right",
     fontSize: font.body,
     fontFamily: fontFamily.bold,
     color: colors.text,
-    fontVariant: ["tabular-nums"],
+    ...tabular,
   },
   unscored: { color: colors.textFaint },
   placeholder: { fontSize: font.meta, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textFaint },

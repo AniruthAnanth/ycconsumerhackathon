@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { projectionDetail } from "./format";
 import { useProjection } from "./useProjection";
@@ -17,7 +17,7 @@ export function ProjectionRange({ leagueId }: { leagueId: Id<"leagues"> | null }
   if (!projection?.eligible) return null;
   return (
     <View style={styles.line}>
-      <Text style={styles.text} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+      <Text style={styles.text}>
         {projectionDetail(projection)}
       </Text>
     </View>
@@ -26,9 +26,8 @@ export function ProjectionRange({ leagueId }: { leagueId: Id<"leagues"> | null }
 
 const styles = StyleSheet.create({
   line: {
-    height: 32,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Divider, formatScore } from "@/components/ui";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import type { SeasonMatchup, SeasonPlayer, SeasonWeek } from "./types";
 
@@ -22,7 +22,7 @@ export function SeasonSchedule({ weeks, meId, onPlayerPress }: Props) {
             <View key={matchup.a.userId + matchup.b.userId}>
               <ScoreLine player={matchup.a} score={matchup.scoreA} matchup={matchup} meId={meId} onPress={onPlayerPress} />
               <ScoreLine player={matchup.b} score={matchup.scoreB} matchup={matchup} meId={meId} onPress={onPlayerPress} />
-              <Divider />
+              <Divider inset={SCREEN_MARGIN} />
             </View>
           ))}
           {week.byes.length > 0 ? (
@@ -80,11 +80,11 @@ function ScoreLine({ player, score, matchup, meId, onPress }: ScoreLineProps) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 36,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.strip,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
@@ -92,25 +92,24 @@ const styles = StyleSheet.create({
   headerLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   live: { color: colors.accent },
   line: {
-    minHeight: 34,
+    minHeight: layout.rowMin,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "baseline",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    gap: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
+    gap: layout.columnGap,
   },
   name: { flex: 1, fontFamily: fontFamily.regular, fontSize: font.title, color: colors.text },
   won: { fontFamily: fontFamily.bold },
   lost: { color: colors.textMuted },
   me: { color: colors.accent },
-  score: { fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
+  score: { fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.text, ...tabular, minWidth: layout.numericColumn, textAlign: "right" },
   unscored: { color: colors.textFaint },
   note: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
-    fontFamily: fontFamily.regular, fontSize: font.meta,
+    fontFamily: fontFamily.regular,
+    fontSize: font.meta,
     color: colors.textMuted,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
 });

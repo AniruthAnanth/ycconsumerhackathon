@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Divider, Score } from "@/components/ui";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import type { SeasonTableRow } from "./types";
 
@@ -11,9 +11,10 @@ type Props = {
   onPlayerPress?: (userId: string) => void;
 };
 
-const RANK_WIDTH = 24;
-const RECORD_WIDTH = 56;
-const AVATAR_SIZE = 32;
+const RANK_WIDTH = spacing.xl;
+const RECORD_WIDTH = layout.numericColumn;
+const AVATAR_SIZE = layout.avatarCompact;
+const NAME_INSET = SCREEN_MARGIN + RANK_WIDTH + AVATAR_SIZE + spacing.sm;
 // Fixed, because the shared Score box grows with its figure: a 6-character
 // total in one row would push that row's record left of the other rows'.
 const POINTS_WIDTH = 72;
@@ -31,7 +32,7 @@ export function SeasonTable({ rows, meId, onPlayerPress }: Props) {
       {rows.map((row) => (
         <View key={row.userId}>
           <TableRow row={row} isMe={row.userId === meId} onPress={onPlayerPress} />
-          <Divider />
+          <Divider inset={NAME_INSET} />
         </View>
       ))}
     </View>
@@ -68,29 +69,29 @@ function TableRow({ row, isMe, onPress }: { row: SeasonTableRow; isMe: boolean; 
 
 const styles = StyleSheet.create({
   header: {
-    height: 36,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.strip,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
   headerLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   row: {
-    height: 56,
+    minHeight: layout.rowMin + spacing.lg,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
   },
   rank: { width: RANK_WIDTH },
   player: { flex: 1 },
   playerCell: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   points: { width: POINTS_WIDTH, alignItems: "flex-end" },
   pointsHeader: { width: POINTS_WIDTH, textAlign: "right" },
-  record: { width: RECORD_WIDTH, textAlign: "right", marginRight: spacing.md },
-  rankValue: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted },
+  record: { width: RECORD_WIDTH, textAlign: "right", marginRight: layout.columnGap },
+  rankValue: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted, ...tabular },
   name: { flex: 1, fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
   me: { color: colors.accent },
-  recordValue: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text, fontVariant: ["tabular-nums"] },
+  recordValue: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text, ...tabular },
 });

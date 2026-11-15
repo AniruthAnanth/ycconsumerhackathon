@@ -8,7 +8,7 @@ import { PersonRow } from "@/components/join/PersonRow";
 import { OutlinedPillButton, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { toE164 } from "@/lib/phone";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Opponent } from "./useChallenge";
 
@@ -57,5 +57,5 @@ export function OpponentPicker({ value, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md, gap: spacing.sm, alignItems: "flex-start" },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
 });

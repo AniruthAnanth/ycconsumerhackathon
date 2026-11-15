@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.lg,
     paddingHorizontal: SCREEN_MARGIN,
-    alignItems: "flex-start",
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
