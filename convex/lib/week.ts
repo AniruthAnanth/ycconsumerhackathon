@@ -9,6 +9,7 @@
  * gives the same answer in Convex's runtime, in Node tests and in Hermes on a phone.
  */
 
+export const MINUTE_MS = 60 * 1000;
 export const HOUR_MS = 60 * 60 * 1000;
 export const DAY_MS = 24 * HOUR_MS;
 
@@ -32,7 +33,7 @@ export function pacificOffsetHours(ts: number): number {
 }
 
 /** The instant shifted so that its UTC fields read as Pacific wall-clock time. */
-function pacificWallClock(ts: number): Date {
+export function pacificWallClock(ts: number): Date {
   return new Date(ts + pacificOffsetHours(ts) * HOUR_MS);
 }
 

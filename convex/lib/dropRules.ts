@@ -10,19 +10,7 @@
  * rows and calls these, which keeps every rule in exactly one place.
  */
 import type { Slot } from "./scoring";
-import { clockLabel, weekdayLabel } from "./week";
-
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-
-const SLOT_LABEL: Record<Slot, string> = {
-  body: "Body",
-  mind: "Mind",
-  recharge: "Recharge",
-  chores: "Chores",
-  people: "People",
-  flex: "Flex",
-};
+import { HOUR_MS, MINUTE_MS, clockLabel, weekdayLabel } from "./week";
 
 function pick<T>(items: readonly T[], random: () => number): T {
   return items[Math.min(items.length - 1, Math.floor(random() * items.length))];

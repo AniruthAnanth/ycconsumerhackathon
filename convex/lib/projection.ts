@@ -8,9 +8,9 @@
  * settlement it forecasts.
  */
 
+import { CORE_SLOTS, SLOT_CLEARED_BONUS, SWEEP_BONUS } from "./scoring";
 import { computeSettlement, type Entrant, type Settlement } from "./settlement";
 
-const DEFAULT_SLOTS_NEEDED = 5;
 const DEFAULT_PERIOD_DAYS = 7;
 
 /**
@@ -26,12 +26,7 @@ const PRIOR_WEIGHT_DAYS = 2;
  * finishers' points matters to the split, so these keep a late finisher's share honest
  * without modelling anyone's pace.
  */
-const SLOT_BONUS_POINTS = 25;
 const TYPICAL_TASK_POINTS = 30;
-
-/** The bonus for clearing all five slots. A season scales it with the number of slots. */
-const SWEEP_BONUS_POINTS = 100;
-const SLOTS_PER_WEEK = 5;
 
 /**
  * Scenarios double with every undecided member. 12 members is 4,096 settlements, which
@@ -75,7 +70,7 @@ export type Projection = {
 export function finishProbability(
   slotsCleared: number,
   daysLeft: number,
-  slotsNeeded = DEFAULT_SLOTS_NEEDED,
+  slotsNeeded: number = CORE_SLOTS.length,
   periodDays = DEFAULT_PERIOD_DAYS,
 ): number {
   const slotsOpen = slotsNeeded - slotsCleared;
@@ -119,7 +114,7 @@ export function projectPayout<UserId>(input: {
 }): Projection {
   const { stakeUsd, members, userId } = input;
   const settle = input.settle ?? computeSettlement;
-  const slotsNeeded = input.slotsNeeded ?? DEFAULT_SLOTS_NEEDED;
+  const slotsNeeded = input.slotsNeeded ?? CORE_SLOTS.length;
   const periodDays = input.periodDays ?? DEFAULT_PERIOD_DAYS;
   const daysLeft = Math.min(Math.max(input.daysLeft, 0), periodDays);
   const stakeCents = Math.round(stakeUsd * 100);
@@ -137,11 +132,11 @@ export function projectPayout<UserId>(input: {
     };
   }
 
-  const sweepBonus = (SWEEP_BONUS_POINTS * slotsNeeded) / SLOTS_PER_WEEK;
+  const sweepBonus = (SWEEP_BONUS * slotsNeeded) / CORE_SLOTS.length;
   const pointsIfFinished = (member: ProjectionMember<UserId>) =>
     member.points +
     (slotsNeeded - member.slotsCleared) *
-      (SLOT_BONUS_POINTS + TYPICAL_TASK_POINTS) +
+      (SLOT_CLEARED_BONUS + TYPICAL_TASK_POINTS) +
     sweepBonus;
 
   const chances = members.map((member) =>
