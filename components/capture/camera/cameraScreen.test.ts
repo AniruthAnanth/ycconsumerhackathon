@@ -10,6 +10,7 @@ describe("cameraScreen", () => {
     expect(cameraScreen({ sampleMedia: false, permission: granted, cameraFailed: false })).toEqual({
       live: true,
       askPermission: false,
+      unavailable: false,
       samples: false,
     });
   });
@@ -31,7 +32,14 @@ describe("cameraScreen", () => {
     expect(cameraScreen({ sampleMedia: false, permission: denied, cameraFailed: false }).askPermission).toBe(true);
   });
 
-  it("drops the live camera after a failure", () => {
-    expect(cameraScreen({ sampleMedia: false, permission: granted, cameraFailed: true }).live).toBe(false);
+  it("swaps a camera that would not start for the unavailable notice", () => {
+    expect(cameraScreen({ sampleMedia: false, permission: granted, cameraFailed: true })).toMatchObject({
+      live: false,
+      unavailable: true,
+    });
+  });
+
+  it("leaves a failed camera to the samples while the flag is on", () => {
+    expect(cameraScreen({ sampleMedia: true, permission: granted, cameraFailed: true }).unavailable).toBe(false);
   });
 });
