@@ -27,6 +27,7 @@ describe("feedKind", () => {
     expect(feedKind("draft")).toBe("proof");
     expect(feedKind("flex")).toBe("proof");
     expect(feedKind("drop")).toBe("drop");
+    // Tasks stored while the daily mystery task existed carry this source.
     expect(feedKind("mystery")).toBe("drop");
     expect(feedKind("group")).toBe("group");
   });
@@ -139,7 +140,7 @@ describe("feed.list and feed.react", () => {
       await prove(sam, "Wrong photo", { pass: false, confidence: 0.2, createdAt: NOW - 500 });
       const otherDrop = await ctx.db.insert("drops", {
         leagueId: otherLeagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40,
-        sealed: false, opensAt: NOW - 120_000, closesAt: NOW, status: "open",
+        opensAt: NOW - 120_000, closesAt: NOW, status: "open",
       });
       await prove(lee, "20 push-ups", { pass: true, confidence: 0.9, createdAt: NOW - 100 }, otherDrop);
       return { maya, sam, lee, olu, leagueId, otherLeagueId, mayaProof, samProof };

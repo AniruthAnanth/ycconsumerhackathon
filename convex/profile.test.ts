@@ -115,7 +115,7 @@ describe("profile.get", () => {
         name: "YC", inviteCode: "YC", stakeUsd: 5, visibility: "private", maxMembers: 8, createdBy: maya,
       });
       const dropId = await ctx.db.insert("drops", {
-        leagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40, sealed: false,
+        leagueId, kind: "quicktime", title: "20 push-ups", slot: "body", points: 40,
         opensAt: WEEK + 2 * DAY, closesAt: WEEK + 2 * DAY + 7_200_000, status: "closed",
       });
       const task = async (

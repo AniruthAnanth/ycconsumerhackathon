@@ -40,7 +40,7 @@ function client(): OpenAI {
 // ---------------------------------------------------------------------------
 
 export type JsonRequest = {
-  /** Names the schema in the API call, for example "mystery_task". Letters, digits and underscores. */
+  /** Names the schema in the API call, for example "proof_judgement". Letters, digits and underscores. */
   name: string;
   /** The system prompt: who the model is and the rules it follows. */
   instructions: string;

@@ -330,7 +330,6 @@ describe("lineup.roster", () => {
         slot: "body",
         points: 40,
         gesture: "three fingers up",
-        sealed: false,
         opensAt: NOW,
         closesAt: Date.UTC(2026, 10, 15, 22, 30), // 2:30 PM in Los Angeles
         status: "open",
@@ -358,7 +357,7 @@ describe("lineup.roster", () => {
     expect(inAway.rows.map((row) => row.source)).toEqual(["draft", "draft", "draft", "draft", "draft"]);
   });
 
-  it("charges the penalty of a failed mystery task", async () => {
+  it("counts the negative points of a stored failed task", async () => {
     const { t, as, userId } = await signedIn();
     await t.run((ctx) =>
       ctx.db.insert("tasks", {
@@ -369,6 +368,7 @@ describe("lineup.roster", () => {
         points: -30,
         proofType: "photo",
         status: "failed",
+        // "mystery" survives only on tasks stored before the daily mystery task was removed.
         source: "mystery",
       }),
     );

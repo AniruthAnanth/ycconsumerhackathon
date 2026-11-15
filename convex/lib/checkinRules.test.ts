@@ -82,16 +82,16 @@ describe("pickCheckIn", () => {
   });
 
   it("falls back to the task with the least time left", () => {
-    const mystery = task({ taskId: "mystery", slot: "recharge", source: "mystery", closesAt: NOW + 2 * HOUR });
-    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [legDay, mystery] })).toEqual({ kind: "at_risk", task: mystery });
+    const extra = task({ taskId: "extra", slot: "recharge", source: "flex", closesAt: NOW + 2 * HOUR });
+    expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [legDay, extra] })).toEqual({ kind: "at_risk", task: extra });
   });
 
   it("with equal time left, puts a task that clears a slot before one that only adds points", () => {
     const flex = task({ taskId: "flex", slot: "flex", source: "flex", points: 50 });
     const bodyDone = task({ taskId: "run", status: "verified" });
     const chores = task({ taskId: "laundry", slot: "chores", points: 10 });
-    // A drop task sits in a slot but never clears it, so it ranks with flex.
-    const bonusChores = task({ taskId: "desk", slot: "chores", source: "mystery", points: 45 });
+    // A bonus task sits in a slot but never clears it, so it ranks with flex.
+    const bonusChores = task({ taskId: "desk", slot: "chores", source: "flex", points: 45 });
     expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [flex, bodyDone, bonusChores, chores] })?.task.taskId).toBe("laundry");
     expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [flex, bodyDone, bonusChores] })?.task.taskId).toBe("flex");
   });
@@ -144,7 +144,7 @@ describe("pickCheckIn at a gym", () => {
   });
 
   it("picks the Body task that clears a slot first, then the one worth more", () => {
-    const bonus = task({ taskId: "bonus", source: "mystery", points: 90 });
+    const bonus = task({ taskId: "bonus", source: "flex", points: 90 });
     const small = task({ taskId: "small", points: 20 });
     const big = task({ taskId: "big", points: 50 });
     expect(pickCheckIn({ now: NOW, week: WEEK, tasks: [bonus, small], placeName: gym })?.task.taskId).toBe("small");

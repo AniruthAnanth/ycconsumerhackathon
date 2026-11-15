@@ -772,7 +772,6 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
     slot: QUICK_TIME.slot,
     points: QUICK_TIME.points,
     gesture: QUICK_TIME.gesture,
-    sealed: false,
     opensAt: momentAt(now, QUICK_TIME.opened),
     closesAt: momentAt(now, QUICK_TIME.closed),
     status: "closed",
