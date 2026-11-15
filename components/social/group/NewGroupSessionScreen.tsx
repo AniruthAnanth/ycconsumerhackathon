@@ -67,25 +67,12 @@ export function NewGroupSessionScreen() {
     if (!leagueId || !start) return;
     setSaving(true);
     try {
-      let coordinate = pin;
-      if (!pinMoved.current) {
-        // The pin is still the default or a GPS fix, so the typed name has never been looked up.
-        try {
-          const [match] = await Location.geocodeAsync(placeName.trim());
-          if (!match) {
-            notify("Place not found");
-            setSaving(false);
-            return;
-          }
-          coordinate = { lat: match.latitude, lng: match.longitude };
-        } catch {
-          // No geocoder (web, offline): keep the pin the player can see.
-        }
-      }
+      // The pin on the map is the place. A session started where the player is standing keeps the
+      // GPS fix even when the typed name ("YC office") is not something a geocoder can find.
       const dropId = await createGroupSession({
         leagueId,
         title: title.trim(),
-        place: { name: placeName.trim(), ...coordinate },
+        place: { name: placeName.trim(), ...pin },
         startsAt: start.startsAt,
       });
       router.replace(`/group/${dropId}`);
