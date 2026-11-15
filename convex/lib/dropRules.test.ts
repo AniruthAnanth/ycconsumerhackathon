@@ -9,8 +9,10 @@ import {
   groupSessionPoints,
   groupWrapUpText,
   mysteryLossPoints,
+  mysteryPrompt,
   mysteryText,
   mysteryWinPoints,
+  parseMystery,
   pickQuickTime,
   QUICK_TIME_IDEAS,
   QUICK_TIME_WINDOW_MS,
@@ -84,6 +86,25 @@ describe("mystery task", () => {
     expect(clampMysteryPoints(22.4)).toBe(22);
     expect(clampMysteryPoints(90)).toBe(30);
     expect(clampMysteryPoints(Number.NaN)).toBe(15);
+  });
+
+  it("accepts a usable answer from the model and rejects anything else", () => {
+    expect(parseMystery({ title: " Ten-minute jog ", slot: "body", points: 44 })).toEqual({
+      title: "Ten-minute jog",
+      slot: "body",
+      points: 30,
+    });
+    expect(parseMystery({ title: "", slot: "body", points: 20 })).toBeNull();
+    expect(parseMystery({ title: "Anything", slot: "flex", points: 20 })).toBeNull();
+    expect(parseMystery({ title: "Anything", slot: "body", points: "20" })).toBeNull();
+    expect(parseMystery(null)).toBeNull();
+  });
+
+  it("puts the player's memories in front of the model", () => {
+    expect(mysteryPrompt(["Skipped Body twice", "Cleared Chores early"])).toBe(
+      "What we remember about this player's past weeks:\n- Skipped Body twice\n- Cleared Chores early",
+    );
+    expect(mysteryPrompt([])).toMatch(/no history yet/);
   });
 
   it("writes the morning text exactly as SPEC.md section 7 has it", () => {

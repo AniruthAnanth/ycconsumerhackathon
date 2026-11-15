@@ -27,21 +27,28 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { askJson } from "./ai";
 import { requireUser } from "./lib/auth";
 import {
   clampMysteryPoints,
   clampWager,
   firstFinisher,
+  MYSTERY_INSTRUCTIONS,
+  MYSTERY_MEMORY_QUERY,
+  MYSTERY_SCHEMA,
   MYSTERY_WINDOW_MS,
   mysteryLossPoints,
+  mysteryPrompt,
   mysteryText,
   mysteryWinPoints,
+  parseMystery,
   pickFallbackMystery,
   pickQuickTime,
   QUICK_TIME_WINDOW_MS,
   quickTimePoints,
   quickTimeText,
 } from "./lib/dropRules";
+import { searchMemories } from "./memory";
 import { place, slot } from "./schema";
 
 /** leagues.maxMembers keeps every list here far below this; it only bounds the reads. */
@@ -185,12 +192,29 @@ export const dailyMystery = internalMutation({
   },
 });
 
-/** Chooses one player's mystery task, then seals it. An action because choosing calls out. */
+/**
+ * Chooses one player's mystery task, then seals it. Supermemory is searched before the model is
+ * asked, so the task reflects the player's past weeks ("you skipped Body twice, so here's an
+ * easy one").
+ */
 export const writeMystery = internalAction({
   args: { leagueId: v.id("leagues"), userId: v.id("users") },
   returns: v.null(),
   handler: async (ctx, { leagueId, userId }) => {
-    const idea = pickFallbackMystery();
+    let idea = pickFallbackMystery();
+    try {
+      const memories = await searchMemories(userId, MYSTERY_MEMORY_QUERY);
+      const answer = await askJson<unknown>({
+        name: "mystery_task",
+        instructions: MYSTERY_INSTRUCTIONS,
+        text: mysteryPrompt(memories),
+        schema: MYSTERY_SCHEMA,
+      });
+      idea = parseMystery(answer) ?? idea;
+    } catch (error) {
+      // A morning without an envelope is worse than a generic one, so the fixed list stands in.
+      console.warn(`Mystery task came from the fixed list: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
     await ctx.runMutation(internal.drops.sealMystery, { leagueId, userId, ...idea });
     return null;
   },
