@@ -158,8 +158,9 @@ async function rejectionBeforeJudging(
   imageTypes: (string | null)[],
 ): Promise<Verdict | null> {
   if (rules.location) {
-    // A text message carries no GPS, so a check-in can only happen in the app.
-    if (submission.via === "keiki") {
+    // A text message carries no GPS. Keiki passes the player's last in-app arrival when there
+    // is one within the hour (checkins.recentArrival); without it the check-in happens in the app.
+    if (submission.via === "keiki" && rules.location.distanceM === null) {
       return rejectWithoutJudging(
         `Check in at ${rules.location.placeName} from the app, so your location can be confirmed.`,
       );
