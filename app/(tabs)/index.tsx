@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CheckInPrompt } from "@/components/checkin";
 import { ProjectionLine } from "@/components/leaderboards";
-import { LiveActivitySync } from "@/components/liveActivity";
+import { HomeWidgetSync, LiveActivitySync } from "@/components/liveActivity";
 import { AddFlexTask } from "@/components/roster/AddFlexTask";
 import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
@@ -65,8 +65,9 @@ export default function RosterScreen() {
     <Screen edges={["bottom"]}>
       {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
       <CheckInPrompt leagueId={leagueId} />
-      {/* Renders nothing: it keeps the lock-screen Live Activity current, and is absent in Expo Go. */}
+      {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
       <LiveActivitySync />
+      <HomeWidgetSync />
       {leagueId ? <DropBanner leagueId={leagueId} /> : null}
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}

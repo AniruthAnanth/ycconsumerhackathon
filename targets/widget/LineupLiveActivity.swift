@@ -296,6 +296,13 @@ struct MinimalMark: View {
 
 // MARK: - Dynamic Island, expanded
 
+/// The expanded island's corners are round enough to cut into a label set flush in one: on an
+/// iPhone 18 Pro the "D" of "DROP" lost its left edge at an inset of 4.
+enum Island {
+  static let cornerInset: CGFloat = 12
+  static let topInset: CGFloat = 4
+}
+
 struct ExpandedLeading: View {
   let state: BoardState
 
@@ -307,10 +314,12 @@ struct ExpandedLeading: View {
           .font(.system(size: 28, weight: .heavy, design: .rounded))
           .foregroundColor(.white)
       }
-      .padding(.leading, 4)
+      .padding(.leading, Island.cornerInset)
+      .padding(.top, Island.topInset)
     } else {
       ScoreColumn(name: state.myName, score: state.myScore, ahead: state.iAmAhead, alignment: .leading)
-        .padding(.leading, 4)
+        .padding(.leading, Island.cornerInset)
+        .padding(.top, Island.topInset)
     }
   }
 }
@@ -327,10 +336,12 @@ struct ExpandedTrailing: View {
           .foregroundColor(Brand.green)
           .frame(maxWidth: 110, alignment: .trailing)
       }
-      .padding(.trailing, 4)
+      .padding(.trailing, Island.cornerInset)
+      .padding(.top, Island.topInset)
     } else {
       ScoreColumn(name: state.opponentName, score: state.opponentScore, ahead: !state.iAmAhead, alignment: .trailing)
-        .padding(.trailing, 4)
+        .padding(.trailing, Island.cornerInset)
+        .padding(.top, Island.topInset)
     }
   }
 }
@@ -368,7 +379,7 @@ struct ExpandedBottom: View {
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 4)
+      .padding(.horizontal, Island.cornerInset)
     } else {
       HStack(spacing: 6) {
         SlotPips(state: state)
@@ -384,7 +395,7 @@ struct ExpandedBottom: View {
         .foregroundColor(Brand.dim)
         .lineLimit(1)
       }
-      .padding(.horizontal, 4)
+      .padding(.horizontal, Island.cornerInset)
     }
   }
 }
