@@ -12,7 +12,7 @@ import type { useJoinLeague } from "./useJoinLeague";
 /** The second way into a league: a code a friend sent. The keyboard's Go key and the Join pill do the same thing. */
 export function InviteCodeSection({ joining }: { joining: ReturnType<typeof useJoinLeague> }) {
   const joinByCode = useMutation(backend.leagues.joinByCode);
-  const { join, busy, failure } = joining;
+  const { join, busy, failure, clearFailure } = joining;
   const [code, setCode] = useState("");
   const inviteCode = code.trim();
   const submit = () => {
@@ -27,7 +27,11 @@ export function InviteCodeSection({ joining }: { joining: ReturnType<typeof useJ
             <TextField
               label="Code"
               value={code}
-              onChangeText={setCode}
+              onChangeText={(text) => {
+                // An error is about the code that was sent, not the one being typed now.
+                clearFailure();
+                setCode(text);
+              }}
               autoCapitalize="characters"
               autoCorrect={false}
               editable={!busy}
