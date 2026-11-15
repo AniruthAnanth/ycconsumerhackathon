@@ -7,6 +7,7 @@ import { colors, font, fontFamily, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/
 import type { Matchup, TaskRow, TaskVeto } from "../contract";
 import { SwapEditor } from "../veto/SwapEditor";
 import { VetoChip } from "../veto/VetoChip";
+import { showsVeto } from "../veto/vetoLogic";
 import { statusLine } from "./matchupLogic";
 
 type Vetoes = { byTask: Map<Id<"tasks">, TaskVeto>; leagueId: Id<"leagues"> };
@@ -55,8 +56,8 @@ function TaskSide({ task, side, vetoes }: { task?: TaskRow; side: "mine" | "thei
         </Text>
         <Score value={task.score} />
       </View>
-      {veto && vetoes ? (
-        <View style={mirrored && styles.chipRight}>
+      {veto && vetoes && showsVeto(side, veto) ? (
+        <View style={mirrored ? styles.chipRight : styles.chipLeft}>
           <VetoChip veto={veto} leagueId={vetoes.leagueId} />
         </View>
       ) : null}
@@ -78,6 +79,7 @@ const styles = StyleSheet.create({
   stack: { flex: 1, gap: spacing.xs },
   meta: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   swap: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.sm },
+  chipLeft: { alignItems: "flex-start" },
   chipRight: { alignItems: "flex-end" },
   textRight: { textAlign: "right" },
   title: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold },

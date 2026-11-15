@@ -17,9 +17,9 @@ import {
 
 import { socialApi, type TaskVeto } from "../contract";
 import { notify } from "../notify";
-import { chipLabel } from "./vetoLogic";
+import { chipLabel, isQuiet } from "./vetoLogic";
 
-/** "Veto? 1/2": the league's running vote on a task. Tap to add or take back my veto while it is open. */
+/** A quiet "Veto" until someone votes, then the running "Veto 1/2". Tap to add or take back my veto while it is open. */
 export function VetoChip({
   veto,
   leagueId,
@@ -35,13 +35,15 @@ export function VetoChip({
       notify(errorMessage(error)),
     );
   };
+  const quiet = isQuiet(veto);
   const style = [
-    styles.chip,
+    quiet ? styles.quiet : styles.chip,
     veto.mine && !veto.struck && styles.mine,
     veto.struck && styles.struck,
   ];
   const text = [
     styles.label,
+    quiet && styles.labelQuiet,
     veto.mine && !veto.struck && styles.labelMine,
     veto.struck && styles.labelStruck,
   ];
@@ -67,12 +69,17 @@ export function VetoChip({
 
 const styles = StyleSheet.create({
   chip: {
-    alignSelf: "flex-start",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     borderWidth: BORDER,
     borderColor: colors.divider,
+  },
+  // Text-only, same height as the chip so the row doesn't jump when the first veto lands.
+  quiet: {
+    paddingVertical: spacing.xs,
+    borderWidth: BORDER,
+    borderColor: "transparent",
   },
   mine: { backgroundColor: colors.accent, borderColor: colors.accent },
   struck: { borderColor: colors.danger },
@@ -82,6 +89,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     ...tabular,
   },
+  labelQuiet: { color: colors.textMuted },
   labelMine: { color: colors.onAccent },
   labelStruck: { color: colors.danger },
 });
