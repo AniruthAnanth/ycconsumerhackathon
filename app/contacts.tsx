@@ -4,6 +4,7 @@ import * as SMS from "expo-sms";
 import { useEffect, useState } from "react";
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { InviteButton, useInviteMessage } from "@/components/invite";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { PersonRow } from "@/components/join/PersonRow";
 import { useContactMatch } from "@/components/join/useContactMatch";
@@ -30,6 +31,7 @@ export default function ContactsScreen() {
   const { state, allowAccess } = useContactMatch(leagueId);
   const [declined, setDeclined] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const linkMessage = useInviteMessage();
 
   function leave() {
     if (!justJoined) return router.back();
@@ -60,8 +62,9 @@ export default function ContactsScreen() {
 
   async function sendInvites() {
     if (!league) return;
-    const message = inviteMessage(league);
     setSending(true);
+    // The short link opens the app straight to this league; the bare code is the fallback if the link cannot be made.
+    const message = await linkMessage(league._id).catch(() => inviteMessage(league));
     try {
       if (await SMS.isAvailableAsync()) await SMS.sendSMSAsync(selected.map(({ phone }) => phone), message);
       else await shareText(message);
@@ -123,6 +126,7 @@ export default function ContactsScreen() {
         ) : null}
       </ScrollView>
       <View style={styles.footer}>
+        {leagueId ? <InviteButton leagueId={leagueId} label="Share invite link" /> : null}
         {state.status === "idle" || state.status === "loading" || state.status === "error" ? (
           <Button label="Allow access to contacts" onPress={allowAccess} loading={state.status === "loading"} disabled={!leagueId} />
         ) : selected.length > 0 ? (
@@ -140,5 +144,5 @@ const styles = StyleSheet.create({
   skip: { fontSize: font.body, fontWeight: "700", color: colors.accent },
   empty: { padding: spacing.lg, fontSize: font.body, color: colors.textMuted },
   message: { padding: spacing.lg },
-  footer: { padding: spacing.lg },
+  footer: { padding: spacing.lg, gap: spacing.sm },
 });
