@@ -59,7 +59,9 @@ export function VetoChip({
       accessibilityLabel={
         veto.struck
           ? "Struck by the league"
-          : `Veto, ${veto.votes} of ${veto.needed}`
+          : quiet
+            ? "Veto"
+            : `Veto, ${veto.votes} of ${veto.needed}`
       }
       accessibilityState={{ selected: veto.mine, disabled: !veto.canVote }}
       disabled={!veto.canVote}
