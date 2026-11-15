@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthGate } from "@/components/AuthGate";
+import { NotificationsHost } from "@/components/notifications/NotificationsHost";
 import { OutlinedPillButton } from "@/components/ui";
 import { convex } from "@/lib/convex";
 import { CurrentLeagueProvider } from "@/lib/currentLeague";
@@ -18,6 +19,8 @@ export default function RootLayout() {
       <ConvexAuthProvider client={convex} storage={tokenStorage}>
         <AuthGate>
           <CurrentLeagueProvider>
+            {/* Draws nothing: raises notifications from the live queries and opens the screen a tapped one names. */}
+            <NotificationsHost />
             {/* Every screen draws its own Header from components/ui, so the native one stays hidden. */}
             <Stack
               screenOptions={{
