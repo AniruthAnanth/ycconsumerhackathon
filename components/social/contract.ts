@@ -74,6 +74,8 @@ export type FeedChallenge = {
   notLegit: number;
   /** true = I voted Legit, false = Not Legit, absent = I have not voted. */
   myVote?: boolean;
+  /** false for the proof's owner and the challenger, who have no vote. Absent on older backends. */
+  canVote?: boolean;
   closesAt: number;
 };
 

@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 
-import { colors } from "./kit";
+import { colors } from "@/theme";
 
 /**
  * A proof's photo or video, filling whatever box the caller gives it.
@@ -40,5 +40,5 @@ function LoopingVideo({ uri }: { uri: string }) {
 }
 
 const styles = StyleSheet.create({
-  box: { overflow: "hidden", backgroundColor: colors.wash },
+  box: { overflow: "hidden", backgroundColor: colors.strip },
 });
