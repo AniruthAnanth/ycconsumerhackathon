@@ -1,8 +1,10 @@
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { Header, Screen, SectionLabel } from "@/components/ui";
+import { backend } from "@/lib/backend";
+import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, spacing } from "@/theme";
 
 import { type CanvasAssignment, socialApi } from "../contract";
@@ -11,6 +13,7 @@ import { leaveScreen } from "../leave";
 import { notify } from "../notify";
 import { ScreenState } from "../ScreenState";
 import { AssignmentRow } from "./AssignmentRow";
+import { flexCount, isFlexFull, isOnRoster, MAX_FLEX_TASKS } from "./canvasLogic";
 import { ConnectForm } from "./ConnectForm";
 
 const rowKey = ({ courseId, assignmentId }: CanvasAssignment) => `${courseId}:${assignmentId}`;
@@ -19,6 +22,9 @@ export function CanvasScreen() {
   const connect = useMutation(socialApi.canvas.connect);
   const listAssignments = useAction(socialApi.canvas.listAssignments);
   const addTask = useMutation(socialApi.canvas.addTask);
+  const { leagueId } = useCurrentLeague();
+  const rows = useQuery(backend.lineup.roster, leagueId ? { leagueId } : "skip")?.rows;
+  const flexFull = rows !== undefined && isFlexFull(rows);
 
   const [assignments, setAssignments] = useState<CanvasAssignment[] | null>(null);
   const [checking, setChecking] = useState(true);
@@ -77,6 +83,11 @@ export function CanvasScreen() {
           ) : (
             <>
               <SectionLabel left="Upcoming" />
+              {flexFull && rows ? (
+                <Text style={styles.full}>
+                  Flex is full: {flexCount(rows)} of {MAX_FLEX_TASKS} flex tasks this week.
+                </Text>
+              ) : null}
               {assignments.length === 0 ? (
                 <ScreenState message="No upcoming assignments" />
               ) : (
@@ -84,7 +95,8 @@ export function CanvasScreen() {
                   <AssignmentRow
                     key={rowKey(assignment)}
                     assignment={assignment}
-                    added={added.has(rowKey(assignment))}
+                    added={added.has(rowKey(assignment)) || (rows !== undefined && isOnRoster(rows, assignment.title))}
+                    blocked={flexFull}
                     onAdd={add}
                   />
                 ))
@@ -102,6 +114,7 @@ export function CanvasScreen() {
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1 },
+  full: { color: colors.textMuted, fontSize: font.meta, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   change: { alignSelf: "center", padding: spacing.lg },
   changeText: { color: colors.accent, fontSize: font.body, fontWeight: "700" },
 });

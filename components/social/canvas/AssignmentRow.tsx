@@ -10,10 +10,13 @@ import { dueLabel } from "./canvasLogic";
 export function AssignmentRow({
   assignment,
   added,
+  blocked,
   onAdd,
 }: {
   assignment: CanvasAssignment;
   added: boolean;
+  /** Flex is full, so this one cannot be added. */
+  blocked: boolean;
   onAdd: (assignment: CanvasAssignment) => Promise<void>;
 }) {
   const [adding, setAdding] = useState(false);
@@ -39,7 +42,7 @@ export function AssignmentRow({
           {assignment.courseName}
         </Text>
       </View>
-      <OutlinedPillButton label={added ? "Added" : "Add"} disabled={added || adding} onPress={add} />
+      <OutlinedPillButton label={added ? "Added" : "Add"} disabled={added || blocked || adding} onPress={add} />
     </View>
   );
 }
