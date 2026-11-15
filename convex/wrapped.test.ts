@@ -191,7 +191,7 @@ describe("wrapped.get", () => {
       return { maya, sam, lee, olu, leagueId };
     });
     const as = (userId: Id<"users">) => t.withIdentity({ subject: userId + "|test-session" });
-    return { as, ...ids };
+    return { t, as, ...ids };
   }
 
   it("builds the five cards from the week's real data", async () => {
@@ -209,6 +209,21 @@ describe("wrapped.get", () => {
     // Lee's drop photo backs the cards it earned; Maya's proof had no media.
     expect(cards[1]).toMatchObject({ mediaUrl: expect.any(String), mediaType: "photo" });
     expect(cards[4].mediaUrl).toBeUndefined();
+  });
+
+  it("shows the table's points once the week has settled, matchup bonus included", async () => {
+    const { t, as, maya, lee, leagueId } = await setup();
+    await t.run(async (ctx) => {
+      const week = (await ctx.db.query("weeks").first())!;
+      await ctx.db.insert("matchups", { weekId: week._id, userA: lee, userB: maya });
+      await ctx.db.patch("weeks", week._id, { status: "settled" });
+    });
+    const table = await as(maya).query(api.standings.table, { leagueId });
+    const { cards } = await as(maya).query(api.wrapped.get, { leagueId });
+
+    // Lee beat Maya head to head: 125 + 50.
+    expect(table[0]).toMatchObject({ userId: lee, points: 175 });
+    expect([cards[0].subtitle, cards[0].stat]).toEqual(["Lee · 95 ahead of Maya", "175 pts"]);
   });
 
   it("finds a week by number and returns no cards for a week that never happened", async () => {
