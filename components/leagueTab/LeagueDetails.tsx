@@ -1,17 +1,18 @@
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Divider, Icon, SectionLabel } from "@/components/ui";
 import type { League, Pot } from "@/lib/backend";
 import { formatCountdown, formatUsd, inviteMessage, isSettled } from "@/lib/leagueText";
+import { shareText } from "@/lib/native/share";
 import { colors, font, spacing } from "@/theme";
 
 type Props = { league: League; pot: Pot; now: number };
 
 /** Flat label and value rows about the league. The invite code row opens the share sheet. */
 export function LeagueDetails({ league, pot, now }: Props) {
-  // Share rejects where there is no share sheet (web). The code is on the row to read out, so the tap just does nothing.
+  // shareText swallows a missing share sheet (web): the code is on the row to read out, so the tap just does nothing.
   const shareInvite = () => {
-    Share.share({ message: inviteMessage(league) }).catch(() => undefined);
+    void shareText(inviteMessage(league));
   };
 
   return (
