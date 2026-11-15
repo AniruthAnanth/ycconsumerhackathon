@@ -22,7 +22,9 @@ export default function ContactsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ leagueId?: string; next?: string }>();
   const leagueId = params.leagueId as Id<"leagues"> | undefined;
-  const inOnboarding = params.next === "draft";
+  // useJoinLeague sends `next` when this step follows joining a league; Add
+  // Friends on the League tab sends none and is an ordinary pushed screen.
+  const justJoined = params.next !== undefined;
 
   const league = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip");
   const { state, allowAccess } = useContactMatch(leagueId);
@@ -30,12 +32,21 @@ export default function ContactsScreen() {
   const [sending, setSending] = useState(false);
 
   function leave() {
-    if (inOnboarding) router.replace("/draft");
-    else router.back();
+    if (!justJoined) return router.back();
+    // Join, and League Settings when the league was created there, are still in
+    // the stack and must not be what Back returns to. Dismissing to the first
+    // screen leaves the tabs for a player who came from them and Join for a new
+    // player, whose tabs were replaced by onboarding. Replacing that screen
+    // gives both a fresh set of tabs, which opens on Roster whichever tab the
+    // player opened the league switcher from.
+    if (router.canDismiss()) router.dismissAll();
+    router.replace("/");
+    if (params.next === "draft") router.push("/draft");
   }
 
-  // In onboarding there is nothing behind this screen worth returning to, so the
-  // system back gesture and Android's back button take the same exit as Skip.
+  // After joining, what is behind this screen is the form the player has just
+  // completed, so the system back gesture and Android's back button take the
+  // same exit as Skip.
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       leave();
@@ -68,12 +79,12 @@ export default function ContactsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ gestureEnabled: !inOnboarding }} />
+      <Stack.Screen options={{ gestureEnabled: !justJoined }} />
       <Header
         title="Add Friends"
-        onBack={inOnboarding ? undefined : leave}
+        onBack={justJoined ? undefined : leave}
         right={
-          inOnboarding ? (
+          justJoined ? (
             <Pressable onPress={leave} hitSlop={12} accessibilityRole="button" accessibilityLabel="Skip">
               <Text style={styles.skip}>Skip</Text>
             </Pressable>
