@@ -1,11 +1,11 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { spacing } from "@/theme";
+import { colors, font, spacing } from "@/theme";
 
 import { canSubmitProof, findTask, submitProofHref } from "./taskSheet";
 
@@ -19,13 +19,15 @@ export function TaskSheet({ taskId }: { taskId: string }) {
     ...(weekStart !== undefined && { weekStart }),
   });
   const task = roster ? findTask(roster.rows, taskId) : undefined;
+  // Opened from a link or after a reload there is no screen underneath to go back to.
+  const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
 
   return (
     <Screen>
       <Header
         title="Task"
         right={
-          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+          <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
             <Icon name="close" size={24} />
           </Pressable>
         }
@@ -40,10 +42,12 @@ export function TaskSheet({ taskId }: { taskId: string }) {
           ) : null}
         </>
       ) : null}
+      {roster && !task ? <Text style={styles.missing}>That task isn't on your lineup.</Text> : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   action: { padding: spacing.lg },
+  missing: { padding: spacing.lg, color: colors.textMuted, fontSize: font.body },
 });
