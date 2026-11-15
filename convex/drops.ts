@@ -124,7 +124,7 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
     slot: drop.slot,
     points: drop.points,
     gesture: drop.gesture,
-    sealed: drop.sealed,
+    sealed: drop.sealed ?? false,
     wager: drop.wager,
     place: drop.place,
     opensAt: drop.opensAt,

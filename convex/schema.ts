@@ -184,6 +184,7 @@ export default defineSchema({
       v.literal("draft"),
       v.literal("flex"),
       v.literal("drop"),
+      // The daily mystery task was removed. Tasks stored while it existed keep this source.
       v.literal("mystery"),
       v.literal("group"),
     ),
@@ -249,6 +250,8 @@ export default defineSchema({
     leagueId: v.id("leagues"),
     kind: v.union(
       v.literal("quicktime"),
+      // The daily mystery task was removed. Drops stored while it existed keep this kind, and
+      // userId, sealed and wager below were theirs alone: nothing writes or reads them now.
       v.literal("mystery"),
       v.literal("group"),
     ),
@@ -258,7 +261,7 @@ export default defineSchema({
     slot,
     points: v.number(),
     gesture: v.optional(v.string()),
-    sealed: v.boolean(),
+    sealed: v.optional(v.boolean()),
     wager: v.optional(v.number()),
     place: v.optional(place),
     // Group sessions only: the most people the model counted in one check-in
