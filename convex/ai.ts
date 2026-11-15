@@ -50,6 +50,8 @@ export type JsonRequest = {
   imageUrls?: string[];
   /** Strict JSON Schema: every property listed in "required" and additionalProperties false. */
   schema: Record<string, unknown>;
+  /** How long the model thinks before it answers. Defaults to "low". */
+  effort?: "none" | "low";
 };
 
 /**
@@ -61,7 +63,7 @@ export async function askJson<T>(request: JsonRequest): Promise<T> {
   const response = await client().responses.create({
     model: MODEL,
     // These are quick judgement calls, and low effort keeps them to a couple of seconds.
-    reasoning: { effort: "low" },
+    reasoning: { effort: request.effort ?? "low" },
     instructions: request.instructions,
     input: [
       {
@@ -195,12 +197,20 @@ export async function draftLineup(input: {
     input.memories.length > 0
       ? `Notes about this player's past weeks:\n${input.memories.map((memory) => `- ${memory}`).join("\n")}\n\n`
       : "";
-  const { tasks } = await askJson<{ tasks: DraftedTask[] }>({
-    name: "lineup_draft",
-    instructions: DRAFT_INSTRUCTIONS,
-    text: `Today is ${input.today}.\n\n${notes}The player said:\n"""\n${input.transcript}\n"""`,
-    schema: DRAFT_SCHEMA,
-  });
+  const ask = (effort: "none" | "low") =>
+    askJson<{ tasks: DraftedTask[] }>({
+      name: "lineup_draft",
+      instructions: DRAFT_INSTRUCTIONS,
+      text: `Today is ${input.today}.\n\n${notes}The player said:\n"""\n${input.transcript}\n"""`,
+      schema: DRAFT_SCHEMA,
+      effort,
+    });
+  // The player is watching a spinner. Without reasoning a full plan is sorted into slots in about
+  // 3 seconds instead of 5.5, just as well. Its one weakness is calling a thin plan ("I've got a
+  // midterm Thursday") no plan at all, so an empty draft is asked again with reasoning before it
+  // is believed.
+  let { tasks } = await ask("none");
+  if (tasks.length === 0) ({ tasks } = await ask("low"));
   return tasks.map(({ place, ...task }) => (place ? { ...task, place } : task));
 }
 
