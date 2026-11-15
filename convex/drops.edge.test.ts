@@ -954,3 +954,74 @@ describe("time", () => {
     expect((await getDrop(t, envelope._id)).status).toBe("closed");
   });
 });
+
+// ─── 8. After a challenge ruling ─────────────────────────────────────────────────────────────
+
+describe("after a challenge ruling", () => {
+  /** What challenges.ts does to the task when the league rules, followed by the hook it schedules. */
+  async function rule(t: Backend, taskId: Id<"tasks">, ruling: "upheld" | "overturned") {
+    await t.run((ctx) => ctx.db.patch("tasks", taskId, { status: ruling === "upheld" ? "verified" : "open" }));
+    await t.mutation(internal.drops.afterRuling, { taskId });
+    await runScheduled(t);
+  }
+
+  it("moves the first-finisher bonus to the next finisher when the first proof is overturned, and says who leads now", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const [maya, sam] = userIds;
+    const dropId = await openQuickTime(t, leagueId, userIds, 30);
+    await passProof(t, (await taskOf(t, dropId, maya))._id);
+    vi.advanceTimersByTime(60_000);
+    await passProof(t, (await taskOf(t, dropId, sam))._id);
+    await runScheduled(t);
+    expect((await taskOf(t, dropId, sam)).points).toBe(30);
+
+    await rule(t, (await taskOf(t, dropId, maya))._id, "overturned");
+
+    expect((await taskOf(t, dropId, sam)).points).toBe(40);
+    // The drop is still live, so Maya's task is open for another try.
+    expect((await taskOf(t, dropId, maya)).status).toBe("open");
+    // The table adds its own streak bonus, so the text is matched without its numbers.
+    expect(texts.join("\n")).toMatch(/Sam took the lead in YC Hackathon: \d+ points, \d+ ahead of Maya\./);
+  });
+
+  it("returns the bonus to the first finisher when their proof is upheld", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    const [maya, sam] = userIds;
+    const dropId = await openQuickTime(t, leagueId, userIds, 30);
+    const mayasTask = (await taskOf(t, dropId, maya))._id;
+    await passProof(t, mayasTask);
+    // Challenged: the task is held, and Sam finishes while it is.
+    await t.run((ctx) => ctx.db.patch("tasks", mayasTask, { status: "held" }));
+    vi.advanceTimersByTime(60_000);
+    await passProof(t, (await taskOf(t, dropId, sam))._id);
+    expect((await taskOf(t, dropId, sam)).points).toBe(40);
+
+    await rule(t, mayasTask, "upheld");
+
+    expect((await taskOf(t, dropId, maya)).points).toBe(40);
+    expect((await taskOf(t, dropId, sam)).points).toBe(30);
+  });
+
+  it("ends a task reopened after its drop closed, at the price of any unproven one", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
+    const [maya] = userIds;
+
+    const dropId = await openQuickTime(t, leagueId, userIds, 30);
+    await passProof(t, (await taskOf(t, dropId, maya))._id);
+    await t.mutation(internal.drops.closeDrop, { dropId });
+    await rule(t, (await taskOf(t, dropId, maya))._id, "overturned");
+    // Not the 40 it held as first finisher: a missed drop is worth what the drop offered, and scores nothing.
+    expect(await taskOf(t, dropId, maya)).toMatchObject({ status: "failed", points: 30 });
+
+    const envelope = await envelopeFor(t, leagueId, maya);
+    await as(t, maya).mutation(api.drops.acceptMystery, { dropId: envelope._id });
+    await passProof(t, (await taskOf(t, envelope._id, maya))._id);
+    await t.mutation(internal.drops.closeDrop, { dropId: envelope._id });
+    await rule(t, (await taskOf(t, envelope._id, maya))._id, "overturned");
+    // Opened and, by the league's ruling, never finished.
+    expect(await taskOf(t, envelope._id, maya)).toMatchObject({ status: "failed", points: -20 });
+  });
+});

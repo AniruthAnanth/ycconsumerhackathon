@@ -654,18 +654,32 @@ export const onTaskVerified = internalMutation({
   },
 });
 
+/**
+ * Scheduled by challenges.ts once the league has ruled on a proof of a drop's task. Who was
+ * first, and how many were present, follow the tasks that are verified now, so the drop is
+ * priced again. A task the ruling reopened after its drop closed has no window left to be
+ * proved in, so it ends as every unproven task of a closed drop does.
+ */
+export const afterRuling = internalMutation({
+  args: { taskId: v.id("tasks") },
+  returns: v.null(),
+  handler: async (ctx, { taskId }) => {
+    const task = await ctx.db.get("tasks", taskId);
+    if (task === null || task.dropId === undefined) return null;
+    const drop = await ctx.db.get("drops", task.dropId);
+    if (drop === null) return null;
+    await reprice(ctx, drop);
+    if (drop.status === "closed") await failUnproven(ctx, drop);
+    await pointsChanged(ctx, drop.leagueId);
+    return null;
+  },
+});
+
 async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   // Price one last time: the backstop for a verification that never reached onTaskVerified.
   await reprice(ctx, drop);
   await ctx.db.patch("drops", drop._id, { status: "closed" });
-  for (const task of await tasksOf(ctx, drop._id)) {
-    // Still unproven when the window shut, so it can no longer be submitted.
-    if (task.status !== "open") continue;
-    // A missed quick-time drop simply scores nothing. An envelope that was opened and not
-    // finished costs points, and standings count the negative points of a failed task.
-    const points = drop.kind === "mystery" ? mysteryScore(drop.points, drop.wager ?? 0, false) : task.points;
-    await ctx.db.patch("tasks", task._id, { status: "failed", points });
-  }
+  await failUnproven(ctx, drop);
   // The last pricing and any mystery penalty are in.
   await pointsChanged(ctx, drop.leagueId);
 
@@ -683,6 +697,17 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
       photoUrl: drop.groupPhotoId === undefined ? null : await ctx.storage.getUrl(drop.groupPhotoId),
     }),
   );
+}
+
+/** Ends the tasks nobody proved before the window shut: they can no longer be submitted. */
+async function failUnproven(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
+  for (const task of await tasksOf(ctx, drop._id)) {
+    if (task.status !== "open") continue;
+    // A missed quick-time drop or check-in simply scores nothing. An envelope that was opened
+    // and not finished costs points, and standings count the negative points of a failed task.
+    const points = drop.kind === "mystery" ? mysteryScore(drop.points, drop.wager ?? 0, false) : drop.points;
+    await ctx.db.patch("tasks", task._id, { status: "failed", points });
+  }
 }
 
 /**
