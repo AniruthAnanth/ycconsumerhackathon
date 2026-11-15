@@ -9,7 +9,10 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
-import { pairsAfterJoin, weekEndOf, weekPairings, weekStartOf } from "./lib/week";
+import { isSeasonLength, MAX_SEASON_WEEKS, type LeagueSettings } from "./lib/schedule";
+import { pairsAfterJoin, weekEndOf, weekStartOf } from "./lib/week";
+import { leagueFormat, payout } from "./schema";
+import { pairingsForWeek } from "./seasons";
 
 const MAX_MEMBERS = 12;
 const MAX_NAME_LENGTH = 40;
@@ -20,6 +23,14 @@ const INVITE_CODE_ATTEMPTS = 20;
 const INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 const visibility = v.union(v.literal("private"), v.literal("public"));
+
+// What the creator may choose in Create League. Anything left out keeps the
+// defaults in lib/schedule.ts: weekly payout, 8 weeks, round robin.
+const settings = v.object({
+  payout: v.optional(payout),
+  seasonWeeks: v.optional(v.number()),
+  format: v.optional(leagueFormat),
+});
 
 /**
  * The league's latest week row. This row, not the calendar, is "the current
@@ -72,13 +83,10 @@ export async function ensureCurrentWeek(
     endsAt: weekEndOf(startsAt),
     status: "open",
   });
-  const members = await membersInJoinOrder(ctx, leagueId);
-  const pairs = weekPairings(
-    members.map((member) => member.userId),
-    number,
-  );
-  for (const [userA, userB] of pairs) {
-    await ctx.db.insert("matchups", { weekId, userA, userB });
+  // The league's format decides who plays whom. For the default round robin
+  // these are exactly weekPairings' pairs, extra pair for an odd league included.
+  for (const { a, b } of await pairingsForWeek(ctx, leagueId, number)) {
+    await ctx.db.insert("matchups", { weekId, userA: a, userB: b });
   }
   const week = await ctx.db.get("weeks", weekId);
   if (week === null) {
@@ -140,7 +148,7 @@ export async function addMember(
 async function createLeagueWithCreator(
   ctx: MutationCtx,
   creator: Doc<"users">,
-  league: { name: string; stakeUsd: number; visibility: "private" | "public" },
+  league: { name: string; stakeUsd: number; visibility: "private" | "public" } & Partial<LeagueSettings>,
 ): Promise<{ leagueId: Id<"leagues">; inviteCode: string }> {
   const inviteCode = await uniqueInviteCode(ctx);
   const leagueId = await ctx.db.insert("leagues", {
@@ -175,7 +183,7 @@ async function uniqueInviteCode(ctx: MutationCtx): Promise<string> {
 }
 
 export const create = mutation({
-  args: { name: v.string(), stakeUsd: v.number(), visibility },
+  args: { name: v.string(), stakeUsd: v.number(), visibility, settings: v.optional(settings) },
   returns: v.object({ leagueId: v.id("leagues"), inviteCode: v.string() }),
   handler: async (ctx, args) => {
     const caller = await requireUser(ctx);
@@ -189,10 +197,15 @@ export const create = mutation({
     if (!Number.isInteger(args.stakeUsd) || args.stakeUsd < 0 || args.stakeUsd > MAX_STAKE_USD) {
       throw new ConvexError(`The stake must be a whole number from $0 to $${MAX_STAKE_USD}`);
     }
+    const seasonWeeks = args.settings?.seasonWeeks;
+    if (seasonWeeks !== undefined && !isSeasonLength(seasonWeeks)) {
+      throw new ConvexError(`A season is 1 to ${MAX_SEASON_WEEKS} weeks`);
+    }
     return await createLeagueWithCreator(ctx, caller, {
       name,
       stakeUsd: args.stakeUsd,
       visibility: args.visibility,
+      ...args.settings,
     });
   },
 });
