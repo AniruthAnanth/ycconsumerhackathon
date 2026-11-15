@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { formatScore } from "@/components/ui";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import type { Bracket, BracketMatch, BracketRound, BracketSide } from "./types";
 
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     fontSize: font.label,
-    fontWeight: "700",
+    fontFamily: fontFamily.bold,
     letterSpacing: 0.6,
     color: colors.textMuted,
   },
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     paddingRight: CONNECTOR_WIDTH,
     fontSize: font.label,
-    fontWeight: "700",
+    fontFamily: fontFamily.bold,
     letterSpacing: 0.6,
     color: colors.textMuted,
   },
@@ -239,25 +239,25 @@ const styles = StyleSheet.create({
   },
   seed: {
     width: 16,
-    fontSize: font.label,
+    fontFamily: fontFamily.regular, fontSize: font.label,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  name: { flex: 1, fontSize: font.body, color: colors.text },
-  winnerName: { fontWeight: "700" },
+  name: { flex: 1, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text },
+  winnerName: { fontFamily: fontFamily.bold },
   mutedText: { color: colors.textMuted },
   me: { color: colors.accent },
   score: {
     minWidth: 44,
     textAlign: "right",
     fontSize: font.body,
-    fontWeight: "700",
+    fontFamily: fontFamily.bold,
     color: colors.text,
     fontVariant: ["tabular-nums"],
   },
   unscored: { color: colors.textFaint },
-  placeholder: { fontSize: font.meta, fontWeight: "600", letterSpacing: 0.6, color: colors.textFaint },
+  placeholder: { fontSize: font.meta, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textFaint },
   championColumn: { width: COLUMN_WIDTH - CONNECTOR_WIDTH },
   championSlot: { justifyContent: "center" },
-  championName: { fontSize: font.header, fontWeight: "800", color: colors.text },
+  championName: { fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },
 });

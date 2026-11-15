@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { isProjectedGain } from "./format";
 import { useProjection } from "./useProjection";
@@ -34,6 +34,6 @@ export function ProjectionLine({ leagueId }: { leagueId: Id<"leagues"> | null })
 
 const styles = StyleSheet.create({
   line: { height: 32, justifyContent: "center", alignItems: "flex-end", paddingHorizontal: spacing.md },
-  label: { fontSize: font.body, fontWeight: "700", color: colors.text },
+  label: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
   gain: { color: colors.tabActive },
 });

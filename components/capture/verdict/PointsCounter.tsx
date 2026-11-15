@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { CountUp } from "@/components/motion";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import { formatPoints } from "./formatPoints";
 
@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   value: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: fontFamily.extraBold,
     textAlign: "right",
     fontVariant: ["tabular-nums"],
   },

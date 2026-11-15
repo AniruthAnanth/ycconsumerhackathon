@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ShareChallenge } from "@/components/invite";
 import { Button, Divider } from "@/components/ui";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { FadeIn } from "./FadeIn";
 import { PointsCounter } from "./PointsCounter";
@@ -88,8 +88,8 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
 
 const styles = StyleSheet.create({
   panel: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  reason: { color: colors.text, fontSize: 24, fontWeight: "600", lineHeight: 31, marginBottom: spacing.xl },
-  caption: { color: colors.textMuted, fontSize: font.body, marginTop: -spacing.lg, marginBottom: spacing.xl },
+  reason: { color: colors.text, fontSize: 24, fontFamily: fontFamily.semiBold, lineHeight: 31, marginBottom: spacing.xl },
+  caption: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, marginTop: -spacing.lg, marginBottom: spacing.xl },
   pointsRow: {
     height: 56,
     flexDirection: "row",
@@ -103,11 +103,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: fontFamily.bold,
     letterSpacing: 1.2,
   },
   spacer: { flex: 1 },
   actions: { gap: spacing.sm },
   close: { alignItems: "center", paddingVertical: spacing.md },
-  closeLabel: { color: colors.textMuted, fontSize: 15, fontWeight: "600" },
+  closeLabel: { color: colors.textMuted, fontSize: 15, fontFamily: fontFamily.semiBold },
 });

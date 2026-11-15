@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "@/theme";
+import { colors, fontFamily, spacing } from "@/theme";
 
 import { SAMPLE_MEDIA, type SampleMedia } from "../samples";
 
@@ -45,6 +45,6 @@ const styles = StyleSheet.create({
   item: { width: 72, gap: spacing.xs },
   thumb: { width: 72, height: 72, backgroundColor: colors.text },
   videoThumb: { alignItems: "center", justifyContent: "center" },
-  videoMark: { color: colors.background, fontSize: 12, fontWeight: "700", letterSpacing: 1 },
-  label: { color: colors.background, fontSize: 11, textAlign: "center" },
+  videoMark: { color: colors.onAccent, fontSize: 12, fontFamily: fontFamily.bold, letterSpacing: 1 },
+  label: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: 11, textAlign: "center" },
 });

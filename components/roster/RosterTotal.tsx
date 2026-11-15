@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { Score } from "@/components/ui";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 type Props = {
   total: number | null;
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  names: { flex: 1, fontSize: font.meta, color: colors.textMuted },
+  names: { flex: 1, fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   bar: {
     height: 56,
     flexDirection: "row",
@@ -55,5 +55,5 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.md,
   },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
 });

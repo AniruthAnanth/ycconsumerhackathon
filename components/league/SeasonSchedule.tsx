@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Divider, formatScore } from "@/components/ui";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import type { SeasonMatchup, SeasonPlayer, SeasonWeek } from "./types";
 
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  headerLabel: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  headerLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   live: { color: colors.accent },
   line: {
     minHeight: 34,
@@ -99,16 +99,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.md,
   },
-  name: { flex: 1, fontSize: font.title, color: colors.text },
-  won: { fontWeight: "700" },
+  name: { flex: 1, fontFamily: fontFamily.regular, fontSize: font.title, color: colors.text },
+  won: { fontFamily: fontFamily.bold },
   lost: { color: colors.textMuted },
   me: { color: colors.accent },
-  score: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
+  score: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
   unscored: { color: colors.textFaint },
   note: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    fontSize: font.meta,
+    fontFamily: fontFamily.regular, fontSize: font.meta,
     color: colors.textMuted,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,

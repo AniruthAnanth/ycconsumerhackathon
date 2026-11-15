@@ -15,11 +15,11 @@ export const KIND_LABEL: Record<Kind, string> = {
  * than theme tokens: the theme imports react-native, which vitest cannot load.
  */
 export const KIND_BACKGROUND: Record<Kind, string> = {
-  champion: "#0B69FF",
-  best_proof: "#00A651",
-  comeback: "#E8590C",
-  fastest: "#6741D9",
-  your_week: "#121213",
+  champion: "#155C40",
+  best_proof: "#102F24",
+  comeback: "#805719",
+  fastest: "#A13D38",
+  your_week: "#172B23",
 };
 
 /** The page a horizontal paging scroll has settled on. */

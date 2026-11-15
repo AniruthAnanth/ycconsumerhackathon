@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { OutlinedPillButton, PositionPill } from "@/components/ui";
-import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
 
 import type { CanvasAssignment } from "../contract";
 import { dueLabel } from "./canvasLogic";
@@ -58,6 +58,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 2 },
-  title: { color: colors.text, fontSize: font.title, fontWeight: "700" },
-  detail: { color: colors.textMuted, fontSize: font.meta },
+  title: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
+  detail: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta },
 });

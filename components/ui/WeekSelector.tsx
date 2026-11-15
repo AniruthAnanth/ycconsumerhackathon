@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { Icon } from "./Icon";
 
@@ -57,5 +57,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  label: { minWidth: 72, textAlign: "center", fontSize: font.body, fontWeight: "700", color: colors.text },
+  label: { minWidth: 72, textAlign: "center", fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
 });

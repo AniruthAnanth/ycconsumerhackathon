@@ -6,7 +6,7 @@ import { type FeedReaction, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import { reactionButtons } from "./feedLogic";
 
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   reactionMine: { borderColor: colors.accent },
-  emoji: { fontSize: 15 },
-  count: { color: colors.textMuted, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  emoji: { fontFamily: fontFamily.regular, fontSize: 15 },
+  count: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily.semiBold, fontVariant: ["tabular-nums"] },
   countMine: { color: colors.accent },
 });

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
 import { haptics } from "@/lib/native/haptics";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { proofCameraHref } from "../proofRoute";
 import type { DropView } from "./dropView";
@@ -42,11 +42,11 @@ const styles = StyleSheet.create({
   row: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
   info: { flexShrink: 1, alignItems: "flex-end", gap: 2 },
   countdown: {
-    color: colors.background,
+    color: colors.onAccent,
     fontSize: font.total,
-    fontWeight: "800",
+    fontFamily: fontFamily.extraBold,
     fontVariant: ["tabular-nums"],
   },
-  details: { color: colors.divider, fontSize: font.label, fontWeight: "700", letterSpacing: 0.6 },
+  details: { color: colors.divider, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   submit: { height: 36, paddingHorizontal: spacing.lg },
 });

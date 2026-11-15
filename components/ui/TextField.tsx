@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 type Props = TextInputProps & { label: string };
 
@@ -16,6 +16,6 @@ export function TextField({ label, style, ...input }: Props) {
 
 const styles = StyleSheet.create({
   field: { gap: spacing.xs, borderBottomWidth: hairline, borderBottomColor: colors.divider },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
-  input: { height: 44, fontSize: font.header, color: colors.text, padding: 0 },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
+  input: { height: 44, fontFamily: fontFamily.regular, fontSize: font.header, color: colors.text, padding: 0 },
 });

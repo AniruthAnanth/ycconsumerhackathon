@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { Icon } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { isProjectedGain, placeLabel } from "./format";
 import { useProjection } from "./useProjection";
@@ -47,8 +47,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderColor: colors.divider,
   },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
-  place: { flex: 1, fontSize: font.body, fontWeight: "600", color: colors.text },
-  projection: { fontSize: font.body, fontWeight: "700", color: colors.text },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
+  place: { flex: 1, fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
+  projection: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
   gain: { color: colors.tabActive },
 });

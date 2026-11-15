@@ -11,7 +11,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
 import { shareImage, shareText } from "@/lib/native/share";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import { socialApi } from "../contract";
 import { leaveScreen } from "../leave";
@@ -136,5 +136,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: CONTROL_BACKDROP,
   },
-  close: { color: WHITE, fontSize: 16, lineHeight: 20, fontWeight: "700" },
+  close: { color: WHITE, fontSize: 16, lineHeight: 20, fontFamily: fontFamily.bold },
 });

@@ -15,7 +15,7 @@ import { Button, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/com
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { splitRoster, weekActions } from "@/lib/roster";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 /**
  * ROSTER, the screen the app opens on every day: this week's lineup as a team
@@ -109,6 +109,6 @@ export function RosterScreen() {
 const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: spacing.md, padding: spacing.md },
   action: { flex: 1 },
-  none: { padding: spacing.xl, textAlign: "center", fontSize: font.body, color: colors.textMuted },
+  none: { padding: spacing.xl, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   draft: { margin: spacing.md },
 });

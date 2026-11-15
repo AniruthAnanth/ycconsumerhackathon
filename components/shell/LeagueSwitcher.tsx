@@ -7,7 +7,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { stakeLine } from "@/lib/leagueText";
 import { haptics } from "@/lib/native/haptics";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 /**
  * The sheet the header's league name opens (app/league-switcher.tsx, a native form sheet sized
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 1 },
-  name: { fontSize: font.title, fontWeight: "700", color: colors.text },
-  meta: { fontSize: font.meta, color: colors.textMuted },
-  join: { fontSize: font.title, fontWeight: "700", color: colors.accent },
+  name: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  join: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.accent },
 });

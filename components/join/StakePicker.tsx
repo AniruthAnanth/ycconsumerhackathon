@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { STAKES, type Stake } from "./stakes";
 
@@ -47,6 +47,6 @@ const styles = StyleSheet.create({
   },
   selected: { backgroundColor: colors.accent },
   disabled: { opacity: 0.4 },
-  label: { fontSize: font.body, fontWeight: "700", color: colors.accent },
-  selectedLabel: { color: colors.background },
+  label: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.accent },
+  selectedLabel: { color: colors.onAccent },
 });

@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDevFlags } from "@/lib/devFlags";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import type { ProofTarget } from "../proofRoute";
 import { CameraOverlay } from "./CameraOverlay";
@@ -65,5 +65,5 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.text },
   bottom: { position: "absolute", bottom: 0, left: 0, right: 0 },
-  hint: { color: colors.background, fontSize: font.body, textAlign: "center", opacity: 0.8, paddingBottom: spacing.md },
+  hint: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center", opacity: 0.8, paddingBottom: spacing.md },
 });

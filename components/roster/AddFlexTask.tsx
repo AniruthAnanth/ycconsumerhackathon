@@ -7,7 +7,7 @@ import { errorMessage } from "@/components/join/errorMessage";
 import { Icon, OutlinedPillButton } from "@/components/ui";
 import { MAX_TITLE_LENGTH } from "@/convex/lib/lineupRules";
 import { backend } from "@/lib/backend";
-import { colors, font, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
 /**
  * The one change a locked lineup still takes: an extra task, typed in. The row
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  add: { fontSize: font.title, fontWeight: "700", color: colors.accent },
+  add: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.accent },
   composer: {
     minHeight: ROW_HEIGHT_COMPACT,
     justifyContent: "center",
@@ -98,5 +98,5 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   line: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  input: { flex: 1, height: 44, fontSize: font.title, color: colors.text, padding: 0 },
+  input: { flex: 1, height: 44, fontFamily: fontFamily.regular, fontSize: font.title, color: colors.text, padding: 0 },
 });

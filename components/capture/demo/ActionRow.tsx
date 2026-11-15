@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { errorMessage } from "@/lib/errorMessage";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 type Phase = { kind: "idle" } | { kind: "running" } | { kind: "done" } | { kind: "failed"; message: string };
 
@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.5 },
   disabled: { opacity: 0.35 },
   text: { flex: 1 },
-  label: { color: colors.text, fontSize: font.title, fontWeight: "700" },
-  error: { color: colors.danger, fontSize: font.meta, marginTop: 2 },
-  done: { color: colors.tabActive, fontSize: font.label, fontWeight: "700", letterSpacing: 0.6 },
-  tag: { color: colors.accent, fontSize: font.label, fontWeight: "700", letterSpacing: 0.6 },
+  label: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
+  error: { color: colors.danger, fontFamily: fontFamily.regular, fontSize: font.meta, marginTop: 2 },
+  done: { color: colors.tabActive, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  tag: { color: colors.accent, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
 });

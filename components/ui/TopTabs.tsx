@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, hairline, tabUnderlineHeight } from "@/theme";
+import { colors, font, fontFamily, hairline, tabUnderlineHeight } from "@/theme";
 
 type Props<Key extends string> = {
   tabs: readonly { key: Key; label: string }[];
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   tab: { flex: 1, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: font.meta, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.5 },
+  label: { fontSize: font.meta, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.5 },
   labelActive: { color: colors.text },
   underline: { position: "absolute", left: 0, right: 0, bottom: 0, height: tabUnderlineHeight, backgroundColor: "transparent" },
   underlineActive: { backgroundColor: colors.tabActive },

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, hairline, spacing } from "@/theme";
+import { colors, fontFamily, hairline, spacing } from "@/theme";
 
 export type CheckInPromptKind = "drop" | "nearby" | "at_risk";
 
@@ -13,9 +13,9 @@ type Props = {
   onCheckIn: () => void;
 };
 
-// A live drop is the only thing that should read as urgent, so it alone gets a
-// red that is not in the palette; the other two stay on the app's own colours.
-const LIVE_RED = "#D00027";
+// A live drop is the only thing that should read as urgent, so it alone gets the
+// danger red; the other two stay on the app's own colours.
+const LIVE_RED = colors.danger;
 
 const labelColor: Record<CheckInPromptKind, string> = {
   drop: LIVE_RED,
@@ -66,14 +66,14 @@ const styles = StyleSheet.create({
   label: {
     flexShrink: 0,
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: fontFamily.bold,
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
   line: {
     flex: 1,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: fontFamily.semiBold,
     color: colors.text,
   },
   button: {
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.8 },
   buttonText: {
     fontSize: 12,
-    fontWeight: "700",
-    color: colors.background,
+    fontFamily: fontFamily.bold,
+    color: colors.onAccent,
   },
 });

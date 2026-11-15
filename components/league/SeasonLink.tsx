@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { seasonProgress, settingsSummary } from "./settings";
 
@@ -72,6 +72,6 @@ const styles = StyleSheet.create({
   },
   pressed: { backgroundColor: colors.accentTint },
   text: { flex: 1, gap: 2 },
-  title: { fontSize: font.title, fontWeight: "700", color: colors.text },
-  detail: { fontSize: font.meta, color: colors.textMuted },
+  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  detail: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

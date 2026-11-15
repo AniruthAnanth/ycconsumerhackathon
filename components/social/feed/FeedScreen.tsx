@@ -7,7 +7,7 @@ import { Divider, OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { useNow } from "@/lib/useNow";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
@@ -66,5 +66,5 @@ const styles = StyleSheet.create({
   },
   shortcutRow: { flexDirection: "row", gap: 12 },
   shortcut: { flex: 1 },
-  empty: { color: colors.textMuted, fontSize: 15, textAlign: "center", paddingVertical: 48 },
+  empty: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 15, textAlign: "center", paddingVertical: 48 },
 });

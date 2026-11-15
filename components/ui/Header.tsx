@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { Icon } from "./Icon";
 
@@ -69,5 +69,5 @@ const styles = StyleSheet.create({
   side: { width: 56, flexDirection: "row", alignItems: "center" },
   right: { justifyContent: "flex-end" },
   center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
-  title: { flexShrink: 1, fontSize: font.header, fontWeight: "700", color: colors.text },
+  title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.bold, color: colors.text },
 });

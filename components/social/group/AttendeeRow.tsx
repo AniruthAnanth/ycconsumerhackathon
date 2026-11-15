@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { Avatar } from "@/components/ui";
-import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
 
 /** One attendee: avatar, name and whether they have checked in at the place. */
 export function AttendeeRow({ name, checkedIn, onPress }: { name: string; checkedIn: boolean; onPress: () => void }) {
@@ -28,8 +28,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  name: { flex: 1, color: colors.text, fontSize: font.title, fontWeight: "700" },
-  status: { fontSize: font.body, fontWeight: "700" },
+  name: { flex: 1, color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
+  status: { fontSize: font.body, fontFamily: fontFamily.bold },
   checkedIn: { color: colors.tabActive },
   going: { color: colors.textMuted },
 });

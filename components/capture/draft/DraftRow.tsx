@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Avatar, PositionPill, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
-import { ROW_HEIGHT, colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
 
 import { canRemoveTask } from "./lineupEdit";
 import type { DraftTask } from "../backend";
@@ -68,8 +68,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 1 },
-  title: { fontSize: font.title, fontWeight: "700", color: colors.text, padding: 0 },
-  meta: { fontSize: font.meta, color: colors.textMuted },
+  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text, padding: 0 },
+  meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   trailing: { alignItems: "flex-end", gap: spacing.xs },
-  remove: { fontSize: font.meta, color: colors.textMuted },
+  remove: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

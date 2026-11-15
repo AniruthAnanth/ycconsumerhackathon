@@ -1,7 +1,8 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, useFonts } from "@expo-google-fonts/nunito";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthGate } from "@/components/AuthGate";
@@ -14,6 +15,10 @@ import { colors } from "@/theme";
 export { RootError as ErrorBoundary } from "@/components/shell/RootError";
 
 export default function RootLayout() {
+  // The four Nunito weights the theme names (theme/tokens.ts fontFamily). A failed load falls back
+  // to the system face rather than holding the app on a blank page.
+  const [fontsLoaded, fontError] = useFonts({ Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold });
+  if (!fontsLoaded && !fontError) return <View style={[styles.root, { backgroundColor: colors.background }]} />;
   return (
     // Swipe actions (react-native-gesture-handler) only receive touches under this root view.
     <GestureHandlerRootView style={styles.root}>

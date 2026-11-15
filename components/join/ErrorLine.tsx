@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from "react-native";
 
-import { colors, font } from "@/theme";
+import { colors, font, fontFamily } from "@/theme";
 
 /** A one-line failure under the control that caused it. */
 export function ErrorLine({ message }: { message: string }) {
@@ -12,5 +12,5 @@ export function ErrorLine({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  error: { fontSize: font.meta, color: colors.danger },
+  error: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.danger },
 });

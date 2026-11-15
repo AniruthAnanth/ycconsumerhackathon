@@ -5,7 +5,7 @@ import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import { challengeStatus, legitShare } from "./feedLogic";
 
@@ -71,8 +71,8 @@ export function ChallengeBar({
 const styles = StyleSheet.create({
   box: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   heading: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  title: { color: colors.text, fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
-  status: { color: colors.textMuted, fontSize: 12 },
+  title: { color: colors.text, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  status: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 12 },
   track: { flexDirection: "row", height: 6, borderRadius: 3, overflow: "hidden", backgroundColor: colors.strip },
   legit: { backgroundColor: colors.tabActive },
   notLegit: { backgroundColor: colors.danger },
@@ -91,8 +91,8 @@ const styles = StyleSheet.create({
   sideVotable: { borderColor: colors.divider },
   sideLegitMine: { borderColor: colors.tabActive },
   sideNotLegitMine: { borderColor: colors.danger },
-  sideLabel: { fontSize: 14, fontWeight: "700" },
+  sideLabel: { fontSize: 14, fontFamily: fontFamily.bold },
   legitText: { color: colors.tabActive },
   notLegitText: { color: colors.danger },
-  sideCount: { color: colors.text, fontSize: 14, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  sideCount: { color: colors.text, fontSize: 14, fontFamily: fontFamily.bold, fontVariant: ["tabular-nums"] },
 });

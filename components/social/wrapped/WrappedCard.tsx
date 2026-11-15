@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import type { WrappedCard as WrappedCardData } from "../contract";
 import { ProofMedia } from "../ProofMedia";
@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
   card: { justifyContent: "center" },
   scrim: { backgroundColor: "rgba(0,0,0,0.5)" },
   content: { paddingHorizontal: 24, paddingBottom: 48 },
-  label: { color: WHITE, fontSize: 13, fontWeight: "700", letterSpacing: 1.2, opacity: 0.85 },
-  stat: { color: WHITE, fontSize: 72, lineHeight: 84, fontWeight: "800", marginTop: 12 },
-  title: { color: WHITE, fontSize: 28, lineHeight: 34, fontWeight: "800", marginTop: 12 },
-  subtitle: { color: WHITE, fontSize: 17, lineHeight: 24, marginTop: 8, opacity: 0.9 },
+  label: { color: WHITE, fontSize: 13, fontFamily: fontFamily.bold, letterSpacing: 1.2, opacity: 0.85 },
+  stat: { color: WHITE, fontSize: 72, lineHeight: 84, fontFamily: fontFamily.extraBold, marginTop: 12 },
+  title: { color: WHITE, fontSize: 28, lineHeight: 34, fontFamily: fontFamily.extraBold, marginTop: 12 },
+  subtitle: { color: WHITE, fontFamily: fontFamily.regular, fontSize: 17, lineHeight: 24, marginTop: 8, opacity: 0.9 },
 });

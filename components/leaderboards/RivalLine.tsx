@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 /** The one-line callout above the table: "Maya is 15 ahead of you". Renders nothing without a rival. */
 export function RivalLine({ label }: { label: string | undefined }) {
@@ -23,5 +23,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  text: { fontSize: font.meta, fontWeight: "600", color: colors.accent },
+  text: { fontSize: font.meta, fontFamily: fontFamily.semiBold, color: colors.accent },
 });

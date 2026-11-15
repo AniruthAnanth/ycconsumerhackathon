@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { RecruiterBadge } from "@/components/invite";
 import { Avatar, Header, PositionPill, Score, Screen, SectionLabel, SLOT_NAME } from "@/components/ui";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { socialApi } from "../contract";
@@ -77,9 +77,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   nameBlock: { flex: 1, gap: spacing.xs },
-  name: { flex: 1, fontSize: 22, fontWeight: "700", color: colors.text },
+  name: { flex: 1, fontSize: 22, fontFamily: fontFamily.bold, color: colors.text },
   total: { alignItems: "flex-end" },
-  totalLabel: { fontSize: font.label, fontWeight: "600", letterSpacing: 0.6, color: colors.textMuted },
+  totalLabel: { fontSize: font.label, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textMuted },
   bestSlot: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  slotName: { fontSize: font.score, fontWeight: "700", color: colors.text },
+  slotName: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text },
 });

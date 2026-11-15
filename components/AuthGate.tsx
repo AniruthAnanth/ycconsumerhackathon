@@ -3,7 +3,7 @@ import { useConvexAuth } from "convex/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "@/theme";
+import { colors, fontFamily, spacing } from "@/theme";
 
 /**
  * Signs the device in anonymously on first launch and renders the app only
@@ -55,6 +55,6 @@ const styles = StyleSheet.create({
   retry: {
     color: colors.accent,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: fontFamily.semiBold,
   },
 });

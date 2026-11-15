@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Divider, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { REFERRAL_POINTS } from "@/convex/lib/referralRules";
-import { colors, font, hairline, spacing, ROW_HEIGHT_COMPACT } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
 import { friendStatusLine } from "./inviteRoute";
 
@@ -51,12 +51,12 @@ function Total({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   totals: { flexDirection: "row", paddingVertical: spacing.lg, borderBottomWidth: hairline, borderBottomColor: colors.divider },
   total: { flex: 1, alignItems: "center", gap: spacing.xs },
-  totalValue: { fontSize: font.total, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
-  totalLabel: { fontSize: font.label, fontWeight: "700", color: colors.textMuted },
-  rule: { padding: spacing.md, fontSize: font.meta, color: colors.textMuted },
-  empty: { padding: spacing.lg, fontSize: font.body, color: colors.textMuted },
+  totalValue: { fontSize: font.total, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
+  totalLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted },
+  rule: { padding: spacing.md, fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  empty: { padding: spacing.lg, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   row: { height: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  name: { fontSize: font.title, fontWeight: "600", color: colors.text },
-  status: { fontSize: font.body, color: colors.textMuted },
-  locked: { color: colors.tabActive, fontWeight: "700" },
+  name: { fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
+  status: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
+  locked: { color: colors.tabActive, fontFamily: fontFamily.bold },
 });
