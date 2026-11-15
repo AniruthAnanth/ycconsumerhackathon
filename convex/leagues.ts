@@ -358,9 +358,10 @@ export const get = query({
     }),
   }),
   handler: async (ctx, args) => {
-    // Standings are public like a sports table, so any signed-in player may
-    // read a league; only the caller's identity is required.
-    await requireUser(ctx);
+    // The invite code is the key to a private league, so only members are told
+    // it. A non-member still gets the league's name, stake and week, and no
+    // error: a guest removed by seed.reset still has this screen open for a moment.
+    const caller = await requireUser(ctx);
     const league = await ctx.db.get("leagues", args.leagueId);
     if (league === null) {
       throw new ConvexError("League not found");
@@ -370,10 +371,14 @@ export const get = query({
       throw new ConvexError("This league has not started its first week");
     }
     const members = await membersInJoinOrder(ctx, league._id);
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_league_user", (q) => q.eq("leagueId", league._id).eq("userId", caller._id))
+      .unique();
     return {
       _id: league._id,
       name: league.name,
-      inviteCode: league.inviteCode,
+      inviteCode: membership === null ? "" : league.inviteCode,
       stakeUsd: league.stakeUsd,
       memberCount: members.length,
       week: {

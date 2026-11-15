@@ -65,6 +65,15 @@ async function leagueAndWeek(
   return { league, week };
 }
 
+// A league's numbers are for its members, as everywhere else ("you share a league with the player").
+async function isMember(ctx: ReadCtx, leagueId: Id<"leagues">, userId: Id<"users">): Promise<boolean> {
+  const membership = await ctx.db
+    .query("memberships")
+    .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
+    .unique();
+  return membership !== null;
+}
+
 async function weekMatchups(ctx: ReadCtx, weekId: Id<"weeks">): Promise<Doc<"matchups">[]> {
   return await ctx.db
     .query("matchups")
@@ -230,8 +239,10 @@ export const table = query({
   args: { leagueId: v.id("leagues") },
   returns: v.array(tableRow),
   handler: async (ctx, args) => {
-    // Any signed-in player may read a league's table, like a sports table.
-    await requireUser(ctx);
+    // An empty table, not an error, for a non-member: seed.reset removes a guest while their phone
+    // still asks about the league, and a throw there would crash the screen.
+    const caller = await requireUser(ctx);
+    if (!(await isMember(ctx, args.leagueId, caller._id))) return [];
     return await toTable(ctx, await leagueStandings(ctx, args.leagueId));
   },
 });
@@ -362,8 +373,11 @@ export const pot = query({
     ),
   }),
   handler: async (ctx, args) => {
-    await requireUser(ctx);
+    const caller = await requireUser(ctx);
     const { league, week } = await leagueAndWeek(ctx, args.leagueId);
+    if (!(await isMember(ctx, league._id, caller._id))) {
+      return { stakeUsd: league.stakeUsd, potUsd: 0, paid: [], unpaid: [], settlesAt: week.endsAt };
+    }
 
     const names = new Map<Id<"users">, string>();
     const nameOf = async (userId: Id<"users">) => {
