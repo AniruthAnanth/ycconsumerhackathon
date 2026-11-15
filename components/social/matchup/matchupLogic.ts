@@ -18,6 +18,11 @@ export function winBarSplit(mine: number, theirs: number) {
   return { mineShare, minePercent, theirsPercent: 100 - minePercent };
 }
 
+/** What a side could score this week: the points on offer across its lineup rows. */
+export function possiblePoints(rows: { mine?: Pick<TaskRow, "points">; theirs?: Pick<TaskRow, "points"> }[], side: "mine" | "theirs") {
+  return rows.reduce((sum, row) => sum + (row[side]?.points ?? 0), 0);
+}
+
 /** The grey line under a task title. A held task has its points on hold while the league votes on a challenge. */
 export function statusLine(task: Pick<TaskRow, "status" | "verifiedAt" | "dueLabel">) {
   switch (task.status) {
