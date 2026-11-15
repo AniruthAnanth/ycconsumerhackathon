@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { statusLine, winBarSplit } from "./matchupLogic";
+import { possiblePoints, statusLine, winBarSplit } from "./matchupLogic";
 
 describe("winBarSplit", () => {
   it("sizes the bar by probability and rounds labels to sum to 100", () => {
@@ -36,5 +36,22 @@ describe("statusLine", () => {
   it("flags held and failed tasks", () => {
     expect(statusLine({ ...task, status: "held" })).toBe("Up for veto");
     expect(statusLine({ ...task, status: "failed" })).toBe("Not verified");
+  });
+});
+
+describe("possiblePoints", () => {
+  const rows = [
+    { mine: { points: 30, status: "verified" as const }, theirs: { points: 20, status: "open" as const } },
+    { mine: { points: 20, status: "open" as const }, theirs: { points: 10, status: "failed" as const } },
+    { mine: { points: 10, status: "held" as const } },
+  ];
+
+  it("adds only open rows to what is banked", () => {
+    expect(possiblePoints(rows, "mine", 30)).toBe(50);
+    expect(possiblePoints(rows, "theirs", 0)).toBe(20);
+  });
+
+  it("never reads below the banked total, even when bonuses push it past the rows", () => {
+    expect(possiblePoints(rows, "mine", 150)).toBeGreaterThanOrEqual(150);
   });
 });
