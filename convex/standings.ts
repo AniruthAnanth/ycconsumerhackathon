@@ -18,6 +18,7 @@ import { internalQuery, query, type MutationCtx, type QueryCtx } from "./_genera
 import { challengerPointsByUser } from "./challenges";
 import { currentWeek, membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { withoutStandIns } from "./lib/schedule";
 import { CORE_SLOTS, currentStreak, matchupBonus, scoreWeek, winProbability, type Slot } from "./lib/scoring";
 import { pacificDay } from "./lib/week";
 
@@ -161,7 +162,12 @@ export async function leagueStandings(
   if (week.status === "settled" || options.atSettlement) {
     // Both sides of every pair are compared on their points before any bonus lands.
     const before = new Map(members.map((member) => [member.userId, member.points]));
-    for (const { userA, userB } of await weekMatchups(ctx, week._id)) {
+    // A member with the week off has a stand-in row so their Matchup tab is not empty. It is not a
+    // head-to-head, and counting it would pay the member it borrows a second bonus.
+    const played = withoutStandIns(
+      (await weekMatchups(ctx, week._id)).map(({ userA, userB }) => ({ a: userA, b: userB })),
+    );
+    for (const { a: userA, b: userB } of played) {
       const a = before.get(userA);
       const b = before.get(userB);
       if (a === undefined || b === undefined) continue;
