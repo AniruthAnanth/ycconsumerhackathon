@@ -69,6 +69,20 @@ async function playerWithTask(task: Partial<Doc<"tasks">> = {}) {
 const upload = (t: Backend, type = "image/jpeg") =>
   t.run((ctx) => ctx.storage.store(new Blob(["media"], { type })));
 
+/** The smallest file a phone could call a video of this length: a movie box holding only its header. */
+function clipOfSeconds(seconds: number): Uint8Array<ArrayBuffer> {
+  const file = new Uint8Array(8 + 8 + 100);
+  const view = new DataView(file.buffer);
+  const name = (at: number, type: string) => file.set([...type].map((c) => c.charCodeAt(0)), at);
+  view.setUint32(0, file.length);
+  name(4, "moov");
+  view.setUint32(8, 108);
+  name(12, "mvhd");
+  view.setUint32(16 + 12, 1000); // timescale: units per second
+  view.setUint32(16 + 16, seconds * 1000);
+  return file;
+}
+
 const taskOf = (t: Backend, taskId: Id<"tasks">) => t.run((ctx) => ctx.db.get("tasks", taskId));
 const proofsOf = (t: Backend) => t.run((ctx) => ctx.db.query("proofs").collect());
 
@@ -259,6 +273,18 @@ describe("video proofs", () => {
     expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ fromVideo: true });
     expect(vi.mocked(judgeProof).mock.calls[0][0].imageUrls).toHaveLength(3);
     expect(await proofsOf(t)).toMatchObject([{ storageId: clip, mediaType: "video", pass: true }]);
+  });
+
+  it("turns away a clip longer than 10 seconds", async () => {
+    const { t, as, taskId } = await playerWithTask();
+    const clip = await t.run((ctx) => ctx.storage.store(new Blob([clipOfSeconds(12)], { type: "video/mp4" })));
+    const frameStorageIds = [await upload(t), await upload(t), await upload(t)];
+
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: clip, mediaType: "video", frameStorageIds });
+
+    expect(verdict).toMatchObject({ pass: false, reason: "Clips can be up to 10 seconds. Record a shorter one." });
+    expect(judgeProof).not.toHaveBeenCalled();
+    expect((await taskOf(t, taskId))?.status).toBe("open");
   });
 
   it("asks for a photo when a video arrives without stills", async () => {

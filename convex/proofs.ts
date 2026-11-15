@@ -21,6 +21,7 @@ import {
 } from "./_generated/server";
 import { judgeProof } from "./ai";
 import { requireUser } from "./lib/auth";
+import { MAX_CLIP_SECONDS, clipSeconds, isClipTooLong } from "./lib/clip";
 import { distanceMeters, isValidLatLng } from "./lib/geo";
 import {
   decideVerdict,
@@ -174,6 +175,13 @@ async function rejectionBeforeJudging(
   }
   if (imageTypes.some((type) => type === null)) {
     return rejectWithoutJudging("That upload didn't arrive. Take the shot again.");
+  }
+  if (submission.mediaType === "video") {
+    // The app's recorder stops at 10 seconds; this holds any other client to the same limit.
+    const clip = await ctx.storage.get(submission.storageId);
+    if (clip !== null && isClipTooLong(clipSeconds(new Uint8Array(await clip.arrayBuffer())))) {
+      return rejectWithoutJudging(`Clips can be up to ${MAX_CLIP_SECONDS} seconds. Record a shorter one.`);
+    }
   }
   if (imageTypes.some((type) => type !== "" && !READABLE_IMAGE_TYPES.includes(type as string))) {
     return rejectWithoutJudging("That file type can't be checked. Send a regular photo (JPEG or PNG).");
