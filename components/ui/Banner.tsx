@@ -13,7 +13,7 @@ type Props = {
   tone?: "accent" | "live";
   /** Makes the whole strip a button and shows a chevron. */
   onPress?: () => void;
-  /** Controls on the right, for example a drop's countdown and Submit. */
+  /** Controls on a line of their own under the title, for example a drop's countdown and Submit. */
   children?: ReactNode;
 };
 
@@ -23,19 +23,22 @@ export function Banner({ title, subtitle, icon, tone = "accent", onPress, childr
   const ink = live ? colors.background : colors.text;
   const strip = (
     <View style={[styles.strip, live && styles.live]}>
-      {icon ? <Icon name={icon} size={20} color={live ? colors.background : colors.accent} /> : null}
-      <View style={styles.text}>
-        <Text style={[styles.title, { color: ink }]} numberOfLines={2}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text style={[styles.subtitle, live && styles.subtitleLive]} numberOfLines={1}>
-            {subtitle}
+      <View style={styles.head}>
+        {icon ? <Icon name={icon} size={20} color={live ? colors.background : colors.accent} /> : null}
+        <View style={styles.text}>
+          <Text style={[styles.title, { color: ink }]} numberOfLines={2}>
+            {title}
           </Text>
-        ) : null}
+          {subtitle ? (
+            <Text style={[styles.subtitle, live && styles.subtitleLive]} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {onPress ? <Icon name="chevron-forward" size={18} color={live ? colors.background : colors.accent} /> : null}
       </View>
-      {children}
-      {onPress ? <Icon name="chevron-forward" size={18} color={live ? colors.background : colors.accent} /> : null}
+      {/* Beside the title, a drop's countdown and gesture line took the row and left the title one word. */}
+      {children ? <View style={styles.controls}>{children}</View> : null}
     </View>
   );
   if (!onPress) return strip;
@@ -50,9 +53,8 @@ export function Banner({ title, subtitle, icon, tone = "accent", onPress, childr
 const styles = StyleSheet.create({
   strip: {
     minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
+    justifyContent: "center",
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     backgroundColor: colors.accentTint,
@@ -60,6 +62,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   live: { backgroundColor: colors.text },
+  head: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  controls: { alignItems: "flex-end" },
   text: { flex: 1, gap: 1 },
   title: { fontSize: font.body, fontWeight: "700" },
   subtitle: { fontSize: font.meta, color: colors.textMuted },
