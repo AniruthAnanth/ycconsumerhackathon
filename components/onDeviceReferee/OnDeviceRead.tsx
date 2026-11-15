@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
 import type { Precheck } from "@/lib/onDeviceReferee";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing, type } from "@/theme";
 
 type Props = {
   /** From useOnDeviceRead. Null until the device has looked. */
@@ -42,7 +42,7 @@ export function OnDeviceRead({ read, asking, onRetake, onSendAnyway }: Props) {
 }
 
 const styles = StyleSheet.create({
-  hint: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: 21 },
+  hint: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: type.body.lineHeight },
   actions: { marginTop: spacing.xl, gap: spacing.sm },
   sendAnyway: { alignItems: "center", paddingVertical: spacing.md },
   sendAnywayLabel: { color: colors.textMuted, fontSize: font.title, fontFamily: fontFamily.semiBold },

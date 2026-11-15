@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fontFamily, hairline, spacing } from "@/theme";
+import { RowDivider } from "@/components/ui";
+import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 export type CheckInPromptKind = "drop" | "nearby" | "at_risk";
 
@@ -24,7 +25,7 @@ const labelColor: Record<CheckInPromptKind, string> = {
 };
 
 /**
- * One ticker-style line above the roster. It is fixed at 44 pt and never wraps:
+ * One ticker-style line above the roster. It is at least 44 pt tall and never wraps:
  * the prompt must not push the roster down, whatever the server sends.
  */
 export function CheckInPromptRow({ kind, label, line, onCheckIn }: Props) {
@@ -40,7 +41,7 @@ export function CheckInPromptRow({ kind, label, line, onCheckIn }: Props) {
       <Pressable
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
         onPress={onCheckIn}
-        // 28 pt pill plus 8 pt above and below makes the 44 pt touch target.
+        // A 32 pt pill plus 8 pt above and below clears the 44 pt touch target.
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
         accessibilityLabel="Check In"
@@ -48,45 +49,44 @@ export function CheckInPromptRow({ kind, label, line, onCheckIn }: Props) {
       >
         <Text style={styles.buttonText}>Check In</Text>
       </Pressable>
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    height: 44,
+    minHeight: layout.rowMin,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.background,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   label: {
     flexShrink: 0,
-    fontSize: 11,
+    fontSize: font.label,
     fontFamily: fontFamily.bold,
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
   line: {
     flex: 1,
-    fontSize: 13,
+    fontSize: font.meta,
     fontFamily: fontFamily.semiBold,
     color: colors.text,
   },
   button: {
     flexShrink: 0,
-    height: 28,
+    minHeight: layout.avatarCompact,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    borderRadius: 14,
+    borderRadius: radius.pill,
     backgroundColor: colors.accent,
   },
   pressed: { opacity: 0.8 },
   buttonText: {
-    fontSize: 12,
+    fontSize: font.meta,
     fontFamily: fontFamily.bold,
     color: colors.onAccent,
   },

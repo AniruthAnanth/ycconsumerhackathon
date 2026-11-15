@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/ui";
-import { colors, fontFamily, spacing } from "@/theme";
+import { colors, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { ProofTarget } from "../proofRoute";
 
@@ -39,7 +39,7 @@ export function CameraOverlay({ target, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  top: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: spacing.lg, gap: spacing.md },
+  top: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: SCREEN_MARGIN, gap: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   titles: { flex: 1 },
   title: { color: colors.onAccent, fontSize: 17, fontFamily: fontFamily.bold },

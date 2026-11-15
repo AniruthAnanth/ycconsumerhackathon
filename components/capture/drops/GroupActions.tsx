@@ -54,7 +54,7 @@ export function GroupActions({ view }: { view: GroupView }) {
 const styles = StyleSheet.create({
   column: { flexShrink: 1, alignItems: "flex-end", gap: spacing.sm },
   row: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
-  info: { flexShrink: 1, alignItems: "flex-end", gap: 2 },
+  info: { flexShrink: 1, alignItems: "flex-end", gap: spacing.xs },
   countdown: {
     color: colors.onAccent,
     fontSize: font.total,
