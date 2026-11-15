@@ -15,12 +15,14 @@ const NO_VALUE = "\u2014";
 
 export function ProfileScreen() {
   const router = useRouter();
+  // A reload or deep link opens this screen with no history, where router.back() throws.
+  const leave = () => (router.canGoBack() ? router.back() : router.replace("/"));
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const profile = useQuery(socialApi.profile.get, { userId: userId as Id<"users"> });
 
   return (
     <Screen scroll>
-      <Header title="Profile" onBack={router.back} />
+      <Header title="Profile" onBack={leave} />
       {profile === undefined ? (
         <ScreenState loading />
       ) : (
