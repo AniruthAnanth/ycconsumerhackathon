@@ -198,6 +198,20 @@ describe("standings.table", () => {
   });
 });
 
+describe("the matchup bonus in a league with an odd number of members", () => {
+  test("the stand-in pair of a member with the week off pays nobody", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, ids } = await seeded(t);
+    const novaId = await t.run((ctx) => ctx.db.insert("users", { name: "Nova", phone: "+14155550177" }));
+    await as(t, novaId).mutation(api.leagues.joinByCode, { inviteCode: "YCHACK" });
+
+    // Nova's stand-in row is against Maya, who already plays Sam: Maya wins +50 once, not twice.
+    const table = await t.query(internal.standings.tableForLeague, { leagueId, atSettlement: true });
+    expect(table.find((row) => row.userId === ids.Maya)?.points).toBe(550);
+    expect(table.find((row) => row.userId === novaId)?.points).toBe(0);
+  });
+});
+
 describe("standings.tableForLeague and pointsInLeague", () => {
   test("serve callers with no signed-in player", async () => {
     const t = convexTest(schema, modules);
