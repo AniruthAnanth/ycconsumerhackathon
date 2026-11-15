@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countedPoints, formatPoints, NO_POINTS } from "./formatPoints";
+import { formatPoints, NO_POINTS } from "./formatPoints";
 
 describe("formatPoints", () => {
   it("signs a pass and keeps one decimal", () => {
@@ -11,15 +11,5 @@ describe("formatPoints", () => {
 
   it("shows a dash on a fail whatever the points say", () => {
     expect(formatPoints(40, false)).toBe(NO_POINTS);
-  });
-});
-
-describe("countedPoints", () => {
-  it("scales the target by progress and clamps it", () => {
-    expect(countedPoints(40, 0)).toBe(0);
-    expect(countedPoints(40, 0.5)).toBe(20);
-    expect(countedPoints(40, 1)).toBe(40);
-    expect(countedPoints(40, 1.2)).toBe(40);
-    expect(countedPoints(40, -1)).toBe(0);
   });
 });

@@ -1,26 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 
+import { CountUp } from "@/components/motion";
 import { colors } from "@/theme";
 
-import { countedPoints, formatPoints } from "./formatPoints";
-import { COUNT_UP_MS } from "./timing";
+import { formatPoints } from "./formatPoints";
 
 type Props = { points: number; pass: boolean; delay: number };
 
-/** The score, counting up from zero on a pass and a plain dash on a fail. */
+/** The score, counting up from zero on a pass (COUNT_MS, under 400 ms) and a plain dash on a fail. */
 export function PointsCounter({ points, pass, delay }: Props) {
-  const progress = useRef(new Animated.Value(0)).current;
-  const [shown, setShown] = useState(0);
-
-  useEffect(() => {
-    if (!pass) return;
-    const id = progress.addListener(({ value }) => setShown(countedPoints(points, value)));
-    Animated.timing(progress, { toValue: 1, duration: COUNT_UP_MS, delay, useNativeDriver: false }).start();
-    return () => progress.removeListener(id);
-  }, [delay, pass, points, progress]);
-
-  return <Text style={styles.value}>{formatPoints(shown, pass)}</Text>;
+  if (!pass) return <Text style={styles.value}>{formatPoints(points, false)}</Text>;
+  return (
+    <CountUp
+      value={points}
+      format={(shown) => formatPoints(shown, true)}
+      decimals={1}
+      fromZero
+      delay={delay}
+      style={styles.value}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

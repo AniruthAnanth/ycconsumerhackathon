@@ -1,27 +1,36 @@
-import * as Haptics from "expo-haptics";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Animated } from "react-native";
 
-import { IMPACT_DELAY_MS } from "./timing";
+import { useReduceMotion } from "@/components/motion";
+import { haptics } from "@/lib/native/haptics";
 
 const SHAKE_OFFSETS = [8, -8, 6, -5, 3, 0];
+const SHAKE_STEP_MS = 40;
 
-/** Shakes the screen and taps the phone as the stamp lands; `pass` is undefined while there is no verdict. */
+/**
+ * Shakes the screen and thuds the phone when the stamp lands; `pass` is undefined while there is
+ * no verdict. `land` is the stamp's onLand. It acts once per verdict, because the stamp can call it
+ * again when Reduce Motion is read after the slam started. With Reduce Motion on the haptic still
+ * fires but the screen stays still.
+ */
 export function useStampImpact(pass: boolean | undefined) {
+  const reduceMotion = useReduceMotion();
   const offset = useRef(new Animated.Value(0)).current;
+  const landed = useRef(false);
 
   useEffect(() => {
-    if (pass === undefined) return;
-    const timer = setTimeout(() => {
-      void Haptics.notificationAsync(
-        pass ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error,
-      );
-      Animated.sequence(
-        SHAKE_OFFSETS.map((toValue) => Animated.timing(offset, { toValue, duration: 40, useNativeDriver: true })),
-      ).start();
-    }, IMPACT_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [offset, pass]);
+    if (pass === undefined) landed.current = false;
+  }, [pass]);
 
-  return { transform: [{ translateX: offset }] };
+  const land = useCallback(() => {
+    if (pass === undefined || landed.current) return;
+    landed.current = true;
+    haptics.stamp(pass);
+    if (reduceMotion) return;
+    Animated.sequence(
+      SHAKE_OFFSETS.map((toValue) => Animated.timing(offset, { toValue, duration: SHAKE_STEP_MS, useNativeDriver: true })),
+    ).start();
+  }, [offset, pass, reduceMotion]);
+
+  return { style: { transform: [{ translateX: offset }] }, land };
 }
