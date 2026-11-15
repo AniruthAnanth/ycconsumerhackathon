@@ -70,7 +70,9 @@ export const createCheckout = action({
     const checkout = await whop.checkoutConfigurations.create({
       account_id: whopCompanyId,
       variant: {
-        title: `${buyIn.leagueName} buy-in`,
+        // Whop caps this title at 30 characters, so it can't carry the league's name. The
+        // checkout page shows the league's company above it anyway.
+        title: "Lineup buy-in",
         billing_type: "one_time",
         initial_price: buyIn.stakeUsd,
         currency: "usd",
