@@ -28,14 +28,17 @@ import {
   action,
   env,
   httpAction,
+  internalAction,
   internalMutation,
   internalQuery,
   type ActionCtx,
+  type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { currentWeek as latestWeek, paidInto } from "./leagues";
+import { currentWeek as latestWeek, ensureCurrentWeek, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
+import { weekStartOf } from "./lib/week";
 import { computeSettlement, settlementLedgerRows, type Entrant } from "./lib/settlement";
 import { computeVersusSettlement } from "./lib/versusSettlement";
 import { leagueStandings } from "./standings";
@@ -302,57 +305,102 @@ export const settleWeek = action({
   returns: v.null(),
   handler: async (ctx, { leagueId }) => {
     await ctx.runQuery(internal.whop.requireMember, { leagueId });
-    const { whopCompanyId, refunds, transfers }: Owed = await ctx.runMutation(
-      internal.whop.closeWeek,
-      { leagueId },
-    );
+    const owed: Owed = await ctx.runMutation(internal.whop.closeWeek, { leagueId });
     // A settled week carries the matchup bonus, so the leaderboards rebuild the league's stored rows.
     await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
-    // A league nobody has paid into through Whop, like the seeded one, has nothing to move there.
-    if (refunds.length === 0 && transfers.length === 0) return null;
-
-    const whop = whopClient();
-    /** Moves one payout on Whop and stamps its ledger rows. A refusal leaves them for the next call. */
-    const pay = async (key: string, ledgerIds: Id<"ledger">[], move: () => Promise<string>) => {
-      try {
-        const whopId = await move();
-        await ctx.runMutation(internal.whop.recordPaid, { ledgerIds, whopId });
-      } catch (error) {
-        if (!(error instanceof WhopError)) throw error;
-        console.warn(`Whop did not accept ${key}: ${error.message}`);
-      }
-    };
-
-    for (const refund of refunds) {
-      await pay(refund.idempotencyKey, [refund.ledgerId], async () => {
-        // An amount that covers all that is left to refund refunds the rest of the payment.
-        await whop.payments.refund(
-          { id: refund.whopPaymentId, partial_amount: refund.amountUsd },
-          { idempotencyKey: refund.idempotencyKey },
-        );
-        return refund.whopPaymentId;
-      });
-    }
-    // Whop refuses transfers out of a company that has not passed identity verification, which
-    // no sandbox league has. Those rows stand, and the app shows the payout from the ledger.
-    if (whopCompanyId === null) return null;
-    for (const transfer of transfers) {
-      await pay(transfer.idempotenceKey, transfer.ledgerIds, async () => {
-        const sent = await whop.transfers.create({
-          type: "balance",
-          origin_id: whopCompanyId,
-          destination_id: transfer.whopUserId,
-          amount: transfer.amountUsd,
-          currency: "usd",
-          idempotence_key: transfer.idempotenceKey,
-          notes: "Lineup payout",
-        });
-        return sent.id;
-      });
-    }
+    await payOnWhop(ctx, owed);
     return null;
   },
 });
+
+/**
+ * The week's end when nobody presses End Week Now. The hourly sweep in leagues.ts calls this for
+ * each league whose week has run out, and it is safe to call at any time, any number of times.
+ *
+ * rollWeek does the work in one transaction, so a league is never left between weeks: once the
+ * calendar has left the league's latest week it settles that week, unless End Week Now already
+ * has, and opens the next with its matchups. The money moves afterwards, as in settleWeek. What
+ * Whop refuses stays in the ledger as unsent rows, and retryPayouts sends those again later.
+ */
+export const endWeek = internalAction({
+  args: { leagueId: v.id("leagues") },
+  returns: v.null(),
+  handler: async (ctx, { leagueId }) => {
+    const owed: Owed | null = await ctx.runMutation(internal.whop.rollWeek, { leagueId });
+    if (owed === null) return null;
+    await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
+    await payOnWhop(ctx, owed);
+    return null;
+  },
+});
+
+/**
+ * Sends again what an earlier week's settlement still owes on Whop. settleWeek only reaches the
+ * league's current week, so this is the way back to a week the league has moved on from:
+ *
+ *   npx convex run whop:retryPayouts '{"leagueId": "…", "weekId": "…"}'
+ *
+ * In a season league any week of a season names that season's settlement. A week that was left
+ * open is settled first, as End Week Now would have settled it.
+ */
+export const retryPayouts = internalAction({
+  args: { leagueId: v.id("leagues"), weekId: v.id("weeks") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const owed: Owed = await ctx.runMutation(internal.whop.closeWeek, args);
+    await payOnWhop(ctx, owed);
+    return null;
+  },
+});
+
+/**
+ * Moves on Whop what a settlement still owes and stamps the ledger rows it paid. A refusal from
+ * Whop is logged and leaves its rows unsent for a later call; it never fails the caller.
+ */
+async function payOnWhop(ctx: ActionCtx, { whopCompanyId, refunds, transfers }: Owed): Promise<void> {
+  // A league nobody has paid into through Whop, like the seeded one, has nothing to move there.
+  if (refunds.length === 0 && transfers.length === 0) return;
+
+  const whop = whopClient();
+  /** Moves one payout on Whop and stamps its ledger rows. A refusal leaves them for the next call. */
+  const pay = async (key: string, ledgerIds: Id<"ledger">[], move: () => Promise<string>) => {
+    try {
+      const whopId = await move();
+      await ctx.runMutation(internal.whop.recordPaid, { ledgerIds, whopId });
+    } catch (error) {
+      if (!(error instanceof WhopError)) throw error;
+      console.warn(`Whop did not accept ${key}: ${error.message}`);
+    }
+  };
+
+  for (const refund of refunds) {
+    await pay(refund.idempotencyKey, [refund.ledgerId], async () => {
+      // An amount that covers all that is left to refund refunds the rest of the payment.
+      await whop.payments.refund(
+        { id: refund.whopPaymentId, partial_amount: refund.amountUsd },
+        { idempotencyKey: refund.idempotencyKey },
+      );
+      return refund.whopPaymentId;
+    });
+  }
+  // Whop refuses transfers out of a company that has not passed identity verification, which
+  // no sandbox league has. Those rows stand, and the app shows the payout from the ledger.
+  if (whopCompanyId === null) return;
+  for (const transfer of transfers) {
+    await pay(transfer.idempotenceKey, transfer.ledgerIds, async () => {
+      const sent = await whop.transfers.create({
+        type: "balance",
+        origin_id: whopCompanyId,
+        destination_id: transfer.whopUserId,
+        amount: transfer.amountUsd,
+        currency: "usd",
+        idempotence_key: transfer.idempotenceKey,
+        notes: "Lineup payout",
+      });
+      return sent.id;
+    });
+  }
+}
 
 export const requireMember = internalQuery({
   args: { leagueId: v.id("leagues") },
@@ -388,68 +436,107 @@ const owed = v.object({
 type Owed = typeof owed.type;
 
 /**
- * Settles the league's current week in the ledger and returns the transfers still to send.
- *
- * A "weekly" league settles every week on that week's standings. A "season" league holds every
- * stake until the season's final week: earlier weeks only close, and the final one settles once
- * on season totals. Either way the maths is computeSettlement in lib/settlement.ts.
+ * Settles a week in the ledger and returns what its settlement still owes on Whop: the league's
+ * current week, or the earlier one named.
  *
  * Runs as one transaction and only acts on an open week, so two calls at once cannot both
  * write rows. On a week already settled it changes nothing and reports what is still unsent.
  */
 export const closeWeek = internalMutation({
-  args: { leagueId: v.id("leagues") },
+  args: { leagueId: v.id("leagues"), weekId: v.optional(v.id("weeks")) },
   returns: owed,
-  handler: async (ctx, { leagueId }) => {
+  handler: async (ctx, { leagueId, weekId }) => {
     const league = await ctx.db.get("leagues", leagueId);
     if (league === null) throw new ConvexError("League not found");
-    const week = await currentWeek(ctx, leagueId);
-    const { payout, seasonWeeks } = resolveSettings(league);
-    const bySeason = payout === "season";
-    // What one settlement covers. It prefixes the ledger keys and is the transfer's idempotence
-    // key together with the member: "{weekId}:{userId}" or "{leagueId}:season:{userId}".
-    // One season per league today; a second would need its number in here.
-    const scope = bySeason ? `${leagueId}:season` : week._id;
-
-    // The weeks one settlement covers: the buy-ins it returns were paid in these.
-    const weeks = bySeason ? await weeksOfSeason(ctx, week, seasonWeeks) : [week];
-
-    if (week.status === "open") {
-      if (!bySeason || isFinalWeek(week.number, seasonWeeks)) {
-        const entrants = await entrantsOver(ctx, leagueId, weeks);
-        // A 1v1 versus pays the higher score; a league pays its finishers (convex/versus.ts).
-        const settle = league.mode === "versus" ? computeVersusSettlement : computeSettlement;
-        const settlement = settle(league.stakeUsd, entrants);
-        for (const row of settlementLedgerRows(scope, settlement)) {
-          if (await isInLedger(ctx, row.idempotencyKey)) continue;
-          await ctx.db.insert("ledger", {
-            leagueId,
-            weekId: week._id,
-            ...row,
-            createdAt: Date.now(),
-          });
-        }
-      }
-      // A week closed early with End Week Now is over at once. Its end time is what the League
-      // tab counts down to and where the week's challenge window stops, so both follow.
-      await ctx.db.patch("weeks", week._id, {
-        status: "settled",
-        endsAt: Math.min(week.endsAt, Date.now()),
-      });
-      // Next week's draft learns from this one. It runs on its own, so it can't hold up or fail
-      // the settlement, and only the call that closes the week schedules it.
-      await ctx.scheduler.runAfter(0, internal.lineup.rememberOutcomes, {
-        leagueId,
-        weekStart: week.startsAt,
-      });
-    }
-
-    return {
-      whopCompanyId: league.whopCompanyId ?? null,
-      ...(await unpaidOnWhop(ctx, leagueId, scope, weeks)),
-    };
+    const week = weekId === undefined ? await currentWeek(ctx, leagueId) : await ctx.db.get("weeks", weekId);
+    if (week === null || week.leagueId !== leagueId) throw new ConvexError("That week is not this league's");
+    return await settleInLedger(ctx, league, week);
   },
 });
+
+/**
+ * Closes the league's latest week once the calendar has left it, and opens the next. Returns
+ * what the week it closed owes on Whop, or null when it closed none.
+ */
+export const rollWeek = internalMutation({
+  args: { leagueId: v.id("leagues") },
+  returns: v.union(owed, v.null()),
+  handler: async (ctx, { leagueId }) => {
+    const league = await ctx.db.get("leagues", leagueId);
+    const week = await latestWeek(ctx, leagueId);
+    // The test ensureCurrentWeek makes. While it holds the league is in its current week, and
+    // that includes a week End Week Now closed early: its next week still opens on Monday.
+    if (league === null || week === null || week.startsAt === weekStartOf(Date.now())) return null;
+
+    const wasOpen = week.status === "open";
+    const unsent = await settleInLedger(ctx, league, week);
+    // A versus is a single week: the game ends here, and a rematch is a new league (versus.ts).
+    if (league.mode !== "versus") await ensureCurrentWeek(ctx, leagueId);
+    // A week settled before this call was paid, or tried, by the call that settled it.
+    return wasOpen ? unsent : null;
+  },
+});
+
+/**
+ * Settles `week` in the ledger, if it is still open, and returns what its settlement still owes
+ * on Whop.
+ *
+ * A "weekly" league settles every week on that week's standings. A "season" league holds every
+ * stake until the season's final week: earlier weeks only close, and the final one settles once
+ * on season totals. Either way the maths is computeSettlement in lib/settlement.ts.
+ */
+async function settleInLedger(ctx: MutationCtx, league: Doc<"leagues">, week: Doc<"weeks">): Promise<Owed> {
+  const leagueId = league._id;
+  const { payout, seasonWeeks } = resolveSettings(league);
+  const bySeason = payout === "season";
+  // What one settlement covers. It prefixes the ledger keys and is the transfer's idempotence
+  // key together with the member: "{weekId}:{userId}" or "{leagueId}:season:{userId}". A league
+  // plays on after its first season, and each later season settles under its own number:
+  // "{leagueId}:season-2:{userId}".
+  let scope: string = week._id;
+  if (bySeason) {
+    const season = seasonOf(week.number, seasonWeeks).number;
+    scope = season === 1 ? `${leagueId}:season` : `${leagueId}:season-${season}`;
+  }
+
+  // The weeks one settlement covers: the buy-ins it returns were paid in these.
+  const weeks = bySeason ? await weeksOfSeason(ctx, week, seasonWeeks) : [week];
+
+  if (week.status === "open") {
+    if (!bySeason || isFinalWeek(week.number, seasonWeeks)) {
+      const entrants = await entrantsOver(ctx, leagueId, weeks);
+      // A 1v1 versus pays the higher score; a league pays its finishers (convex/versus.ts).
+      const settle = league.mode === "versus" ? computeVersusSettlement : computeSettlement;
+      const settlement = settle(league.stakeUsd, entrants);
+      for (const row of settlementLedgerRows(scope, settlement)) {
+        if (await isInLedger(ctx, row.idempotencyKey)) continue;
+        await ctx.db.insert("ledger", {
+          leagueId,
+          weekId: week._id,
+          ...row,
+          createdAt: Date.now(),
+        });
+      }
+    }
+    // A week closed early with End Week Now is over at once. Its end time is what the League
+    // tab counts down to and where the week's challenge window stops, so both follow.
+    await ctx.db.patch("weeks", week._id, {
+      status: "settled",
+      endsAt: Math.min(week.endsAt, Date.now()),
+    });
+    // Next week's draft learns from this one. It runs on its own, so it can't hold up or fail
+    // the settlement, and only the call that closes the week schedules it.
+    await ctx.scheduler.runAfter(0, internal.lineup.rememberOutcomes, {
+      leagueId,
+      weekStart: week.startsAt,
+    });
+  }
+
+  return {
+    whopCompanyId: league.whopCompanyId ?? null,
+    ...(await unpaidOnWhop(ctx, leagueId, scope, weeks)),
+  };
+}
 
 /**
  * Stamps ledger rows with the Whop object that paid them, which is what marks them as paid: the
