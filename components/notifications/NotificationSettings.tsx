@@ -6,7 +6,7 @@ import { SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { isAvailable, requestPermission } from "@/lib/notifications/native";
 import { usePermission } from "@/lib/notifications/usePermission";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { pushCopy } from "./pushCopy";
 import { SilentBoundary } from "./SilentBoundary";
@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 2 },
-  title: { fontSize: font.title, fontWeight: "700", color: colors.text },
-  copy: { fontSize: font.meta, color: colors.textMuted },
+  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  copy: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

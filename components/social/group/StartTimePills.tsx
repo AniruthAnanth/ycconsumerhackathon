@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 import { formatStart, type StartOption } from "./groupLogic";
 
 /** The quick start times as a row of pills, with the chosen one filled and its resolved time below. */
@@ -39,7 +39,7 @@ export function StartTimePills({
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm, padding: spacing.lg },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   pill: {
     height: 32,
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pillActive: { backgroundColor: colors.accent },
-  pillText: { fontSize: font.body, fontWeight: "700", color: colors.accent },
-  pillTextActive: { color: colors.background },
-  resolved: { fontSize: font.title, fontWeight: "700", color: colors.text },
+  pillText: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.accent },
+  pillTextActive: { color: colors.onAccent },
+  resolved: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
 });

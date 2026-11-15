@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SectionLabel } from "@/components/ui";
 import type { LeagueSettings } from "@/convex/lib/schedule";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { FORMAT_CHOICES, PAYOUT_CHOICES, SEASON_WEEKS_CHOICES, type Choice } from "./settings";
 
@@ -77,6 +77,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   pillSelected: { backgroundColor: colors.accent },
-  label: { fontSize: font.body, fontWeight: "700", color: colors.accent },
-  labelSelected: { color: colors.background },
+  label: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.accent },
+  labelSelected: { color: colors.onAccent },
 });

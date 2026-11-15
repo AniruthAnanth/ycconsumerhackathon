@@ -2,7 +2,7 @@ import type { ErrorBoundaryProps } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { OutlinedPillButton } from "@/components/ui";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 /**
  * CurrentLeagueProvider reads users.me() above every screen, so when that read
@@ -28,5 +28,5 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     backgroundColor: colors.background,
   },
-  message: { fontSize: font.title, color: colors.textMuted },
+  message: { fontFamily: fontFamily.regular, fontSize: font.title, color: colors.textMuted },
 });

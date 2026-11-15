@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { PositionPill, Score } from "@/components/ui";
-import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
 
 import type { Matchup, TaskRow } from "../contract";
 import { statusLine } from "./matchupLogic";
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   sideMirrored: { flexDirection: "row-reverse" },
   text: { flex: 1, gap: 2 },
   textRight: { textAlign: "right" },
-  title: { color: colors.text, fontSize: font.body, fontWeight: "700" },
-  status: { color: colors.textMuted, fontSize: font.meta },
-  empty: { flex: 1, color: colors.textFaint, fontSize: font.header, textAlign: "center" },
+  title: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold },
+  status: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta },
+  empty: { flex: 1, color: colors.textFaint, fontFamily: fontFamily.regular, fontSize: font.header, textAlign: "center" },
 });

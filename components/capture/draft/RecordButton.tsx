@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { formatElapsed } from "./recordingMeter";
 
@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   recordDot: { width: 76, height: 76, borderRadius: 38, backgroundColor: colors.accent },
   stopSquare: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.accent },
-  timer: { marginTop: spacing.sm, minHeight: CAPTION_HEIGHT, fontSize: font.header, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
-  hint: { marginTop: spacing.sm, minHeight: CAPTION_HEIGHT, fontSize: font.body, color: colors.textMuted },
+  timer: { marginTop: spacing.sm, minHeight: CAPTION_HEIGHT, fontSize: font.header, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
+  hint: { marginTop: spacing.sm, minHeight: CAPTION_HEIGHT, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
 });

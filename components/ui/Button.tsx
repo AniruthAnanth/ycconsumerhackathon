@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, radius, spacing } from "@/theme";
 
 type Props = {
   label: string;
@@ -23,7 +23,7 @@ export function Button({ label, onPress, loading = false, disabled = false, styl
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, busy: loading }}
     >
-      {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.label}>{label}</Text>}
+      {loading ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.label}>{label}</Text>}
     </Pressable>
   );
 }
@@ -34,10 +34,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
-    borderRadius: 24,
+    borderRadius: radius.control,
     backgroundColor: colors.accent,
   },
   inactive: { opacity: 0.4 },
   pressed: { opacity: 0.8 },
-  label: { fontSize: font.score, fontWeight: "700", color: colors.background },
+  label: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.onAccent },
 });

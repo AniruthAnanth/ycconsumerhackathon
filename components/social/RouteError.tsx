@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { errorMessage } from "@/lib/errorMessage";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { leaveScreen } from "./leave";
 
@@ -42,5 +42,5 @@ function Failure({ error, retry }: ErrorBoundaryProps) {
 
 const styles = StyleSheet.create({
   failure: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xl },
-  message: { color: colors.textMuted, fontSize: font.title, textAlign: "center" },
+  message: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.title, textAlign: "center" },
 });

@@ -4,7 +4,7 @@ import { CountUp } from "@/components/motion";
 import { Divider, Icon } from "@/components/ui";
 import type { Pot } from "@/lib/backend";
 import { formatCountdown, formatUsd, isSettled } from "@/lib/leagueText";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 type Props = { pot: Pot; now: number };
 
@@ -63,13 +63,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
-  amount: { fontSize: font.pot, fontWeight: "800", color: colors.text, fontVariant: ["tabular-nums"] },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
+  amount: { fontSize: font.pot, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
   meta: { alignItems: "flex-end", gap: 2 },
-  muted: { fontSize: font.body, color: colors.textMuted },
+  muted: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   group: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs },
   names: { flexDirection: "row", flexWrap: "wrap", columnGap: spacing.md, rowGap: spacing.xs },
   name: { flexDirection: "row", alignItems: "center", gap: 2 },
-  nameText: { fontSize: font.body, color: colors.text },
+  nameText: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text },
   unpaid: { color: colors.textMuted },
 });

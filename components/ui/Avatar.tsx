@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 
 import type { Slot } from "@/lib/slots";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import { Icon } from "./Icon";
 import { SLOT_ICON } from "./slotIcons";
@@ -29,7 +29,7 @@ export function Avatar({ uri, name, slot, size = 40 }: Props) {
       {slot ? (
         <Icon name={SLOT_ICON[slot]} size={size * 0.5} color={colors.textMuted} />
       ) : (
-        <Text style={[styles.initials, { fontSize: size * 0.38 }]}>{initials(name)}</Text>
+        <Text style={[styles.initials, { fontFamily: fontFamily.regular, fontSize: size * 0.38 }]}>{initials(name)}</Text>
       )}
     </View>
   );
@@ -42,5 +42,5 @@ function initials(name: string | undefined): string {
 
 const styles = StyleSheet.create({
   circle: { backgroundColor: colors.strip, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  initials: { fontWeight: "700", color: colors.textMuted },
+  initials: { fontFamily: fontFamily.bold, color: colors.textMuted },
 });

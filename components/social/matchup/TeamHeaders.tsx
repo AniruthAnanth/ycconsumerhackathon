@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Score } from "@/components/ui";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import type { MatchupSide } from "../contract";
 
@@ -36,5 +36,5 @@ function TeamHeader({ side, align }: { side: MatchupSide; align: "flex-start" | 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.lg },
   team: { flex: 1, gap: spacing.xs },
-  name: { color: colors.text, fontSize: font.title, fontWeight: "700", maxWidth: "100%" },
+  name: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold, maxWidth: "100%" },
 });

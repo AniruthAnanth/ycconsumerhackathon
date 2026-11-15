@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import { canSend } from "./chatLogic";
 
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.strip,
     color: colors.text,
-    fontSize: 16,
+    fontFamily: fontFamily.regular, fontSize: 16,
   },
   send: {
     height: 40,
@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendDisabled: { opacity: 0.4 },
-  sendText: { color: colors.background, fontSize: 15, fontWeight: "700" },
+  sendText: { color: colors.onAccent, fontSize: 15, fontFamily: fontFamily.bold },
 });

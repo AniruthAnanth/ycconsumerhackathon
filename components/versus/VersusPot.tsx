@@ -11,7 +11,7 @@ import { Button, OutlinedPillButton } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import type { Versus } from "./api";
 import { outcomeLine, potLine } from "./versusText";
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  pot: { fontSize: font.title, fontWeight: "700", color: colors.text },
-  outcome: { fontSize: font.total, fontWeight: "700", color: colors.text },
-  detail: { fontSize: font.body, color: colors.textMuted },
+  pot: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  outcome: { fontSize: font.total, fontFamily: fontFamily.bold, color: colors.text },
+  detail: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
 });

@@ -1,11 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { StampSlam } from "@/components/motion";
+import { fontFamily, palette } from "@/theme";
 
 import { STAMP_DELAY_MS } from "./timing";
 
-const VERIFIED_GREEN = "#1E9E4A";
-const REJECTED_RED = "#D93025";
+
+const VERIFIED_GREEN = palette.green;
+const REJECTED_RED = palette.danger;
 
 type Props = { pass: boolean; onLand: () => void };
 
@@ -32,5 +34,5 @@ const styles = StyleSheet.create({
   anchor: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   outer: { borderWidth: 4, padding: 4, backgroundColor: "rgba(255,255,255,0.9)", transform: [{ rotate: "-8deg" }] },
   inner: { borderWidth: 2, paddingHorizontal: 18, paddingVertical: 8 },
-  label: { fontSize: 32, fontWeight: "900", letterSpacing: 4, textTransform: "uppercase" },
+  label: { fontSize: 32, fontFamily: fontFamily.extraBold, letterSpacing: 4, textTransform: "uppercase" },
 });

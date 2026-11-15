@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar } from "@/components/ui";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { movementMark, rowSubtitle } from "./format";
 import type { BoardRow } from "./types";
@@ -64,13 +64,13 @@ const styles = StyleSheet.create({
   row: { minHeight: 60, paddingVertical: spacing.xs, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md },
   // The caller finds themselves at a glance.
   me: { backgroundColor: colors.accentTint },
-  rank: { width: RANK_WIDTH, fontSize: font.score, fontWeight: "800", color: colors.text, fontVariant: ["tabular-nums"] },
-  movement: { width: MOVEMENT_WIDTH, fontSize: font.label, fontWeight: "700" },
+  rank: { width: RANK_WIDTH, fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
+  movement: { width: MOVEMENT_WIDTH, fontSize: font.label, fontFamily: fontFamily.bold },
   who: { flex: 1, gap: 2 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  name: { flexShrink: 1, fontSize: font.title, fontWeight: "700", color: colors.text },
-  subtitle: { fontSize: font.meta, color: colors.textMuted },
-  value: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"], textAlign: "right", minWidth: 72, flexShrink: 0 },
+  name: { flexShrink: 1, fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  subtitle: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  value: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"], textAlign: "right", minWidth: 72, flexShrink: 0 },
   tag: { borderWidth: 1, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
-  tagText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  tagText: { fontSize: 9, fontFamily: fontFamily.extraBold, letterSpacing: 0.5 },
 });

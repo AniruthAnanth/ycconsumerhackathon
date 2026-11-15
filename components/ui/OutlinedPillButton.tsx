@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, MIN_TARGET, radius, spacing } from "@/theme";
 
 import { Icon, type IconName } from "./Icon";
 
@@ -34,16 +34,16 @@ export function OutlinedPillButton({ label, onPress, icon, disabled = false, acc
 
 const styles = StyleSheet.create({
   pill: {
-    height: 36,
+    minHeight: MIN_TARGET,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
     paddingHorizontal: spacing.lg,
-    borderRadius: 18,
+    borderRadius: radius.control,
     borderWidth: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   pressed: { backgroundColor: colors.accentTint },
-  label: { fontSize: font.body, fontWeight: "700" },
+  label: { fontSize: font.body, fontFamily: fontFamily.bold },
 });

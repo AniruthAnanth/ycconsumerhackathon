@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Divider } from "@/components/ui";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { tiedRanks } from "./format";
 import { LeaderboardRow, MOVEMENT_WIDTH, RANK_WIDTH } from "./LeaderboardRow";
@@ -47,9 +47,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   // Rank and movement are separate columns in a row but one header cell here, so PLAYER lines up with the avatar.
   rank: { width: RANK_WIDTH + MOVEMENT_WIDTH + spacing.sm },
   player: { flex: 1 },
-  empty: { paddingVertical: spacing.xl, textAlign: "center", fontSize: font.body, color: colors.textMuted },
+  empty: { paddingVertical: spacing.xl, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
 });

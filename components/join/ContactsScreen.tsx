@@ -14,7 +14,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { inviteMessage } from "@/lib/leagueText";
 import { shareText } from "@/lib/native/share";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 /** After joining a league: add the friends already on Lineup and text the rest the invite code. */
 export function ContactsScreen() {
@@ -132,7 +132,7 @@ export function ContactsScreen() {
 
 const styles = StyleSheet.create({
   list: { flex: 1 },
-  empty: { padding: spacing.lg, fontSize: font.body, color: colors.textMuted },
+  empty: { padding: spacing.lg, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   message: { padding: spacing.lg },
   footer: { padding: spacing.lg, gap: spacing.sm },
 });

@@ -1,10 +1,10 @@
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "@/theme";
+import { colors, fontFamily, spacing } from "@/theme";
 
 import type { CaptureMode } from "./useProofCapture";
 
-const RECORD_RED = "#E5322D";
+const RECORD_RED = colors.danger;
 
 // expo-camera cannot record on web: recordAsync only warns and returns an empty file.
 const MODES: CaptureMode[] = Platform.OS === "web" ? ["photo"] : ["photo", "video"];
@@ -59,10 +59,10 @@ export function ShutterBar({ mode, recording, secondsRemaining, busy, onModeChan
 
 const styles = StyleSheet.create({
   bar: { alignItems: "center", gap: spacing.md, paddingVertical: spacing.lg },
-  counter: { color: colors.background, fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  counter: { color: colors.onAccent, fontSize: 20, fontFamily: fontFamily.bold, fontVariant: ["tabular-nums"] },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", alignSelf: "stretch", paddingHorizontal: spacing.xl },
   side: { width: 80, gap: spacing.md, alignItems: "center" },
-  mode: { color: colors.background, fontSize: 13, fontWeight: "700", letterSpacing: 1, opacity: 0.6 },
+  mode: { color: colors.onAccent, fontSize: 13, fontFamily: fontFamily.bold, letterSpacing: 1, opacity: 0.6 },
   modeActive: { opacity: 1 },
   shutterRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 4, borderColor: colors.background, alignItems: "center", justifyContent: "center" },
   shutter: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.background },

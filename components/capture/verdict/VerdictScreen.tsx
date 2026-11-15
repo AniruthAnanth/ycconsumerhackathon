@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OnDeviceRead } from "@/components/onDeviceReferee/OnDeviceRead";
 import { useOnDeviceRead } from "@/components/onDeviceReferee/useOnDeviceRead";
 import { leaveScreen } from "@/lib/leaveScreen";
+import { colors } from "@/theme";
 
 import { parseCapture, parseProofTarget, proofCameraHref } from "../proofRoute";
 import { ReviewingOverlay } from "./ReviewingOverlay";
@@ -60,7 +61,7 @@ export function VerdictScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#FFFFFF" },
+  screen: { flex: 1, backgroundColor: colors.surface },
   media: { flex: 1.1, overflow: "hidden" },
   statusBand: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: "rgba(0, 0, 0, 0.45)" },
 });

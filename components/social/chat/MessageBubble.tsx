@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 
 import type { ChatMessage } from "./chatLogic";
 
@@ -37,8 +37,8 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: "80%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   mine: { backgroundColor: colors.accent },
   agent: { backgroundColor: colors.strip },
-  text: { color: colors.text, fontSize: 16, lineHeight: 21 },
-  mineText: { color: colors.background },
-  failed: { color: colors.danger, fontSize: 12, fontWeight: "600", marginTop: 4 },
-  reason: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  text: { color: colors.text, fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 21 },
+  mineText: { color: colors.onAccent },
+  failed: { color: colors.danger, fontSize: 12, fontFamily: fontFamily.semiBold, marginTop: 4 },
+  reason: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 12, marginTop: 2 },
 });

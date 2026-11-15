@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { winBarSplit } from "./matchupLogic";
 
@@ -20,7 +20,7 @@ export function WinProbabilityBar({ mine, theirs }: { mine: number; theirs: numb
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg },
-  percent: { width: 36, color: colors.text, fontSize: font.body, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  percent: { width: 36, color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold, fontVariant: ["tabular-nums"] },
   percentRight: { textAlign: "right" },
   bar: { flex: 1, height: 8, flexDirection: "row", borderRadius: 4, overflow: "hidden" },
   mine: { backgroundColor: colors.accent },

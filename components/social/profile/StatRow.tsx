@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 /** One dense profile row: label on the left, bold value (text or custom content) on the right. */
 export function StatRow({ label, value, children }: { label: string; value?: string; children?: ReactNode }) {
@@ -23,6 +23,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  label: { fontSize: font.title, color: colors.text },
-  value: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
+  label: { fontFamily: fontFamily.regular, fontSize: font.title, color: colors.text },
+  value: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
 });

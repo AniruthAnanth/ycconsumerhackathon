@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { SLOT_LABEL, type Slot } from "@/lib/slots";
-import { colors, font } from "@/theme";
+import { colors, font, fontFamily } from "@/theme";
 
 /** The blue outlined position code at the start of a row: BOD, MND, RCH, CHR, PPL, FLX. */
 export function PositionPill({ slot }: { slot: Slot }) {
@@ -22,5 +22,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: font.label, fontWeight: "700", color: colors.accent, letterSpacing: 0.3 },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.accent, letterSpacing: 0.3 },
 });

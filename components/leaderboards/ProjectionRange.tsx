@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import { projectionDetail } from "./format";
 import { useProjection } from "./useProjection";
@@ -33,5 +33,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  text: { fontSize: font.meta, color: colors.textMuted },
+  text: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

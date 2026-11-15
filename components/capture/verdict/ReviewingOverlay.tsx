@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "@/theme";
+import { colors, fontFamily, spacing } from "@/theme";
 
 const BAND_HEIGHT = 48;
 
@@ -45,10 +45,10 @@ const styles = StyleSheet.create({
     right: 0,
     height: BAND_HEIGHT,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(11,105,255,0.16)",
+    backgroundColor: "rgba(21, 92, 64, 0.16)",
   },
   line: { height: 2, backgroundColor: colors.accent },
   caption: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg },
-  label: { color: "#FFFFFF", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
-  title: { color: "#FFFFFF", fontSize: 20, fontWeight: "700", marginTop: spacing.xs },
+  label: { color: colors.white, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 1.6 },
+  title: { color: colors.white, fontSize: 20, fontFamily: fontFamily.bold, marginTop: spacing.xs },
 });

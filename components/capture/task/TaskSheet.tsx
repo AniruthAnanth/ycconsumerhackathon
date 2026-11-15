@@ -6,7 +6,7 @@ import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { canSubmitProof, findTask, submitProofHref } from "./taskSheetRules";
 
@@ -51,5 +51,5 @@ export function TaskSheet({ taskId }: { taskId: string }) {
 
 const styles = StyleSheet.create({
   action: { padding: spacing.lg },
-  missing: { padding: spacing.lg, color: colors.textMuted, fontSize: font.body },
+  missing: { padding: spacing.lg, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
 });

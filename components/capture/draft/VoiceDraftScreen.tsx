@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { Button, Header, Screen } from "@/components/ui";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { RecordButton } from "./RecordButton";
@@ -89,12 +89,12 @@ export function VoiceDraftScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingTop: spacing.xl, paddingBottom: spacing.xl },
-  weekNote: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, textAlign: "center", fontSize: font.meta, color: colors.textMuted },
+  weekNote: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   recorder: { alignItems: "center" },
   transcript: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
   footer: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
-  error: { fontSize: font.body, color: colors.danger },
+  error: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.danger },
   leave: { alignSelf: "center", paddingVertical: spacing.xs },
-  redo: { fontSize: font.title, color: colors.accent },
+  redo: { fontFamily: fontFamily.regular, fontSize: font.title, color: colors.accent },
 });

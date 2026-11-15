@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { recruiterPillText } from "./inviteRoute";
 
@@ -27,5 +27,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.accentTint,
   },
-  text: { fontSize: font.label, fontWeight: "700", letterSpacing: 0.5, color: colors.accent },
+  text: { fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.5, color: colors.accent },
 });

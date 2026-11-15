@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Icon } from "@/components/ui";
-import { colors, font, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
 type Props = {
   name: string;
@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 1 },
-  name: { fontSize: font.title, fontWeight: "700", color: colors.text },
-  detail: { fontSize: font.meta, color: colors.textMuted },
+  name: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
+  detail: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

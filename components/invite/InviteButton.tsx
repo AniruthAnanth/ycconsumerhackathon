@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Button, OutlinedPillButton } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { useShareInvite } from "./useShareInvite";
 
@@ -34,5 +34,5 @@ export function InviteButton({ leagueId, label = "Invite friends", variant = "ou
 const styles = StyleSheet.create({
   block: { gap: spacing.xs },
   compact: { alignSelf: "center", margin: spacing.lg, gap: spacing.xs },
-  error: { fontSize: font.meta, color: colors.danger },
+  error: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.danger },
 });

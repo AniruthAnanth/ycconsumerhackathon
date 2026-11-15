@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
 import type { DevFlags } from "@/lib/devFlags";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 /** A development flag with its switch. */
 export function FlagRow({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  label: { flex: 1, color: colors.text, fontSize: font.title, fontWeight: "700" },
+  label: { flex: 1, color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
   spot: {
     flex: 1,
     alignItems: "center",
@@ -61,6 +61,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   spotSelected: { backgroundColor: colors.accent },
-  spotLabel: { color: colors.accent, fontSize: font.body, fontWeight: "700" },
-  spotLabelSelected: { color: colors.background },
+  spotLabel: { color: colors.accent, fontSize: font.body, fontFamily: fontFamily.bold },
+  spotLabelSelected: { color: colors.onAccent },
 });

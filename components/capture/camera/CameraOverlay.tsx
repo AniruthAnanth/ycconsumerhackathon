@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/ui";
-import { colors, spacing } from "@/theme";
+import { colors, fontFamily, spacing } from "@/theme";
 
 import type { ProofTarget } from "../proofRoute";
 
@@ -15,7 +15,7 @@ export function CameraOverlay({ target, onClose }: Props) {
     <View style={[styles.top, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
       <View style={styles.row}>
         <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close camera">
-          <Icon name="close" size={28} color={colors.background} />
+          <Icon name="close" size={28} color={colors.onAccent} />
         </Pressable>
         <View style={styles.titles}>
           <Text style={styles.title} numberOfLines={1}>
@@ -42,9 +42,9 @@ const styles = StyleSheet.create({
   top: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: spacing.lg, gap: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   titles: { flex: 1 },
-  title: { color: colors.background, fontSize: 17, fontWeight: "700" },
-  place: { color: colors.background, fontSize: 13, opacity: 0.85 },
-  points: { color: colors.background, fontSize: 15, fontWeight: "700" },
+  title: { color: colors.onAccent, fontSize: 17, fontFamily: fontFamily.bold },
+  place: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: 13, opacity: 0.85 },
+  points: { color: colors.onAccent, fontSize: 15, fontFamily: fontFamily.bold },
   gesture: { backgroundColor: "rgba(0,0,0,0.6)", paddingVertical: spacing.md, alignItems: "center" },
-  gestureText: { color: colors.background, fontSize: 28, fontWeight: "900", letterSpacing: 1 },
+  gestureText: { color: colors.onAccent, fontSize: 28, fontFamily: fontFamily.extraBold, letterSpacing: 1 },
 });

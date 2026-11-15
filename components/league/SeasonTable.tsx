@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Divider, Score } from "@/components/ui";
-import { colors, font, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing } from "@/theme";
 
 import type { SeasonTableRow } from "./types";
 
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  headerLabel: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
+  headerLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   row: {
     height: 56,
     flexDirection: "row",
@@ -89,8 +89,8 @@ const styles = StyleSheet.create({
   points: { width: POINTS_WIDTH, alignItems: "flex-end" },
   pointsHeader: { width: POINTS_WIDTH, textAlign: "right" },
   record: { width: RECORD_WIDTH, textAlign: "right", marginRight: spacing.md },
-  rankValue: { fontSize: font.body, fontWeight: "700", color: colors.textMuted },
-  name: { flex: 1, fontSize: font.title, fontWeight: "600", color: colors.text },
+  rankValue: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.textMuted },
+  name: { flex: 1, fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
   me: { color: colors.accent },
-  recordValue: { fontSize: font.body, color: colors.text, fontVariant: ["tabular-nums"] },
+  recordValue: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text, fontVariant: ["tabular-nums"] },
 });

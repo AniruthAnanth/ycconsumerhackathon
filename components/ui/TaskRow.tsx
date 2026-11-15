@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SLOT_NAME } from "@/lib/slots";
 import { taskPlaceLine, taskRowLabel, taskStatusLine, type TaskRowData } from "@/lib/taskText";
-import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
 
 import { Avatar } from "./Avatar";
 import { PositionPill } from "./PositionPill";
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
   lead: { flex: 1, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: spacing.md },
   text: { flex: 1, gap: 1 },
   titleLine: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  title: { flexShrink: 1, fontSize: font.title, fontWeight: "700", color: colors.text },
+  title: { flexShrink: 1, fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   // Never shrinks: on the web a squeezed tag wraps onto a second line.
-  tag: { flexShrink: 0, fontSize: font.label, color: colors.textMuted },
-  tagUpNext: { color: colors.accent, fontWeight: "700", letterSpacing: 0.3 },
-  meta: { fontSize: font.meta, color: colors.textMuted },
+  tag: { flexShrink: 0, fontFamily: fontFamily.regular, fontSize: font.label, color: colors.textMuted },
+  tagUpNext: { color: colors.accent, fontFamily: fontFamily.bold, letterSpacing: 0.3 },
+  meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

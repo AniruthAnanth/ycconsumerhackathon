@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, hairline, spacing, tabUnderlineHeight } from "@/theme";
+import { colors, font, fontFamily, hairline, spacing, tabUnderlineHeight } from "@/theme";
 
 import { BOARDS } from "./boards";
 import type { BoardKey } from "./types";
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   tab: { height: 40, paddingHorizontal: spacing.lg, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: font.meta, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.5 },
+  label: { fontSize: font.meta, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.5 },
   labelActive: { color: colors.text },
   underline: { position: "absolute", left: 0, right: 0, bottom: 0, height: tabUnderlineHeight, backgroundColor: "transparent" },
   underlineActive: { backgroundColor: colors.tabActive },

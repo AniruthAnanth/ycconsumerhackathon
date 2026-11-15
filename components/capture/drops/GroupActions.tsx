@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { OutlinedPillButton } from "@/components/ui";
 import { errorMessage } from "@/lib/errorMessage";
-import { colors, font, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 import { capture } from "../backend";
 import type { DropView } from "./dropView";
@@ -56,11 +56,11 @@ const styles = StyleSheet.create({
   row: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
   info: { flexShrink: 1, alignItems: "flex-end", gap: 2 },
   countdown: {
-    color: colors.background,
+    color: colors.onAccent,
     fontSize: font.total,
-    fontWeight: "800",
+    fontFamily: fontFamily.extraBold,
     fontVariant: ["tabular-nums"],
   },
-  details: { color: colors.divider, fontSize: font.label, fontWeight: "700", letterSpacing: 0.6 },
-  error: { color: colors.background, fontSize: font.meta },
+  details: { color: colors.divider, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  error: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: font.meta },
 });

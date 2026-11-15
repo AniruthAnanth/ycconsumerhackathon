@@ -6,7 +6,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedItem, socialApi } from "@/components/social/contract";
 import { confirmAction, notify } from "@/components/social/notify";
 import { Avatar, PositionPill, Score } from "@/components/ui";
-import { colors } from "@/theme";
+import { colors, fontFamily } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
@@ -142,18 +142,18 @@ export function ProofPost({
 const styles = StyleSheet.create({
   byline: { height: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16 },
   who: { flex: 1, gap: 6 },
-  name: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  age: { color: colors.textMuted, fontSize: 13, fontWeight: "400" },
+  name: { color: colors.text, fontSize: 15, fontFamily: fontFamily.bold },
+  age: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily.regular },
   task: { flexDirection: "row", alignItems: "center", gap: 8 },
-  taskTitle: { flex: 1, color: colors.textMuted, fontSize: 13 },
+  taskTitle: { flex: 1, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 13 },
   media: { width: "100%", aspectRatio: 4 / 3 },
   body: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, gap: 8 },
   flags: { flexDirection: "row", gap: 12 },
-  kind: { color: colors.accent, fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
-  closeCall: { color: colors.danger, fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
-  caption: { color: colors.text, fontSize: 15, fontWeight: "600" },
-  reason: { color: colors.text, fontSize: 14, lineHeight: 20 },
-  referee: { color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
+  kind: { color: colors.accent, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  closeCall: { color: colors.danger, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  caption: { color: colors.text, fontSize: 15, fontFamily: fontFamily.semiBold },
+  reason: { color: colors.text, fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
+  referee: { color: colors.textMuted, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   actions: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 },
-  challenge: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+  challenge: { color: colors.accent, fontSize: 14, fontFamily: fontFamily.semiBold },
 });
