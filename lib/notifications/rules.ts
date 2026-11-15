@@ -41,6 +41,10 @@ export function presentationFor(
   context: { pathname: string; textsOn: boolean; lastShownAt: number | undefined; now: number },
 ): Presentation {
   if (context.lastShownAt !== undefined && context.now - context.lastShownAt < DUPLICATE_WINDOW_MS) return "none";
+  // Demo controls is the presenter's screen, and Roster stays live underneath it. Switching
+  // player there makes Roster announce the new player's arrival; the banner lands on the header,
+  // and the tap meant for Back opens the banner's screen instead. Kept, but without a banner.
+  if (context.pathname === "/demo") return "quiet";
   // The proof screens are already showing this ruling, with more of it than a banner holds.
   if (incoming.kind === "verdict" && context.pathname.startsWith("/proof")) return "none";
   // One alert per event: with texts on the text is the alert, and the app only keeps the record.
