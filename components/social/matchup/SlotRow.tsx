@@ -29,7 +29,7 @@ function TaskSide({ task, side }: { task?: TaskRow; side: "mine" | "theirs" }) {
   return (
     <View style={[styles.side, mirrored && styles.sideMirrored]}>
       <View style={styles.text}>
-        <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={1}>
+        <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
           {task.title}
         </Text>
         <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
@@ -43,7 +43,8 @@ function TaskSide({ task, side }: { task?: TaskRow; side: "mine" | "theirs" }) {
 
 const styles = StyleSheet.create({
   row: {
-    height: ROW_HEIGHT,
+    minHeight: ROW_HEIGHT,
+    paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.md,
