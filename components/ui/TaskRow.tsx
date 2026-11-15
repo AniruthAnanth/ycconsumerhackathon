@@ -38,7 +38,7 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
         {/* Up Next shares its row with a button, so its tag sits above the title and the title may wrap: beside the title, the two left a narrow phone one letter of it. */}
         {highlighted ? <Text style={[styles.tag, styles.tagUpNext]}>UP NEXT</Text> : null}
         <View style={styles.titleLine}>
-          <Text style={styles.title} numberOfLines={titleLines ?? (highlighted ? 2 : 1)}>
+          <Text style={styles.title} numberOfLines={titleLines ?? 2}>
             {task.title}
           </Text>
           {highlighted ? null : <Text style={styles.tag}>{SLOT_NAME[task.slot]}</Text>}
