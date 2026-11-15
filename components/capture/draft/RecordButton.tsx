@@ -7,6 +7,8 @@ import { formatElapsed } from "./recordingMeter";
 
 const SIZE = 112;
 const PULSE_SIZE = 168;
+/** The timer and the hint share one line, so the screen does not jump when recording starts. */
+const CAPTION_HEIGHT = 22;
 
 type Props = {
   recording: boolean;
@@ -43,7 +45,12 @@ export function RecordButton({ recording, disabled, durationMillis, level, onPre
           <View style={recording ? styles.stopSquare : styles.recordDot} />
         </Pressable>
       </View>
-      <Text style={styles.timer}>{recording ? formatElapsed(durationMillis) : " "}</Text>
+      {recording ? (
+        <Text style={styles.timer}>{formatElapsed(durationMillis)}</Text>
+      ) : (
+        // A bare circle does not say it listens. Nothing to tap while a draft is on its way.
+        <Text style={styles.hint}>{disabled ? " " : "Tap to talk"}</Text>
+      )}
     </View>
   );
 }
@@ -71,5 +78,6 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   recordDot: { width: 76, height: 76, borderRadius: 38, backgroundColor: colors.accent },
   stopSquare: { width: 38, height: 38, borderRadius: 8, backgroundColor: colors.accent },
-  timer: { marginTop: spacing.sm, fontSize: font.header, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
+  timer: { marginTop: spacing.sm, minHeight: CAPTION_HEIGHT, fontSize: font.header, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
+  hint: { marginTop: spacing.sm, minHeight: CAPTION_HEIGHT, fontSize: font.body, color: colors.textMuted },
 });

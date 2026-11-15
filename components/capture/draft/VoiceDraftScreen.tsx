@@ -40,6 +40,7 @@ export function VoiceDraftScreen() {
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
           {showsLineup ? null : (
             <View style={styles.recorder}>
               <RecordButton
@@ -87,6 +88,7 @@ export function VoiceDraftScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingTop: spacing.xl, paddingBottom: spacing.xl },
+  weekNote: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, textAlign: "center", fontSize: font.meta, color: colors.textMuted },
   recorder: { alignItems: "center" },
   transcript: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
