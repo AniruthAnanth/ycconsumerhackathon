@@ -8,31 +8,32 @@ import { formatChance } from "./chartGeometry";
 import type { Market } from "./useMarket";
 
 /**
- * Each member's chance to top the week, sorted like a market's list of outcomes: favourite first,
- * the chance as the biggest thing in the row and a bar to compare at a glance.
+ * Each member's chance to win the pot this week, sorted like a market's list of outcomes: favourite
+ * first, the chance as the biggest thing in the row and a bar to compare at a glance. Winning the
+ * pot means clearing all five slots, since only finishers keep their stake and split the rest;
+ * the chance of the week's top score sits underneath.
  */
 export function OddsList({ odds }: { odds: Market["odds"] }) {
   if (odds.length < 2) return null;
-  const favourite = Math.max(...odds.map((row) => row.weekChance));
+  const rows = [...odds].sort((a, b) => b.finishChance - a.finishChance || b.projected - a.projected || a.name.localeCompare(b.name));
   return (
     <View testID="odds-list">
-      <SectionLabel left="Odds to win the week" right="Chance" />
-      {odds.map((row) => (
+      <SectionLabel left="Chance to win the pot this week" right="Chance" />
+      {rows.map((row) => (
         <View
           key={row.userId}
           style={[styles.row, row.isMe && styles.mine]}
           accessible
-          accessibilityLabel={`${row.name}${row.isMe ? " (you)" : ""}: ${formatChance(row.weekChance)} to win the week, projected ${row.projected}, ${formatChance(row.finishChance)} to clear all five slots`}
+          accessibilityLabel={`${row.name}${row.isMe ? " (you)" : ""}: ${formatChance(row.finishChance)} to win the pot, projected ${row.projected} points, ${formatChance(row.weekChance)} to top the week`}
         >
           <View style={styles.who}>
             <Text style={styles.name} numberOfLines={1}>
               {row.isMe ? `${row.name} (you)` : row.name}
             </Text>
-            {/* Bars scale to the favourite so a long-odds field still reads, as a market list does. */}
-            <ProgressFill ratio={favourite === 0 ? 0 : row.weekChance / favourite} height={8} color={row.isMe ? colors.green : colors.muted} />
-            <Text style={styles.meta}>{`Proj ${row.projected} · ${formatChance(row.finishChance)} to clear all 5`}</Text>
+            <ProgressFill ratio={row.finishChance} height={8} color={row.isMe ? colors.green : colors.muted} />
+            <Text style={styles.meta}>{`Proj ${row.projected} pts · ${formatChance(row.weekChance)} to top the week`}</Text>
           </View>
-          <Text style={styles.chance}>{formatChance(row.weekChance)}</Text>
+          <Text style={styles.chance}>{formatChance(row.finishChance)}</Text>
           <RowDivider inset={SCREEN_MARGIN} />
         </View>
       ))}

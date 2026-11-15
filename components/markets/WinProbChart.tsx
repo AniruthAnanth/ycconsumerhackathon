@@ -12,7 +12,7 @@ import type { Market } from "./useMarket";
 const CHART_HEIGHT = 120;
 
 /**
- * "62% to win": the matchup priced like a prediction market. The chance is the headline, the
+ * "Win this matchup 62%": the head-to-head priced like a prediction market. The chance is the headline, the
  * chip says how far it moved today, and the step chart shows every verified proof as a trade
  * that moved the price.
  */
@@ -26,10 +26,10 @@ export function WinProbChart({ matchup }: { matchup: NonNullable<Market["matchup
 
   return (
     <View style={styles.card} testID="win-prob-chart">
-      <Text style={styles.eyebrow}>{`WIN PROBABILITY · VS ${matchup.opponentName.toUpperCase()}`}</Text>
-      <View style={styles.headline} accessible accessibilityLabel={`${percent}% chance to beat ${matchup.opponentName}, ${deltaLabel(matchup.deltaToday)}`}>
+      <Text style={styles.eyebrow}>{`WIN THIS MATCHUP · VS ${matchup.opponentName.toUpperCase()}`}</Text>
+      <View style={styles.headline} accessible accessibilityLabel={`Win this matchup: ${percent}% against ${matchup.opponentName}, ${deltaLabel(matchup.deltaToday)}`}>
         <CountUp style={styles.figure} value={percent} format={(value) => `${value}%`} fromZero />
-        <Text style={styles.toWin}>to win</Text>
+        <Text style={styles.toWin}>{"vs " + matchup.opponentName}</Text>
         <View style={[styles.chip, up ? styles.chipUp : styles.chipDown]}>
           <Text style={[styles.chipText, { color: up ? colors.green : colors.danger }]}>{deltaLabel(matchup.deltaToday)}</Text>
         </View>
@@ -53,7 +53,7 @@ export function WinProbChart({ matchup }: { matchup: NonNullable<Market["matchup
       </View>
       <View style={styles.axis}>
         <Text style={styles.axisText}>Mon</Text>
-        <Text style={styles.axisText}>{`${matchup.history.length - 1} proofs · 50% line`}</Text>
+        <Text style={styles.axisText}>{`${matchup.history.length - 1} proofs`}</Text>
         <Text style={styles.axisText}>Now</Text>
       </View>
       <Text style={styles.footnote}>{`${formatChance(1 - matchup.chance)} ${matchup.opponentName}`}</Text>

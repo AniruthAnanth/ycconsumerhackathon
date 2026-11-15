@@ -60,10 +60,10 @@ export function sparkPath(points: readonly ChartPoint[], box: Box): string {
   return series.map((p, i) => `${i === 0 ? "M" : "L"}${sx(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(" ");
 }
 
-/** "62%": a chance in whole percent. A long shot reads "<1%" and a near-lock ">99%", as a market quotes them, never a flat 0 or 100 while it can still move. */
+/** "62%": a chance in whole percent. A long shot reads "<1%" and a near-lock ">99%", as a market quotes them: a flat 0% reads as broken. */
 export function formatChance(chance: number): string {
   const clamped = Math.min(1, Math.max(0, chance));
-  if (clamped > 0 && clamped < 0.005) return "<1%";
+  if (clamped < 0.005) return "<1%";
   if (clamped < 1 && clamped > 0.995) return ">99%";
   return `${Math.round(clamped * 100)}%`;
 }
