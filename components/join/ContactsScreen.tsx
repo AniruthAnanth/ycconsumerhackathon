@@ -2,21 +2,24 @@ import { useQuery } from "convex/react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as SMS from "expo-sms";
 import { useEffect, useState } from "react";
-import { BackHandler, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { InviteButton, useInviteMessage } from "@/components/invite";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { PersonRow } from "@/components/join/PersonRow";
 import { useContactMatch } from "@/components/join/useContactMatch";
-import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
 import { Button, Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { inviteMessage } from "@/lib/leagueText";
 import { shareText } from "@/lib/native/share";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
-/** After joining a league: add the friends already on Lineup and text the rest the invite code. */
+/**
+ * After joining or creating a league: the league is ready, here is its code, now bring friends.
+ * Sharing the link is the main way; contacts and Skip are there for the rest. Play by text is
+ * set up from the League tab, not here, so nothing competes with the invite.
+ */
 export function ContactsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ leagueId?: string; next?: string }>();
@@ -29,6 +32,7 @@ export function ContactsScreen() {
   const { state, allowAccess } = useContactMatch(leagueId);
   const [declined, setDeclined] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const [copied, setCopied] = useState(false);
   const linkMessage = useInviteMessage();
 
   function leave() {
@@ -76,6 +80,21 @@ export function ContactsScreen() {
     setDeclined((current) => (current.includes(phone) ? current.filter((entry) => entry !== phone) : [...current, phone]));
   }
 
+  /** The web copies the code; elsewhere the share sheet, which has Copy, carries it. */
+  async function copyCode() {
+    if (!league) return;
+    if (Platform.OS === "web") {
+      try {
+        await navigator.clipboard.writeText(league.inviteCode);
+        setCopied(true);
+      } catch {
+        // A browser that refuses the clipboard still shows the code to read out.
+      }
+      return;
+    }
+    await shareText(inviteMessage(league));
+  }
+
   const nothingToAdd = state.status === "empty" || (state.status === "done" && state.added.length === 0 && invitees.length === 0);
   const asking = state.status === "idle" || state.status === "loading" || state.status === "error";
 
@@ -83,8 +102,28 @@ export function ContactsScreen() {
     <Screen>
       <Stack.Screen options={{ gestureEnabled: !justJoined }} />
       <Header title="Add Friends" onBack={justJoined ? undefined : leave} />
-      <PlayByTextRow />
       <ScrollView style={styles.list}>
+        {league ? (
+          <View style={styles.hero}>
+            <Text style={styles.ready} accessibilityRole="header">
+              {justJoined ? `${league.name} is ready` : league.name}
+            </Text>
+            <Text style={styles.line}>Friends join with this code, or with the link you share.</Text>
+            <Pressable
+              style={styles.codeCard}
+              onPress={copyCode}
+              accessibilityRole="button"
+              accessibilityLabel={`Invite code ${league.inviteCode}`}
+              accessibilityHint={Platform.OS === "web" ? "Copies the code" : "Opens the share sheet to copy or send the code"}
+            >
+              <Text style={styles.codeLabel}>INVITE CODE</Text>
+              <Text style={[styles.code, tabular]} selectable>
+                {league.inviteCode}
+              </Text>
+              <Text style={styles.copy}>{copied ? "Copied" : Platform.OS === "web" ? "Tap to copy" : "Tap to copy or send"}</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {nothingToAdd ? <Text style={styles.empty}>No contacts to add</Text> : null}
         {state.status === "error" ? (
           <View style={styles.message}>
@@ -115,16 +154,24 @@ export function ContactsScreen() {
         ) : null}
       </ScrollView>
       <View style={styles.footer}>
-        {leagueId ? <InviteButton leagueId={leagueId} label="Share invite link" /> : null}
+        {/* Sharing the link is the one filled button, until contacts are ticked: then texting them is. */}
+        {leagueId ? <InviteButton leagueId={leagueId} label="Share invite link" variant={selected.length > 0 ? "outlined" : "primary"} /> : null}
         {asking ? (
-          <Button label="Allow access to contacts" onPress={allowAccess} loading={state.status === "loading"} disabled={!leagueId} />
+          <OutlinedPillButton
+            label={state.status === "loading" ? "Reading contacts…" : "Allow access to contacts"}
+            accessibilityLabel="Allow access to contacts"
+            onPress={allowAccess}
+            disabled={!leagueId || state.status === "loading"}
+          />
         ) : selected.length > 0 ? (
           <Button label="Text invite" onPress={sendInvites} loading={sending} disabled={!league} />
-        ) : (
-          <Button label="Continue" onPress={leave} />
-        )}
-        {/* The way on for a player who adds nobody. It was a text link in the header, the hardest control here to find; Continue already is that way on, so it needs none. */}
-        {justJoined && (asking || selected.length > 0) ? <OutlinedPillButton label="Skip" onPress={leave} /> : null}
+        ) : null}
+        {/* The quiet way on for a player who adds nobody now; friends can be invited later from the League tab. */}
+        {justJoined || !asking ? (
+          <Pressable style={styles.textLink} onPress={leave} accessibilityRole="button" accessibilityLabel={asking || selected.length > 0 ? "Skip" : "Continue"}>
+            <Text style={styles.textLinkLabel}>{asking || selected.length > 0 ? "Skip" : "Continue"}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </Screen>
   );
@@ -135,4 +182,22 @@ const styles = StyleSheet.create({
   empty: { padding: SCREEN_MARGIN, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   message: { padding: SCREEN_MARGIN },
   footer: { padding: SCREEN_MARGIN, gap: spacing.sm },
+  hero: { paddingHorizontal: layout.margin, paddingTop: spacing.xl, paddingBottom: spacing.lg, gap: spacing.sm },
+  ready: { ...type.title, color: colors.text },
+  line: { ...type.body, color: colors.textMuted },
+  codeCard: {
+    marginTop: spacing.sm,
+    alignItems: "center",
+    gap: spacing.xs,
+    padding: spacing.xl,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+  },
+  codeLabel: { ...type.caption, color: colors.textMuted, letterSpacing: 0.6 },
+  code: { ...type.display, color: colors.text, letterSpacing: 4 },
+  copy: { ...type.small, color: colors.accent },
+  textLink: { minHeight: layout.rowMin, alignItems: "center", justifyContent: "center" },
+  textLinkLabel: { ...type.label, color: colors.accent },
 });
