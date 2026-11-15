@@ -2,7 +2,7 @@
 
 Two phones, six steps, about 120 seconds. On-screen labels are in **bold**, spelled as the app shows them. The line labels in each step (**Time:**, **Tap:** and so on) are this script's own.
 
-Checked against `main` at commit `648b0eb` on November 15, 2026. If a label here is not on the screen, trust the screen.
+Checked against `main` at commit `b756bcd` on November 15, 2026. If a label here is not on the screen, trust the screen.
 
 - Phone A is the presenter's phone, signed in as the presenter's own account.
 - Phone B is the league's view. It acts as the seeded player Sam Patel and stays on **LEAGUE**.
