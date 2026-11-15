@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DeviceError } from "../errorMessage";
+import { DeviceError } from "@/lib/errorMessage";
+
 import { phoneCoords, type PhoneGps } from "./phoneCoords";
 
 const STAGE = { lat: 37.7749, lng: -122.4194 };

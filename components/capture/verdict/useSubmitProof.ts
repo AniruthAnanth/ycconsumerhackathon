@@ -3,8 +3,8 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { capture as captureApi } from "@/components/capture/backend";
 import type { Id } from "@/convex/_generated/dataModel";
+import { errorMessage } from "@/lib/errorMessage";
 
-import { errorMessage } from "../errorMessage";
 import { uploadToConvex } from "../uploadToConvex";
 import type { Capture, ProofTarget } from "../proofRoute";
 import { captureStill } from "./captureStill";

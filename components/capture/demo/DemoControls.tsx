@@ -8,12 +8,12 @@ import { useRouter } from "expo-router";
 import { useRef } from "react";
 
 import { capture } from "@/components/capture/backend";
-import { DeviceError } from "@/components/capture/errorMessage";
 import { Header, Screen, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { setDevFlag, useDevFlags } from "@/lib/devFlags";
+import { DeviceError } from "@/lib/errorMessage";
 import { previewDropNotification } from "@/lib/notifications/preview";
 
 import { deviceGps, requestLocationFor } from "../camera/deviceLocation";

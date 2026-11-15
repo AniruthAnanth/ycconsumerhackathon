@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { errorMessage } from "@/components/capture/errorMessage";
+import { errorMessage } from "@/lib/errorMessage";
 import { colors, font, hairline, spacing } from "@/theme";
 
 type Phase = { kind: "idle" } | { kind: "running" } | { kind: "done" } | { kind: "failed"; message: string };

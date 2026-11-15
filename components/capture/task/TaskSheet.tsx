@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, font, spacing } from "@/theme";
 
 import { canSubmitProof, findTask, submitProofHref } from "./taskSheetRules";
@@ -20,7 +21,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
   });
   const task = roster ? findTask(roster.rows, taskId) : undefined;
   // Opened from a link or after a reload there is no screen underneath to go back to.
-  const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
+  const close = () => leaveScreen("/(tabs)");
 
   // Presented as a form sheet, which starts below the status bar, so only the bottom needs a safe-area inset.
   return (

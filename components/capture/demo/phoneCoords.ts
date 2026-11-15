@@ -1,6 +1,5 @@
 import type { Coords } from "@/lib/devFlags";
-
-import { DeviceError } from "../errorMessage";
+import { DeviceError } from "@/lib/errorMessage";
 
 /** How long to wait for a GPS fix before settling for the last known one. */
 export const FIX_TIMEOUT_MS = 6000;

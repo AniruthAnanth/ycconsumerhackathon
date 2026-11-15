@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 
 import { Button, Header, Screen } from "@/components/ui";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
+import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, font, spacing } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
@@ -29,7 +30,7 @@ export function VoiceDraftScreen() {
     <Screen>
       <Header
         title="Voice Draft"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
+        onBack={() => leaveScreen("/(tabs)")}
         right={
           state.phase === "review" ? (
             <Pressable accessibilityRole="button" onPress={draft.redo} hitSlop={8}>
