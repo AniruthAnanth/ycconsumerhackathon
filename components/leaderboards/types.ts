@@ -17,6 +17,7 @@ export type BoardKey =
   | "quickTime"
   | "headToHead"
   | "money"
+  | "recruiters"
   | "global"
   | "globalAllTime";
 

@@ -34,6 +34,7 @@ import { CORE_SLOTS, matchupBonus, type CoreSlot } from "./lib/scoring";
 import { DAY_MS, pacificDay, startOfPacificDay } from "./lib/week";
 import { NO_STATS, tallyWeek, totalStats, type ScoreStats, type WeekFacts, type WeekTally } from "./lib/weekTally";
 import { entrantsOver } from "./whop";
+import { recruiterTally } from "./referrals";
 
 type UserId = Id<"users">;
 /** The reads below work the same from a query and from a mutation. */
@@ -75,6 +76,7 @@ const boardKey = v.union(
   v.literal("quickTime"),
   v.literal("headToHead"),
   v.literal("money"),
+  v.literal("recruiters"),
 );
 type BoardKey = typeof boardKey.type;
 
@@ -104,7 +106,7 @@ function slotBoard(slot: CoreSlot, title: string): StatBoard {
   };
 }
 
-const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headToHead" | "money">, StatBoard> = {
+const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headToHead" | "money" | "recruiters">, StatBoard> = {
   week: {
     title: "This Week",
     valueHeader: "PTS",
@@ -166,6 +168,7 @@ const OTHER_BOARDS = {
   globalAllTime: { title: "Global All-Time", valueHeader: "PTS", format: FORMATS.points },
   headToHead: { title: "Head-to-Head", valueHeader: "W-L", format: FORMATS.wins },
   money: { title: "Money", valueHeader: "NET", format: FORMATS.money },
+  recruiters: { title: "Recruiters", valueHeader: "PTS", format: FORMATS.points },
 } satisfies Record<string, { title: string; valueHeader: string; format: BoardFormat }>;
 
 const boardRow = v.object({
@@ -225,6 +228,8 @@ async function entriesFor(ctx: QueryCtx, league: League, key: BoardKey, at?: num
       return await headToHeadEntries(ctx, league);
     case "money":
       return await moneyEntries(ctx, league, at);
+    case "recruiters":
+      return await recruiterEntries(ctx, league);
     default:
       return await statEntries(ctx, league, STAT_BOARDS[key]);
   }
@@ -578,6 +583,18 @@ async function loadLeague(ctx: ReadCtx, leagueId: Id<"leagues">): Promise<League
 async function avatarOf(ctx: ReadCtx, user: Doc<"users"> | null): Promise<string | null> {
   if (user?.avatarStorageId) return await ctx.storage.getUrl(user.avatarStorageId);
   return user?.image ?? null;
+}
+
+/** Recruiter points (convex/referrals.ts): 25 for each friend a member brought in who locked a lineup. */
+async function recruiterEntries(ctx: ReadCtx, league: League): Promise<Entry<UserId>[]> {
+  const entries: Entry<UserId>[] = [];
+  for (const member of league.members) {
+    const { recruiterPoints, locked, invited } = await recruiterTally(ctx, member.userId);
+    if (invited === 0) continue;
+    // Rewards land when a friend locks a lineup, not on a daily cycle, so there is no movement to show.
+    entries.push({ ...identity(member), value: recruiterPoints, previous: recruiterPoints, detail: `${locked}/${invited} friends locked` });
+  }
+  return entries;
 }
 
 function identity(member: Member): Pick<Entry<UserId>, "userId" | "name" | "avatarUrl"> {
