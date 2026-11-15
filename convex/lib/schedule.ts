@@ -124,6 +124,13 @@ export function scheduleFor<Id extends string>(
  * opposite. With an odd count one seat stays empty and whoever faces it has
  * the week off.
  *
+ * Members take their seats alternately from the two ends of the table, so the
+ * first round pairs neighbours in join order: first v second, third v fourth.
+ * That is the week a league builds as its members join one by one
+ * (pairsAfterJoin in lib/week.ts). The week a league fills up is therefore
+ * the first round, and the weeks after it carry the rotation on instead of
+ * meeting the same opponent again.
+ *
  * After everyone has met once the rotation starts again, which is what fills
  * a season longer than one cycle. A double round robin differs in that second
  * pass only: it is the return leg, with the two sides swapped.
@@ -133,10 +140,14 @@ function roundRobinRound<Id>(
   round: number,
   double: boolean,
 ): Pairing<Id>[] {
-  const seats: (Id | null)[] = ids.length % 2 === 0 ? [...ids] : [...ids, null];
-  if (seats.length < 2) {
+  const members: (Id | null)[] = ids.length % 2 === 0 ? [...ids] : [...ids, null];
+  if (members.length < 2) {
     return [];
   }
+  const seats = [
+    ...members.filter((_, index) => index % 2 === 0),
+    ...members.filter((_, index) => index % 2 === 1).reverse(),
+  ];
   const roundsPerCycle = seats.length - 1;
   const turn = round % roundsPerCycle;
   const moving = seats.slice(1);

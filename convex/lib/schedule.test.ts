@@ -13,7 +13,7 @@ import {
   type Pairing,
   type Result,
 } from "./schedule";
-import { weekPairings } from "./week";
+import { pairsAfterJoin } from "./week";
 
 const SIX = ["a", "b", "c", "d", "e", "f"];
 
@@ -119,17 +119,17 @@ describe("round robin", () => {
     );
   });
 
-  it("seats members in the order given, which callers keep as join order", () => {
-    // Week 1 pairs the outside seats inwards; each week the rest move up one.
+  it("seats members by the order given, which callers keep as join order", () => {
+    // Week 1 pairs neighbours; each week everyone but the first moves up one.
     expect(scheduleFor("round_robin", SIX, 1, [])).toEqual([
-      { a: "a", b: "f" },
-      { a: "b", b: "e" },
+      { a: "a", b: "b" },
       { a: "c", b: "d" },
+      { a: "e", b: "f" },
     ]);
     expect(scheduleFor("round_robin", SIX, 2, [])).toEqual([
-      { a: "a", b: "b" },
-      { a: "c", b: "f" },
-      { a: "d", b: "e" },
+      { a: "a", b: "c" },
+      { a: "e", b: "b" },
+      { a: "f", b: "d" },
     ]);
     expect(scheduleFor("round_robin", ["a", "b", "a"], 1, [])).toEqual([
       { a: "a", b: "b" },
@@ -224,15 +224,35 @@ describe("seasonTable", () => {
   });
 });
 
-describe("the default league", () => {
-  it("is paired exactly as before formats existed, for every league size", () => {
-    // weekPairings is what leagues.ts called until it switched to scheduleFor.
+describe("a league that fills up during its first week", () => {
+  /** The week leagues.addMember has stored once these members joined one by one. */
+  function weekBuiltByJoining(members: string[]): [string, string][] {
+    let pairs: [string, string][] = [];
+    members.forEach((newcomer, joinedBefore) => {
+      pairs = pairsAfterJoin(pairs, members.slice(0, joinedBefore), newcomer);
+    });
+    return pairs;
+  }
+
+  it("has played the schedule's first round, for every league size", () => {
     for (let size = 0; size <= 9; size++) {
       const members = Array.from({ length: size }, (_, i) => "m" + i);
-      for (let week = 1; week <= DEFAULT_SETTINGS.seasonWeeks; week++) {
-        const stored = withStandIns(scheduleFor("round_robin", members, week, []), members);
-        expect(stored.map(({ a, b }) => [a, b])).toEqual(weekPairings(members, week));
+      const firstRound = withStandIns(scheduleFor("round_robin", members, 1, []), members);
+      expect(firstRound.map(({ a, b }) => [a, b])).toEqual(weekBuiltByJoining(members));
+    }
+  });
+
+  it("meets nobody twice before everyone has met once", () => {
+    for (let size = 2; size <= 9; size++) {
+      const members = Array.from({ length: size }, (_, i) => "m" + i);
+      const cycle = size % 2 === 0 ? size - 1 : size;
+      const met = withoutStandIns(
+        weekBuiltByJoining(members).map(([a, b]) => ({ a, b })),
+      ).map(pairKey);
+      for (let week = 2; week <= cycle; week++) {
+        met.push(...scheduleFor("round_robin", members, week, [], cycle).map(pairKey));
       }
+      expect(met.sort()).toEqual(allPairs(members));
     }
   });
 });
@@ -242,10 +262,10 @@ describe("stand-ins", () => {
     const five = SIX.slice(0, 5);
     const pairings = scheduleFor("round_robin", five, 1, []);
     expect(pairings).toEqual([
-      { a: "b", b: "e" },
+      { a: "a", b: "b" },
       { a: "c", b: "d" },
     ]);
-    expect(withStandIns(pairings, five)).toEqual([...pairings, { a: "a", b: "b" }]);
+    expect(withStandIns(pairings, five)).toEqual([...pairings, { a: "e", b: "a" }]);
   });
 
   it("adds nothing when everyone plays or nobody does", () => {
