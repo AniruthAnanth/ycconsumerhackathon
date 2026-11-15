@@ -99,9 +99,9 @@ describe("hourStart", () => {
 });
 
 describe("boards", () => {
-  it("lists fifteen distinct boards starting with This Week, Global All-Time after Global", () => {
-    expect(BOARDS).toHaveLength(15);
-    expect(new Set(BOARDS.map((board) => board.key)).size).toBe(15);
+  it("lists sixteen distinct boards starting with This Week, Global All-Time after Global", () => {
+    expect(BOARDS).toHaveLength(16);
+    expect(new Set(BOARDS.map((board) => board.key)).size).toBe(16);
     expect(BOARDS[0]).toEqual({ key: "week", label: "This Week" });
     const keys = BOARDS.map((board) => board.key);
     expect(keys[keys.indexOf("global") + 1]).toBe("globalAllTime");

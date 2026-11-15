@@ -17,6 +17,7 @@ export const BOARDS: readonly { key: BoardKey; label: string }[] = [
   { key: "quickTime", label: "Quick-Time" },
   { key: "headToHead", label: "Head-to-Head" },
   { key: "money", label: "Money" },
+  { key: "recruiters", label: "Recruiters" },
 ];
 
 const BOARD_KEYS = new Set<string>(BOARDS.map((board) => board.key));
