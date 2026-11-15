@@ -36,7 +36,13 @@ export function useChallenge() {
         opponentId: opponent.kind === "friend" ? opponent.userId : undefined,
         opponentPhone: opponent.kind === "contact" ? opponent.phone : undefined,
       });
-      if (opponentName === null) await shareInvite(inviteCode, opponent.kind === "contact" ? opponent.phone : undefined);
+      // The text goes out before anyone taps anything, so it carries the code link that needs no server round trip;
+      // the versus screen's one invite button sends the referral link instead.
+      if (opponentName === null)
+        await shareInvite(
+          inviteCode,
+          opponent.kind === "contact" ? opponent.phone : undefined,
+        );
       setLeagueId(leagueId);
       router.replace({ pathname: "/versus/[leagueId]", params: { leagueId } });
     } catch (error) {
