@@ -1,11 +1,11 @@
 import { CameraView, useCameraPermissions, type CameraType } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDevFlags } from "@/lib/devFlags";
-import { colors } from "@/theme";
+import { colors, font, spacing } from "@/theme";
 
 import type { ProofTarget } from "../proofRoute";
 import { CameraOverlay } from "./CameraOverlay";
@@ -55,6 +55,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
             onFlip={() => setFacing(facing === "back" ? "front" : "back")}
           />
         ) : null}
+        {screen.samplesOnly ? <Text style={styles.hint}>Tap a photo to submit</Text> : null}
         {screen.samples ? <SampleTray disabled={capture.busy} onPick={capture.submitSample} bottomInset={insets.bottom} /> : null}
       </View>
     </View>
@@ -64,4 +65,5 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.text },
   bottom: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  hint: { color: colors.background, fontSize: font.body, textAlign: "center", opacity: 0.8, paddingBottom: spacing.md },
 });
