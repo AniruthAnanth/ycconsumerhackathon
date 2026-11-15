@@ -35,7 +35,7 @@ Allow each permission the first time iOS asks. The prompts name Expo Go, not Lin
 
 | # | Test | Steps | Pass looks like |
 | --- | --- | --- | --- |
-| 1 | **Microphone** | Roster, **Voice Draft**, hold the record button and say a real week ("gym three times, finish my problem set, call mom, laundry, read 30 minutes"). | A transcript of what you said, then five to eight tasks, one per slot. Lock Lineup works. |
+| 1 | **Microphone** | Roster, **Voice Draft**, tap the record button, say a real week ("gym three times, finish my problem set, call mom, laundry, read 30 minutes"), then tap it again to stop. | A transcript of what you said, then five to eight tasks, one per slot. Lock Lineup works. |
 | 2 | **Camera** | Tap a task on Roster, **Submit Proof**. Take a real photo of the real thing. | Live camera with the task title overlaid, then a VERIFIED stamp with a reason that describes your photo, and the points on Roster. |
 | 3 | **Camera, wrong photo** | Submit a photo of something unrelated for another task. | NOT VERIFIED with a readable reason. The task stays open and can be retried. |
 | 4 | **Location** | Open a task marked "Photo + location" and submit a proof while physically at that place (the seeded one is the YC office). | Passes only when you are within 150 m of the pin; the reason says so. Away from the place it fails and says how far off you were. |
