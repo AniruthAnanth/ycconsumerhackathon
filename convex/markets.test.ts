@@ -101,6 +101,26 @@ describe("markets.week", () => {
     expect((standing?.me.winProbability ?? 0) + (standing?.opponent.winProbability ?? 0)).toBeCloseTo(1);
   });
 
+  test("standings.matchup prices at the league's latest proof, even one from outside the pair", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, ada, bo } = await league(t);
+    const cy = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", { name: "Cy" });
+      await ctx.db.insert("memberships", { leagueId, userId, paid: true, joinedAt: WEEK });
+      return userId;
+    });
+    await task(t, ada, "body", 40, THURSDAY - 30 * HOUR);
+    await task(t, ada, "mind", 30);
+    await task(t, bo, "body", 30);
+    await task(t, bo, "mind", 30);
+    // Cy's proof a day later lets time run down on Ada and Bo's matchup.
+    await task(t, cy, "body", 30, THURSDAY);
+    const market = await as(t, ada).query(api.markets.week, { leagueId });
+    const standing = await as(t, ada).query(api.standings.matchup, { leagueId });
+    expect(market?.asOf).toBe(THURSDAY);
+    expect(standing?.me.winProbability).toBe(market?.matchup?.chance);
+  });
+
   test("leans on each player's history: a reliable finisher is favoured over a flaky one", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, ada, bo } = await league(t);

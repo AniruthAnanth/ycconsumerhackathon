@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { ScrollView } from "react-native";
 
 import { InviteButton } from "@/components/invite";
+import { MatchupMarkets } from "@/components/markets";
 import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
@@ -32,7 +33,7 @@ export default function MatchupScreen() {
 
   return (
     <ScrollView>
-      <MatchupBody matchup={matchup} />
+      <MatchupBody matchup={matchup} belowHero={<MatchupMarkets />} />
       <ChallengeButton />
       <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />
     </ScrollView>
