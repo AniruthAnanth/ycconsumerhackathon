@@ -16,4 +16,10 @@ const crons = cronJobs();
 // daylight saving cannot move a text into the night.
 crons.cron("check-in nudges", "0 * * * *", internal.checkins.sweep, {});
 
+// Every hour, at five past. A week ends on Monday at 00:00 Pacific, which is 08:00 UTC in winter
+// and 07:00 in summer. The sweep compares each league's week with the Pacific calendar itself,
+// so an hourly run closes a week within the hour in either season, and a run that finds no
+// ended week does nothing.
+crons.cron("week-end sweep", "5 * * * *", internal.leagues.sweepEndedWeeks, {});
+
 export default crons;
