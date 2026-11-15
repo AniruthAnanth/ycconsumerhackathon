@@ -45,7 +45,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   return (
     <Screen edges={["bottom"]} scroll>
       {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
-      <Entrance>{escrow ? escrow(pot, now) : <PotSummary pot={pot} now={now} />}</Entrance>
+      <Entrance>{escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />}</Entrance>
       <Entrance index={1}>
         <LeaderboardsStrip leagueId={leagueId} />
       </Entrance>
