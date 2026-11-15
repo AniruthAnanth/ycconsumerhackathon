@@ -144,7 +144,13 @@ Rules:
 - title: at most six words, starts with a verb or names the activity, no day of the week unless the player gave one. Examples: "Leg day at the gym", "Finish OS problem set", "Call Mom".
 - points: 10 to 50 in steps of 5, by effort. 10 is trivial (take out the trash), 20 is light (call a friend), 30 is solid (a gym session, an hour of study), 40 is hard (a long run, a full problem set), 50 is a major push (a 10k race, finishing a big project).
 - proofType is "photo_location" only when the task happens at a specific real-world place the player named and whose coordinates you know: a named park, landmark, campus building or company office. Then set place to its name as the player said it, with its latitude and longitude. "The YC office" is Y Combinator's San Francisco office at 580 20th Street in the Dogpatch, 37.7608, -122.3866.
-- Everywhere else proofType is "photo" and place is null. Generic places such as the gym, home, a café or "the library" are "photo".
+- Choose how each other task is proven, by what a single honest shot could show:
+  - "before_after" for a chore whose result is a visible change to one place: clean the room, do the dishes, fold the laundry, clear the desk.
+  - "timelapse" for a sit-still activity that is defined by its length: read for 30 minutes, study for an hour, meditate, practise an instrument. Set targetMinutes to the length the player said, else 30.
+  - "screenshot" for a result that lives in an app: screen time under a limit, a run tracked in Strava, a grade, a step count.
+  - "photo" for everything else.
+  targetMinutes is null unless proofType is "timelapse".
+- Otherwise place is null. Generic places such as the gym, home, a café or "the library" are never "photo_location".
 - Notes about past weeks are history, not this week's plan. Use them to set difficulty: when they show a slot was missed, make that slot's task easier and worth fewer points than the player's wording alone would suggest. Never add a task only because it appears in the notes; a slot the player did not mention gets a fresh easy task. Never mention the notes in a title.`;
 
 const DRAFT_SCHEMA = {
@@ -157,12 +163,13 @@ const DRAFT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["slot", "title", "points", "proofType", "place"],
+        required: ["slot", "title", "points", "proofType", "place", "targetMinutes"],
         properties: {
           slot: { type: "string", enum: ["body", "mind", "recharge", "chores", "people", "flex"] },
           title: { type: "string" },
           points: { type: "integer" },
-          proofType: { type: "string", enum: ["photo", "photo_location"] },
+          proofType: { type: "string", enum: ["photo", "photo_location", "before_after", "timelapse", "screenshot"] },
+          targetMinutes: { type: ["integer", "null"] },
           place: {
             anyOf: [
               {
@@ -184,7 +191,10 @@ const DRAFT_SCHEMA = {
   },
 };
 
-type DraftedTask = Omit<DraftTask, "place"> & { place: DraftTask["place"] | null };
+type DraftedTask = Omit<DraftTask, "place" | "targetMinutes"> & {
+  place: DraftTask["place"] | null;
+  targetMinutes: number | null;
+};
 
 /**
  * Drafts tasks from what the player said. The result is the model's raw
@@ -217,7 +227,11 @@ export async function draftLineup(input: {
   // is believed.
   let { tasks } = await ask("none");
   if (tasks.length === 0) ({ tasks } = await ask("low"));
-  return tasks.map(({ place, ...task }) => (place ? { ...task, place } : task));
+  return tasks.map(({ place, targetMinutes, ...task }) => ({
+    ...task,
+    ...(place && { place }),
+    ...(targetMinutes !== null && { targetMinutes }),
+  }));
 }
 
 /** Points for a flex task the player typed in, on the same 10 to 50 scale the draft uses. */
@@ -305,7 +319,7 @@ function proofRubric(input: {
     case "screenshot":
       return [
         `Proof type: screenshot from the player's phone. Today is ${input.today ?? "this week"}.`,
-        'Pass only when it is a real screenshot (not a photo of a screen) from an app that plausibly proves the task (Screen Time, Strava, a fitness app, a grade portal), the numbers shown meet the task, and any date shown falls this week. Flag "not_a_screenshot", "wrong_app" for an unrelated app, "wrong_date" for a date outside this week, and "looks_edited" when the numbers or text look altered. Any of these fails.',
+        'Pass only when it is a real screenshot (not a photo of a screen) from an app that plausibly proves the task (Screen Time, Strava, a fitness app, a grade portal), the numbers shown meet the task, and any date shown falls this week. Flag "not_a_screenshot", "wrong_app" for an unrelated app, "wrong_date" for a date outside this week, and "looks_edited" only for clear signs of tampering on the numbers that matter (a digit in a different font or size, text pasted over the interface). Compression, odd rendering or a glitchy map label is not an edit. Any of these fails. If you cannot tell whether it was edited, give confidence between 0.3 and 0.6 so the league votes.',
       ];
     default:
       return [];
