@@ -69,5 +69,5 @@ const styles = StyleSheet.create({
   side: { width: 56, flexDirection: "row", alignItems: "center" },
   right: { justifyContent: "flex-end" },
   center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
-  title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.bold, color: colors.text },
+  title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },
 });

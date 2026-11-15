@@ -1,10 +1,10 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, radius, spacing } from "@/theme";
 
 type Props = TextInputProps & { label: string };
 
-/** A labelled single-line input with a hairline under it, to match the rows around it. */
+/** A labelled single-line input in a rounded field. */
 export function TextField({ label, style, ...input }: Props) {
   return (
     <View style={styles.field}>
@@ -15,7 +15,17 @@ export function TextField({ label, style, ...input }: Props) {
 }
 
 const styles = StyleSheet.create({
-  field: { gap: spacing.xs, borderBottomWidth: hairline, borderBottomColor: colors.divider },
+  field: { gap: spacing.xs },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
-  input: { height: 44, fontFamily: fontFamily.regular, fontSize: font.header, color: colors.text, padding: 0 },
+  input: {
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+    fontFamily: fontFamily.regular,
+    fontSize: font.header,
+    color: colors.text,
+  },
 });
