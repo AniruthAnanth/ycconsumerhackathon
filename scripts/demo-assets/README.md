@@ -16,7 +16,7 @@ Every image is generated (Capy's image tool, Gemini 3.1 Flash Image). None is a 
 
 | Script | What it does |
 | --- | --- |
-| `encode.sh` | Encodes a source image as a demo file: a JPEG of at most 1200 px with no metadata, or a 512 px square for an avatar. |
+| `encode.sh` | Encodes a source image as a demo file: a JPEG of at most 1200 px with no metadata, or a 256 px square for an avatar. |
 | `build-manifest.mjs` | Measures every listed file and writes width, height, bytes and sha256 into the manifest. `--check` fails when the manifest is out of date. It also refuses a file that is missing, unlisted or oversized. |
 | `embed-seed-photos.mjs` | Writes `convex/lib/seedPhotos.ts` from the seeded entries. |
 

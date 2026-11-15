@@ -17,20 +17,25 @@ import { DEMO_DIR, REPO_ROOT, readManifest, sha256Hex } from "./lib.mjs";
 const OUTPUT = path.join(REPO_ROOT, "convex/lib/seedPhotos.ts");
 
 const seeded = readManifest().files.filter((entry) => entry.seeded);
-const entries = seeded.map((entry) => {
+const avatars = seeded.filter((entry) => entry.kind === "avatar");
+const photos = seeded.filter((entry) => entry.kind !== "avatar");
+
+/** One record entry: the file's hash and bytes under the given property name. */
+function embedded(name, entry) {
   const bytes = readFileSync(path.join(DEMO_DIR, entry.file));
   if (sha256Hex(bytes) !== entry.sha256) {
     throw new Error(`${entry.file} changed since the manifest was built: run build-manifest.mjs first`);
   }
-  // Convex reports a stored file's SHA-256 in base64, and the seed finds its photos by that value.
+  // Convex reports a stored file's SHA-256 in base64, and the seed finds its files by that value.
   const sha256 = Buffer.from(entry.sha256, "hex").toString("base64");
-  return `  ${entry.key}: {\n    sha256: "${sha256}",\n    jpegBase64:\n      "${bytes.toString("base64")}",\n  },`;
-});
+  return `  ${name}: {\n    sha256: "${sha256}",\n    jpegBase64:\n      "${bytes.toString("base64")}",\n  },`;
+}
 
 const megabytes = (seeded.reduce((sum, entry) => sum + entry.bytes, 0) / 1024 / 1024).toFixed(1);
 const source = `/**
- * The demo league's photos: ${seeded.length} generated images (not photographs of real people) from
- * assets/demo, ${megabytes} MB of JPEG embedded as base64. Proof photos are 1200 px wide and avatars 512 px.
+ * The demo league's photos: ${photos.length} proof photos and ${avatars.length} player avatars, all generated images
+ * (not photographs of real people) from assets/demo. ${megabytes} MB of JPEG embedded as base64: proof
+ * photos are 1200 px wide and avatars 256 px.
  *
  * They live in source because a Convex function can't read files from the repository, and Reset
  * Seed has to work on a fresh deployment with no manual upload step. convex/seed.ts stores each
@@ -41,12 +46,17 @@ const source = `/**
  */
 
 export type SeedPhotoKey =
-${seeded.map((entry) => `  | "${entry.key}"`).join("\n")};
+${photos.map((entry) => `  | "${entry.key}"`).join("\n")};
 
 export const SEED_PHOTOS: Record<SeedPhotoKey, { sha256: string; jpegBase64: string }> = {
-${entries.join("\n")}
+${photos.map((entry) => embedded(entry.key, entry)).join("\n")}
+};
+
+/** Keyed by the seeded player's phone number, which is how the seed finds a player's row. */
+export const SEED_AVATARS: Record<string, { sha256: string; jpegBase64: string }> = {
+${avatars.map((entry) => embedded(JSON.stringify(entry.phone), entry)).join("\n")}
 };
 `;
 
 writeFileSync(OUTPUT, source);
-console.log(`wrote ${path.relative(REPO_ROOT, OUTPUT)}: ${seeded.length} photos, ${(source.length / 1024 / 1024).toFixed(1)} MB`);
+console.log(`wrote ${path.relative(REPO_ROOT, OUTPUT)}: ${photos.length} photos and ${avatars.length} avatars, ${(source.length / 1024 / 1024).toFixed(1)} MB`);
