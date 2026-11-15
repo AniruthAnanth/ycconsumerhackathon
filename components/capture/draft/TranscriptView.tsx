@@ -25,7 +25,8 @@ export function TranscriptView({ phase, transcript, onRevealFinished }: Props) {
   }
   if (phase === "idle") return null;
   return (
-    <Text style={styles.transcript} numberOfLines={phase === "revealing" ? undefined : 3}>
+    // Three lines while it types too: the lineup sits right under it and must not be pushed around.
+    <Text style={styles.transcript} numberOfLines={3}>
       {text}
     </Text>
   );
