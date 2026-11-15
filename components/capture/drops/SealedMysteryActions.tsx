@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button, PositionPill } from "@/components/ui";
+import { haptics } from "@/lib/native/haptics";
 import { colors, font, spacing } from "@/theme";
 
 import { capture } from "../backend";
@@ -23,6 +24,7 @@ export function SealedMysteryActions({ view }: { view: SealedView }) {
   const [error, setError] = useState<string | null>(null);
 
   async function run(action: "open" | "pass", call: () => Promise<null>) {
+    haptics.select();
     setPending(action);
     setError(null);
     try {
