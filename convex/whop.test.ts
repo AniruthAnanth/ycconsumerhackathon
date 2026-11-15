@@ -362,6 +362,28 @@ describe("closeWeek", () => {
     expect((await t.run((ctx) => ctx.db.get("weeks", weekId)))?.status).toBe("settled");
   });
 
+  test("splits the pot on final points: the week's matchup bonus counts", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, [
+      { name: "maya", boughtIn: true, clearedFive: true, points: 300 },
+      { name: "sam", boughtIn: true, clearedFive: true, points: 110 },
+      { name: "ana", boughtIn: true, points: 500 },
+    ]);
+    await t.run((ctx) =>
+      ctx.db.insert("matchups", { weekId, userA: userIds.maya, userB: userIds.sam }),
+    );
+
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+
+    // Maya beat Sam 525 to 335. Her +50 for the matchup makes it 575 to 335 of Ana's $4.50,
+    // where 525 to 335 would have paid $2.75 and $1.75.
+    const winnings = (await settlementRows(t)).filter((row) => row.kind === "winnings");
+    expect(winnings.map((row) => [row.userId, row.amountUsd])).toEqual([
+      [userIds.maya, 2.84],
+      [userIds.sam, 1.66],
+    ]);
+  });
+
   test("run twice, it pays nobody twice", async () => {
     const t = convexTest(schema, modules);
     const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
