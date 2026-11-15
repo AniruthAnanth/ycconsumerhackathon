@@ -368,6 +368,21 @@ describe("mystery task", () => {
     expect(task).toMatchObject({ status: "failed", points: -50 });
   });
 
+  it("texts the league when the penalty hands the lead to someone else", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+    await bank(t, userIds[0], 60);
+    await bank(t, userIds[1], 50);
+    const envelope = await envelopeFor(t, leagueId, userIds[0]);
+    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id, wager: 30 });
+    // Maya leads when her quick look at the table is recorded; no text for a first leader.
+    await t.mutation(internal.leadChange.afterProof, { userId: userIds[0] });
+
+    await runScheduled(t, MYSTERY_WINDOW_MS);
+
+    expect(texts.join("\n")).toContain("Sam took the lead in YC Hackathon: 50 points, 40 ahead of Maya.");
+  });
+
   it("keeps the doubled points when it is finished in time", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Maya"]);

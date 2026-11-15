@@ -30,7 +30,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { askJson } from "./ai";
-import { announceLeadChanges } from "./leadChange";
+import { announceLeadChange } from "./leadChange";
 import { requireUser } from "./lib/auth";
 import {
   clampMysteryPoints,
@@ -515,6 +515,7 @@ export const recordHeadcount = internalMutation({
     await ctx.db.patch("drops", dropId, { headcount, groupPhotoId: storageId });
     await reprice(ctx, { ...drop, headcount });
     await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
+    await announceLeadChange(ctx, drop.leagueId);
     return null;
   },
 });
@@ -581,8 +582,8 @@ export const closeDrop = internalMutation({
 });
 
 /**
- * Called by proofs.verify, through the scheduler, whenever a proof passes on a task that has a
- * dropId. This is what makes a drop bonus show up in standings the instant the proof lands.
+ * Scheduled by proofs.record whenever a proof passes on a task that has a dropId. This is what
+ * makes a drop bonus show up in standings the instant the proof lands.
  */
 export const onTaskVerified = internalMutation({
   args: { taskId: v.id("tasks") },
@@ -595,8 +596,7 @@ export const onTaskVerified = internalMutation({
     await reprice(ctx, drop);
     // Repricing changed what members' tasks are worth, so the leaderboards rebuild the league's stored rows.
     await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
-    // The bonus just written can be what decides the lead, so the lead is checked from here too.
-    await announceLeadChanges(ctx, task.userId);
+    await announceLeadChange(ctx, drop.leagueId);
     if (drop.kind === "group") {
       await ctx.scheduler.runAfter(0, internal.drops.countGroupPhoto, { dropId: drop._id, taskId });
     }
@@ -618,6 +618,7 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   }
   // The last pricing and any mystery penalty are in; the leaderboards rebuild the league's stored rows.
   await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
+  await announceLeadChange(ctx, drop.leagueId);
 
   if (drop.kind !== "group") return;
   const checkedIn = (await rsvpsOf(ctx, drop._id)).filter((rsvp) => rsvp.checkedIn).length;
@@ -639,6 +640,7 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
  * Sets what each finished task of a drop is worth right now. It recomputes from the rows rather
  * than adding to them, so it can run on every verification and again at close without paying
  * anyone twice, and it corrects itself if a challenge later overturns the first finisher.
+ * Every caller follows it with announceLeadChange, because new points can change the leader.
  */
 async function reprice(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
   // An envelope is priced once, when it is opened, and the wager is fixed from then on.
@@ -752,7 +754,6 @@ async function membership(
     .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
     .first();
 }
-
 
 // ─── Texts ───────────────────────────────────────────────────────────────────────────────────
 

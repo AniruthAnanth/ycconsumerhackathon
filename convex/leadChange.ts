@@ -57,26 +57,29 @@ export const afterProof = internalMutation({
   },
 });
 
-/**
- * Checks every league this player is in. drops.ts calls it directly after it has written a
- * drop bonus, so a first-finisher +10 that decides the lead is announced too.
- */
-export async function announceLeadChanges(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
+/** Checks every league this player is in: their proof counts in all of them. */
+async function announceLeadChanges(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
   const memberships = await ctx.db
     .query("memberships")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .take(MAX_LEAGUES);
-  for (const { leagueId } of memberships) {
-    const league = await ctx.db.get("leagues", leagueId);
-    if (league === null) continue;
-    const lead = outrightLeader(await leagueStandings(ctx, leagueId));
-    if (lead === null || lead.leader.userId === league.leaderId) continue;
-    await ctx.db.patch("leagues", leagueId, { leaderId: lead.leader.userId });
-    // The first leader of a league is recorded quietly: nobody was overtaken, so there is no news.
-    if (league.leaderId === undefined) continue;
-    await ctx.scheduler.runAfter(0, internal.keiki.send, {
-      leagueId,
-      text: leadChangeText({ leagueName: league.name, ...lead }),
-    });
-  }
+  for (const { leagueId } of memberships) await announceLeadChange(ctx, leagueId);
+}
+
+/**
+ * Checks one league. drops.ts calls it directly whenever it has changed what a drop's tasks
+ * are worth, so a first-finisher +10 or a mystery penalty that decides the lead is announced.
+ */
+export async function announceLeadChange(ctx: MutationCtx, leagueId: Id<"leagues">): Promise<void> {
+  const league = await ctx.db.get("leagues", leagueId);
+  if (league === null) return;
+  const lead = outrightLeader(await leagueStandings(ctx, leagueId));
+  if (lead === null || lead.leader.userId === league.leaderId) return;
+  await ctx.db.patch("leagues", leagueId, { leaderId: lead.leader.userId });
+  // The first leader of a league is recorded quietly: nobody was overtaken, so there is no news.
+  if (league.leaderId === undefined) return;
+  await ctx.scheduler.runAfter(0, internal.keiki.send, {
+    leagueId,
+    text: leadChangeText({ leagueName: league.name, ...lead }),
+  });
 }
