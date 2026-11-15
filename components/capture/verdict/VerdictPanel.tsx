@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -14,6 +15,8 @@ type Props = {
   onDone: () => void;
   onRetry: () => void;
   onClose: () => void;
+  /** Shown under the media while the referee is still working, for example the on-device read. */
+  whileReviewing?: ReactNode;
 };
 
 function CloseLink({ onPress }: { onPress: () => void }) {
@@ -25,11 +28,11 @@ function CloseLink({ onPress }: { onPress: () => void }) {
 }
 
 /** Everything under the media: the reason first, then the points, then the one action. */
-export function VerdictPanel({ phase, onDone, onRetry, onClose }: Props) {
+export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }: Props) {
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, spacing.lg);
 
-  if (phase.name === "reviewing") return <View style={styles.panel} />;
+  if (phase.name === "reviewing") return <View style={styles.panel}>{whileReviewing}</View>;
 
   if (phase.name === "error") {
     return (

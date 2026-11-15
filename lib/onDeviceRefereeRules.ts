@@ -16,8 +16,12 @@ import type { OnDeviceAnalysis, OnDeviceLabel } from "../modules/on-device-refer
 
 export type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
 
-/** The part of a task the pre-check reads. `gesture` is the quick-time drop's, when there is one. */
-export type PrecheckTask = { slot: Slot; title: string; gesture?: string };
+/**
+ * The part of a task the pre-check reads. `slot` is optional because the verdict screen is
+ * handed a task's title, not its slot; without it only the title sets expectations.
+ * `gesture` is the quick-time drop's, when there is one.
+ */
+export type PrecheckTask = { slot?: Slot; title: string; gesture?: string };
 
 export type Precheck = {
   /** What Vision saw, most confident first. Empty when the pre-check did not run. */
@@ -166,9 +170,9 @@ const DISPLAY_NAMES: Record<string, string> = {
   iron_clothing: "iron",
 };
 
-/** Every label a proof of this task could reasonably show: the slot's, plus the title's. */
+/** Every label a proof of this task could reasonably show: the slot's when known, plus the title's. */
 export function expectedLabels(task: PrecheckTask): Set<string> {
-  const expected = new Set<string>(SLOT_LABELS[task.slot] ?? []);
+  const expected = new Set<string>(task.slot ? SLOT_LABELS[task.slot] : []);
   // Padded with spaces so a word matches only at the start of a title word.
   const title = ` ${task.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
   for (const entry of TITLE_LABELS) {

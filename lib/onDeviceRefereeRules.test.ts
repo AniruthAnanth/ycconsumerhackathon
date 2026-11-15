@@ -34,6 +34,13 @@ describe("expectedLabels", () => {
   it("expects nothing of a flex task it can't read", () => {
     expect(expectedLabels({ slot: "flex", title: "Surprise myself" }).size).toBe(0);
   });
+
+  it("goes by the title alone when the slot isn't known", () => {
+    const expected = expectedLabels({ title: "Leg day at the gym" });
+    expect(expected.has("barbell")).toBe(true);
+    expect(expected.has("bicycle")).toBe(false);
+    expect(expectedLabels({ title: "Check in at the YC office" }).size).toBe(0);
+  });
 });
 
 describe("judgePhoto", () => {

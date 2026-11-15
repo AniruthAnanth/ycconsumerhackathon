@@ -13,8 +13,14 @@ import { initialPhase, nextPhase } from "./verdictPhase";
 
 const REFEREE_UNREACHABLE = "The referee could not be reached.";
 
-/** Submits the capture once when the screen opens, and again on every retry. */
-export function useSubmitProof(target: ProofTarget, capture: Capture) {
+/**
+ * Submits the capture once when the screen opens, and again on every retry.
+ *
+ * `beforeVerify` is awaited after the upload and before the referee is asked about a photo or
+ * video. The on-device pre-check uses it to hold a server verification back while the player
+ * decides whether to retake a photo that plainly doesn't match.
+ */
+export function useSubmitProof(target: ProofTarget, capture: Capture, beforeVerify?: () => Promise<void>) {
   const requestUploadUrl = useMutation(captureApi.proofs.generateUploadUrl);
   const verifyMedia = useAction(captureApi.proofs.verify);
   const verifyCanvasTask = useAction(captureApi.canvas.verify);
@@ -26,13 +32,15 @@ export function useSubmitProof(target: ProofTarget, capture: Capture) {
       generateUploadUrl: () => requestUploadUrl({}),
       uploadMedia: uploadToConvex,
       captureStill: async (videoUri, time) => (await getThumbnailAsync(videoUri, { time, quality: 0.6 })).uri,
-      verifyMedia: ({ taskId, storageId, frameStorageIds, ...rest }) =>
-        verifyMedia({
+      verifyMedia: async ({ taskId, storageId, frameStorageIds, ...rest }) => {
+        await beforeVerify?.();
+        return verifyMedia({
           ...rest,
           taskId: taskId as Id<"tasks">,
           storageId: storageId as Id<"_storage">,
           frameStorageIds: frameStorageIds as Id<"_storage">[] | undefined,
-        }),
+        });
+      },
       verifyCanvas: ({ taskId }) => verifyCanvasTask({ taskId: taskId as Id<"tasks"> }),
     };
     try {
@@ -40,7 +48,7 @@ export function useSubmitProof(target: ProofTarget, capture: Capture) {
     } catch (error) {
       dispatch({ type: "failure", message: errorMessage(error, REFEREE_UNREACHABLE) });
     }
-  }, [capture, requestUploadUrl, target.taskId, verifyCanvasTask, verifyMedia]);
+  }, [beforeVerify, capture, requestUploadUrl, target.taskId, verifyCanvasTask, verifyMedia]);
 
   useEffect(() => {
     if (started.current) return;
