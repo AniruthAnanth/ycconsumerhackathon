@@ -385,6 +385,14 @@ export const overview = query({
     const me = await requireUser(ctx);
     const league = await ctx.db.get("leagues", leagueId);
     if (league === null) throw new ConvexError("That league doesn't exist.");
+    // A season names every member and what each scored, so only members read it.
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_league_user", (q) =>
+        q.eq("leagueId", leagueId).eq("userId", me._id),
+      )
+      .first();
+    if (membership === null) throw new ConvexError("You are not in this league.");
 
     const input = await loadSeason(ctx, league);
     const view = buildSeason(input);
