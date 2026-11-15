@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Lineup",
+    "slug": "lineup",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "lineup",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.lineup.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.lineup.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Lineup uses the camera to capture proof that you completed a task.",
+          "microphonePermission": "Lineup uses the microphone to record video proof."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lineup checks your location when a task has to be done at a specific place."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Lineup uses your contacts to add friends to your league."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Lineup uses the microphone so you can draft your week by voice."
+        }
+      ],
+      "expo-video"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

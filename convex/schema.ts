@@ -1,0 +1,244 @@
+import { authTables } from "@convex-dev/auth/server";
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+// This schema is the contract between the app, core backend and integrations
+// workstreams. Add fields as optional and never rename an index: other threads
+// query them by name.
+//
+// A player drafts ONE lineup per calendar week and it scores in every league
+// they belong to, so lineups, tasks and proofs are keyed by (userId, weekStart)
+// and not by league. weekStart is the epoch milliseconds of that week's Monday
+// 00:00 in America/Los_Angeles, and a league's weeks row for the same week has
+// startsAt equal to it. A task that carries a dropId scores only in that drop's
+// league.
+
+export const slot = v.union(
+  v.literal("body"),
+  v.literal("mind"),
+  v.literal("recharge"),
+  v.literal("chores"),
+  v.literal("people"),
+  v.literal("flex"),
+);
+
+export const place = v.object({
+  name: v.string(),
+  lat: v.number(),
+  lng: v.number(),
+});
+
+export default defineSchema({
+  ...authTables,
+
+  // Convex Auth creates this row on the first anonymous sign-in, which is why
+  // every Lineup field is optional. The first block is what Convex Auth reads
+  // and writes; the second is ours.
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()), // E.164; how Keiki texts are matched to a player
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+
+    avatarStorageId: v.optional(v.id("_storage")),
+    whopUserId: v.optional(v.string()),
+    isSeed: v.optional(v.boolean()),
+    // Demo control "Switch Player": requireUser resolves this device to the
+    // seeded player named here.
+    demoActAs: v.optional(v.id("users")),
+    createdAt: v.optional(v.number()),
+  })
+    .index("email", ["email"]) // looked up by Convex Auth under this exact name
+    .index("by_phone", ["phone"]),
+
+  leagues: defineTable({
+    name: v.string(),
+    inviteCode: v.string(),
+    stakeUsd: v.number(),
+    visibility: v.union(v.literal("private"), v.literal("public")),
+    maxMembers: v.number(),
+    keikiConversationId: v.optional(v.string()),
+    whopCompanyId: v.optional(v.string()),
+    createdBy: v.id("users"),
+  })
+    .index("by_inviteCode", ["inviteCode"])
+    .index("by_visibility_stake", ["visibility", "stakeUsd"]),
+
+  memberships: defineTable({
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+    paid: v.boolean(),
+    whopPaymentId: v.optional(v.string()),
+    whopAccountId: v.optional(v.string()),
+    joinedAt: v.number(),
+  })
+    .index("by_league", ["leagueId"])
+    .index("by_user", ["userId"])
+    .index("by_league_user", ["leagueId", "userId"]),
+
+  weeks: defineTable({
+    leagueId: v.id("leagues"),
+    number: v.number(),
+    startsAt: v.number(), // equals weekStart for the same calendar week
+    endsAt: v.number(),
+    status: v.union(v.literal("open"), v.literal("settled")),
+  }).index("by_league", ["leagueId"]),
+
+  matchups: defineTable({
+    weekId: v.id("weeks"),
+    userA: v.id("users"),
+    userB: v.id("users"),
+  }).index("by_week", ["weekId"]),
+
+  lineups: defineTable({
+    userId: v.id("users"),
+    weekStart: v.number(),
+    transcript: v.optional(v.string()),
+    lockedAt: v.optional(v.number()),
+  }).index("by_user_week", ["userId", "weekStart"]),
+
+  tasks: defineTable({
+    userId: v.id("users"),
+    weekStart: v.number(),
+    slot,
+    title: v.string(),
+    points: v.number(),
+    proofType: v.union(
+      v.literal("photo"),
+      v.literal("photo_location"),
+      v.literal("canvas"),
+    ),
+    place: v.optional(place),
+    // Canvas ids are stored as strings: they are opaque to us and only ever
+    // go back into Canvas URLs.
+    canvas: v.optional(
+      v.object({ courseId: v.string(), assignmentId: v.string() }),
+    ),
+    status: v.union(
+      v.literal("open"),
+      v.literal("verified"),
+      v.literal("held"),
+      v.literal("failed"),
+    ),
+    source: v.union(
+      v.literal("draft"),
+      v.literal("flex"),
+      v.literal("drop"),
+      v.literal("mystery"),
+      v.literal("group"),
+    ),
+    dropId: v.optional(v.id("drops")),
+  })
+    .index("by_user_week", ["userId", "weekStart"])
+    .index("by_drop", ["dropId"]),
+
+  proofs: defineTable({
+    taskId: v.id("tasks"),
+    userId: v.id("users"),
+    weekStart: v.number(),
+    storageId: v.optional(v.id("_storage")),
+    mediaType: v.union(
+      v.literal("photo"),
+      v.literal("video"),
+      v.literal("canvas"),
+    ),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+    // The AI verdict, stored as returned.
+    pass: v.boolean(),
+    confidence: v.number(), // 0 to 1
+    reason: v.string(),
+    highlight: v.number(), // 1 to 10: how feed-worthy the proof is
+    caption: v.string(),
+    via: v.union(v.literal("app"), v.literal("keiki"), v.literal("canvas")),
+    createdAt: v.number(),
+  })
+    .index("by_user_week", ["userId", "weekStart"])
+    .index("by_task", ["taskId"]),
+
+  reactions: defineTable({
+    proofId: v.id("proofs"),
+    userId: v.id("users"),
+    emoji: v.string(),
+  }).index("by_proof", ["proofId"]),
+
+  challenges: defineTable({
+    proofId: v.id("proofs"),
+    leagueId: v.id("leagues"),
+    challengerId: v.id("users"),
+    status: v.union(
+      v.literal("open"),
+      v.literal("upheld"),
+      v.literal("overturned"),
+    ),
+    closesAt: v.number(),
+  })
+    .index("by_proof", ["proofId"])
+    .index("by_status", ["status"]),
+
+  votes: defineTable({
+    challengeId: v.id("challenges"),
+    userId: v.id("users"),
+    legit: v.boolean(),
+  }).index("by_challenge", ["challengeId"]),
+
+  drops: defineTable({
+    leagueId: v.id("leagues"),
+    kind: v.union(
+      v.literal("quicktime"),
+      v.literal("mystery"),
+      v.literal("group"),
+    ),
+    userId: v.optional(v.id("users")),
+    createdBy: v.optional(v.id("users")),
+    title: v.string(),
+    slot,
+    points: v.number(),
+    gesture: v.optional(v.string()),
+    sealed: v.boolean(),
+    wager: v.optional(v.number()),
+    place: v.optional(place),
+    opensAt: v.number(),
+    closesAt: v.number(),
+    status: v.union(
+      v.literal("scheduled"),
+      v.literal("open"),
+      v.literal("closed"),
+    ),
+  }).index("by_league_status", ["leagueId", "status"]),
+
+  rsvps: defineTable({
+    dropId: v.id("drops"),
+    userId: v.id("users"),
+    checkedIn: v.boolean(),
+  }).index("by_drop", ["dropId"]),
+
+  // Holds a player's Canvas access token. Never return a row of this table,
+  // or any field of it, to a client.
+  canvasConnections: defineTable({
+    userId: v.id("users"),
+    baseUrl: v.string(),
+    token: v.string(),
+  }).index("by_user", ["userId"]),
+
+  ledger: defineTable({
+    leagueId: v.id("leagues"),
+    weekId: v.id("weeks"),
+    userId: v.optional(v.id("users")),
+    kind: v.union(
+      v.literal("buy_in"),
+      v.literal("refund"),
+      v.literal("winnings"),
+      v.literal("fee"),
+    ),
+    amountUsd: v.number(),
+    whopId: v.optional(v.string()),
+    idempotencyKey: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_league", ["leagueId"])
+    .index("by_idempotencyKey", ["idempotencyKey"]),
+});
