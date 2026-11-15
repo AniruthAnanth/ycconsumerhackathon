@@ -29,7 +29,7 @@ export function WrappedScreen() {
     leagueId ? { leagueId, ...(weekNumber === undefined ? {} : { weekNumber }) } : "skip",
   );
 
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList>(null);
   const [index, setIndex] = useState(0);
@@ -68,6 +68,7 @@ export function WrappedScreen() {
           <WrappedCard
             card={item}
             width={width}
+            height={height}
             topInset={insets.top}
             onTap={(tapX) => goTo(indexAfterTap(tapX, width, index, cards.length))}
           />

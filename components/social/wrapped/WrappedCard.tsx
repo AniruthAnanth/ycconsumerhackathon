@@ -15,19 +15,23 @@ const WHITE = colors.background;
 export function WrappedCard({
   card,
   width,
+  height,
   topInset,
   onTap,
 }: {
   card: WrappedCardData;
+  /** A horizontal list sizes its items to their content, so a full-screen card is told both dimensions. */
   width: number;
+  height: number;
   topInset: number;
   onTap: (tapX: number) => void;
 }) {
   return (
     <Pressable
       accessibilityLabel={`${KIND_LABEL[card.kind]}: ${card.title}`}
-      onPress={(event) => onTap(event.nativeEvent.locationX)}
-      style={[styles.card, { width, backgroundColor: KIND_BACKGROUND[card.kind] }]}
+      // pageX, not locationX: a card spans the screen, so they agree, and pageX also exists for a mouse click.
+      onPress={(event) => onTap(event.nativeEvent.pageX)}
+      style={[styles.card, { width, height, backgroundColor: KIND_BACKGROUND[card.kind] }]}
     >
       {card.mediaUrl ? (
         <>
@@ -48,7 +52,7 @@ export function WrappedCard({
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, justifyContent: "center" },
+  card: { justifyContent: "center" },
   scrim: { backgroundColor: "rgba(0,0,0,0.5)" },
   content: { paddingHorizontal: 24, paddingBottom: 48 },
   label: { color: WHITE, fontSize: 13, fontWeight: "700", letterSpacing: 1.2, opacity: 0.85 },
