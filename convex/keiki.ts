@@ -191,11 +191,15 @@ export const answerTurn = internalAction({
       texts = turn.messages.some((message) => !message.silent) ? [reply.trouble] : [];
     }
 
+    let delivered = 0;
     for (const [index, text] of texts.entries()) {
       // If this action runs again, the key stops a text going out twice: Keiki sends once per key.
-      await postToTurn(turn, bearer, "/messages", { text, idempotencyKey: `${turn.turnId}:${index}` });
+      const status = await postToTurn(turn, bearer, "/messages", { text, idempotencyKey: `${turn.turnId}:${index}` });
+      if (status === 200) delivered += 1;
     }
     await postToTurn(turn, bearer, "/complete", failure === null ? { status: "completed" } : { status: "failed", error: failure });
+    // The one place a delivery shows: send's "sent" only means Keiki accepted the notice.
+    if (texts.length > 0) console.log(`Keiki turn ${turn.turnId} on ${turn.channel}: ${delivered} of ${texts.length} delivered`);
     return null;
   },
 });
@@ -205,13 +209,20 @@ async function postToTurn(
   bearer: string,
   path: "/messages" | "/complete",
   body: Record<string, string>,
-): Promise<void> {
+): Promise<number> {
   const response = await fetch(`${turn.turnUrl}${path}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) console.warn(`Keiki ${path} on turn ${turn.turnId} answered ${response.status}`);
+  if (response.status === 429) {
+    // recipient_reply_required. The shared number lets the agent text a player only so many
+    // times before they write back; nothing to retry until they do.
+    console.warn(`Keiki refused a text on turn ${turn.turnId}: the player has to reply before the number may text them again`);
+  } else if (!response.ok) {
+    console.warn(`Keiki ${path} on turn ${turn.turnId} answered ${response.status}`);
+  }
+  return response.status;
 }
 
 async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promise<string[]> {
