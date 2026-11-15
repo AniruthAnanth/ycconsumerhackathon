@@ -47,10 +47,12 @@ export const NO_STATS: ScoreStats = {
 };
 
 export function tallyWeek(facts: WeekFacts, before = Infinity): WeekTally {
-  // The proof that verified each task is its first pass; later rows can only be retries.
+  // The proof that verified each task is its latest pass. An earlier one can be a proof the
+  // league voted down: the challenge reopened the task and it was proved again, and the
+  // overturned row still says pass.
   const passes = new Map<Id<"tasks">, WeekFacts["proofs"][number]>();
   for (const proof of [...facts.proofs].sort((a, b) => a.createdAt - b.createdAt)) {
-    if (proof.pass && !passes.has(proof.taskId)) passes.set(proof.taskId, proof);
+    if (proof.pass) passes.set(proof.taskId, proof);
   }
 
   // Replaying an earlier moment: a task proved after it was still open then. A

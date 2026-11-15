@@ -84,12 +84,15 @@ export function ordinal(place: number): string {
  * Turns one number per player into a board, best first.
  *
  * Players level on value and tiebreak share a place and the next place is
- * skipped (1, 2, 2, 4), as a sports table does.
+ * skipped (1, 2, 2, 4), as a sports table does. `splitTies` numbers them
+ * straight through instead (1, 2, 3, 4, level players by name), for a board
+ * that has to show the places another table already gives.
  */
 export function rankBoard<UserId>(
   entries: Entry<UserId>[],
   format: BoardFormat,
   me: UserId | null,
+  { splitTies = false }: { splitTies?: boolean } = {},
 ): RankedBoard<UserId> {
   const better = (a: Scored, b: Scored) =>
     (format.order === "desc" ? b.value - a.value : a.value - b.value) || b.tiebreak - a.tiebreak;
@@ -97,6 +100,7 @@ export function rankBoard<UserId>(
   const today = placed(
     entries.map((entry) => ({ entry, value: entry.value, tiebreak: entry.tiebreak ?? 0 })),
     better,
+    splitTies,
   );
   // Yesterday's table, to compare places. A player who was not on it counts as
   // having stood below everyone who was, so arriving on a board reads as a climb.
@@ -105,6 +109,7 @@ export function rankBoard<UserId>(
       .filter((entry) => entry.previous !== null)
       .map((entry) => ({ entry, value: entry.previous as number, tiebreak: entry.tiebreak ?? 0 })),
     better,
+    splitTies,
   );
   const placeYesterday = new Map(yesterday.map(({ entry, place }) => [entry.userId, place]));
 
@@ -113,6 +118,9 @@ export function rankBoard<UserId>(
 
   const rows = today.map(({ entry, place }, i): RankedRow<UserId> => {
     const gapLabel = gapTo(today, i, format);
+    // A player with nothing on a board has no place to lose: without this, everyone still on
+    // zero shows a fall each time somebody else scores.
+    const idle = entry.value === 0 && (entry.previous ?? 0) === 0;
     return {
       rank: place,
       userId: entry.userId,
@@ -121,7 +129,7 @@ export function rankBoard<UserId>(
       value: entry.value,
       valueLabel: entry.valueLabel ?? format.value(entry.value),
       ...(entry.detail === undefined ? {} : { detail: entry.detail }),
-      movement: (placeYesterday.get(entry.userId) ?? yesterday.length + 1) - place,
+      movement: idle ? 0 : (placeYesterday.get(entry.userId) ?? yesterday.length + 1) - place,
       ...(gapLabel === undefined ? {} : { gapLabel }),
       isMe: i === mine,
       isRival: i === rivalAt,
@@ -150,12 +158,13 @@ type Placed<UserId> = { entry: Entry<UserId>; place: number };
 function placed<UserId>(
   scored: ({ entry: Entry<UserId> } & Scored)[],
   better: (a: Scored, b: Scored) => number,
+  splitTies: boolean,
 ): Placed<UserId>[] {
   // Level players are listed by name so the order never flickers between renders.
   const sorted = [...scored].sort((a, b) => better(a, b) || a.entry.name.localeCompare(b.entry.name));
   const result: Placed<UserId>[] = [];
   sorted.forEach((row, i) => {
-    const level = i > 0 && better(sorted[i - 1], row) === 0;
+    const level = !splitTies && i > 0 && better(sorted[i - 1], row) === 0;
     result.push({ entry: row.entry, place: level ? result[i - 1].place : i + 1 });
   });
   return result;

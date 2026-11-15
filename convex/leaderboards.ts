@@ -4,9 +4,11 @@
  * Where the numbers come from:
  *   - The week in play is tallied live from tasks and proofs with the same
  *     scoring functions as the standings, so a board reorders the moment a
- *     proof is written and can never disagree with the League tab.
+ *     proof is written and can never disagree with the League tab. A settled
+ *     week adds the matchup bonus exactly as the standings do (leagueWeek).
  *   - Finished weeks are read from `scores`, one stored row per player per
  *     league per week, so "season" and "all-time" never re-read old proofs.
+ *     The stored rows are written by the same leagueWeek, bonus included.
  *   - The global boards rank across every league straight off an index on
  *     `scores`.
  *
@@ -205,7 +207,10 @@ export const board = query({
     const open = args.board === "global" || args.board === "globalAllTime";
     const allowed = league !== null && (open || league.members.some((member) => member.userId === me._id));
     const entries = allowed ? await entriesFor(ctx, league, args.board, args.at) : [];
-    return { board: args.board, title, valueHeader, ...rankBoard(entries, format, me._id) };
+    // The League tab's table numbers level players straight through (6, 7, 8, by name). This Week
+    // is that table, and the strip above it quotes its place, so it numbers them the same way.
+    const splitTies = args.board === "week";
+    return { board: args.board, title, valueHeader, ...rankBoard(entries, format, me._id, { splitTies }) };
   },
 });
 

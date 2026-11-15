@@ -129,6 +129,32 @@ describe("leaderboards.board", () => {
     expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Projected: +$90.00" });
   });
 
+  test("This Week numbers level players as the standings table does, and an unpaid member is told to pay", async () => {
+    const { t, leagueId } = await seededLeague();
+    const newcomers = await t.run(async (ctx) => {
+      const ids: Id<"users">[] = [];
+      for (const name of ["Zed Zero", "Abe Zero"]) {
+        const userId = await ctx.db.insert("users", { name });
+        await ctx.db.insert("memberships", { leagueId, userId, paid: false, joinedAt: NOW });
+        ids.push(userId);
+      }
+      return ids;
+    });
+    const viewer = t.withIdentity({ subject: `${newcomers[0]}|session` });
+    const table = await viewer.query(api.standings.table, { leagueId });
+    const { rows } = await viewer.query(api.leaderboards.board, { leagueId, board: "week" });
+    // Leo and the two newcomers are level on nothing: 6, 7, 8 by name, in both places.
+    expect(rows.map((row) => [row.rank, row.name])).toEqual(table.map((row) => [row.rank, row.name]));
+    expect(rows.slice(5).map((row) => [row.rank, row.name])).toEqual([
+      [6, "Abe Zero"],
+      [7, "Leo Martinez"],
+      [8, "Zed Zero"],
+    ]);
+
+    const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
+    expect(projection).toMatchObject({ eligible: false, label: "Pay $20 to play for the pot" });
+  });
+
   test("a new proof reorders the board at once and shows as movement", async () => {
     const { t, leagueId, as, idOf } = await seededLeague();
     // Leo's gym session: 35 for the task, 25 for the slot, 5 for the day.

@@ -202,8 +202,16 @@ export function projectPayout<UserId>(input: {
   };
 }
 
-/** "Projected: +$12.40": the expected payout minus the stake the player put in. */
+/**
+ * "Projected: +$12.40": the expected payout minus the stake the player put in.
+ * A member who has not paid has nothing to project, so the line says what
+ * would put them in the pot instead of a gain of nothing.
+ */
 export function projectionLabel(projection: Projection): string {
+  if (!projection.eligible && projection.stakeCents > 0) {
+    const stake = projection.stakeCents / 100;
+    return `Pay $${Number.isInteger(stake) ? stake : stake.toFixed(2)} to play for the pot`;
+  }
   const netCents = projection.eligible ? projection.expectedCents - projection.stakeCents : 0;
   const dollars = (Math.abs(netCents) / 100).toFixed(2);
   return `Projected: ${netCents < 0 ? "-" : "+"}$${dollars}`;
