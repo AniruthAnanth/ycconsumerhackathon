@@ -146,12 +146,15 @@ export function proofChallenged(challenge: { challengeId: string; taskTitle: str
   };
 }
 
-/** The phone is within 100 ft of a task's pinned place. */
-export function arrivedAt(task: ProofTarget & { place: Place }): LineupNotification {
+/**
+ * The phone is where a task gets done: within 100 ft of its pinned place, or at a gym for a Body
+ * task with no pin, in which case the phone's own name for the spot is passed as `placeName`.
+ */
+export function arrivedAt(task: ProofTarget, placeName: string | undefined = task.place?.name): LineupNotification {
   return {
     id: `arrival:${task.taskId}`,
     kind: "arrival",
-    title: `You're at ${task.place.name}`,
+    title: placeName ? `You're at ${placeName}` : "You've arrived",
     body: `Check in for ${task.title}: +${task.points}.`,
     url: proofUrl(task),
     category: CHECK_IN_CATEGORY,

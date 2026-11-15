@@ -27,7 +27,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { challengerPointsByUser } from "./challenges";
 import { requireUser } from "./lib/auth";
-import { projectionLabel, projectPayout, type Projection, type ProjectionMember } from "./lib/projection";
+import { projectionLabel, projectPayout, settledLabel, type Projection, type ProjectionMember } from "./lib/projection";
 import { FORMATS, rankBoard, type BoardFormat, type Entry } from "./lib/ranking";
 import { resolveSettings, seasonOf, seasonTable, withoutStandIns, type Result } from "./lib/schedule";
 import { CORE_SLOTS, matchupBonus, type CoreSlot } from "./lib/scoring";
@@ -127,7 +127,7 @@ const STAT_BOARDS: Record<Exclude<BoardKey, "global" | "globalAllTime" | "headTo
     format: FORMATS.points,
     span: "allTime",
     value: (stats) => stats.points,
-    detail: (_ctx, total) => `${total.tasksVerified} tasks proved`,
+    detail: (_ctx, total) => `${total.tasksVerified} ${total.tasksVerified === 1 ? "task" : "tasks"} proved`,
   },
   body: slotBoard("body", "Best Body"),
   mind: slotBoard("mind", "Best Mind"),
@@ -327,8 +327,11 @@ async function moneyEntries(ctx: QueryCtx, league: League, at?: number): Promise
   const inPlay = league.current?.status !== "settled" && league.members.length <= MAX_PROJECTED_MEMBERS;
   const projected = inPlay ? await projections(ctx, league, at) : new Map<UserId, Projection>();
 
-  return league.members.map((member) => {
+  return league.members.flatMap((member) => {
     const projection = projected.get(member.userId);
+    // A member who has never put money in has no place on a money table: left on it at $0.00,
+    // they would sit above everyone whose stake is at risk.
+    if (!net.has(member.userId) && !projection?.eligible) return [];
     // The stake is already out of the ledger, so the whole expected payout comes back in.
     const expected = projection?.eligible ? projection.expectedCents : 0;
     const cents = (dollars: number | undefined) => Math.round((dollars ?? 0) * 100);
@@ -449,7 +452,8 @@ export const projection = query({
     const mine = (await projections(ctx, league, at, me._id)).get(me._id);
     if (mine === undefined) return null;
     return {
-      label: projectionLabel(mine),
+      // A settled week has nothing left to project: the line says what it paid.
+      label: league.current?.status === "settled" ? settledLabel(mine) : projectionLabel(mine),
       eligible: mine.eligible,
       stakeUsd: mine.stakeCents / 100,
       ifEndedNowUsd: mine.ifEndedNowCents / 100,

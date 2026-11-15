@@ -51,9 +51,9 @@ export function hourStart(now: number): number {
   return Math.floor(now / 3_600_000) * 3_600_000;
 }
 
-/** Green only for a paid-up player expected to get at least the stake back; the label is a sentence and is never parsed. */
+/** Green only for a paid-up player expected to come out ahead; breaking even is not a gain. The label is a sentence and is never parsed. */
 export function isProjectedGain(projection: Pick<Projection, "eligible" | "expectedUsd" | "stakeUsd">): boolean {
-  return projection.eligible && projection.expectedUsd >= projection.stakeUsd;
+  return projection.eligible && projection.expectedUsd > projection.stakeUsd;
 }
 
 export function projectionDetail(projection: Pick<Projection, "ifEndedNowUsd" | "lowUsd" | "highUsd">): string {

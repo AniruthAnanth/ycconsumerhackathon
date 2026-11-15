@@ -92,6 +92,20 @@ async function textsTo(t: Backend, userId: Id<"users">): Promise<string[]> {
   return rows.map((row) => row.text);
 }
 
+/** Turns the player's texts off and gives them a phone that can be pushed. */
+async function pushInsteadOfText(t: Backend, userId: Id<"users">) {
+  await t.run(async (ctx) => {
+    await ctx.db.patch("users", userId, { keikiOptIn: undefined });
+    await ctx.db.insert("pushTokens", { userId, token: `ExponentPushToken[${userId}]`, updatedAt: NOON });
+  });
+}
+
+/** The arguments of every call the backend has scheduled to this function. */
+async function scheduledTo(t: Backend, name: "keiki:send" | "push:send" | "checkins:nudge") {
+  const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  return jobs.filter((job) => job.name === name).map((job) => job.args[0]);
+}
+
 describe("checkins.prompt", () => {
   it("names the rival and the gap as the League tab scores them, on the task most at risk", async () => {
     const t = convexTest(schema, modules);
@@ -422,6 +436,118 @@ describe("checkins.nudge", () => {
   });
 });
 
+describe("check-ins for a player who is pushed instead of texted", () => {
+  it("pushes the last-day nudge once, logs it like a text, and tells nobody who has no phone to reach", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya"]);
+    const [me, maya] = userIds;
+    await addTask(t, me);
+    await addTask(t, maya);
+    await pushInsteadOfText(t, me);
+    await t.run((ctx) => ctx.db.patch("users", maya, { keikiOptIn: undefined }));
+
+    const text = await t.mutation(internal.checkins.nudge, { userId: me });
+    expect(text).toMatch(/^Last day\. Body is still open\./);
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
+    expect(await t.mutation(internal.checkins.nudge, { userId: maya })).toBeNull();
+
+    // The log row is what holds a push to the same limits as a text.
+    expect(await textsTo(t, me)).toEqual([text]);
+    expect(await textsTo(t, maya)).toEqual([]);
+    expect(await scheduledTo(t, "keiki:send")).toEqual([]);
+    expect(await scheduledTo(t, "push:send")).toEqual([
+      {
+        userId: me,
+        notification: {
+          id: `settling:${leagueId}:${WEEK_START + 7 * DAY_MS}`,
+          kind: "settlement",
+          title: "YC Hackathon settles in 12h",
+          body: "Last chance to prove what's still open.",
+          url: "/",
+        },
+      },
+    ]);
+  });
+
+  it("pushes the evening nudge with the task to prove tonight", async () => {
+    const t = convexTest(schema, modules);
+    // The following week, on its Wednesday at 6 PM: a day that is not the last one.
+    const weekStart = WEEK_START + 7 * DAY_MS;
+    vi.setSystemTime(weekStart + 2 * DAY_MS + 18 * HOUR_MS);
+    const { userIds } = await startLeague(t, ["Me"], weekStart);
+    const [me] = userIds;
+    await addTask(t, me, { weekStart });
+    await addTask(t, me, { weekStart, slot: "chores", title: "Laundry", points: 20 });
+    await pushInsteadOfText(t, me);
+
+    await t.mutation(internal.checkins.nudge, { userId: me });
+
+    expect(await scheduledTo(t, "push:send")).toEqual([
+      {
+        userId: me,
+        notification: {
+          id: "nudge:2026-11-18",
+          kind: "nudge",
+          title: "2 tasks still open",
+          body: "Leg day is worth +40. Prove it tonight.",
+          url: "/",
+        },
+      },
+    ]);
+  });
+
+  it("pushes the member the prover just went past", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya Chen", "Sam"]);
+    const [me, maya, sam] = userIds;
+    await addTask(t, me, { slot: "mind", title: "Problem set", points: 30, status: "verified" });
+    await addTask(t, sam, { points: 100, status: "verified" }); // the leader throughout
+    const mayas = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
+    await pushInsteadOfText(t, me);
+
+    await t.mutation(internal.checkins.afterProof, { taskId: mayas });
+
+    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 15."]);
+    expect(await scheduledTo(t, "keiki:send")).toEqual([]);
+    expect(await scheduledTo(t, "push:send")).toEqual([
+      {
+        userId: me,
+        notification: {
+          id: `rival:${leagueId}:${maya}`,
+          kind: "rival",
+          title: "Maya Chen passed you",
+          body: "You're 15 points behind. Prove a task to take it back.",
+          url: "/leaderboards",
+        },
+      },
+    ]);
+  });
+
+  it("keeps texting a player who plays by text, and schedules no push nobody would get", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    await addTask(t, me);
+
+    const text = await t.mutation(internal.checkins.nudge, { userId: me });
+
+    expect(await scheduledTo(t, "keiki:send")).toEqual([{ userId: me, text }]);
+    expect(await scheduledTo(t, "push:send")).toEqual([]);
+  });
+
+  it("has the hourly sweep look at players it could text or push, and nobody else", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Texted", "Pushed", "Neither"]);
+    const [texted, pushed, neither] = userIds;
+    await pushInsteadOfText(t, pushed);
+    await t.run((ctx) => ctx.db.patch("users", neither, { keikiOptIn: undefined }));
+
+    await t.mutation(internal.checkins.sweep, {});
+
+    expect(await scheduledTo(t, "checkins:nudge")).toEqual([{ userId: texted }, { userId: pushed }]);
+  });
+});
+
 describe("checkins.afterProof", () => {
   it("texts the member the prover just went past, and nobody on the next proof that changes no order", async () => {
     const t = convexTest(schema, modules);
@@ -447,11 +573,12 @@ describe("checkins.afterProof", () => {
 
   it("counts the bonuses a first proof earned when it works out who was passed", async () => {
     const t = convexTest(schema, modules);
-    const { userIds } = await startLeague(t, ["Me", "Maya"]);
-    const [me, maya] = userIds;
+    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
+    const [me, maya, sam] = userIds;
     // I have 20 (a flex task earns no slot bonus). Maya had nothing and proves a drafted Body task:
     // 45 for the task and 25 for the slot is 70. Taking only the 45 off would put her "before" at
-    // 25, already ahead of me, and the pass would go unsaid.
+    // 25, already ahead of me, and the pass would go unsaid. Sam leads throughout.
+    await addTask(t, sam, { points: 100, status: "verified" });
     await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 20, status: "verified" });
     const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
 
@@ -461,8 +588,9 @@ describe("checkins.afterProof", () => {
 
   it("still reports a pass when another member's proof landed in the same moment and its hook ran first", async () => {
     const t = convexTest(schema, modules);
-    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
-    const [me, maya, sam] = userIds;
+    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam", "Jo"]);
+    const [me, maya, sam, jo] = userIds;
+    await addTask(t, jo, { points: 100, status: "verified" }); // the leader throughout
     await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 30, status: "verified" });
     const mayas = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" }); // 70: past me
     const sams = await addTask(t, sam, { slot: "flex", source: "flex", title: "Stretch", points: 10, status: "verified" });
@@ -475,9 +603,10 @@ describe("checkins.afterProof", () => {
 
   it("starts every week from zero: last week's marks neither hide a pass nor invent one", async () => {
     const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
-    const [me, maya, sam] = userIds;
-    // Last week ended Sam 200, Maya 150, me 40. This week only I have scored, 30.
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya", "Sam", "Jo"]);
+    const [me, maya, sam, jo] = userIds;
+    // Last week ended Sam 200, Maya 150, me 40. This week Jo leads on 125 and I have 30.
+    await addTask(t, jo, { points: 100, status: "verified" });
     await t.run(async (ctx) => {
       for (const [userId, points] of [[sam, 200], [maya, 150], [me, 40]] as const) {
         await ctx.db.insert("checkinMarks", { leagueId, userId, points, weekStart: WEEK_START - 7 * DAY_MS });
@@ -492,5 +621,18 @@ describe("checkins.afterProof", () => {
     expect(await textsTo(t, sam)).toEqual([]);
     // Her row moved to this week; no fourth row was added.
     expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(3);
+  });
+
+  it("leaves a pass that took the league's lead to the league's own text: one text per event", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me", "Maya"]);
+    const [me, maya] = userIds;
+    await addTask(t, me, { slot: "mind", title: "Problem set", points: 30, status: "verified" }); // 55: the leader
+    const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" }); // 70: the new leader
+
+    await t.mutation(internal.checkins.afterProof, { taskId: run });
+    // leadChange tells the whole league that Maya took the lead, me included.
+    expect(await textsTo(t, me)).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(1);
   });
 });

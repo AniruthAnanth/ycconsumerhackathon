@@ -12,6 +12,10 @@ export const COUNT_MS = 360;
 /** A standings row sliding to its new rank. */
 export const REORDER_MS = 280;
 
+/** The verdict stamp falling onto the page, then settling back from its overshoot. */
+export const STAMP_DROP_MS = 170;
+export const STAMP_SETTLE_MS = 130;
+
 /** Ease-out cubic: fast start, gentle landing, the way a scoreboard digit settles. */
 export function easeOutCubic(t: number): number {
   const clamped = Math.min(1, Math.max(0, t));

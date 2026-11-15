@@ -1,20 +1,23 @@
 import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { type ComponentRef, useRef, useState } from "react";
+import { FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { captureRef } from "react-native-view-shot";
 
-import { Header, Screen } from "@/components/ui";
+import { Header, Icon, Screen } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { haptics } from "@/lib/native/haptics";
+import { shareImage, shareText } from "@/lib/native/share";
 import { colors } from "@/theme";
 
 import { socialApi } from "../contract";
 import { leaveScreen } from "../leave";
 import { ScreenState } from "../ScreenState";
 import { WrappedCard } from "./WrappedCard";
-import { indexAfterTap, pageIndexFromOffset, tapClosesStory } from "./wrappedLogic";
+import { cardShareText, indexAfterTap, pageIndexFromOffset, tapClosesStory } from "./wrappedLogic";
 
 const WHITE = colors.background;
 const SEGMENT_TRACK = "rgba(255,255,255,0.35)";
@@ -33,6 +36,8 @@ export function WrappedScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList>(null);
+  // One wrapper view per card, so Share captures just the card without the segments and buttons on top.
+  const cardViews = useRef<(ComponentRef<typeof View> | null)[]>([]);
   const [index, setIndex] = useState(0);
 
   if (!wrapped || wrapped.cards.length === 0) {
@@ -45,10 +50,26 @@ export function WrappedScreen() {
   }
 
   const { cards } = wrapped;
+  const settle = (target: number) => {
+    if (target === index) return;
+    haptics.select();
+    setIndex(target);
+  };
   const goTo = (target: number) => {
     if (target === index) return;
     list.current?.scrollToIndex({ index: target, animated: true });
-    setIndex(target);
+    settle(target);
+  };
+
+  // The web has no image share sheet, and a capture can fail (a card still loading), so text is the fallback.
+  const share = async () => {
+    const card = cards[index];
+    const view = cardViews.current[index];
+    if (Platform.OS !== "web" && view) {
+      const uri = await captureRef(view, { format: "png", result: "tmpfile" }).catch(() => undefined);
+      if (uri && (await shareImage(uri, card.title))) return;
+    }
+    await shareText(cardShareText(card));
   };
 
   return (
@@ -63,20 +84,22 @@ export function WrappedScreen() {
         showsHorizontalScrollIndicator={false}
         getItemLayout={(_, position) => ({ length: width, offset: width * position, index: position })}
         onMomentumScrollEnd={(event) =>
-          setIndex(pageIndexFromOffset(event.nativeEvent.contentOffset.x, width, cards.length))
+          settle(pageIndexFromOffset(event.nativeEvent.contentOffset.x, width, cards.length))
         }
-        renderItem={({ item }) => (
-          <WrappedCard
-            card={item}
-            width={width}
-            height={height}
-            topInset={insets.top}
-            onTap={(tapX) =>
-              tapClosesStory(tapX, width, index, cards.length)
-                ? leaveScreen()
-                : goTo(indexAfterTap(tapX, width, index, cards.length))
-            }
-          />
+        renderItem={({ item, index: position }) => (
+          <View ref={(view) => void (cardViews.current[position] = view)} collapsable={false}>
+            <WrappedCard
+              card={item}
+              width={width}
+              height={height}
+              topInset={insets.top}
+              onTap={(tapX) =>
+                tapClosesStory(tapX, width, index, cards.length)
+                  ? leaveScreen()
+                  : goTo(indexAfterTap(tapX, width, index, cards.length))
+              }
+            />
+          </View>
         )}
       />
       <View style={[styles.top, { top: insets.top + 8 }]} pointerEvents="box-none">
@@ -85,6 +108,11 @@ export function WrappedScreen() {
             <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
           ))}
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Share card" onPress={share} hitSlop={12}>
+          <View style={styles.share}>
+            <Icon name="share-outline" size={20} color={WHITE} />
+          </View>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leaveScreen} hitSlop={12}>
           <Text style={styles.close}>{"\u2715"}</Text>
         </Pressable>
@@ -99,5 +127,6 @@ const styles = StyleSheet.create({
   segments: { flex: 1, flexDirection: "row", gap: 4 },
   segment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: SEGMENT_TRACK },
   segmentFilled: { backgroundColor: WHITE },
+  share: { paddingLeft: 16 },
   close: { color: WHITE, fontSize: 22, paddingLeft: 16 },
 });

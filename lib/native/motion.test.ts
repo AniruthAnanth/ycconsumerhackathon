@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { COUNT_MS, countValue, easeOutCubic, MAX_MOTION_MS, REORDER_MS } from "./motion";
+import { COUNT_MS, countValue, easeOutCubic, MAX_MOTION_MS, REORDER_MS, STAMP_DROP_MS, STAMP_SETTLE_MS } from "./motion";
 
 describe("motion timing", () => {
   it("keeps every animation under the cap", () => {
     expect(COUNT_MS).toBeLessThanOrEqual(MAX_MOTION_MS);
     expect(REORDER_MS).toBeLessThanOrEqual(MAX_MOTION_MS);
+    expect(STAMP_DROP_MS + STAMP_SETTLE_MS).toBeLessThanOrEqual(MAX_MOTION_MS);
   });
 
   it("eases out and clamps", () => {
