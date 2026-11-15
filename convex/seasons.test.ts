@@ -34,6 +34,7 @@ function league(
     members: SIX.map((id) => ({ id, joinedAt: 0 })),
     openedWeeks: Array.from({ length: opened }, (_, i) => ({
       number: i + 1,
+      startsAt: i * WEEK_MS,
       endsAt: (i + 1) * WEEK_MS,
       live: i + 1 === opened && newestIsLive,
     })),
@@ -140,6 +141,19 @@ describe("buildSeason", () => {
         winner: null,
       });
       expect(season.bracket?.champion).toBeNull();
+    });
+
+    it("keeps the bracket as it was drawn when someone joins during the playoffs", () => {
+      const input = league("bracket", 7, { newestIsLive: false });
+      // Week 6, the quarterfinals, began at 5 * WEEK_MS. As a seventh seed
+      // the newcomer would have been owed a game against b, who had a bye.
+      const season = buildSeason({
+        ...input,
+        members: [...input.members, { id: "g", joinedAt: 5.5 * WEEK_MS }],
+      });
+      expect(season.bracket).toEqual(buildSeason(input).bracket);
+      expect(season.weeks[7].matchups.map(({ a, b }) => [a, b])).toContainEqual(["a", "b"]);
+      expect(season.weeks[7].byes).toEqual(["g"]);
     });
 
     it("crowns a champion when the final is over", () => {

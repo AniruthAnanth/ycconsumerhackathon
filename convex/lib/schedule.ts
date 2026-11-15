@@ -90,7 +90,8 @@ export type Result<Id> = Pairing<Id> & {
  * The single entry point: the pairings for one league week.
  *
  * results are the league's earlier matchups. Only the bracket reads them (to
- * seed it and to advance winners), so the round-robin formats accept [].
+ * seed it and to advance winners), so the round-robin formats accept []. The
+ * same goes for joinedWeeks, which bracketFor explains.
  */
 export function scheduleFor<Id extends string>(
   format: LeagueFormat,
@@ -98,13 +99,14 @@ export function scheduleFor<Id extends string>(
   weekNumber: number,
   results: readonly Result<Id>[],
   seasonWeeks: number = DEFAULT_SETTINGS.seasonWeeks,
+  joinedWeeks: ReadonlyMap<Id, number> = new Map(),
 ): Pairing<Id>[] {
   const ids = unique(memberIds);
   const season = seasonOf(weekNumber, seasonWeeks);
   const round = weekNumber - season.firstWeek;
 
   if (format === "bracket") {
-    const bracket = bracketFor(ids, weekNumber, results, seasonWeeks);
+    const bracket = bracketFor(ids, weekNumber, results, seasonWeeks, joinedWeeks);
     if (bracket !== null && weekNumber >= bracket.firstWeek) {
       return playoffPairings(bracket, weekNumber);
     }
@@ -242,6 +244,7 @@ export type BracketRound<Id> = {
 export type Bracket<Id> = {
   // Every member in seed order; seeds[0] is the first seed. When the season
   // is too short for everyone to fit, only the top of the list is in rounds.
+  // Members who joined too late for the bracket come last and are in none.
   seeds: Id[];
   // Until the regular season is over the seeds are only "if it ended today".
   projected: boolean;
@@ -259,26 +262,49 @@ export type Bracket<Id> = {
  * Everyone qualifies when the season has room for enough rounds; a field that
  * is not a power of two gives the top seeds a bye in the first round. A tied
  * match goes to the better seed, because a bracket needs a winner.
+ *
+ * The field is whoever had joined before the bracket's first week began.
+ * joinedWeeks gives the league week a member joined in; a member it leaves
+ * out was there from the start. Without that rule a fifth player joining a
+ * league of four during the semifinals would make it a bracket of eight, one
+ * round longer, and the week before, already played as regular season, would
+ * become a quarterfinal nobody played. So latecomers get consolation games,
+ * and a league that fills up in week 1 never starts its bracket there.
  */
 export function bracketFor<Id extends string>(
   memberIds: readonly Id[],
   weekNumber: number,
   results: readonly Result<Id>[],
   seasonWeeks: number = DEFAULT_SETTINGS.seasonWeeks,
+  joinedWeeks: ReadonlyMap<Id, number> = new Map(),
 ): Bracket<Id> | null {
   const ids = unique(memberIds);
   if (ids.length < 2) {
     return null;
   }
   const season = seasonOf(weekNumber, seasonWeeks);
-  const roundCount = Math.min(Math.ceil(Math.log2(ids.length)), seasonWeeks);
+
+  // The most rounds that have a field big enough to need them: more players
+  // than the round after the first would hold.
+  let roundCount = Math.min(Math.ceil(Math.log2(ids.length)), seasonWeeks);
+  let firstWeek = season.lastWeek - roundCount + 1;
+  let field = ids.filter((id) => (joinedWeeks.get(id) ?? 0) < firstWeek);
+  while (field.length <= 2 ** (roundCount - 1)) {
+    roundCount -= 1;
+    if (roundCount === 0) {
+      return null;
+    }
+    firstWeek = season.lastWeek - roundCount + 1;
+    field = ids.filter((id) => (joinedWeeks.get(id) ?? 0) < firstWeek);
+  }
   const size = 2 ** roundCount;
-  const firstWeek = season.lastWeek - roundCount + 1;
 
   const regularSeason = results.filter(
     (result) => result.week >= season.firstWeek && result.week < firstWeek,
   );
-  const seeds = seasonTable(ids, regularSeason).map((row) => row.id);
+  const entrants = seasonTable(field, regularSeason).map((row) => row.id);
+  const inField = new Set(field);
+  const seeds = [...entrants, ...ids.filter((id) => !inField.has(id))];
   const seedOf = new Map(seeds.map((id, index) => [id, index + 1]));
 
   const rounds: BracketRound<Id>[] = [];
@@ -287,7 +313,7 @@ export function bracketFor<Id extends string>(
     const previous = rounds[round - 1];
     const sides: (Id | null)[] =
       previous === undefined
-        ? firstRoundSeeds(size).map((seed) => seeds[seed - 1] ?? null)
+        ? firstRoundSeeds(size).map((seed) => entrants[seed - 1] ?? null)
         : previous.matches.map((match) => match.winner);
 
     const matches: BracketMatch<Id>[] = [];

@@ -41,7 +41,7 @@ export type SeasonInput<Id> = {
   members: { id: Id; joinedAt: number }[];
   // The weeks rows that exist, by league week number. live is the week being
   // played now.
-  openedWeeks: { number: number; endsAt: number; live: boolean }[];
+  openedWeeks: { number: number; startsAt: number; endsAt: number; live: boolean }[];
   // Every matchup of those weeks with each side's points.
   results: Result<Id>[];
 };
@@ -89,9 +89,10 @@ export function buildSeason<Id extends string>({
   const played = results.filter(
     (result) => result.week >= season.firstWeek && result.week <= season.lastWeek,
   );
+  const joined = joinedWeeks(members, openedWeeks);
   const bracket =
     settings.format === "bracket"
-      ? bracketFor(memberIds, currentWeek, played, settings.seasonWeeks)
+      ? bracketFor(memberIds, currentWeek, played, settings.seasonWeeks, joined)
       : null;
   const currentIsLive = openedWeeks.some(
     (week) => week.number === newest && week.live,
@@ -134,7 +135,7 @@ export function buildSeason<Id extends string>({
       round !== undefined && (currentIsLive || number !== newest + 1);
     const pairings = undecided
       ? []
-      : scheduleFor(settings.format, memberIds, number, played, settings.seasonWeeks);
+      : scheduleFor(settings.format, memberIds, number, played, settings.seasonWeeks, joined);
     const playing = new Set(pairings.flatMap((pairing) => [pairing.a, pairing.b]));
     weeks.push({
       ...label,
@@ -172,6 +173,32 @@ export function buildSeason<Id extends string>({
             rounds: bracket.rounds.map((r) => ({ ...r, week: weekOfSeason(r.week) })),
           },
   };
+}
+
+/**
+ * The league week each member joined in, which is what decides a bracket's
+ * field: the newest of the opened weeks that had begun when they joined.
+ * Someone who was there before the first of them gets the number before it.
+ */
+function joinedWeeks<Id>(
+  members: SeasonInput<Id>["members"],
+  openedWeeks: SeasonInput<Id>["openedWeeks"],
+): Map<Id, number> {
+  if (openedWeeks.length === 0) {
+    return new Map();
+  }
+  const before = Math.min(...openedWeeks.map((week) => week.number)) - 1;
+  return new Map(
+    members.map((member) => [
+      member.id,
+      Math.max(
+        before,
+        ...openedWeeks
+          .filter((week) => week.startsAt < member.joinedAt)
+          .map((week) => week.number),
+      ),
+    ]),
+  );
 }
 
 // ---- Loading ----------------------------------------------------------------
@@ -252,6 +279,7 @@ async function loadSeason(
     members: await loadMembers(ctx, league._id),
     openedWeeks: seasonRows.map((week) => ({
       number: week.number,
+      startsAt: week.startsAt,
       endsAt: week.endsAt,
       live: isLive(week),
     })),
@@ -276,9 +304,11 @@ export async function pairingsForWeek(
 
   let memberIds: UserId[];
   let earlier: Result<UserId>[] = [];
+  let joined = new Map<UserId, number>();
   if (settings.format === "bracket") {
     const season = await loadSeason(ctx, league);
     memberIds = season.members.map((member) => member.id);
+    joined = joinedWeeks(season.members, season.openedWeeks);
     // Opening a week means the ones before it are over, even if the newest
     // of them has not been marked settled yet.
     earlier = season.results
@@ -293,6 +323,7 @@ export async function pairingsForWeek(
     weekNumber,
     earlier,
     settings.seasonWeeks,
+    joined,
   );
   return withStandIns(pairings, memberIds);
 }
