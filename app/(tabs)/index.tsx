@@ -14,7 +14,7 @@ import { RosterTotal } from "@/components/roster/RosterTotal";
 import { Button, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { flexTasksLeft, splitRoster } from "@/lib/roster";
+import { splitRoster, weekActions } from "@/lib/roster";
 import { colors, font, spacing } from "@/theme";
 
 export { TabError as ErrorBoundary } from "@/components/social/RouteError";
@@ -35,15 +35,12 @@ export default function RosterScreen() {
   const { starters, extras } = splitRoster(roster?.rows ?? []);
   const owesBuyIn = membership !== undefined && !membership.paid && membership.stakeUsd > 0;
 
-  // A week that has ended is shown as it was. Only the week in play, or the
-  // next one, can be drafted, so a past week never offers the draft.
-  const past = weekStart !== undefined && league !== undefined && weekStart < league.week.startsAt;
-  const draft = past ? undefined : () => router.push("/draft");
-  const empty = roster !== undefined && roster.rows.length === 0;
-  const undrafted = empty && !past && !roster.locked;
-  // A locked lineup can't be edited, but it still takes flex tasks, and
-  // lineup.addFlexTask always adds to the week in play.
-  const takesFlex = roster !== undefined && roster.locked && weekStart === undefined && flexTasksLeft(roster.rows) > 0;
+  const { canDraft, noLineup, undrafted, takesFlex } = weekActions({
+    roster,
+    shownWeekStart: weekStart,
+    currentWeekStart: league?.week.startsAt,
+  });
+  const draft = canDraft ? () => router.push("/draft") : undefined;
   // Once the lineup is locked, the next task is why the player opened the app,
   // so it leads the screen above the banners and the pills. Its row stays in
   // the sheet below as an ordinary row, so the lineup keeps its five slots.
@@ -87,7 +84,7 @@ export default function RosterScreen() {
             onPress={() => router.push({ pathname: "/wrapped", params: { leagueId: leagueId ?? undefined, weekNumber } })}
           />
         </View>
-        {empty && past ? (
+        {noLineup ? (
           <Text style={styles.none}>No lineup this week</Text>
         ) : (
           <>
@@ -101,7 +98,7 @@ export default function RosterScreen() {
       </ScrollView>
       {undrafted ? (
         <Button label="Draft your week" style={styles.draft} onPress={() => router.push("/draft")} />
-      ) : empty && past ? null : (
+      ) : noLineup ? null : (
         <>
           {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
           <RosterTotal total={roster?.total ?? null} bonusPoints={roster?.bonusPoints} bonusLabels={roster?.bonusLabels} />
