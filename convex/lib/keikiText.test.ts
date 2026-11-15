@@ -13,6 +13,7 @@ import {
   splitLeagueTag,
   taskNamedIn,
   unwrapOutbound,
+  weekFacts,
   withLeagueTag,
   wrapOutbound,
 } from "./keikiText";
@@ -189,6 +190,27 @@ describe("rankLine", () => {
   it("handles a tie and a league of one", () => {
     expect(rankLine([rows[0], { ...rows[1], points: 240 }], "me")).toBe("You're level with Maya on 240.");
     expect(rankLine([rows[0]], "maya")).toBe("You're 1st.");
+  });
+});
+
+describe("weekFacts", () => {
+  const rows = [
+    { rank: 1, userId: "maya", name: "Maya Chen", points: 500, slotsCleared: 4, streak: 3 },
+    { rank: 2, userId: "me", name: "Aniruth", points: 225, slotsCleared: 2, streak: 1 },
+    { rank: 3, userId: "sam", name: "Sam Patel", points: 195, slotsCleared: 2, streak: 0 },
+  ];
+
+  it("names the opponent with both totals, and the player's rank and gap", () => {
+    const facts = weekFacts("YC Hackathon", rows, "me", "sam");
+    expect(facts).toContain("This week's matchup: the player (225) is playing Sam Patel (195). The player leads by 30.");
+    expect(facts).toContain("In the league: You're 2nd, 275 behind Maya Chen.");
+    expect(facts).toContain("2. The player: 225 points, 2 slots cleared, 1-day streak");
+  });
+
+  it("says so when the player is behind, level or unpaired", () => {
+    expect(weekFacts("YC Hackathon", rows, "sam", "me")).toContain("The player trails by 30.");
+    expect(weekFacts("YC Hackathon", [rows[1], { ...rows[2], points: 225 }], "me", "sam")).toContain("They are level.");
+    expect(weekFacts("YC Hackathon", rows, "me", null)).toContain("The player has no matchup this week.");
   });
 });
 

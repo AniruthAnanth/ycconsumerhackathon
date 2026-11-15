@@ -38,6 +38,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { askJson } from "./ai";
+import { currentWeek } from "./leagues";
 import { requireUser } from "./lib/auth";
 import {
   parseKeikiEvent,
@@ -58,6 +59,7 @@ import {
   reply,
   splitLeagueTag,
   unwrapOutbound,
+  weekFacts,
   withLeagueTag,
   wrapOutbound,
   type ProofTargets,
@@ -370,7 +372,9 @@ const UNDERSTAND_INSTRUCTIONS = [
   "otherwise) and startsAt (ISO 8601 with the America/Los_Angeles offset, resolving 'tomorrow' and weekday names from",
   "the current time given). Leave reply empty. If the place or the time is missing, it is not a proposal yet.",
   "2. Otherwise set isSessionProposal to false, set the session fields to null, and write reply: one or two short",
-  "lines, sports-desk tone, no emojis, answered only from the league facts given. If the facts don't answer it, say",
+  "lines, sports-desk tone, no emojis, answered only from the league facts given. Answer with the names and numbers",
+  "the question is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I',",
+  "the task titles for 'what's left'. Speak to the player as 'you'. If the facts don't answer it, say",
   "what you can do: judge a photo proof, STANDINGS, OPEN or PASS the mystery task, IN to join a group session.",
 ].join(" ");
 
@@ -436,20 +440,25 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
 async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text: string, now: number): Promise<string> {
   const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now });
   const openTitles = [open.quickTime, ...open.photoTasks, ...open.locationTasks].flatMap((task) => (task ? [task.title] : []));
-  const table =
-    player.league === null
-      ? "The player is not in a league yet."
-      : await ctx
-          .runQuery(internal.standings.tableForLeague, { leagueId: player.league.leagueId })
-          .then((rows: StandingRow[]) => reply.standings(player.league?.name ?? "", rows, player.userId))
-          .catch(() => "Standings are unavailable right now.");
+  let week = "The player is not in a league yet.";
+  if (player.league !== null) {
+    const { leagueId, name } = player.league;
+    try {
+      const rows = await ctx.runQuery(internal.standings.tableForLeague, { leagueId });
+      const opponentId: Id<"users"> | null = await ctx.runQuery(internal.keiki.opponentOf, { leagueId, userId: player.userId });
+      week = weekFacts(name, rows, player.userId, opponentId);
+    } catch {
+      // A league that has not started its first week has no table yet.
+      week = `League: ${name}. Its standings are unavailable right now.`;
+    }
+  }
   const earlier = turn.history
     .slice(-6)
     .map((entry) => `${entry.role === "user" ? "Player" : "You"}: ${splitLeagueTag(captionOf(entry.content)).text}`);
 
   return [
     `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
-    `Standings ("You" is this player):\n${table}`,
+    week,
     `This player's open tasks: ${openTitles.join("; ") || "none"}.`,
     earlier.length > 0 ? `Earlier in this conversation:\n${earlier.join("\n")}` : "",
     `Message: ${text}`,
@@ -759,6 +768,24 @@ export const proofTargets = internalQuery({
       else targets.photoTasks.push({ taskId: task._id, title: task.title });
     }
     return targets;
+  },
+});
+
+/** Who the player faces in the league's current week, or null when they have no pair. */
+export const opponentOf = internalQuery({
+  args: { leagueId: v.id("leagues"), userId: v.id("users") },
+  returns: v.union(v.null(), v.id("users")),
+  handler: async (ctx, { leagueId, userId }) => {
+    const week = await currentWeek(ctx, leagueId);
+    if (week === null) return null;
+    const pairs = await ctx.db
+      .query("matchups")
+      .withIndex("by_week", (q) => q.eq("weekId", week._id))
+      .take(MAX_ROWS);
+    // As on the Matchup tab: in an odd league one member sits in two pairs, and their own is the first.
+    const pair = pairs.find((candidate) => candidate.userA === userId || candidate.userB === userId);
+    if (pair === undefined) return null;
+    return pair.userA === userId ? pair.userB : pair.userA;
   },
 });
 
