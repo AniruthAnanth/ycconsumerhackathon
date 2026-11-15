@@ -31,6 +31,7 @@ import { projectionLabel, projectPayout, settledLabel, type Projection, type Pro
 import { FORMATS, rankBoard, type BoardFormat, type Entry } from "./lib/ranking";
 import { resolveSettings, seasonOf, seasonTable, withoutStandIns, type Result } from "./lib/schedule";
 import { CORE_SLOTS, matchupBonus, type CoreSlot } from "./lib/scoring";
+import { computeVersusSettlement } from "./lib/versusSettlement";
 import { DAY_MS, pacificDay, startOfPacificDay } from "./lib/week";
 import { NO_STATS, tallyWeek, totalStats, type ScoreStats, type WeekFacts, type WeekTally } from "./lib/weekTally";
 import { entrantsOver } from "./whop";
@@ -530,6 +531,8 @@ async function projections(ctx: QueryCtx, league: League, at?: number, only?: Us
         daysLeft: daysLeftThisWeek + 7 * weeksAfterThis,
         slotsNeeded,
         periodDays: 7 * (weekly ? 1 : settings.seasonWeeks),
+        // Forecast the rule whop.closeWeek will settle with.
+        ...(league.doc.mode === "versus" && { settle: computeVersusSettlement }),
       }),
     );
   }

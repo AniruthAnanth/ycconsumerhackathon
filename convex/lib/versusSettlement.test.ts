@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { projectPayout } from "./projection";
 import { settlementLedgerRows } from "./settlement";
 import { computeVersusSettlement } from "./versusSettlement";
 
@@ -74,5 +75,33 @@ describe("computeVersusSettlement", () => {
     expect(computeVersusSettlement(20, [sam(100)]).payouts).toEqual([
       { userId: "sam", refundCents: 2000, winningsCents: 0 },
     ]);
+  });
+});
+
+describe("projectPayout for a versus", () => {
+  it("forecasts the head-to-head rule when told to", () => {
+    const members = [
+      { userId: "sam", paid: true, points: 300, slotsCleared: 2 },
+      { userId: "maya", paid: true, points: 100, slotsCleared: 2 },
+    ];
+    const atWeekEnd = { stakeUsd: 5, members, daysLeft: 0 };
+    expect(
+      projectPayout({
+        ...atWeekEnd,
+        userId: "sam",
+        settle: computeVersusSettlement,
+      }).ifEndedNowCents,
+    ).toBe(950);
+    expect(
+      projectPayout({
+        ...atWeekEnd,
+        userId: "maya",
+        settle: computeVersusSettlement,
+      }).ifEndedNowCents,
+    ).toBe(0);
+    // The league rule refunds both, which is what a versus must not be told.
+    expect(
+      projectPayout({ ...atWeekEnd, userId: "maya" }).ifEndedNowCents,
+    ).toBe(500);
   });
 });

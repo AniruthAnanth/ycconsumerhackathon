@@ -8,7 +8,7 @@
  * settlement it forecasts.
  */
 
-import { computeSettlement, type Entrant } from "./settlement";
+import { computeSettlement, type Entrant, type Settlement } from "./settlement";
 
 const DEFAULT_SLOTS_NEEDED = 5;
 const DEFAULT_PERIOD_DAYS = 7;
@@ -86,7 +86,8 @@ export function finishProbability(
   const daysElapsed = periodDays - remainingDays;
   const priorRate = slotsNeeded / periodDays;
   const rate =
-    (slotsCleared + priorRate * PRIOR_WEIGHT_DAYS) / (daysElapsed + PRIOR_WEIGHT_DAYS);
+    (slotsCleared + priorRate * PRIOR_WEIGHT_DAYS) /
+    (daysElapsed + PRIOR_WEIGHT_DAYS);
   const mean = rate * remainingDays;
 
   let term = Math.exp(-mean);
@@ -110,8 +111,14 @@ export function projectPayout<UserId>(input: {
   slotsNeeded?: number;
   /** A season-payout league passes 7 x weeks. */
   periodDays?: number;
+  /** The settlement rule to forecast; a 1v1 versus passes computeVersusSettlement. */
+  settle?: (
+    stakeUsd: number,
+    entrants: Entrant<UserId>[],
+  ) => Settlement<UserId>;
 }): Projection {
   const { stakeUsd, members, userId } = input;
+  const settle = input.settle ?? computeSettlement;
   const slotsNeeded = input.slotsNeeded ?? DEFAULT_SLOTS_NEEDED;
   const periodDays = input.periodDays ?? DEFAULT_PERIOD_DAYS;
   const daysLeft = Math.min(Math.max(input.daysLeft, 0), periodDays);
@@ -133,22 +140,28 @@ export function projectPayout<UserId>(input: {
   const sweepBonus = (SWEEP_BONUS_POINTS * slotsNeeded) / SLOTS_PER_WEEK;
   const pointsIfFinished = (member: ProjectionMember<UserId>) =>
     member.points +
-    (slotsNeeded - member.slotsCleared) * (SLOT_BONUS_POINTS + TYPICAL_TASK_POINTS) +
+    (slotsNeeded - member.slotsCleared) *
+      (SLOT_BONUS_POINTS + TYPICAL_TASK_POINTS) +
     sweepBonus;
 
   const chances = members.map((member) =>
     finishProbability(member.slotsCleared, daysLeft, slotsNeeded, periodDays),
   );
-  const finishedNow = members.map((member) => member.slotsCleared >= slotsNeeded);
+  const finishedNow = members.map(
+    (member) => member.slotsCleared >= slotsNeeded,
+  );
 
   const payoutCents = (finishes: boolean[]): number => {
     const entrants: Entrant<UserId>[] = members.map((member, i) => ({
       userId: member.userId,
       paid: member.paid,
       finished: finishes[i],
-      points: finishes[i] && !finishedNow[i] ? pointsIfFinished(member) : member.points,
+      points:
+        finishes[i] && !finishedNow[i]
+          ? pointsIfFinished(member)
+          : member.points,
     }));
-    const payout = computeSettlement(stakeUsd, entrants).payouts.find(
+    const payout = settle(stakeUsd, entrants).payouts.find(
       (candidate) => candidate.userId === userId,
     );
     return payout ? payout.refundCents + payout.winningsCents : 0;
@@ -162,7 +175,10 @@ export function projectPayout<UserId>(input: {
     .map((_, i) => i)
     .filter((i) => members[i].paid && !finishedNow[i] && chances[i] > 0);
   const enumerated = [...undecided]
-    .sort((a, b) => Math.abs(chances[b] - 0.5) - Math.abs(chances[a] - 0.5) || a - b)
+    .sort(
+      (a, b) =>
+        Math.abs(chances[b] - 0.5) - Math.abs(chances[a] - 0.5) || a - b,
+    )
     .slice(Math.max(0, undecided.length - MAX_ENUMERATED_MEMBERS))
     .sort((a, b) => a - b);
 
@@ -182,12 +198,17 @@ export function projectPayout<UserId>(input: {
   }
   const expectedCents = Math.round(expected);
 
-  const canFinish = (i: number) => finishedNow[i] || (members[i].paid && chances[i] > 0);
+  const canFinish = (i: number) =>
+    finishedNow[i] || (members[i].paid && chances[i] > 0);
   const lowCents = payoutCents(
-    members.map((_, i) => finishedNow[i] || (i !== playerIndex && canFinish(i))),
+    members.map(
+      (_, i) => finishedNow[i] || (i !== playerIndex && canFinish(i)),
+    ),
   );
   const highCents = payoutCents(
-    members.map((_, i) => finishedNow[i] || (i === playerIndex && canFinish(i))),
+    members.map(
+      (_, i) => finishedNow[i] || (i === playerIndex && canFinish(i)),
+    ),
   );
 
   return {
@@ -225,7 +246,9 @@ export function projectionLabel(projection: Projection): string {
     const stake = projection.stakeCents / 100;
     return `Pay $${Number.isInteger(stake) ? stake : stake.toFixed(2)} to play for the pot`;
   }
-  const netCents = projection.eligible ? projection.expectedCents - projection.stakeCents : 0;
+  const netCents = projection.eligible
+    ? projection.expectedCents - projection.stakeCents
+    : 0;
   const dollars = (Math.abs(netCents) / 100).toFixed(2);
   return `Projected: ${netCents < 0 ? "-" : "+"}$${dollars}`;
 }

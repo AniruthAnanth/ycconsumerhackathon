@@ -21,9 +21,9 @@ import { pairsAfterJoin, weekEndOf, weekStartOf } from "./lib/week";
 import { leagueFormat, payout } from "./schema";
 import { pairingsForWeek } from "./seasons";
 
-const MAX_MEMBERS = 12;
+export const MAX_MEMBERS = 12;
 const MAX_NAME_LENGTH = 40;
-const MAX_STAKE_USD = 1000;
+export const MAX_STAKE_USD = 1000;
 const INVITE_CODE_LENGTH = 6;
 const INVITE_CODE_ATTEMPTS = 20;
 // No 0, O, 1, I or L: codes are read aloud and typed from a text message.

@@ -3,7 +3,7 @@
  *
  * A versus is a two-member league (convex/versus.ts), so it settles through the same ledger as
  * any league, but the rule a player remembers is a head-to-head one: the higher score takes
- * both stakes, less the platform's 10%. Clearing all five slots still keeps your money, the
+ * both stakes, less the platform's 10% of the loser's stake (the league fee on a forfeited stake). Clearing all five slots still keeps your money, the
  * league rule "clear your five and you keep your money", so a loser who finished is refunded
  * and nothing changes hands. A tie refunds both, and so does anything short of two paid players:
  * an unpaid player can't win a pot, and a lone stake has nobody to lose to.
