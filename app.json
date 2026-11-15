@@ -71,6 +71,7 @@
           "enableRemoteNotifications": false
         }
       ],
+      "./plugins/withAppGroup",
       "@bacons/apple-targets"
     ],
     "experiments": {

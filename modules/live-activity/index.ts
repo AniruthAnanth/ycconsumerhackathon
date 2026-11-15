@@ -18,6 +18,12 @@ type LiveActivityNativeModule = {
   update(stateJson: string): Promise<void>;
   /** Ends the activity and removes it from the lock screen and the island at once. */
   end(): Promise<void>;
+  /**
+   * Hands the home-screen widget its data and has iOS redraw it. Takes JSON of a WidgetSnapshot
+   * (lib/widgetSnapshot.ts). A binary built before the widget existed has no such function,
+   * which is why lib/homeWidget.ts looks for it before calling.
+   */
+  setWidgetSnapshot(snapshotJson: string): Promise<void>;
 };
 
 export const LiveActivityNative = requireOptionalNativeModule<LiveActivityNativeModule>("LiveActivity");
