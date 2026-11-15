@@ -1,6 +1,6 @@
 /** Mirrors the Slot and proofType unions in the backend contract. */
 export type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
-export type ProofType = "photo" | "photo_location" | "canvas";
+export type ProofType = "photo" | "photo_location" | "canvas" | "before_after" | "timelapse" | "screenshot";
 
 /** Roster order: the five slots a player must clear, then flex. */
 export const SLOT_ORDER: readonly Slot[] = ["body", "mind", "recharge", "chores", "people", "flex"];
@@ -28,4 +28,7 @@ export const PROOF_LABEL: Record<ProofType, string> = {
   photo: "Photo",
   photo_location: "Photo + location",
   canvas: "Canvas",
+  before_after: "Before and after",
+  timelapse: "Timelapse",
+  screenshot: "Screenshot",
 };

@@ -59,6 +59,14 @@ const proofArgs = {
    * frames, so the app samples them before upload.
    */
   frameStorageIds: v.optional(v.array(v.id("_storage"))),
+  /** Before/after: the before photo. storageId is the after photo. */
+  beforeStorageId: v.optional(v.id("_storage")),
+  /** Timelapse: seconds between the first and the last still. */
+  durationSec: v.optional(v.number()),
+  /** Epoch ms when the shot was taken (a timelapse's last still). Falls back to upload time. */
+  capturedAt: v.optional(v.number()),
+  /** Timelapse: epoch ms of each still, in the order of frameStorageIds. */
+  frameTimes: v.optional(v.array(v.number())),
 };
 
 /** The app's entry point: verifies a proof for the signed-in player. */
