@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { REVEAL_INTERVAL_MS, revealedText, transcriptWords } from "./transcriptReveal";
+import { REVEAL_INTERVAL_MS, revealedText, transcriptWords, wordsRevealed } from "./transcriptReveal";
 
 /** Types the transcript out word by word while active, then calls onFinished once; shows it whole otherwise. */
 export function useWordReveal(transcript: string, active: boolean, onFinished: () => void): string {
@@ -10,7 +10,9 @@ export function useWordReveal(transcript: string, active: boolean, onFinished: (
   useEffect(() => {
     setCount(0);
     if (!active) return;
-    const timer = setInterval(() => setCount((current) => current + 1), REVEAL_INTERVAL_MS);
+    // The clock decides how far the typing has got, so a late or throttled tick catches up.
+    const startedAt = Date.now();
+    const timer = setInterval(() => setCount(wordsRevealed(words.length, Date.now() - startedAt)), REVEAL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [active, words]);
 

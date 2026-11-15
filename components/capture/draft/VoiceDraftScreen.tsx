@@ -21,7 +21,9 @@ export function VoiceDraftScreen() {
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
 
-  const showsLineup = state.phase === "review" || state.phase === "locking";
+  // The lineup is on screen the moment the draft returns: the transcript types itself out above
+  // it for a second at most, and the tasks never wait for that.
+  const showsLineup = state.phase === "revealing" || state.phase === "review" || state.phase === "locking";
   const showsTyped = state.phase === "idle" && (sampleVoice || state.micUnavailable);
   // Only a refused lock leaves an error on the reviewed lineup. The player needs a way on from
   // it, because after joining the back arrow leads to Join again, not to Roster.
