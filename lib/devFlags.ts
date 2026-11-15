@@ -54,8 +54,12 @@ export function useDevFlags(): DevFlags {
   return useSyncExternalStore(subscribe, getDevFlags, getDevFlags);
 }
 
-/** YC's San Francisco office: the override's "place" when a task pins none. */
-export const YC_OFFICE: Coords = { lat: 37.7609, lng: -122.3884 };
+/**
+ * YC's San Francisco office: the override's "place" when a task pins none. It must match the
+ * coordinates convex/ai.ts gives the draft model for "the YC office", or a drafted YC-office
+ * task checked in from here lands outside the 150 m radius.
+ */
+export const YC_OFFICE: Coords = { lat: 37.7608, lng: -122.3866 };
 
 /** Alcatraz: kilometres from anywhere a player would pin a task, so the 150 m check fails. */
 export const AWAY_SPOT: Coords = { lat: 37.8267, lng: -122.423 };
