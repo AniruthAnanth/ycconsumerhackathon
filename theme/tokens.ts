@@ -20,6 +20,8 @@ export const colors = {
   /** The active tab's underline, and "paid" or "verified" marks. */
   tabActive: "#00A651",
   danger: "#C8102E",
+  /** Dims the page behind the league switcher. */
+  scrim: "rgba(18, 18, 19, 0.4)",
 } as const;
 
 export const spacing = {
