@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Artwork } from "@/components/art";
+import { Sunny } from "@/components/art";
 import { CountUp, PressScale, ProgressFill } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
 import { formatScore } from "@/components/ui";
@@ -59,7 +59,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           {members} · {week}
           {timing}
         </Text>
-        <Artwork name="sunny" size={48} />
+        <Sunny size={48} entrance={false} />
       </View>
 
       {matchup ? (

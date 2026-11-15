@@ -3,7 +3,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Button, Header, Screen } from "@/components/ui";
-import { Artwork } from "@/components/art";
+import { Sunny, type SunnyMood } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
@@ -22,6 +22,8 @@ export function VoiceDraftScreen() {
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
   const prompt = useSpeakingPrompt(state.phase === "idle");
+  const sunnyMood: SunnyMood =
+    state.phase === "recording" ? "listening" : state.phase === "drafting" || state.phase === "locking" ? "thinking" : state.phase === "review" ? "success" : state.phase === "idle" ? "waiting" : "idle";
 
   // The lineup is on screen the moment the draft returns: the transcript types itself out above
   // it for a second at most, and the tasks never wait for that.
@@ -47,7 +49,7 @@ export function VoiceDraftScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.sunny}>
-            <Artwork name="sunny" size={80} />
+            <Sunny size={80} mood={sunnyMood} tappable />
           </View>
           {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
           {state.manual ? <Text style={styles.weekNote}>Pick one task for each slot. Tap a title to change it.</Text> : null}
