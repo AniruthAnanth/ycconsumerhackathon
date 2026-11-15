@@ -744,6 +744,38 @@ describe("settleWeek", () => {
   });
 });
 
+describe("GET /whop/checkout", () => {
+  withWhopSandbox();
+
+  test("serves the checkout page for a Whop checkout id, and tells it when the buyer has come back", async () => {
+    const t = convexTest(schema, modules);
+
+    const fresh = await t.fetch("/whop/checkout?ch=ch_8Ux4kgefzRCyCgl");
+    expect(fresh.status).toBe(200);
+    expect(fresh.headers.get("Content-Type")).toContain("text/html");
+    const html = await fresh.text();
+    expect(html).toContain('checkoutConfiguration: "ch_8Ux4kgefzRCyCgl"');
+    expect(html).toContain("const returned = null;");
+
+    const back = await t.fetch("/whop/checkout?ch=ch_8Ux4kgefzRCyCgl&payment=pay_1&status=succeeded");
+    expect(await back.text()).toContain('const returned = "succeeded";');
+  });
+
+  test("answers 404 to anything that is not a checkout id", async () => {
+    const t = convexTest(schema, modules);
+
+    expect((await t.fetch("/whop/checkout")).status).toBe(404);
+    expect((await t.fetch("/whop/checkout?ch=" + encodeURIComponent('ch_1";alert(1)//'))).status).toBe(404);
+  });
+
+  test("answers 503 outside the sandbox", async () => {
+    vi.stubEnv("WHOP_ENVIRONMENT", "production");
+    const t = convexTest(schema, modules);
+
+    expect((await t.fetch("/whop/checkout?ch=ch_8Ux4kgefzRCyCgl")).status).toBe(503);
+  });
+});
+
 describe("closeWeek after a league's first season", () => {
   test("the second season settles under its own keys, so it is paid out as well", async () => {
     const t = convexTest(schema, modules);
