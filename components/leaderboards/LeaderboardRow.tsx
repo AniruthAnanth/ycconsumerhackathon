@@ -47,7 +47,7 @@ export function LeaderboardRow({ row, tied, onPress }: Props) {
           </Text>
         ) : null}
       </View>
-      <Text style={styles.value}>{row.valueLabel}</Text>
+      <Text style={styles.value} numberOfLines={1}>{row.valueLabel}</Text>
     </Pressable>
   );
 }
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { flexShrink: 1, fontSize: font.title, fontWeight: "700", color: colors.text },
   subtitle: { fontSize: font.meta, color: colors.textMuted },
-  value: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"], textAlign: "right", minWidth: 56 },
+  value: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"], textAlign: "right", minWidth: 72, flexShrink: 0 },
   tag: { borderWidth: 1, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
   tagText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
 });
