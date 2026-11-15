@@ -1,13 +1,15 @@
 import { Redirect, useRouter, useSegments } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { Easing, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
 import { Header, TopTabs, WeekSelector } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
+import { FADE_MS } from "@/lib/native/motion";
 import { colors } from "@/theme";
 
 const TABS = [
@@ -36,6 +38,7 @@ export default function TabsLayout() {
   if (segments[0] === "(tabs)") lastTab.current = TABS.find((tab) => tab.key === segments[1]) ?? TABS[0];
   const active = lastTab.current;
   usePaidHaptic(membership);
+  const reduceMotion = useReduceMotion();
   // Only Roster can show another week. The other tabs always show the current
   // one, so the header must say so instead of following the browsed week.
   const browsable = active.key === "index";
@@ -74,7 +77,16 @@ export default function TabsLayout() {
         />
       </SafeAreaView>
       {/* The navigator keeps each tab mounted; its own bottom bar is replaced by TopTabs above. */}
-      <Tabs tabBar={() => null} screenOptions={{ headerShown: false, sceneStyle: styles.page }}>
+      <Tabs
+        tabBar={() => null}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: styles.page,
+          // A short cross-fade between tabs; Reduce Motion switches instantly.
+          animation: reduceMotion ? "none" : "fade",
+          transitionSpec: { animation: "timing", config: { duration: FADE_MS, easing: Easing.out(Easing.cubic) } },
+        }}
+      >
         {TABS.map((tab) => (
           <Tabs.Screen key={tab.key} name={tab.key} />
         ))}

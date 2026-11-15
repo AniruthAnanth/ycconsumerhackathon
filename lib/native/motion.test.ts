@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { COUNT_MS, countValue, easeOutCubic, MAX_MOTION_MS, REORDER_MS, STAMP_DROP_MS, STAMP_SETTLE_MS } from "./motion";
+import {
+  COUNT_MS,
+  countValue,
+  easeOutCubic,
+  FADE_MS,
+  MAX_MOTION_MS,
+  REORDER_MS,
+  STAGGER_MAX_ROWS,
+  STAGGER_MS,
+  staggerDelay,
+  STAMP_DROP_MS,
+  STAMP_SETTLE_MS,
+} from "./motion";
 
 describe("motion timing", () => {
   it("keeps every animation under the cap", () => {
@@ -31,5 +43,20 @@ describe("motion timing", () => {
 
   it("jumps straight to the target with no duration (Reduce Motion)", () => {
     expect(countValue(0, 42, 0, 0)).toBe(42);
+  });
+});
+
+describe("staggerDelay", () => {
+  it("steps each row and caps the wait so a long list never trickles in", () => {
+    expect(staggerDelay(0)).toBe(0);
+    expect(staggerDelay(2)).toBe(2 * STAGGER_MS);
+    expect(staggerDelay(50)).toBe(STAGGER_MAX_ROWS * STAGGER_MS);
+    expect(staggerDelay(-1)).toBe(0);
+  });
+
+  it("keeps fades in the short ease-out range and the whole stagger inside the motion budget", () => {
+    expect(staggerDelay(STAGGER_MAX_ROWS)).toBeLessThanOrEqual(MAX_MOTION_MS);
+    expect(FADE_MS).toBeGreaterThanOrEqual(120);
+    expect(FADE_MS).toBeLessThanOrEqual(220);
   });
 });

@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+
+import { PressScale } from "@/components/motion";
 
 import { colors, font, fontFamily, MIN_TARGET, radius, spacing } from "@/theme";
 
@@ -15,12 +17,12 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** A secondary action: blue outline, blue text, fully rounded, as ESPN's Quick Lineup button. */
+/** A secondary action: green outline and text on a rounded surface. */
 export function OutlinedPillButton({ label, onPress, icon, disabled = false, accessibilityLabel = label, style }: Props) {
   const tint = disabled ? colors.textFaint : colors.accent;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.pill, { borderColor: tint }, pressed && styles.pressed, style]}
+    <PressScale
+      style={[styles.pill, { borderColor: tint }, style]}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
@@ -28,7 +30,7 @@ export function OutlinedPillButton({ label, onPress, icon, disabled = false, acc
     >
       {icon ? <Icon name={icon} size={16} color={tint} /> : null}
       <Text style={[styles.label, { color: tint }]}>{label}</Text>
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -44,6 +46,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: colors.surface,
   },
-  pressed: { backgroundColor: colors.accentTint },
   label: { fontSize: font.body, fontFamily: fontFamily.bold },
 });
