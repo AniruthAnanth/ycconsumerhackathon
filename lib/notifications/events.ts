@@ -220,6 +220,17 @@ export function scheduledFor(snapshot: Snapshot, now: number): ScheduledNotifica
   return reminders;
 }
 
+/**
+ * Whether scheduledFor can give its whole answer for this snapshot. While the roster loads it
+ * returns nothing, and while the pot loads it leaves the settlement reminder out; neither means
+ * a reminder has stopped being true. The host cancels whatever is pending and not in the list,
+ * so it waits for this before it reconciles. Otherwise every launch would cancel the reminders
+ * and schedule them again a moment later, and closing the app in between would lose them.
+ */
+export function readyToSchedule(snapshot: Snapshot): boolean {
+  return snapshot.roster !== undefined && snapshot.pot !== undefined;
+}
+
 /** The next 7:00 PM strictly after `now`: today's, or tomorrow's once today's has come. */
 function nextEvening(now: number): Date {
   const evening = new Date(now);

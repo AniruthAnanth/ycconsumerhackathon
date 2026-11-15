@@ -11,7 +11,7 @@ import {
 } from "@/convex/lib/notificationContent";
 import type { Drop, Payout, Pot, Roster, Standing, Task } from "@/lib/backend";
 
-import { type Snapshot, eventsBetween, scheduledFor } from "./events";
+import { type Snapshot, eventsBetween, readyToSchedule, scheduledFor } from "./events";
 
 const ME = "me";
 const LEAGUE = "league1";
@@ -453,5 +453,35 @@ describe("scheduledFor: both reminders", () => {
         for (const reminder of scheduledFor(lastEvening, now)) expect(reminder.fireAt).toBeGreaterThan(now);
       }
     }
+  });
+});
+
+describe("readyToSchedule", () => {
+  const NUDGE = "nudge:2026-11-15";
+  const SETTLING = `settling:${LEAGUE}:${SETTLES_AT}`;
+  const loaded = snapshot({ roster: roster([task("gym")]) });
+  const ids = (from: Snapshot) => scheduledFor(from, NOW).map((reminder) => reminder.id);
+
+  it("is ready once the roster and the pot have loaded", () => {
+    expect(readyToSchedule(loaded)).toBe(true);
+    expect(ids(loaded)).toEqual([NUDGE, SETTLING]);
+  });
+
+  it("does not wait for the queries no reminder is worked out from", () => {
+    expect(readyToSchedule({ ...loaded, drops: undefined, standings: undefined, feed: undefined })).toBe(true);
+  });
+
+  it.each([
+    ["roster", [NUDGE, SETTLING]],
+    ["pot", [SETTLING]],
+  ] as const)("waits while the %s loads, because the list would leave out reminders that are still wanted", (query, leftOut) => {
+    const loading = { ...loaded, [query]: undefined };
+    expect(readyToSchedule(loading)).toBe(false);
+    // What reconciling now would cancel, only to schedule it again when the query answers.
+    expect(ids(loaded).filter((id) => !ids(loading).includes(id))).toEqual(leftOut);
+  });
+
+  it("waits while both are loading", () => {
+    expect(readyToSchedule({ ...loaded, roster: undefined, pot: undefined })).toBe(false);
   });
 });

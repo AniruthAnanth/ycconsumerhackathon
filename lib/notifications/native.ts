@@ -19,6 +19,7 @@ import {
   type LineupNotification,
 } from "@/convex/lib/notificationContent";
 
+import { permissionStore, type Permission } from "./permission";
 import { incomingOf, urlToOpen, type Incoming, type Presentation } from "./rules";
 
 type ExpoNotifications = typeof import("expo-notifications");
@@ -53,7 +54,20 @@ export function isAvailable(): boolean {
 
 // ─── Permission ──────────────────────────────────────────────────────────────────────────────
 
-export type Permission = "granted" | "denied" | "undetermined";
+export type { Permission };
+
+/**
+ * The app's one copy of the system's answer (see permission.ts). getPermission() and
+ * requestPermission() publish whatever they learn, whoever called them, so the answer to a
+ * dialog raised from one screen reaches every other screen that depends on it.
+ */
+const permission = permissionStore();
+
+/** The answer as last learned, or undefined before it has been read. Never asks the system. */
+export const lastPermission = permission.last;
+
+/** Calls `listener` whenever the answer changes. Returns the function that stops listening. */
+export const onPermission = permission.subscribe;
 
 type PermissionAnswer = Awaited<ReturnType<ExpoNotifications["getPermissionsAsync"]>>;
 
@@ -67,9 +81,9 @@ function permissionOf(answer: PermissionAnswer): Permission {
 export async function getPermission(): Promise<Permission> {
   if (!Notifications) return "denied";
   try {
-    return permissionOf(await Notifications.getPermissionsAsync());
+    return permission.publish(permissionOf(await Notifications.getPermissionsAsync()));
   } catch {
-    return "denied";
+    return permission.publish("denied");
   }
 }
 
@@ -77,11 +91,13 @@ export async function getPermission(): Promise<Permission> {
 export async function requestPermission(): Promise<Permission> {
   if (!Notifications) return "denied";
   try {
-    return permissionOf(
-      await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } }),
+    return permission.publish(
+      permissionOf(
+        await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } }),
+      ),
     );
   } catch {
-    return "denied";
+    return permission.publish("denied");
   }
 }
 
