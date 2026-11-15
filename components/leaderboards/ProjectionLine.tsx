@@ -1,25 +1,38 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { colors, font, spacing } from "@/theme";
 
-import { projectionDetail } from "./format";
+import { isProjectedGain } from "./format";
 import { useProjection } from "./useProjection";
 
-/** "Projected: +$12.40" over a grey range line. Renders nothing in a free league. */
+/**
+ * One compact "Projected: +$12.40" line that opens the money board. It sits
+ * above the week's total, so it is a single short row: the range lives on the
+ * board, and a taller line would push the task list up when it loads.
+ * Renders nothing in a free league or while the projection loads.
+ */
 export function ProjectionLine({ leagueId }: { leagueId: Id<"leagues"> | null }) {
+  const router = useRouter();
   const projection = useProjection(leagueId);
   if (!projection) return null;
   return (
-    <View style={styles.box}>
-      <Text style={styles.label}>{projection.label}</Text>
-      <Text style={styles.detail}>{projectionDetail(projection)}</Text>
-    </View>
+    <Pressable
+      style={styles.line}
+      onPress={() => router.push({ pathname: "/leaderboards", params: { board: "money" } })}
+      accessibilityRole="button"
+      accessibilityLabel={`${projection.label}, open the money board`}
+    >
+      <Text style={[styles.label, isProjectedGain(projection.label) && styles.gain]} numberOfLines={1}>
+        {projection.label}
+      </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 2 },
-  label: { fontSize: font.title, fontWeight: "700", color: colors.text },
-  detail: { fontSize: font.meta, color: colors.textMuted },
+  line: { height: 32, justifyContent: "center", alignItems: "flex-end", paddingHorizontal: spacing.md },
+  label: { fontSize: font.body, fontWeight: "700", color: colors.text },
+  gain: { color: colors.tabActive },
 });
