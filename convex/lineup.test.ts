@@ -115,8 +115,17 @@ describe("lineup.draft", () => {
 
   it("refuses to draft from silence", async () => {
     const { as } = await signedIn();
-    await expect(as.action(api.lineup.draft, { transcript: "um hi" })).rejects.toThrow("Couldn't hear a plan");
+    await expect(as.action(api.lineup.draft, { transcript: "um hi" })).rejects.toThrow("Couldn't find a plan");
     expect(draftLineup).not.toHaveBeenCalled();
+  });
+
+  it("refuses words with no plan in them instead of inventing a lineup", async () => {
+    const { as } = await signedIn();
+    // The model returns no tasks when the player named nothing to do.
+    vi.mocked(draftLineup).mockResolvedValue([]);
+    await expect(as.action(api.lineup.draft, { transcript: "hello how are you" })).rejects.toThrow(
+      "Couldn't find a plan in that. Name a few things you want to do this week and try again.",
+    );
   });
 
   it("needs a signed-in player", async () => {
