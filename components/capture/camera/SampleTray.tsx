@@ -13,7 +13,15 @@ export function SampleTray({ disabled, onPick, bottomInset }: Props) {
     <View style={[styles.tray, { paddingBottom: bottomInset + spacing.md }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         {SAMPLE_MEDIA.map((sample) => (
-          <Pressable key={sample.key} disabled={disabled} onPress={() => onPick(sample)} style={styles.item}>
+          <Pressable
+            key={sample.key}
+            disabled={disabled}
+            onPress={() => onPick(sample)}
+            accessibilityRole="button"
+            accessibilityLabel={`Submit sample: ${sample.label}`}
+            accessibilityState={{ disabled }}
+            style={styles.item}
+          >
             {sample.mediaType === "photo" ? (
               <Image source={sample.source} style={styles.thumb} contentFit="cover" />
             ) : (
