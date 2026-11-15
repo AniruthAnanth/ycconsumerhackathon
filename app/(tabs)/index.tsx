@@ -14,7 +14,8 @@ import { RosterTotal } from "@/components/roster/RosterTotal";
 import { Button, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { splitRoster, weekActions } from "@/lib/roster";
+import { asksForProofs, splitRoster, weekActions } from "@/lib/roster";
+import { useNow } from "@/lib/useNow";
 import { colors, font, spacing } from "@/theme";
 
 export { TabError as ErrorBoundary } from "@/components/social/RouteError";
@@ -41,10 +42,11 @@ export default function RosterScreen() {
     currentWeekStart: league?.week.startsAt,
   });
   const draft = canDraft ? () => router.push("/draft") : undefined;
+  const asking = asksForProofs(league?.week, useNow(60_000));
   // Once the lineup is locked, the next task is why the player opened the app,
   // so it leads the screen above the banners and the pills. Its row stays in
   // the sheet below as an ordinary row, so the lineup keeps its five slots.
-  const lead = roster?.locked ? roster.rows.find((task) => task.upNext) : undefined;
+  const lead = roster?.locked && asking ? roster.rows.find((task) => task.upNext) : undefined;
 
   const row = (task: Task, upNext: boolean) => (
     <TaskRow
@@ -61,7 +63,7 @@ export default function RosterScreen() {
       }
     />
   );
-  const listed = (task: Task) => row(task, task.upNext && !lead);
+  const listed = (task: Task) => row(task, asking && task.upNext && !lead);
 
   return (
     <Screen edges={["bottom"]}>
@@ -71,7 +73,7 @@ export default function RosterScreen() {
       {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
       <LiveActivitySync />
       <HomeWidgetSync />
-      {leagueId ? <DropBanner leagueId={leagueId} /> : null}
+      {leagueId && asking ? <DropBanner leagueId={leagueId} /> : null}
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}
       <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>

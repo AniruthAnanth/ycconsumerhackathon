@@ -1,6 +1,6 @@
 import { MAX_FLEX_TASKS } from "../convex/lib/lineupRules";
 
-import type { Drop, Roster, Task } from "./backend";
+import type { Drop, League, Roster, Task } from "./backend";
 import { SLOT_ORDER, type Slot } from "./slots";
 
 export type StarterSlot = { slot: Slot; task: Task | undefined };
@@ -55,6 +55,23 @@ export function weekActions(week: {
     /** A locked lineup can't be edited but still takes flex tasks, and lineup.addFlexTask always adds to the week in play. */
     takesFlex: roster !== undefined && roster.locked && shownWeekStart === undefined && flexTasksLeft(roster.rows) > 0,
   };
+}
+
+/**
+ * Whether Roster asks for proofs: the drop banner and the Up Next row.
+ *
+ * A league's week can settle before its calendar week ends (End Week Now in the
+ * demo controls). Drops and the lineup run on the calendar week, so the backend
+ * goes on listing them until Monday, but the payouts are already in the ledger
+ * and no proof moves them, so Roster stops asking. A week that settled on time
+ * is different: the calendar has moved on, and the tasks listed belong to the
+ * next week, which is open.
+ *
+ * Nothing is asked while the league loads, so a settled week never flashes a drop.
+ */
+export function asksForProofs(leagueWeek: Pick<League["week"], "status" | "endsAt"> | undefined, now: number): boolean {
+  if (leagueWeek === undefined) return false;
+  return leagueWeek.status === "open" || leagueWeek.endsAt <= now;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Task } from "./backend";
-import { flexTasksLeft, pickBannerDrop, splitRoster, weekActions } from "./roster";
+import { asksForProofs, flexTasksLeft, pickBannerDrop, splitRoster, weekActions } from "./roster";
 
 function task(taskId: string, slot: Task["slot"], source: Task["source"] = "draft"): Task {
   return {
@@ -106,6 +106,28 @@ describe("weekActions", () => {
       undrafted: false,
       takesFlex: false,
     });
+  });
+});
+
+describe("asksForProofs", () => {
+  const endsAt = 2_000;
+
+  it("asks while the league's week is open", () => {
+    expect(asksForProofs({ status: "open", endsAt }, 1_000)).toBe(true);
+  });
+
+  it("stops asking once the week has settled before its calendar week ends", () => {
+    expect(asksForProofs({ status: "settled", endsAt }, 1_000)).toBe(false);
+    expect(asksForProofs({ status: "settled", endsAt }, endsAt - 1)).toBe(false);
+  });
+
+  it("asks again once the calendar has moved past a settled week", () => {
+    expect(asksForProofs({ status: "settled", endsAt }, endsAt)).toBe(true);
+    expect(asksForProofs({ status: "settled", endsAt }, 3_000)).toBe(true);
+  });
+
+  it("asks nothing while the league loads", () => {
+    expect(asksForProofs(undefined, 1_000)).toBe(false);
   });
 });
 
