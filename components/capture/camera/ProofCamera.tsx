@@ -11,6 +11,7 @@ import type { ProofTarget } from "../proofRoute";
 import { CameraOverlay } from "./CameraOverlay";
 import { CameraPermissionPrompt } from "./CameraPermissionPrompt";
 import { cameraScreen } from "./cameraScreen";
+import { CameraUnavailable } from "./CameraUnavailable";
 import { requestLocationFor } from "./deviceLocation";
 import { SampleTray } from "./SampleTray";
 import { ShutterBar } from "./ShutterBar";
@@ -40,6 +41,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
       {permission && screen.askPermission ? (
         <CameraPermissionPrompt canAskAgain={permission.canAskAgain} onRequest={requestPermission} />
       ) : null}
+      {screen.unavailable ? <CameraUnavailable onRetry={capture.retryCamera} /> : null}
       <CameraOverlay target={target} onClose={() => router.back()} />
       <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
         {screen.live ? (

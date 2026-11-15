@@ -47,7 +47,8 @@ export function useProofCapture(target: ProofTarget) {
     try {
       await action();
     } catch {
-      setCameraFailed(true);
+      // A shot or clip that fails (a recording stopped before its first frame, a preview not yet
+      // ready) leaves the camera running so the player can simply try again.
     } finally {
       stopTicker();
       setBusy(false);
@@ -72,7 +73,7 @@ export function useProofCapture(target: ProofTarget) {
         250,
       );
       const video = await camera.current!.recordAsync({ maxDuration: MAX_VIDEO_SECONDS });
-      if (!video) throw new Error("recording produced no file");
+      if (!video?.uri) throw new Error("recording produced no file");
       const durationMs = recordedDurationMs(recordingStartedAt.current, Date.now());
       stopTicker();
       await finish({ mediaType: "video", uri: video.uri, durationMs });
@@ -98,6 +99,7 @@ export function useProofCapture(target: ProofTarget) {
     secondsRemaining: remaining,
     cameraFailed,
     markCameraFailed: () => setCameraFailed(true),
+    retryCamera: () => setCameraFailed(false),
     takePhoto,
     startRecording,
     stopRecording,
