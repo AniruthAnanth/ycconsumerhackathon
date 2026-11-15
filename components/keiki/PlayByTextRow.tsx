@@ -1,0 +1,54 @@
+import { useMutation, useQuery } from "convex/react";
+import { Linking, StyleSheet, Switch, Text, View } from "react-native";
+
+import { api } from "@/convex/_generated/api";
+import { colors, font, hairline, spacing } from "@/theme";
+
+import { formatLineNumber } from "./formatLineNumber";
+
+/**
+ * Opt in to playing over iMessage. Turning it on also opens Messages with the join text typed:
+ * on the shared number, sending that text is what lets the agent text the player back.
+ */
+export function PlayByTextRow() {
+  const line = useQuery(api.keiki.line);
+  const setOptIn = useMutation(api.keiki.setOptIn);
+
+  if (!line) return null;
+
+  async function onValueChange(optIn: boolean) {
+    await setOptIn({ optIn });
+    if (optIn) await Linking.openURL(line!.smsUrl);
+  }
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.text}>
+        <Text style={styles.title}>Play by text</Text>
+        <Text style={styles.copy}>Get drops and send proofs by text at {formatLineNumber(line.number)}.</Text>
+      </View>
+      <Switch
+        value={line.optedIn}
+        onValueChange={onValueChange}
+        trackColor={{ true: colors.accent }}
+        accessibilityLabel="Play by text"
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.divider,
+  },
+  text: { flex: 1, gap: 2 },
+  title: { fontSize: font.title, fontWeight: "700", color: colors.text },
+  copy: { fontSize: font.meta, color: colors.textMuted },
+});
