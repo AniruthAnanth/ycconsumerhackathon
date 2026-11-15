@@ -197,6 +197,34 @@ export function rankLine(rows: StandingRow[], userId: string): string {
     : `You're ${ordinal(me.rank)}, ${gap} behind ${rival.name}.`;
 }
 
+/** A table row with what the Matchup tab shows beside the points. */
+export type WeekRow = StandingRow & { slotsCleared: number; streak: number };
+
+/**
+ * The player's week as the model reads it. It spells out the matchup and the rank, so "who am
+ * I playing?" and "how far behind am I?" are answered with a name and a number instead of a
+ * summary of the table.
+ */
+export function weekFacts(leagueName: string, rows: WeekRow[], userId: string, opponentId: string | null): string {
+  const me = rows.find((row) => row.userId === userId);
+  const opponent = rows.find((row) => row.userId === opponentId);
+  const table = rows
+    .slice(0, 12)
+    .map(
+      (row) =>
+        `${row.rank}. ${row.userId === userId ? "The player" : row.name}: ${row.points} points, ${row.slotsCleared} slots cleared, ${row.streak}-day streak`,
+    );
+
+  let matchup = "The player has no matchup this week.";
+  if (me && opponent) {
+    const lead = me.points - opponent.points;
+    const state = lead === 0 ? "They are level" : lead > 0 ? `The player leads by ${lead}` : `The player trails by ${-lead}`;
+    matchup = `This week's matchup: the player (${me.points}) is playing ${opponent.name} (${opponent.points}). ${state}.`;
+  }
+  const rank = me ? `In the league: ${rankLine(rows, userId)}` : "The player is not on this league's table.";
+  return [`League: ${leagueName}. This week's table:`, ...table, matchup, rank].join("\n");
+}
+
 function sentence(text: string): string {
   const trimmed = text.trim();
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;

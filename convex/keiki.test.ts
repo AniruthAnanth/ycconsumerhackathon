@@ -40,6 +40,33 @@ function playerOn(t: Backend, phone: string) {
   return t.query(internal.keiki.playerFor, { conversationId: phone, leagueTag: null });
 }
 
+describe("keiki.opponentOf", () => {
+  it("is the other side of the player's pair in the league's newest week", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, me, sam, maya } = await t.run(async (ctx) => {
+      const [me, sam, maya] = await Promise.all(["Me", "Sam", "Maya"].map((name) => ctx.db.insert("users", { name })));
+      const leagueId = await ctx.db.insert("leagues", {
+        name: "YC Hackathon",
+        inviteCode: "YCHACK",
+        stakeUsd: 0,
+        visibility: "private",
+        maxMembers: 12,
+        createdBy: me,
+      });
+      const week = { leagueId, startsAt: 0, endsAt: 1, status: "settled" as const };
+      const lastWeek = await ctx.db.insert("weeks", { ...week, number: 1 });
+      await ctx.db.insert("matchups", { weekId: lastWeek, userA: me, userB: maya });
+      const thisWeek = await ctx.db.insert("weeks", { ...week, number: 2, status: "open" });
+      await ctx.db.insert("matchups", { weekId: thisWeek, userA: sam, userB: me });
+      return { leagueId, me, sam, maya };
+    });
+
+    expect(await t.query(internal.keiki.opponentOf, { leagueId, userId: me })).toBe(sam);
+    expect(await t.query(internal.keiki.opponentOf, { leagueId, userId: sam })).toBe(me);
+    expect(await t.query(internal.keiki.opponentOf, { leagueId, userId: maya })).toBeNull();
+  });
+});
+
 describe("keiki.linkPhone", () => {
   it("ties the number a link code is texted from to that account and opts it in", async () => {
     const t = convexTest(schema, modules);
