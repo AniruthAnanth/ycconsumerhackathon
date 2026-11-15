@@ -25,15 +25,25 @@ export function Avatar({ uri, name, slot, size = 40 }: Props) {
   }
   return (
     // Initials only repeat the name beside them, so a screen reader skips them.
-    <View style={[styles.circle, circle]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={[styles.circle, circle, slot && { backgroundColor: SLOT_TINT[slot] }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {slot ? (
-        <Icon name={SLOT_ICON[slot]} size={size * 0.5} color={colors.textMuted} />
+        <Icon name={SLOT_ICON[slot]} size={size * 0.5} color={colors.text} />
       ) : (
-        <Text style={[styles.initials, { fontFamily: fontFamily.regular, fontSize: size * 0.38 }]}>{initials(name)}</Text>
+        <Text style={[styles.initials, { fontSize: size * 0.38 }]}>{initials(name)}</Text>
       )}
     </View>
   );
 }
+
+/** The bucket tint behind a slot's icon: care for rest and chores, learn for the mind, play for body and people. */
+const SLOT_TINT: Record<Slot, string> = {
+  body: colors.play,
+  mind: colors.learn,
+  recharge: colors.care,
+  chores: colors.care,
+  people: colors.play,
+  flex: colors.greenSoft,
+};
 
 function initials(name: string | undefined): string {
   const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
@@ -41,6 +51,6 @@ function initials(name: string | undefined): string {
 }
 
 const styles = StyleSheet.create({
-  circle: { backgroundColor: colors.strip, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  circle: { backgroundColor: colors.greenSoft, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   initials: { fontFamily: fontFamily.bold, color: colors.textMuted },
 });

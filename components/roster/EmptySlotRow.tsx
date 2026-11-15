@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, PositionPill, Score, SLOT_NAME, type Slot } from "@/components/ui";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 
 /**
  * A starter slot with nothing drafted in it. Same height and columns as a
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },

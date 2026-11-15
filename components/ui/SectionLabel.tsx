@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, SCREEN_MARGIN } from "@/theme";
 
 /** The small uppercase strip above a group of rows: a label on the left, a column name on the right. */
 export function SectionLabel({ left, right }: { left: string; right?: string }) {
@@ -14,11 +14,11 @@ export function SectionLabel({ left, right }: { left: string; right?: string }) 
 
 const styles = StyleSheet.create({
   strip: {
-    height: 28,
+    height: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.strip,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,

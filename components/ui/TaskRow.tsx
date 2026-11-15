@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SLOT_NAME } from "@/lib/slots";
 import { taskPlaceLine, taskRowLabel, taskStatusLine, type TaskRowData } from "@/lib/taskText";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { Avatar } from "./Avatar";
 import { PositionPill } from "./PositionPill";
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     // Room above and below for the Up Next row, the one that can grow past the minimum.
     paddingVertical: spacing.sm,
     backgroundColor: colors.background,
