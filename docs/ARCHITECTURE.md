@@ -191,7 +191,7 @@ The app calls public functions in every backend module, and every module reads a
 ### The client
 
 - **`app/`** is Expo Router routes: `app/(tabs)` holds Roster, Matchup, Feed and League, and the other folders are single screens (`draft`, `proof`, `task`, `group`, `chat`, `canvas`, `leaderboards`, `league-settings`, `profile`, `wrapped`, `demo`).
-- **`components/`** holds the screens by area: `capture` (voice draft, camera, verdict, drops, demo controls), `social` (feed, matchup, profile, wrapped, chat, group, canvas), `roster`, `leagueTab`, `league`, `join`, `leaderboards`, `checkin`, `keiki`, `shell`, and `ui` for shared primitives. Screen logic sits in pure files with tests beside the components.
+- **`components/`** holds the screens by area: `capture` (voice draft, camera, verdict, drops, demo controls), `social` (feed, matchup, profile, wrapped, chat, group, canvas), `roster`, `leagueTab`, `league`, `join`, `createLeague` (the Create a League walkthrough), `leaderboards`, `checkin`, `keiki`, `shell`, and `ui` for shared primitives. Screen logic sits in pure files with tests beside the components.
 - **`lib/`** is client helpers: the Convex client (`lib/convex.ts`), keychain session storage (`lib/tokenStorage.ts`), the current-league context and small text helpers.
 - **`theme/`** is the design tokens, so no screen hard-codes a colour or size.
 - **`modules/on-device-referee`** is the JavaScript side of an Apple Vision pre-check. Its Swift half is not in the repository on main, so the module resolves to null and `precheck` returns nothing. The feature is wired in and inactive.

@@ -7,6 +7,7 @@ import {
   isRecommended,
   parseStake,
   potExample,
+  potExplanation,
   progressOf,
   RECOMMENDED_SETTINGS,
   recommendedLines,
@@ -68,7 +69,8 @@ describe("blockerOf", () => {
   it("holds the walkthrough at stakes until a custom amount is valid", () => {
     const unset = { ...draft, stakeUsd: null };
     expect(blockerOf("name", unset)).toBeNull();
-    expect(blockerOf("stake", unset)).toBe("Enter a whole number of dollars from 1 to 1000");
+    expect(blockerOf("kind", unset)).toBeNull();
+    expect(blockerOf("stake", unset)).toBe("Enter a whole-dollar buy-in from $1 to $1,000");
     expect(blockerOf("review", unset)).not.toBeNull();
   });
 });
@@ -92,6 +94,11 @@ describe("stakes", () => {
     expect(potExample(250)).toBe("6 players × $250 = $1,500 pot");
     expect(potExample(0)).toBe("Free league: no pot, no payments.");
     expect(potExample(null)).toBe("Enter a buy-in to see the pot.");
+  });
+
+  it("says where the money goes, for either payout", () => {
+    expect(potExplanation("weekly")).toBe("Everyone pays in, the money is held in the league pot, and the weekly winner takes it.");
+    expect(potExplanation("season")).toBe("Everyone pays in, the money is held in the league pot, and the season's winner takes it at the end.");
   });
 });
 
