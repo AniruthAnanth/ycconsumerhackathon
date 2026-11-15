@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as feed from "../feed.js";
 import type * as http from "../http.js";
 import type * as keiki from "../keiki.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -22,6 +23,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  feed: typeof feed;
   http: typeof http;
   keiki: typeof keiki;
   "lib/auth": typeof lib_auth;
