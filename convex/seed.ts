@@ -612,12 +612,16 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   // Maya is connected to the demo Canvas school, so a Canvas proof can be shown without a token.
   await ctx.runMutation(internal.canvas.seedDemoConnection, { userId: playerIds[0] });
 
-  // The schedule seats members in the order they joined and moves all but the first up one seat
-  // a week. Joining in this order puts the six back in PLAYERS order in the current week, so its
-  // round of the rotation is the pairing PLAYERS was written for.
+  // The schedule seats members around a table, alternately from its two ends in the order they
+  // joined, and moves all but the first up one seat a week. This is the table that is back in
+  // PLAYERS order in the current week, so that week's round is the pairing PLAYERS was written
+  // for, and the join order that seats the six at it.
   const [host, ...others] = playerIds;
   const turns = (CURRENT_WEEK - 1) % others.length;
-  const joinOrder = [host, ...others.slice(-turns), ...others.slice(0, -turns)];
+  const table = [host, ...others.slice(-turns), ...others.slice(0, -turns)];
+  const joinOrder = table.map(
+    (_, index) => table[index % 2 === 0 ? index / 2 : table.length - (index + 1) / 2],
+  );
   const pairingsIn = (week: number) => scheduleFor(LEAGUE.format, joinOrder, week, [], LEAGUE.seasonWeeks);
 
   // A finished week is its matchups with the final scores on them, and nothing else: no lineups

@@ -147,4 +147,39 @@ describe("seasons.overview as the league changes", () => {
     expect(season.weeks[0].byes.map((player) => player.name)).toEqual(["Eve"]);
     expect(season.table.map((row) => row.name)).toEqual(["Ava", "Ben", "Cal", "Dee", "Eve"]);
   });
+
+  it("meets nobody twice in the first weeks of a league that filled up during week 1", async () => {
+    // Week 1 is stored as the four join; weeks 2 and 3 come from the schedule.
+    const { overview, openWeek } = await leagueOf(["Ava", "Ben", "Cal", "Dee"]);
+    await openWeek(2);
+    await openWeek(3);
+
+    const season = await overview();
+    const met = season.weeks
+      .filter((week) => week.status !== "upcoming")
+      .flatMap((week) => week.matchups.map((m) => [m.a.name, m.b.name].sort().join("-")));
+    expect(met.sort()).toEqual(["Ava-Ben", "Ava-Cal", "Ava-Dee", "Ben-Cal", "Ben-Dee", "Cal-Dee"]);
+  });
+
+  it("plays a single final when a two-week bracket league fills up in week 1", async () => {
+    // Week 1 was played as the members joined, so it cannot be a semifinal.
+    const { overview, openWeek } = await leagueOf(["Ava", "Ben", "Cal", "Dee"], {
+      format: "bracket",
+      seasonWeeks: 2,
+    });
+    expect((await overview()).weeks.map((week) => week.round)).toEqual([undefined, "Final"]);
+
+    await openWeek(2);
+    const season = await overview();
+    // Everyone tied week 1 at nothing, so the first two to join are the top seeds.
+    expect(season.bracket?.rounds).toHaveLength(1);
+    expect(season.bracket?.rounds[0].matches[0]).toMatchObject({
+      a: { name: "Ava", seed: 1 },
+      b: { name: "Ben", seed: 2 },
+    });
+    expect(season.weeks[1].matchups.map((m) => [m.a.name, m.b.name])).toEqual([
+      ["Ava", "Ben"],
+      ["Cal", "Dee"],
+    ]);
+  });
 });
