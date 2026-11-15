@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { draftReducer, initialDraftState, type DraftAction, type DraftState } from "./draftState";
+import { draftReducer, hasUnsavedDraft, initialDraftState, type DraftAction, type DraftState } from "./draftState";
 import type { DraftTask } from "../backend";
 
 const body: DraftTask = { slot: "body", title: "Leg day", points: 10, proofType: "photo_location" };
@@ -110,5 +110,22 @@ describe("redo", () => {
 
   it("is only available from review", () => {
     expect(draftReducer(initialDraftState, { type: "redone" })).toBe(initialDraftState);
+  });
+});
+
+describe("hasUnsavedDraft", () => {
+  it("leaves an empty first step without asking", () => {
+    expect(hasUnsavedDraft(initialDraftState, "")).toBe(false);
+    expect(hasUnsavedDraft(initialDraftState, "   ")).toBe(false);
+  });
+
+  it("asks for a typed week, a recording or an unlocked lineup", () => {
+    expect(hasUnsavedDraft(initialDraftState, "Gym Monday")).toBe(true);
+    expect(hasUnsavedDraft({ ...initialDraftState, phase: "recording" }, "")).toBe(true);
+    expect(hasUnsavedDraft({ ...initialDraftState, phase: "review" }, "")).toBe(true);
+  });
+
+  it("lets a lock leave freely", () => {
+    expect(hasUnsavedDraft({ ...initialDraftState, phase: "locking" }, "")).toBe(false);
   });
 });

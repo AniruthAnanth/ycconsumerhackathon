@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   blockerOf,
   defaultDraft,
+  hasUnsavedWork,
   isPresetStake,
   isRecommended,
   parseStake,
@@ -132,5 +133,20 @@ describe("reviewRows", () => {
       { label: "Payout", value: "End of season" },
     ]);
     expect(reviewRows({ ...draft, stakeUsd: 0 })[2].value).toBe("Free");
+  });
+});
+
+describe("hasUnsavedWork", () => {
+  const start = defaultDraft("Maya Chen");
+
+  it("leaves untouched defaults without asking", () => {
+    expect(hasUnsavedWork({ ...start }, start)).toBe(false);
+  });
+
+  it("asks once any answer has changed", () => {
+    expect(hasUnsavedWork({ ...start, name: "Night Owls" }, start)).toBe(true);
+    expect(hasUnsavedWork({ ...start, kind: "versus" }, start)).toBe(true);
+    expect(hasUnsavedWork({ ...start, stakeUsd: null }, start)).toBe(true);
+    expect(hasUnsavedWork({ ...start, settings: { ...start.settings, seasonWeeks: 4 } }, start)).toBe(true);
   });
 });

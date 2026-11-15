@@ -38,6 +38,15 @@ export const initialDraftState: DraftState = {
   manual: false,
 };
 
+/**
+ * Whether leaving Voice Draft now would lose the player's work: a recording or draft in progress,
+ * a lineup not locked yet, or a typed week not drafted. Locking is the save, so it leaves freely.
+ */
+export function hasUnsavedDraft(state: DraftState, typedWeek: string): boolean {
+  if (state.phase === "locking") return false;
+  return state.phase !== "idle" || typedWeek.trim().length > 0;
+}
+
 export function draftReducer(state: DraftState, action: DraftAction): DraftState {
   switch (action.type) {
     case "recordingStarted":
