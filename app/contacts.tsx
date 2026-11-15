@@ -2,14 +2,14 @@ import { useQuery } from "convex/react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as SMS from "expo-sms";
 import { useEffect, useState } from "react";
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackHandler, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { InviteButton, useInviteMessage } from "@/components/invite";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { PersonRow } from "@/components/join/PersonRow";
 import { useContactMatch } from "@/components/join/useContactMatch";
 import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
-import { Button, Header, Screen, SectionLabel } from "@/components/ui";
+import { Button, Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { inviteMessage } from "@/lib/leagueText";
@@ -79,21 +79,12 @@ export default function ContactsScreen() {
   }
 
   const nothingToAdd = state.status === "empty" || (state.status === "done" && state.added.length === 0 && invitees.length === 0);
+  const asking = state.status === "idle" || state.status === "loading" || state.status === "error";
 
   return (
     <Screen>
       <Stack.Screen options={{ gestureEnabled: !justJoined }} />
-      <Header
-        title="Add Friends"
-        onBack={justJoined ? undefined : leave}
-        right={
-          justJoined ? (
-            <Pressable onPress={leave} hitSlop={12} accessibilityRole="button" accessibilityLabel="Skip">
-              <Text style={styles.skip}>Skip</Text>
-            </Pressable>
-          ) : undefined
-        }
-      />
+      <Header title="Add Friends" onBack={justJoined ? undefined : leave} />
       <PlayByTextRow />
       <ScrollView style={styles.list}>
         {nothingToAdd ? <Text style={styles.empty}>No contacts to add</Text> : null}
@@ -127,13 +118,15 @@ export default function ContactsScreen() {
       </ScrollView>
       <View style={styles.footer}>
         {leagueId ? <InviteButton leagueId={leagueId} label="Share invite link" /> : null}
-        {state.status === "idle" || state.status === "loading" || state.status === "error" ? (
+        {asking ? (
           <Button label="Allow access to contacts" onPress={allowAccess} loading={state.status === "loading"} disabled={!leagueId} />
         ) : selected.length > 0 ? (
           <Button label="Text invite" onPress={sendInvites} loading={sending} disabled={!league} />
         ) : (
           <Button label="Continue" onPress={leave} />
         )}
+        {/* The way on for a player who adds nobody. It was a text link in the header, the hardest control here to find; Continue already is that way on, so it needs none. */}
+        {justJoined && (asking || selected.length > 0) ? <OutlinedPillButton label="Skip" onPress={leave} /> : null}
       </View>
     </Screen>
   );
@@ -141,7 +134,6 @@ export default function ContactsScreen() {
 
 const styles = StyleSheet.create({
   list: { flex: 1 },
-  skip: { fontSize: font.body, fontWeight: "700", color: colors.accent },
   empty: { padding: spacing.lg, fontSize: font.body, color: colors.textMuted },
   message: { padding: spacing.lg },
   footer: { padding: spacing.lg, gap: spacing.sm },

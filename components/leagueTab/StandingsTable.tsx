@@ -7,7 +7,7 @@ import type { Standing } from "@/lib/backend";
 import { colors, font, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
 // Fixed widths keep every number in a column lined up whatever the names are.
-const COL = { rank: 28, slots: 44, points: 56, streak: 48 } as const;
+const COL = { rank: 28, slots: 44, points: 56, streak: 56 } as const;
 
 type Props = {
   rows: Standing[];
@@ -25,7 +25,7 @@ export function StandingsTable({ rows, viewerId, onPressPlayer }: Props) {
         <Text style={[styles.heading, styles.playerCol]}>PLAYER</Text>
         <Text style={[styles.heading, styles.right, { width: COL.slots }]}>SLOTS</Text>
         <Text style={[styles.heading, styles.right, { width: COL.points }]}>PTS</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STRK</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STREAK</Text>
       </View>
       {rows.map((row) => (
         // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
