@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { OnDeviceRead } from "@/components/onDeviceReferee/OnDeviceRead";
 import { useOnDeviceRead } from "@/components/onDeviceReferee/useOnDeviceRead";
+import { leaveScreen } from "@/lib/leaveScreen";
 
 import { parseCapture, parseProofTarget, proofCameraHref } from "../proofRoute";
 import { ReviewingOverlay } from "./ReviewingOverlay";
@@ -26,7 +27,7 @@ export function VerdictScreen() {
   const { phase, retry } = useSubmitProof(target, capture, onDevice.beforeVerify);
   const impact = useStampImpact(phase.name === "verdict" ? phase.verdict.pass : undefined);
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
+  const close = () => leaveScreen("/(tabs)");
   // Canvas has no camera to return to, so a failed check asks the backend again.
   const retryProof = capture.mediaType === "canvas" ? retry : () => router.replace(proofCameraHref(target));
 

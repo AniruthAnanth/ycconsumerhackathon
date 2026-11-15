@@ -4,10 +4,10 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
+import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
 
 import { capture } from "../backend";
-import { errorMessage } from "../errorMessage";
 import { uploadToConvex } from "../uploadToConvex";
 import { draftReducer, initialDraftState } from "./draftState";
 import { draftWeekNote } from "./draftWeek";

@@ -4,10 +4,10 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { OutlinedPillButton } from "@/components/ui";
+import { errorMessage } from "@/lib/errorMessage";
 import { colors, font, spacing } from "@/theme";
 
 import { capture } from "../backend";
-import { errorMessage } from "../errorMessage";
 import type { DropView } from "./dropView";
 
 type GroupView = Extract<DropView, { type: "group" }>;
