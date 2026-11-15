@@ -23,7 +23,7 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="task/[taskId]" options={{ presentation: "modal" }} />
+            <Stack.Screen name="task/[taskId]" options={{ presentation: "formSheet", sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, sheetCornerRadius: 16 }} />
             <Stack.Screen name="proof/[taskId]" options={{ presentation: "fullScreenModal" }} />
             <Stack.Screen name="wrapped/index" options={{ presentation: "fullScreenModal" }} />
           </Stack>
