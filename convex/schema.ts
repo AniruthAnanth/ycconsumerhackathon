@@ -187,6 +187,8 @@ export default defineSchema({
       v.literal("group"),
     ),
     dropId: v.optional(v.id("drops")),
+    // Set when the league vetoed the task as too easy (vetoes.ts); the owner swaps it for another.
+    struck: v.optional(v.boolean()),
   })
     .index("by_user_week", ["userId", "weekStart"])
     .index("by_drop", ["dropId"]),
@@ -231,12 +233,22 @@ export default defineSchema({
       v.literal("overturned"),
     ),
     closesAt: v.number(),
+    // The referee was unsure of the proof and sent it to the league itself; nobody challenged it,
+    // so challengerId is the proof's owner and no stake moves.
+    byReferee: v.optional(v.boolean()),
   })
     .index("by_proof", ["proofId"])
     .index("by_status", ["status"])
     // closesAt follows leagueId so standings can read the challenges decided
     // in one week without scanning the league's whole history.
     .index("by_league", ["leagueId", "closesAt"]),
+
+  // One row per league member who called a locked task too easy (vetoes.ts).
+  taskVetoes: defineTable({
+    taskId: v.id("tasks"),
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+  }).index("by_task", ["taskId"]),
 
   votes: defineTable({
     challengeId: v.id("challenges"),

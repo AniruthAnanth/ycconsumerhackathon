@@ -61,6 +61,7 @@ import type * as seed from "../seed.js";
 import type * as standings from "../standings.js";
 import type * as users from "../users.js";
 import type * as versus from "../versus.js";
+import type * as vetoes from "../vetoes.js";
 import type * as whop from "../whop.js";
 import type * as wrapped from "../wrapped.js";
 
@@ -124,6 +125,7 @@ declare const fullApi: ApiFromModules<{
   standings: typeof standings;
   users: typeof users;
   versus: typeof versus;
+  vetoes: typeof vetoes;
   whop: typeof whop;
   wrapped: typeof wrapped;
 }>;
