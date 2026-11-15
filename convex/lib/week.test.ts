@@ -10,7 +10,6 @@ import {
   pairsAfterJoin,
   startOfPacificDay,
   weekEndOf,
-  weekPairings,
   weekStartOf,
   weekdayLabel,
 } from "./week";
@@ -71,46 +70,6 @@ describe("weekStartOf and weekEndOf", () => {
     const start = utc("2026-03-02T08:00:00Z"); // Monday 00:00 PST
     expect(weekStartOf(utc("2026-03-08T19:00:00Z"))).toBe(start); // Sunday noon PDT
     expect(weekEndOf(start)).toBe(start + 7 * DAY_MS - HOUR_MS);
-  });
-});
-
-describe("weekPairings", () => {
-  const six = ["a", "b", "c", "d", "e", "f"];
-  const key = ([x, y]: [string, string]) => [x, y].sort().join("");
-
-  test("nobody to pair below two members", () => {
-    expect(weekPairings([], 1)).toEqual([]);
-    expect(weekPairings(["a"], 1)).toEqual([]);
-    expect(weekPairings(["a", "b"], 1)).toEqual([["a", "b"]]);
-  });
-
-  test("an even league pairs everyone exactly once", () => {
-    expect(weekPairings(six, 1)).toEqual([
-      ["a", "f"],
-      ["b", "e"],
-      ["c", "d"],
-    ]);
-  });
-
-  test("opponents rotate so that everyone meets everyone before a rematch", () => {
-    const met = new Set<string>();
-    for (let week = 1; week <= 5; week++) {
-      for (const pair of weekPairings(six, week)) met.add(key(pair));
-    }
-    expect(met.size).toBe(15);
-    expect(weekPairings(six, 6)).toEqual(weekPairings(six, 1));
-  });
-
-  test("the left-over member of an odd league gets an extra pair, last", () => {
-    expect(weekPairings(["a", "b", "c"], 1)).toEqual([
-      ["b", "c"],
-      ["a", "b"],
-    ]);
-    for (let week = 1; week <= 5; week++) {
-      const pairs = weekPairings(["a", "b", "c", "d", "e"], week);
-      expect(pairs).toHaveLength(3);
-      expect(new Set(pairs.flat()).size).toBe(5);
-    }
   });
 });
 

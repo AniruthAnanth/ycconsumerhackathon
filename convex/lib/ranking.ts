@@ -73,13 +73,6 @@ export function formatDuration(seconds: number): string {
   return `${Math.floor(whole / 60)}m ${String(whole % 60).padStart(2, "0")}s`;
 }
 
-/** "1st", "2nd", "3rd", "11th". */
-export function ordinal(place: number): string {
-  const lastTwo = place % 100;
-  if (lastTwo >= 11 && lastTwo <= 13) return `${place}th`;
-  return `${place}${["th", "st", "nd", "rd"][place % 10] ?? "th"}`;
-}
-
 /**
  * Turns one number per player into a board, best first.
  *

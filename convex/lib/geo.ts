@@ -37,15 +37,6 @@ export function isValidLatLng(point: LatLng): boolean {
   );
 }
 
-/** Whether the phone is close enough to the pinned place for a check-in to count. */
-export function isWithinCheckInRadius(
-  phone: LatLng,
-  place: LatLng,
-  radiusM: number = CHECK_IN_RADIUS_M,
-): boolean {
-  return distanceMeters(phone, place) <= radiusM;
-}
-
 /** "40 m" or "1.2 km", for the referee's reason. */
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
