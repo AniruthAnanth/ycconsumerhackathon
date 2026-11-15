@@ -3,11 +3,10 @@ import * as Linking from "expo-linking";
 import { useCallback, useState } from "react";
 import { Platform } from "react-native";
 
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { haptics } from "@/lib/native/haptics";
 import { shareText } from "@/lib/native/share";
-
-import { referrals } from "./backend";
 
 /**
  * The invite text for a league, with its short link. appUrl is a prefix: the
@@ -15,7 +14,7 @@ import { referrals } from "./backend";
  * (Expo Go, lineup:// or the web) at /invite/<token>.
  */
 export function useInviteMessage() {
-  const createLink = useMutation(referrals.createLink);
+  const createLink = useMutation(api.referrals.createLink);
   return useCallback(
     async (leagueId: Id<"leagues">) => (await createLink({ leagueId, appUrl: Linking.createURL("/invite") })).message,
     [createLink],
