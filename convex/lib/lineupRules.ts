@@ -1,0 +1,115 @@
+/**
+ * The shape rules of a weekly lineup: which slots it must fill, how many flex
+ * tasks it may hold and what a task's points can be.
+ *
+ * The draft model is asked to follow these rules, and the app is expected to,
+ * but the lineup carries money, so they are enforced here in pure code: once
+ * on the model's draft (shapeDraft repairs it) and again when the player locks
+ * (lineupProblem refuses it).
+ */
+import { isValidLatLng } from "./geo";
+
+/** The five slots every lineup must fill, in roster order. */
+export const CORE_SLOTS = ["body", "mind", "recharge", "chores", "people"] as const;
+export type CoreSlot = (typeof CORE_SLOTS)[number];
+export type Slot = CoreSlot | "flex";
+
+export const MAX_FLEX_TASKS = 3;
+export const MIN_TASK_POINTS = 10;
+export const MAX_TASK_POINTS = 50;
+const POINTS_STEP = 5;
+const MAX_TITLE_LENGTH = 60;
+
+export type Place = { name: string; lat: number; lng: number };
+
+/** A task before it is locked. Matches DraftTask in API.md. */
+export type DraftTask = {
+  slot: Slot;
+  title: string;
+  points: number;
+  proofType: "photo" | "photo_location" | "canvas";
+  place?: Place;
+};
+
+const SLOT_LABELS: Record<CoreSlot, string> = {
+  body: "Body",
+  mind: "Mind",
+  recharge: "Recharge",
+  chores: "Chores",
+  people: "People",
+};
+
+// Used only when the model leaves a slot empty despite being told not to. Easy
+// and cheap on purpose: a player who said nothing about a slot shouldn't be
+// handed a hard task they never asked for.
+const FALLBACK_TASKS: Record<CoreSlot, DraftTask> = {
+  body: { slot: "body", title: "Take a 20-minute walk", points: 10, proofType: "photo" },
+  mind: { slot: "mind", title: "30 minutes of focused work", points: 15, proofType: "photo" },
+  recharge: { slot: "recharge", title: "Read for 20 minutes", points: 10, proofType: "photo" },
+  chores: { slot: "chores", title: "Tidy your room", points: 10, proofType: "photo" },
+  people: { slot: "people", title: "Call a friend", points: 10, proofType: "photo" },
+};
+
+/** Rounds to the nearest step of 5 and keeps the result within 10 to 50. */
+export function clampTaskPoints(points: number): number {
+  if (!Number.isFinite(points)) return MIN_TASK_POINTS;
+  const stepped = Math.round(points / POINTS_STEP) * POINTS_STEP;
+  return Math.min(MAX_TASK_POINTS, Math.max(MIN_TASK_POINTS, stepped));
+}
+
+/**
+ * Makes one task self-consistent: a trimmed title, points in range, and a
+ * place only on a location task. A location task without a usable place
+ * becomes a plain photo task, because a check-in with nowhere to check in at
+ * could never be verified.
+ */
+export function tidyTask(task: DraftTask): DraftTask {
+  const tidy: DraftTask = {
+    slot: task.slot,
+    title: task.title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE_LENGTH),
+    points: clampTaskPoints(task.points),
+    proofType: task.proofType,
+  };
+  if (task.proofType !== "photo_location") return tidy;
+  const place = task.place;
+  if (!place || place.name.trim() === "" || !isValidLatLng(place)) {
+    return { ...tidy, proofType: "photo" };
+  }
+  return { ...tidy, place: { name: place.name.trim(), lat: place.lat, lng: place.lng } };
+}
+
+/**
+ * Repairs a model's draft into a lockable lineup: exactly one task per core
+ * slot in roster order, then up to three flex tasks. A second task for a slot
+ * that is already filled moves to flex, and an empty slot gets an easy default.
+ */
+export function shapeDraft(drafted: DraftTask[]): DraftTask[] {
+  const core = new Map<CoreSlot, DraftTask>();
+  const flex: DraftTask[] = [];
+  for (const task of drafted.map(tidyTask)) {
+    if (task.title === "") continue;
+    if (task.slot !== "flex" && !core.has(task.slot)) {
+      core.set(task.slot, task);
+    } else if (flex.length < MAX_FLEX_TASKS) {
+      flex.push({ ...task, slot: "flex" });
+    }
+  }
+  return [...CORE_SLOTS.map((slot) => core.get(slot) ?? FALLBACK_TASKS[slot]), ...flex];
+}
+
+/**
+ * Why a lineup can't be locked, as a sentence for the player, or null when it
+ * can. Expects tasks that have been through tidyTask.
+ */
+export function lineupProblem(tasks: DraftTask[]): string | null {
+  if (tasks.some((task) => task.title === "")) return "Every task needs a title.";
+  for (const slot of CORE_SLOTS) {
+    const count = tasks.filter((task) => task.slot === slot).length;
+    if (count === 0) return `Add a ${SLOT_LABELS[slot]} task to lock your lineup.`;
+    if (count > 1) return `Only one ${SLOT_LABELS[slot]} task fits the lineup. Move the other to Flex.`;
+  }
+  if (tasks.filter((task) => task.slot === "flex").length > MAX_FLEX_TASKS) {
+    return `A lineup holds at most ${MAX_FLEX_TASKS} flex tasks.`;
+  }
+  return null;
+}
