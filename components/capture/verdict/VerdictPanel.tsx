@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Artwork } from "@/components/art";
 import { ShareChallenge } from "@/components/invite";
 import { Button, Divider } from "@/components/ui";
 import { colors, font, fontFamily, spacing } from "@/theme";
@@ -51,6 +52,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
   return (
     <View style={[styles.panel, { paddingBottom: bottom }]}>
       <FadeIn delay={REASON_DELAY_MS}>
+        {verdict.pass ? <Artwork name="sunny" size={104} style={styles.celebration} /> : null}
         <Text style={styles.reason}>{verdict.reason}</Text>
         {verdict.pass && verdict.caption ? (
           <Text style={styles.caption} numberOfLines={1}>
@@ -89,6 +91,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
 const styles = StyleSheet.create({
   panel: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   reason: { color: colors.text, fontSize: 24, fontFamily: fontFamily.semiBold, lineHeight: 31, marginBottom: spacing.xl },
+  celebration: { alignSelf: "center", marginBottom: spacing.md },
   caption: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, marginTop: -spacing.lg, marginBottom: spacing.xl },
   pointsRow: {
     height: 56,

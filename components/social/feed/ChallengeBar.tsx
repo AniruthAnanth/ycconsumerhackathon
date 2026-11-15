@@ -5,7 +5,7 @@ import { type FeedChallenge, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors, fontFamily } from "@/theme";
+import { colors, fontFamily, MIN_TARGET, progress, radius, SCREEN_MARGIN } from "@/theme";
 
 import { challengeStatus, legitShare } from "./feedLogic";
 
@@ -69,22 +69,22 @@ export function ChallengeBar({
 }
 
 const styles = StyleSheet.create({
-  box: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
+  box: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: 14, gap: 8 },
   heading: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   title: { color: colors.text, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
-  status: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 12 },
-  track: { flexDirection: "row", height: 6, borderRadius: 3, overflow: "hidden", backgroundColor: colors.strip },
-  legit: { backgroundColor: colors.tabActive },
+  status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: 12 },
+  track: { flexDirection: "row", height: progress.height, borderRadius: radius.pill, overflow: "hidden", backgroundColor: progress.track },
+  legit: { backgroundColor: progress.fill },
   notLegit: { backgroundColor: colors.danger },
   sides: { flexDirection: "row", gap: 8 },
   side: {
     flex: 1,
-    height: 36,
+    minHeight: MIN_TARGET,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
-    borderRadius: 18,
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: "transparent",
   },

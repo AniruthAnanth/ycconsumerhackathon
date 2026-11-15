@@ -39,7 +39,7 @@ export function LeaderboardTable({ valueHeader, rows }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 28,
+    height: 36,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.md,

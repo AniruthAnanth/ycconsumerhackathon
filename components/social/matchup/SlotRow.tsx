@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
   text: { flex: 1, gap: 2 },
   textRight: { textAlign: "right" },
   title: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold },
-  status: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta },
+  status: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.meta },
   empty: { flex: 1, color: colors.textFaint, fontFamily: fontFamily.regular, fontSize: font.header, textAlign: "center" },
 });

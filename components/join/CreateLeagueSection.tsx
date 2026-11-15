@@ -5,7 +5,7 @@ import { StyleSheet, View } from "react-native";
 
 import { OutlinedPillButton, SectionLabel, TextField } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { ErrorLine } from "./ErrorLine";
 import { StakePicker } from "./StakePicker";
@@ -56,6 +56,6 @@ export function CreateLeagueSection({ joining }: { joining: ReturnType<typeof us
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md, gap: spacing.md },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.md },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm },
 });

@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 
 import { OutlinedPillButton, SectionLabel, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { ErrorLine } from "./ErrorLine";
 import type { useJoinLeague } from "./useJoinLeague";
@@ -48,7 +48,7 @@ export function InviteCodeSection({ joining }: { joining: ReturnType<typeof useJ
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md, gap: spacing.sm },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
   row: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
   field: { flex: 1 },
 });

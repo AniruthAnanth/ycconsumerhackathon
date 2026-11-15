@@ -10,12 +10,13 @@ import { AddFlexTask } from "@/components/roster/AddFlexTask";
 import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
+import { RosterHero } from "@/components/roster/RosterHero";
 import { RosterTotal } from "@/components/roster/RosterTotal";
 import { Button, OutlinedPillButton, Screen, SectionLabel, TaskRow } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { splitRoster, weekActions } from "@/lib/roster";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 /**
  * ROSTER, the screen the app opens on every day: this week's lineup as a team
@@ -40,9 +41,13 @@ export function RosterScreen() {
   });
   const draft = canDraft ? () => router.push("/draft") : undefined;
   // Once the lineup is locked, the next task is why the player opened the app,
-  // so it leads the screen above the banners and the pills. Its row stays in
+  // so it sits right under the hero, above the pills. Its row stays in
   // the sheet below as an ordinary row, so the lineup keeps its five slots.
-  const lead = roster?.locked ? roster.rows.find((task) => task.upNext) : undefined;
+  // The lineup runs on the calendar week, so it still names a next task after the
+  // selected league's week has settled (End Week Now settles one early). That
+  // week's result is final, so Roster stops asking for a proof until the next opens.
+  const settled = league?.week.status === "settled";
+  const lead = roster?.locked && !settled ? roster.rows.find((task) => task.upNext) : undefined;
 
   const row = (task: Task, upNext: boolean) => (
     <TaskRow
@@ -59,11 +64,10 @@ export function RosterScreen() {
       }
     />
   );
-  const listed = (task: Task) => row(task, task.upNext && !lead);
+  const listed = (task: Task) => row(task, task.upNext && !lead && !settled);
 
   return (
     <Screen edges={["bottom"]}>
-      {lead ? row(lead, true) : null}
       {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
       <CheckInPrompt leagueId={leagueId} />
       {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
@@ -73,6 +77,8 @@ export function RosterScreen() {
       {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}
       <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+        {leagueId ? <RosterHero roster={roster} /> : null}
+        {lead ? row(lead, true) : null}
         <View style={styles.actions}>
           <OutlinedPillButton label="Voice Draft" icon="mic-outline" style={styles.action} onPress={() => router.push("/draft")} />
           <OutlinedPillButton
@@ -107,8 +113,8 @@ export function RosterScreen() {
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  actions: { flexDirection: "row", gap: spacing.md, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md },
   action: { flex: 1 },
   none: { padding: spacing.xl, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
-  draft: { margin: spacing.md },
+  draft: { margin: SCREEN_MARGIN },
 });

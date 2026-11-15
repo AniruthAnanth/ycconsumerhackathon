@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Avatar, PositionPill, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { canRemoveTask } from "./lineupEdit";
 import type { DraftTask } from "../backend";
@@ -47,7 +47,7 @@ export function DraftRow({ task, editable, onRename, onRemove }: Props) {
       <View style={styles.trailing}>
         <Score value={task.points} />
         {editable && canRemoveTask(task) ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${task.title}`} onPress={onRemove} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${task.title}`} onPress={onRemove} style={styles.removeTarget}>
             <Text style={styles.remove}>Remove</Text>
           </Pressable>
         ) : null}
@@ -62,14 +62,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 1 },
-  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text, padding: 0 },
+  title: { ...type.subheading, minHeight: 28, color: colors.text, padding: 0 },
   meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   trailing: { alignItems: "flex-end", gap: spacing.xs },
-  remove: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  removeTarget: { minHeight: MIN_TARGET, minWidth: MIN_TARGET, alignItems: "flex-end", justifyContent: "center" },
+  remove: { fontFamily: fontFamily.semiBold, fontSize: font.meta, color: colors.textMuted },
 });

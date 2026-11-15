@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SectionLabel } from "@/components/ui";
 import type { LeagueSettings } from "@/convex/lib/schedule";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, MIN_TARGET, radius, spacing } from "@/theme";
 
 import { FORMAT_CHOICES, PAYOUT_CHOICES, SEASON_WEEKS_CHOICES, type Choice } from "./settings";
 
@@ -68,10 +68,10 @@ const styles = StyleSheet.create({
   },
   // The same outline as OutlinedPillButton, so an unselected pill reads as tappable.
   pill: {
-    height: 36,
+    minHeight: MIN_TARGET,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    borderRadius: 18,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.accent,
     backgroundColor: colors.background,

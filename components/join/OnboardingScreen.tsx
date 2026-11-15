@@ -3,13 +3,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { Artwork } from "@/components/art";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
 import { FormBody } from "@/components/join/FormBody";
 import { Button, Header, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { phoneHint, toE164 } from "@/lib/phone";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 /** The first screen of a new player: name and phone, then straight on to picking a league. */
 export function OnboardingScreen() {
@@ -43,6 +44,9 @@ export function OnboardingScreen() {
     <Screen>
       <Header title="Lineup" />
       <FormBody>
+        <View style={styles.sunny}>
+          <Artwork name="sunny" size={108} />
+        </View>
         <View style={styles.fields}>
           <TextField
             label="Name"
@@ -83,7 +87,8 @@ export function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  fields: { padding: spacing.lg, gap: spacing.lg },
+  sunny: { alignItems: "center", paddingTop: spacing.xl },
+  fields: { padding: SCREEN_MARGIN, gap: spacing.lg },
   // The action sits at the foot of the page; FormBody lifts it above the keyboard.
-  action: { flex: 1, justifyContent: "flex-end", padding: spacing.lg },
+  action: { flex: 1, justifyContent: "flex-end", padding: SCREEN_MARGIN },
 });

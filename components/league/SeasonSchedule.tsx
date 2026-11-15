@@ -80,7 +80,7 @@ function ScoreLine({ player, score, matchup, meId, onPress }: ScoreLineProps) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 28,
+    height: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   won: { fontFamily: fontFamily.bold },
   lost: { color: colors.textMuted },
   me: { color: colors.accent },
-  score: { fontSize: font.score, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
+  score: { fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
   unscored: { color: colors.textFaint },
   note: {
     paddingHorizontal: spacing.md,
