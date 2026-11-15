@@ -33,9 +33,12 @@ export function VerdictScreen() {
   const retryProof = capture.mediaType === "canvas" ? retry : () => router.replace(proofCameraHref(target));
 
   return (
-    <Animated.View style={[styles.screen, impact.style]}>
+    <View style={styles.screen}>
+      {/* Only the proof and its stamp take the impact; the panel and the screen edges stay still. */}
       <View style={styles.media}>
-        <VerdictMedia capture={capture} />
+        <Animated.View style={[styles.shake, impact.style]}>
+          <VerdictMedia capture={capture} />
+        </Animated.View>
         {/* The proof runs under the clock and battery. A dark band with light glyphs keeps them readable on any photo. */}
         <View pointerEvents="none" style={[styles.statusBand, { height: insets.top }]} />
         {phase.name === "reviewing" && <ReviewingOverlay title={target.title} />}
@@ -56,12 +59,13 @@ export function VerdictScreen() {
         }
       />
       <StatusBar style="light" />
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
-  media: { flex: 1.1, overflow: "hidden" },
+  media: { flex: 1.1, overflow: "hidden", backgroundColor: colors.text },
+  shake: { flex: 1 },
   statusBand: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: "rgba(0, 0, 0, 0.45)" },
 });

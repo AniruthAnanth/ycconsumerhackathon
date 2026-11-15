@@ -2,11 +2,11 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { Button, Header, OutlinedPillButton, Screen } from "@/components/ui";
+import { Button, Header, Screen } from "@/components/ui";
 import { Artwork } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { RecordButton } from "./RecordButton";
@@ -63,12 +63,6 @@ export function VoiceDraftScreen() {
                 level={draft.level}
                 onPress={draft.toggleRecording}
               />
-              {/* Talking is the quick way in, not the only one: the same lineup can be picked by hand. */}
-              {state.phase === "idle" ? (
-                <View style={styles.skip} testID="draft-skip">
-                  <OutlinedPillButton label="Skip — I'll pick my own" onPress={draft.pickOwn} />
-                </View>
-              ) : null}
             </View>
           )}
           <View style={styles.transcript}>
@@ -93,6 +87,13 @@ export function VoiceDraftScreen() {
         </ScrollView>
         {/* One primary action at a time: Lock Lineup appears with the lineup it locks. Pinned while
             the player is still talking or typing, it covered "Draft from text" on a short phone. */}
+        {/* Talking is the quick way in, not the only one: the same lineup can be picked by hand. A plain
+            grey link at the foot of the screen, so the microphone stays the one obvious action. */}
+        {state.phase === "idle" && !showsLineup ? (
+          <Pressable accessibilityRole="button" onPress={draft.pickOwn} style={styles.skip} testID="draft-skip">
+            <Text style={styles.skipLabel}>Skip — I'll pick my own</Text>
+          </Pressable>
+        ) : null}
         {showsLineup || state.error ? (
           <View style={styles.footer}>
             {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
@@ -126,7 +127,8 @@ const styles = StyleSheet.create({
     ...type.body,
     color: colors.textMuted,
   },
-  skip: { paddingTop: spacing.lg },
+  skip: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center", paddingHorizontal: SCREEN_MARGIN, marginBottom: spacing.md },
+  skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
   footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
