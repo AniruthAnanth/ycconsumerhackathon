@@ -329,8 +329,8 @@ async function moneyEntries(ctx: QueryCtx, league: League, at?: number): Promise
   const won = winnings(ledger);
   const net = netMoney(ledger);
   const netYesterday = netMoney(ledger, startOfPacificDay(pacificDay(lastPayoutAt)));
-  // A settled week has paid out: its money is in the ledger and nothing is left to project.
-  const inPlay = league.current?.status !== "settled" && league.members.length <= MAX_PROJECTED_MEMBERS;
+  // Once the stake has been paid out its money is in the ledger and nothing is left to project.
+  const inPlay = !paidOut(league) && league.members.length <= MAX_PROJECTED_MEMBERS;
   const projected = inPlay ? await projections(ctx, league, at) : new Map<UserId, Projection>();
 
   return league.members.flatMap((member) => {
@@ -458,8 +458,8 @@ export const projection = query({
     const mine = (await projections(ctx, league, at, me._id)).get(me._id);
     if (mine === undefined) return null;
     return {
-      // A settled week has nothing left to project: the line says what it paid.
-      label: league.current?.status === "settled" ? settledLabel(mine) : projectionLabel(mine),
+      // Once the stake is paid out there is nothing left to project: the line says what it paid.
+      label: paidOut(league) ? settledLabel(mine) : projectionLabel(mine),
       eligible: mine.eligible,
       stakeUsd: mine.stakeCents / 100,
       ifEndedNowUsd: mine.ifEndedNowCents / 100,
@@ -539,9 +539,22 @@ async function projections(ctx: QueryCtx, league: League, at?: number, only?: Us
   return projected;
 }
 
+/**
+ * True once the stake the league plays for has been paid out: a weekly
+ * league's settled week, or the settled last week of a season. A "season"
+ * league settles every week but holds the stakes until its last one
+ * (whop.closeWeek), so until then they are still in play.
+ */
+function paidOut(league: League): boolean {
+  const week = league.current;
+  if (week === null || week.status !== "settled") return false;
+  const settings = resolveSettings(league.doc);
+  return settings.payout === "weekly" || week.number === seasonOf(week.number, settings.seasonWeeks).lastWeek;
+}
+
 // ---- Loading a league and its weeks -----------------------------------------------------------
 
-type Member = { userId: UserId; name: string; avatarUrl?: string; paid: boolean };
+type Member = { userId: UserId; name: string; avatarUrl?: string };
 
 type League = {
   doc: Doc<"leagues">;
@@ -579,7 +592,6 @@ async function loadLeague(ctx: ReadCtx, leagueId: Id<"leagues">): Promise<League
         userId: membership.userId,
         name: user?.name ?? "Player",
         ...(avatarUrl ? { avatarUrl } : {}),
-        paid: membership.paid,
       };
     }),
   );
@@ -685,11 +697,16 @@ async function leagueWeek(
   // Both sides of every pair are compared on their points before any bonus lands.
   const before = new Map(league.members.map((member, i) => [member.userId, now[i].stats.points]));
   const at = new Map(league.members.map((member, i) => [member.userId, i]));
+  // A member with the week off has a stand-in row so their Matchup tab is not empty. It is not a
+  // game, and counting it would give the member it borrows a second bonus (standings.ts).
+  const games = new Set(
+    withoutStandIns(pairs.map((row) => ({ ...row, a: row.userA, b: row.userB }))).map((row) => row._id),
+  );
   const sides = pairs.flatMap((pair) => [
-    { mine: pair.userA, theirs: pair.userB, final: pair.scoreA },
-    { mine: pair.userB, theirs: pair.userA, final: pair.scoreB },
+    { mine: pair.userA, theirs: pair.userB, final: pair.scoreA, game: games.has(pair._id) },
+    { mine: pair.userB, theirs: pair.userA, final: pair.scoreB, game: games.has(pair._id) },
   ]);
-  for (const { mine, theirs, final } of sides) {
+  for (const { mine, theirs, final, game } of sides) {
     const i = at.get(mine);
     if (i === undefined) continue;
     if (final !== undefined) {
@@ -702,7 +719,7 @@ async function leagueWeek(
       continue;
     }
     // Once a week has settled, the higher scorer of each pair holds the matchup bonus.
-    if (week.status !== "settled") continue;
+    if (week.status !== "settled" || !game) continue;
     const bonus = matchupBonus(before.get(mine) ?? 0, before.get(theirs) ?? Infinity);
     if (bonus === 0) continue;
     now[i].stats.points += bonus;

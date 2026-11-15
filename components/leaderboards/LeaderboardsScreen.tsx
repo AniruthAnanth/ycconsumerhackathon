@@ -12,6 +12,7 @@ import { BoardPicker } from "./BoardPicker";
 import { parseBoardKey } from "./boards";
 import { hourStart } from "./format";
 import { LeaderboardTable } from "./LeaderboardTable";
+import { ProjectionRange } from "./ProjectionRange";
 import { RivalLine } from "./RivalLine";
 
 export function LeaderboardsScreen() {
@@ -38,6 +39,7 @@ export function LeaderboardsScreen() {
       <BoardPicker active={board} onChange={setBoard} />
       <ScrollView>
         <RivalLine label={result?.rival?.label} />
+        {board === "money" ? <ProjectionRange leagueId={leagueId} /> : null}
         <LeaderboardTable valueHeader={result?.valueHeader ?? ""} rows={result?.rows} />
       </ScrollView>
     </Screen>

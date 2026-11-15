@@ -10,7 +10,8 @@ import { useProjection } from "./useProjection";
 /**
  * One compact "Projected: +$12.40" line that opens the money board. It sits
  * above the week's total, so it is a single short row: the range lives on the
- * board, and a taller line would push the task list up when it loads.
+ * money board (ProjectionRange), and a taller line would push the task list up
+ * when it loads.
  * Renders nothing in a free league or while the projection loads.
  */
 export function ProjectionLine({ leagueId }: { leagueId: Id<"leagues"> | null }) {

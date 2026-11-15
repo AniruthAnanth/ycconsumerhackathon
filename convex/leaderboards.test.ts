@@ -160,6 +160,48 @@ describe("leaderboards.board", () => {
     expect(money.rows.some((row) => row.isMe)).toBe(false);
   });
 
+  test("a stand-in matchup carries no bonus when the week settles", async () => {
+    const { t, leagueId, as, idOf } = await seededLeague();
+    await t.run(async (ctx) => {
+      const weeks = await ctx.db
+        .query("weeks")
+        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+        .collect();
+      const current = weeks.find((week) => week.startsAt === weekStartOf(NOW))!;
+      // Stored last, as leagues.ts stores a stand-in: Maya, who is already playing Sam, against Leo.
+      await ctx.db.insert("matchups", { weekId: current._id, userA: idOf("Maya"), userB: idOf("Leo") });
+    });
+    const viewer = as("Maya");
+    await viewer.action(api.whop.settleWeek, { leagueId });
+    await t.mutation(internal.leaderboards.rebuild, { leagueId });
+
+    const table = await viewer.query(api.standings.table, { leagueId });
+    const { rows } = await viewer.query(api.leaderboards.board, { leagueId, board: "week" });
+    expect(rows.map((row) => [row.name, row.value])).toEqual(table.map((row) => [row.name, row.points]));
+    // One bonus, for beating Sam; none for the stand-in.
+    expect(rows[0]).toMatchObject({ name: "Maya Chen", value: 550 });
+    const global = await viewer.query(api.leaderboards.board, { leagueId, board: "global" });
+    expect(global.rows[0]).toMatchObject({ name: "Maya Chen", value: 550 });
+  });
+
+  test("a season league's stake stays in play through a settled week that is not its last", async () => {
+    const { t, leagueId, as } = await seededLeague();
+    // Week 5 of 8, settled as a season league settles every week: no payout rows, stakes held.
+    await t.run(async (ctx) => {
+      await ctx.db.patch("leagues", leagueId, { payout: "season" });
+      const weeks = await ctx.db
+        .query("weeks")
+        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+        .collect();
+      const current = weeks.find((week) => week.startsAt === weekStartOf(NOW))!;
+      await ctx.db.patch("weeks", current._id, { status: "settled" });
+    });
+    const viewer = as("Maya");
+    const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money", at: NOW });
+    expect(money.rows.find((row) => row.isMe)?.detail).toMatch(/^Projected: /);
+    expect((await viewer.query(api.leaderboards.projection, { leagueId, at: NOW }))!.label).toMatch(/^Projected: /);
+  });
+
   test("a new proof reorders the board at once and shows as movement", async () => {
     const { t, leagueId, as, idOf } = await seededLeague();
     // Leo's gym session: 35 for the task, 25 for the slot, 5 for the day.

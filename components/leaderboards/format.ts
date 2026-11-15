@@ -56,6 +56,13 @@ export function isProjectedGain(projection: Pick<Projection, "eligible" | "expec
   return projection.eligible && projection.expectedUsd > projection.stakeUsd;
 }
 
+/**
+ * The payout behind the projection: what the player would be paid if the week
+ * ended now, and the range it can still land in. Once every case is the same
+ * amount the week is decided, and only that amount is worth saying.
+ */
 export function projectionDetail(projection: Pick<Projection, "ifEndedNowUsd" | "lowUsd" | "highUsd">): string {
-  return `If it ended now ${formatUsdWithCents(projection.ifEndedNowUsd)} · Low ${formatUsdWithCents(projection.lowUsd)} · High ${formatUsdWithCents(projection.highUsd)}`;
+  const now = formatUsdWithCents(projection.ifEndedNowUsd);
+  if (projection.lowUsd === projection.highUsd) return `Paid out ${now}`;
+  return `If it ended now you'd be paid ${now} · Range ${formatUsdWithCents(projection.lowUsd)} to ${formatUsdWithCents(projection.highUsd)}`;
 }
