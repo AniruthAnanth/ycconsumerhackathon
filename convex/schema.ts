@@ -28,6 +28,18 @@ export const place = v.object({
   lng: v.number(),
 });
 
+// League settings the creator picks. They are optional on leagues so a league
+// created without them keeps the original behaviour (weekly payout, 8 weeks,
+// round robin); read them through resolveSettings in lib/schedule.ts, never
+// straight off the row.
+export const payout = v.union(v.literal("weekly"), v.literal("season"));
+
+export const leagueFormat = v.union(
+  v.literal("round_robin"),
+  v.literal("double_round_robin"),
+  v.literal("bracket"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -63,6 +75,9 @@ export default defineSchema({
     keikiConversationId: v.optional(v.string()),
     whopCompanyId: v.optional(v.string()),
     createdBy: v.id("users"),
+    payout: v.optional(payout), // "season" holds every stake until the last week
+    seasonWeeks: v.optional(v.number()),
+    format: v.optional(leagueFormat),
   })
     .index("by_inviteCode", ["inviteCode"])
     .index("by_visibility_stake", ["visibility", "stakeUsd"]),
@@ -91,6 +106,11 @@ export default defineSchema({
     weekId: v.id("weeks"),
     userA: v.id("users"),
     userB: v.id("users"),
+    // Each side's final points, frozen once the week is over so the season
+    // schedule does not rescore old weeks. Absent while the week is live;
+    // seasons.ts scores the week itself when they are missing.
+    scoreA: v.optional(v.number()),
+    scoreB: v.optional(v.number()),
   }).index("by_week", ["weekId"]),
 
   lineups: defineTable({
