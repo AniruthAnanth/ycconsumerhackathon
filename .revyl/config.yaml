@@ -13,6 +13,9 @@ build:
   env:
     # Expo inlines EXPO_PUBLIC_* at bundle time; this is the crew's shared Convex dev deployment.
     EXPO_PUBLIC_CONVEX_URL: https://sensible-guineapig-9.convex.cloud
+    # A cloud phone has no camera, microphone or GPS. This starts the app with sample photos,
+    # a typed transcript and a fixed location offered in their place (lib/devFlags.ts).
+    EXPO_PUBLIC_DEV_FLAGS: "1"
   profiles:
     pull-request:
       ios:

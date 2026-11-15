@@ -14,7 +14,7 @@ export EXPO_PUBLIC_CONVEX_URL="${EXPO_PUBLIC_CONVEX_URL:-https://sensible-guinea
 # CI=1 keeps expo prebuild from prompting; nobody is at this terminal.
 export CI=1
 
-echo "==> Convex URL: $EXPO_PUBLIC_CONVEX_URL"
+echo "==> Convex URL: $EXPO_PUBLIC_CONVEX_URL, dev flags: ${EXPO_PUBLIC_DEV_FLAGS:-off}"
 echo "==> node $(node --version), npm $(npm --version), $(xcodebuild -version | tr '\n' ' ')"
 
 echo "==> Installing JavaScript dependencies"
@@ -31,8 +31,12 @@ WORKSPACE="$(ls -d ios/*.xcworkspace | head -n 1)"
 SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
 
 # The JavaScript bundle is produced by an Xcode build phase that sources ios/.xcode.env.local,
-# so this is the one place that reliably hands the URL to the bundler.
-printf 'export EXPO_PUBLIC_CONVEX_URL=%q\n' "$EXPO_PUBLIC_CONVEX_URL" >> ios/.xcode.env.local
+# so this is the one place that reliably hands EXPO_PUBLIC_* values to the bundler. Passing
+# every such variable through is what lets a caller turn on EXPO_PUBLIC_DEV_FLAGS=1, which a
+# cloud phone needs: it has no camera, microphone or GPS (see lib/devFlags.ts).
+for name in $(compgen -e | grep '^EXPO_PUBLIC_'); do
+  printf 'export %s=%q\n' "$name" "${!name}" >> ios/.xcode.env.local
+done
 
 # Release, not Debug: a Debug build loads its JavaScript from a Metro server, which a cloud
 # phone can't reach. Release embeds main.jsbundle in the app.
