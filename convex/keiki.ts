@@ -191,11 +191,15 @@ export const answerTurn = internalAction({
       texts = turn.messages.some((message) => !message.silent) ? [reply.trouble] : [];
     }
 
+    let delivered = 0;
     for (const [index, text] of texts.entries()) {
       // If this action runs again, the key stops a text going out twice: Keiki sends once per key.
-      await postToTurn(turn, bearer, "/messages", { text, idempotencyKey: `${turn.turnId}:${index}` });
+      const status = await postToTurn(turn, bearer, "/messages", { text, idempotencyKey: `${turn.turnId}:${index}` });
+      if (status === 200) delivered += 1;
     }
     await postToTurn(turn, bearer, "/complete", failure === null ? { status: "completed" } : { status: "failed", error: failure });
+    // The one place a delivery shows: send's "sent" only means Keiki accepted the notice.
+    if (texts.length > 0) console.log(`Keiki turn ${turn.turnId} on ${turn.channel}: ${delivered} of ${texts.length} delivered`);
     return null;
   },
 });
@@ -205,13 +209,20 @@ async function postToTurn(
   bearer: string,
   path: "/messages" | "/complete",
   body: Record<string, string>,
-): Promise<void> {
+): Promise<number> {
   const response = await fetch(`${turn.turnUrl}${path}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) console.warn(`Keiki ${path} on turn ${turn.turnId} answered ${response.status}`);
+  if (response.status === 429) {
+    // recipient_reply_required. The shared number lets the agent text a player only so many
+    // times before they write back; nothing to retry until they do.
+    console.warn(`Keiki refused a text on turn ${turn.turnId}: the player has to reply before the number may text them again`);
+  } else if (!response.ok) {
+    console.warn(`Keiki ${path} on turn ${turn.turnId} answered ${response.status}`);
+  }
+  return response.status;
 }
 
 async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promise<string[]> {
@@ -413,6 +424,7 @@ const UNDERSTAND_INSTRUCTIONS = [
   "the question is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I',",
   "the task titles for 'what's left'. Speak to the player as 'you'. If the facts don't answer it, say",
   "what you can do: judge a photo proof, STANDINGS, OPEN or PASS the mystery task, IN to join a group session.",
+  "When the facts do answer it, answer and stop: no sign-off, and no tip about a command to send next.",
 ].join(" ");
 
 const UNDERSTAND_SCHEMA = {
@@ -500,6 +512,8 @@ async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text
 
   return [
     `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
+    // The model words a reply for where it will be read: a chat reply should not say "text me".
+    `The player is writing ${turn.conversationId.startsWith(GATEWAY_PREFIX) ? "in the app's chat screen" : "by text message"}.`,
     week,
     `This player's open tasks this week and how each is proved: ${openTasks.join("; ") || "none"}.`,
     `How scoring works: ${SCORING_RULES}`,

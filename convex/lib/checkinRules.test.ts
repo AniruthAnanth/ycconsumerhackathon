@@ -11,6 +11,7 @@ import {
   mayText,
   pacificClock,
   passedBy,
+  tookTheLead,
   passedText,
   pickCheckIn,
   pickRival,
@@ -299,6 +300,15 @@ describe("passedBy", () => {
     expect(passedBy({ prover: { before: 0, after: 70 }, others: [still("sam", 0), still("jo", 30)] })).toEqual([
       { userId: "jo", gap: 40 },
     ]);
+  });
+
+  it("knows a proof that took the league's lead, which the league is texted about instead", () => {
+    const others = [still("sam", 105), still("jo", 60)];
+    expect(tookTheLead({ prover: { before: 90, after: 110 }, others })).toBe(true);
+    // Level with the leader is not in front, and a leader who only pulls away took nothing.
+    expect(tookTheLead({ prover: { before: 90, after: 105 }, others })).toBe(false);
+    expect(tookTheLead({ prover: { before: 110, after: 130 }, others })).toBe(false);
+    expect(tookTheLead({ prover: { before: 0, after: 40 }, others: [] })).toBe(false);
   });
 
   it("does not count someone the prover was already ahead of, whose points then dropped", () => {

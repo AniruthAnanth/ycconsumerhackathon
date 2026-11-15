@@ -28,6 +28,13 @@ describe("dropView", () => {
     expect(dropView(drop({ kind: "group", closesAt: NOW - 1 }), NOW)).toEqual({ type: "hidden" });
   });
 
+  it("hides a drop the moment its clock runs out, so no negative time or Submit is shown", () => {
+    const quick = drop({ closesAt: NOW + 500 });
+    expect(dropView(quick, NOW)).toMatchObject({ type: "timed", countdown: "0:01" });
+    expect(dropView(quick, NOW + 500)).toEqual({ type: "hidden" });
+    expect(dropView(quick, NOW + 60_000)).toEqual({ type: "hidden" });
+  });
+
   it("builds a timed view with a photo proof for a quick-time drop", () => {
     expect(dropView(drop({ gesture: "three fingers up" }), NOW)).toEqual({
       type: "timed",
@@ -59,7 +66,7 @@ describe("dropView", () => {
 
   it("seals a mystery task until it is opened, without its title", () => {
     const view = dropView(drop({ kind: "mystery", sealed: true }), NOW);
-    expect(view).toEqual({ type: "sealed", dropId: "drop1", slot: "body" });
+    expect(view).toEqual({ type: "sealed", dropId: "drop1", slot: "body", points: 15 });
   });
 
   it("shows an opened mystery task as timed, carrying the wager", () => {
@@ -73,7 +80,7 @@ describe("dropView", () => {
       { userId: "u2" as Id<"users">, name: "Ben", checkedIn: false },
       { userId: "u3" as Id<"users">, name: "Cy", checkedIn: false },
     ];
-    const upcoming = drop({ kind: "group", opensAt: NOW + 30_000, closesAt: NOW + 600_000, attendees });
+    const upcoming = drop({ kind: "group", opensAt: NOW + 30_000, closesAt: NOW + 600_000, attendees, taskId: undefined });
     expect(dropView(upcoming, NOW)).toEqual({
       type: "group",
       dropId: "drop1",
@@ -88,6 +95,11 @@ describe("dropView", () => {
       started: true,
       attending: 1,
     });
+  });
+
+  it("counts down to the end once check-in opens, before the start time", () => {
+    const checkInOpen = drop({ kind: "group", opensAt: NOW + 30_000, closesAt: NOW + 600_000 });
+    expect(dropView(checkInOpen, NOW)).toMatchObject({ type: "group", started: true, countdown: "10:00" });
   });
 
   it("treats a group session with no attendees as empty", () => {

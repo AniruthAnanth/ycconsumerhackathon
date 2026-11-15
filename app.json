@@ -65,6 +65,12 @@
       ],
       "expo-video",
       "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false
+        }
+      ],
       "@bacons/apple-targets"
     ],
     "experiments": {

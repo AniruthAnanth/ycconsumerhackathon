@@ -29,6 +29,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import { proofChallenged } from "./lib/notificationContent";
 
 // ---------------------------------------------------------------------------
 // Rules (pure)
@@ -228,6 +229,12 @@ export const open = mutation({
         task.title,
       ),
     );
+    // Only the proof's owner is pushed: it is their points that are on hold. Scheduled, never
+    // awaited, like the text above.
+    await ctx.scheduler.runAfter(0, internal.push.send, {
+      userId: proof.userId,
+      notification: proofChallenged({ challengeId, taskTitle: task.title, challengerName: challenger.name }),
+    });
     return challengeId;
   },
 });

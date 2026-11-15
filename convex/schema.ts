@@ -390,4 +390,30 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_token", ["token"]),
+
+  // Invite links and the referrals they bring in (convex/referrals.ts). One link per
+  // inviter and league, so sharing again sends the same short token.
+  inviteLinks: defineTable({
+    token: v.string(),
+    inviterId: v.id("users"),
+    leagueId: v.id("leagues"),
+    // Where "Open in Lineup" on the /i/<token> page points: the inviter's own app link
+    // (exp:// in Expo Go, lineup:// in a build), so the friend opens the same runtime.
+    appUrl: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_inviter_league", ["inviterId", "leagueId"]),
+
+  // One row per invited player, ever: by_invitee is what stops a second link from
+  // counting the same friend twice. The reward is read from the friend's lineups,
+  // so nothing here changes when they lock one.
+  referrals: defineTable({
+    inviterId: v.id("users"),
+    inviteeId: v.id("users"),
+    leagueId: v.id("leagues"),
+    joinedAt: v.number(),
+  })
+    .index("by_invitee", ["inviteeId"])
+    .index("by_inviter", ["inviterId"]),
 });

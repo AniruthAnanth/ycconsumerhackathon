@@ -167,6 +167,40 @@ describe("proofs.verify", () => {
     expect((await proofsOf(t)).map((proof) => proof.pass)).toEqual([false, true]);
   });
 
+  it("pushes the prover the referee's call, pass or fail", async () => {
+    const { t, as, userId, taskId } = await playerWithTask();
+    vi.mocked(judgeProof).mockResolvedValueOnce(
+      sees({ pass: false, confidence: 0.05, reason: "A slice of pizza on a plate, not leg day." }),
+    );
+
+    await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+    await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.filter((job) => job.name === "push:send").map((job) => job.args[0])).toEqual([
+      {
+        userId,
+        notification: {
+          id: `verdict:${taskId}:fail`,
+          kind: "verdict",
+          title: "Not verified",
+          body: "Leg day at the gym. A slice of pizza on a plate, not leg day. Retry any time this week.",
+          url: `/task/${taskId}`,
+        },
+      },
+      {
+        userId,
+        notification: {
+          id: `verdict:${taskId}:pass`,
+          kind: "verdict",
+          title: "Verified: +30",
+          body: "Leg day at the gym. Squat rack and mirror visible, matches leg day.",
+          url: `/task/${taskId}`,
+        },
+      },
+    ]);
+  });
+
   it("fails below 0.6 confidence and flags 0.6 to 0.75 as a close call", async () => {
     const { t, as, taskId } = await playerWithTask();
 

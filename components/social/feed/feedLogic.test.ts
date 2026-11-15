@@ -48,17 +48,23 @@ describe("reactionButtons", () => {
 
 describe("canChallenge", () => {
   it("lets another member challenge a fresh proof", () => {
-    expect(canChallenge(proof(), "user_sam", NOW)).toBe(true);
+    expect(canChallenge(proof(), "user_sam", NOW, 3)).toBe(true);
   });
 
   it("refuses your own proof, a second challenge, and a proof older than a day", () => {
-    expect(canChallenge(proof(), maya, NOW)).toBe(false);
-    expect(canChallenge(proof({ challenge: challenge("upheld") }), "user_sam", NOW)).toBe(false);
-    expect(canChallenge(proof({ createdAt: NOW - 25 * HOUR }), "user_sam", NOW)).toBe(false);
+    expect(canChallenge(proof(), maya, NOW, 6)).toBe(false);
+    expect(canChallenge(proof({ challenge: challenge("upheld") }), "user_sam", NOW, 6)).toBe(false);
+    expect(canChallenge(proof({ createdAt: NOW - 25 * HOUR }), "user_sam", NOW, 6)).toBe(false);
   });
 
   it("waits until we know who is looking", () => {
-    expect(canChallenge(proof(), undefined, NOW)).toBe(false);
+    expect(canChallenge(proof(), undefined, NOW, 6)).toBe(false);
+  });
+
+  it("needs a third member to vote, and waits for the member count", () => {
+    expect(canChallenge(proof(), "user_sam", NOW, 2)).toBe(false);
+    expect(canChallenge(proof(), "user_sam", NOW, 1)).toBe(false);
+    expect(canChallenge(proof(), "user_sam", NOW, undefined)).toBe(false);
   });
 });
 

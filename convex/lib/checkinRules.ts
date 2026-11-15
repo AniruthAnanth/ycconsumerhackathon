@@ -278,6 +278,20 @@ export function passedBy<UserId>(input: {
     .map((other) => ({ userId: other.userId, gap: prover.after - other.after }));
 }
 
+/**
+ * Whether the proof put the prover in front of the whole league when they were not before. The
+ * league is texted when its lead changes hands (convex/leadChange.ts), and that text reaches
+ * everyone the new leader went past on the way, so no "just passed you" goes out as well: one
+ * text per event.
+ */
+export function tookTheLead(input: {
+  prover: { before: number; after: number };
+  others: readonly { before: number; after: number }[];
+}): boolean {
+  const { prover, others } = input;
+  return others.every((other) => other.after < prover.after) && others.some((other) => other.before >= prover.before);
+}
+
 // ─── Wording ─────────────────────────────────────────────────────────────────────────────────
 
 /** "Maya's up 15." A first name is how league mates talk, and it keeps the prompt on one line. */

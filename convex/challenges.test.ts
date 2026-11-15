@@ -186,6 +186,35 @@ describe("challenge lifecycle", () => {
     });
   });
 
+  it("pushes the proof's owner, and nobody else, that their proof was challenged", async () => {
+    const { t, as, maya, sam, leagueId, proofId } = await setup();
+
+    const challengeId = await as(sam).mutation(api.challenges.open, {
+      proofId,
+      leagueId,
+    });
+
+    const scheduled = await t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(
+      scheduled
+        .filter((job) => job.name === "push:send")
+        .map((job) => job.args[0]),
+    ).toEqual([
+      {
+        userId: maya,
+        notification: {
+          id: `challenge:${challengeId}`,
+          kind: "challenge",
+          title: "Your proof was challenged",
+          body: 'Sam challenged "Leg day at the gym". Its points are held while the league votes.',
+          url: "/feed",
+        },
+      },
+    ]);
+  });
+
   it("overturns the proof and reopens the task once every eligible voter says not legit", async () => {
     const { t, as, taskStatus, challenge, sam, kai, noor, leagueId, proofId } =
       await setup();

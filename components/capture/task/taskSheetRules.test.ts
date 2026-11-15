@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Task } from "@/lib/backend";
 
-import { canSubmitProof, findTask, submitProofHref, toProofTarget } from "./taskSheet";
+import { canSubmitProof, findTask, submitProofHref, toProofTarget } from "./taskSheetRules";
 
 const gym: Task = {
   taskId: "t1" as Task["taskId"],

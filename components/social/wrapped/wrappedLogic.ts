@@ -49,3 +49,8 @@ export function indexAfterTap(tapX: number, pageWidth: number, current: number, 
 export function tapClosesStory(tapX: number, pageWidth: number, current: number, pageCount: number): boolean {
   return isForwardTap(tapX, pageWidth) && current >= pageCount - 1;
 }
+
+/** The text a card shares where no image can be sent (the web), so the share still says what the card says. */
+export function cardShareText(card: Pick<WrappedCard, "kind" | "stat" | "title" | "subtitle">): string {
+  return `${KIND_LABEL[card.kind]}: ${card.stat}. ${card.title}. ${card.subtitle} (Lineup Wrapped)`;
+}

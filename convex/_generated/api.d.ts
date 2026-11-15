@@ -48,6 +48,7 @@ import type * as lineup from "../lineup.js";
 import type * as memory from "../memory.js";
 import type * as profile from "../profile.js";
 import type * as proofs from "../proofs.js";
+import type * as push from "../push.js";
 import type * as seasons from "../seasons.js";
 import type * as seed from "../seed.js";
 import type * as standings from "../standings.js";
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   memory: typeof memory;
   profile: typeof profile;
   proofs: typeof proofs;
+  push: typeof push;
   seasons: typeof seasons;
   seed: typeof seed;
   standings: typeof standings;
