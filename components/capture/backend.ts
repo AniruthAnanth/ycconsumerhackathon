@@ -71,6 +71,8 @@ export const capture = {
   drops: {
     acceptMystery: mutation<{ dropId: Id<"drops">; wager?: number }, null>("drops:acceptMystery"),
     passMystery: mutation<{ dropId: Id<"drops"> }, null>("drops:passMystery"),
+    /** Idempotent: a second RSVP is still one. */
+    rsvp: mutation<{ dropId: Id<"drops"> }, null>("drops:rsvp"),
     triggerQuickTime: mutation<{ leagueId: Id<"leagues"> }, Id<"drops">>("drops:triggerQuickTime"),
     /** Seals a fresh envelope for the caller, replacing the one they hold. It appears a few seconds later. */
     triggerMystery: mutation<{ leagueId: Id<"leagues"> }, null>("drops:triggerMystery"),

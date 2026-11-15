@@ -16,7 +16,7 @@ export type DropView =
       wager?: number;
       proof?: ProofTarget;
     }
-  | { type: "group"; dropId: Id<"drops">; countdown: string; started: boolean; attending: number };
+  | { type: "group"; dropId: Id<"drops">; countdown: string; started: boolean; attending: number; going: boolean };
 
 function proofTargetFor(drop: Drop): ProofTarget | undefined {
   if (!drop.taskId) return undefined;
@@ -31,7 +31,7 @@ function proofTargetFor(drop: Drop): ProofTarget | undefined {
   };
 }
 
-export function dropView(drop: Drop, now: number): DropView {
+export function dropView(drop: Drop, now: number, meId?: Id<"users">): DropView {
   if (now >= drop.closesAt) return { type: "hidden" };
 
   if (drop.kind === "group") {
@@ -44,6 +44,8 @@ export function dropView(drop: Drop, now: number): DropView {
       countdown: formatCountdown((started ? drop.closesAt : drop.opensAt) - now),
       started,
       attending: started ? attendees.filter((attendee) => attendee.checkedIn).length : attendees.length,
+      // Until my id loads, assume I'm in, so someone already going never sees "I'm in" flash.
+      going: meId === undefined || attendees.some((attendee) => attendee.userId === meId),
     };
   }
 

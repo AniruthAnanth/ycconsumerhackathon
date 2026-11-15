@@ -87,6 +87,7 @@ describe("dropView", () => {
       countdown: "0:30",
       started: false,
       attending: 3,
+      going: true,
     });
     expect(dropView(upcoming, NOW + 30_000)).toEqual({
       type: "group",
@@ -94,12 +95,21 @@ describe("dropView", () => {
       countdown: "9:30",
       started: true,
       attending: 1,
+      going: true,
     });
   });
 
   it("counts down to the end once check-in opens, before the start time", () => {
     const checkInOpen = drop({ kind: "group", opensAt: NOW + 30_000, closesAt: NOW + 600_000 });
     expect(dropView(checkInOpen, NOW)).toMatchObject({ type: "group", started: true, countdown: "10:00" });
+  });
+
+  it("knows whether I have RSVP'd, and assumes I have until my id loads", () => {
+    const attendees = [{ userId: "u1" as Id<"users">, name: "Ana", checkedIn: false }];
+    const session = drop({ kind: "group", attendees });
+    expect(dropView(session, NOW, "u1" as Id<"users">)).toMatchObject({ going: true });
+    expect(dropView(session, NOW, "u2" as Id<"users">)).toMatchObject({ going: false });
+    expect(dropView(session, NOW)).toMatchObject({ going: true });
   });
 
   it("treats a group session with no attendees as empty", () => {
