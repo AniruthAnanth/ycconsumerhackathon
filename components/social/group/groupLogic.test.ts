@@ -13,22 +13,23 @@ describe("startTimeOptions", () => {
   it("offers the four quick times from the afternoon", () => {
     const options = startTimeOptions(at(15, 14));
     expect(options.map((option) => option.label)).toEqual([
+      "Now",
       "In 1 hour",
       "Tonight 7 PM",
       "Tomorrow 7 AM",
       "Tomorrow 6 PM",
     ]);
-    expect(options.map((option) => option.startsAt)).toEqual([at(15, 15), at(15, 19), at(16, 7), at(16, 18)]);
+    expect(options.map((option) => option.startsAt)).toEqual([at(15, 14), at(15, 15), at(15, 19), at(16, 7), at(16, 18)]);
   });
 
   it("drops tonight once 7 PM has passed", () => {
     const labels = startTimeOptions(at(15, 20)).map((option) => option.label);
-    expect(labels).toEqual(["In 1 hour", "Tomorrow 7 AM", "Tomorrow 6 PM"]);
+    expect(labels).toEqual(["Now", "In 1 hour", "Tomorrow 7 AM", "Tomorrow 6 PM"]);
   });
 
   it("rolls tomorrow over a month end", () => {
     const options = startTimeOptions(new Date(2026, 10, 30, 12).getTime());
-    expect(options[2].startsAt).toBe(new Date(2026, 11, 1, 7).getTime());
+    expect(options[3].startsAt).toBe(new Date(2026, 11, 1, 7).getTime());
   });
 });
 
