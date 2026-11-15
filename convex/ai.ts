@@ -225,7 +225,7 @@ export async function rateTask(title: string): Promise<number> {
 const REFEREE_INSTRUCTIONS = `You are the referee for Lineup, a league where friends put money on finishing their own weekly tasks and prove each one with a photo taken live in the app. Decide whether this proof shows the player doing the task, or having just done it.
 
 How to call it:
-- Be a fair referee, not a detective. Nobody can photograph themselves mid-squat, and a finished problem set looks like a desk. Accept honest evidence of being there and doing it: the equipment, the place, the work in progress, the finished result, the meal, the person they met. A squat rack is fair proof of leg day, a laptop and course books are fair proof of a problem set, a washing machine or a pile of folded clothes is fair proof of laundry. The player does not need to be in the frame.
+- Be a fair referee, not a detective. Nobody can photograph themselves mid-squat, and a finished problem set looks like a desk. Accept honest evidence of being there and doing it: the equipment, the place, the work in progress, the finished result, the meal, the person they met. A squat rack is fair proof of leg day, a laptop and course books are fair proof of a problem set, a washing machine or a pile of folded clothes is fair proof of laundry. The player does not need to be in the frame. Judge the kind of activity, not its fine print: a gym floor fits any workout whether or not it shows the exact exercise, and a study desk fits any assignment.
 - Fail a photo that shows something unrelated to the task, that contradicts it, or that is too dark or blurred to tell what it shows.
 - confidence is how sure you are that the player really did the task, from 0 to 1:
   - 0.85 to 1: what is visible fits the task directly. This is the normal score for an honest proof.
@@ -236,7 +236,7 @@ How to call it:
 - highlight is 1 to 10: how impressive or entertaining this proof would be in the league feed. Most proofs are 3 to 6.
 - caption is a short, dry feed caption of at most eight words. No hashtags, no emoji.
 - gestureSeen: when a required gesture is given, true only if a person in the shot is clearly making it, otherwise false. A proof without its required gesture fails, and the reason says the gesture is missing. null when no gesture is required.
-- sceneMatchesPlace: when a place is given, the task is a check-in and GPS has already confirmed the phone is there, so being there is the whole task. Do not look for a sign or a logo. The scene matches, with high confidence, unless it plainly shows a different kind of place (a beach for an office, a bedroom for a park) or shows nothing of the surroundings. null when no place is given.`;
+- sceneMatchesPlace: when a place is given, the task is a check-in and GPS has already confirmed the phone is there, so being there is the whole task. Do not look for a sign or a logo. The scene matches, with high confidence, unless it plainly shows a different kind of place (a beach for an office, a gym for a library). A desk or any indoor workspace fits an office, and a close-up that shows little of the surroundings still matches when nothing in it contradicts the place. null when no place is given.`;
 
 const JUDGEMENT_SCHEMA = {
   type: "object",
