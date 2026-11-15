@@ -1,0 +1,52 @@
+import { type ReactNode, useEffect } from "react";
+import { type StyleProp, type ViewStyle } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming, Easing } from "react-native-reanimated";
+
+import { useReduceMotion } from "./useReduceMotion";
+
+type Props = {
+  children: ReactNode;
+  /** Wait before the slam, so it lands on a beat of the reveal. */
+  delay?: number;
+  /** Called the moment it lands, for the haptic thud. Runs even with Reduce Motion on. */
+  onLand?: () => void;
+  style?: StyleProp<ViewStyle>;
+};
+
+const DROP_MS = 170;
+const SETTLE_MS = 130;
+
+/**
+ * Slams its child down from above full size, overshoots to slightly under, and settles: the
+ * referee's rubber stamp hitting the page. 300 ms in all. With Reduce Motion it appears in place.
+ */
+export function StampSlam({ children, delay = 0, onLand, style }: Props) {
+  const reduceMotion = useReduceMotion();
+  const scale = useSharedValue(reduceMotion ? 1 : 2.4);
+  const opacity = useSharedValue(reduceMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      scale.value = 1;
+      opacity.value = 1;
+      const timer = setTimeout(() => onLand?.(), delay);
+      return () => clearTimeout(timer);
+    }
+    scale.value = withDelay(
+      delay,
+      withSequence(
+        withTiming(0.92, { duration: DROP_MS, easing: Easing.in(Easing.quad) }),
+        withTiming(1, { duration: SETTLE_MS, easing: Easing.out(Easing.quad) }),
+      ),
+    );
+    opacity.value = withDelay(delay, withTiming(1, { duration: 90 }));
+    // The thud belongs to the frame the stamp touches down, not to when it started falling.
+    const timer = setTimeout(() => onLand?.(), delay + DROP_MS);
+    return () => clearTimeout(timer);
+    // onLand is a callback prop; re-running the slam when a parent re-renders would replay it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delay, reduceMotion]);
+
+  const animated = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
+  return <Animated.View style={[style, animated]}>{children}</Animated.View>;
+}

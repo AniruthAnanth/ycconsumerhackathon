@@ -60,7 +60,8 @@
           "microphonePermission": "Lineup uses the microphone so you can draft your week by voice."
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
