@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { canSubmitProof, findTask, submitProofHref, toProofTarget, type RosterTask } from "./taskSheet";
+import type { Task } from "@/lib/backend";
 
-const gym: RosterTask = {
-  taskId: "t1",
+import { canSubmitProof, findTask, submitProofHref, toProofTarget } from "./taskSheet";
+
+const gym: Task = {
+  taskId: "t1" as Task["taskId"],
   slot: "body",
   title: "Leg day",
   points: 10,
@@ -15,7 +17,7 @@ const gym: RosterTask = {
   dueLabel: "Due Sun",
   upNext: true,
 };
-const essay: RosterTask = { ...gym, taskId: "t2", slot: "mind", proofType: "canvas", place: undefined };
+const essay: Task = { ...gym, taskId: "t2" as Task["taskId"], slot: "mind", proofType: "canvas", place: undefined };
 
 describe("findTask", () => {
   it("finds a row by id", () => expect(findTask([gym, essay], "t2")).toBe(essay));
