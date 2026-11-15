@@ -20,6 +20,8 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
   const place = week ? placeLabel(week.rows) : undefined;
   return (
     <Pressable style={styles.strip} onPress={() => router.push("/leaderboards")} accessibilityRole="button" accessibilityLabel="Open leaderboards">
+      {/* Without a label the place read as a stray "1st" at the top of the League tab. */}
+      {place ? <Text style={styles.label}>YOUR RANK</Text> : null}
       <Text style={styles.place} numberOfLines={1}>
         {place ?? "Leaderboards"}
       </Text>
@@ -45,6 +47,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     borderColor: colors.divider,
   },
+  label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
   place: { flex: 1, fontSize: font.body, fontWeight: "600", color: colors.text },
   projection: { fontSize: font.body, fontWeight: "700", color: colors.text },
   gain: { color: colors.tabActive },
