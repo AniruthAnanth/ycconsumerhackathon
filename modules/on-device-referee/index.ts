@@ -14,7 +14,7 @@ import { requireOptionalNativeModule } from "expo";
 export type OnDeviceLabel = { identifier: string; confidence: number };
 
 export type OnDeviceAnalysis = {
-  /** False when Vision could not run, which happens on some iOS simulators. */
+  /** False when Vision could not read the photo, as on the iOS simulator. */
   available: boolean;
   /** Why it is unavailable, for logs and reports. Never shown to a player. */
   reason?: string;
@@ -28,6 +28,8 @@ export type OnDeviceAnalysis = {
 };
 
 type OnDeviceRefereeNativeModule = {
+  /** False on the iOS simulator, where Vision's models are handed a blank image. */
+  isSupported(): boolean;
   analyze(uri: string, detectPeople: boolean, detectHands: boolean): Promise<OnDeviceAnalysis>;
 };
 

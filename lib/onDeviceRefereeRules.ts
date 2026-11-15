@@ -1,4 +1,5 @@
 import type { OnDeviceAnalysis, OnDeviceLabel } from "../modules/on-device-referee";
+import type { Slot } from "./slots";
 
 /**
  * The pure half of the on-device referee: given what Apple Vision saw in a photo and the task
@@ -13,8 +14,6 @@ import type { OnDeviceAnalysis, OnDeviceLabel } from "../modules/on-device-refer
  * labels, for example "barbell", "health_club", "printed_page"). A label that is misspelled
  * here simply never matches, so keep new ones to that list.
  */
-
-export type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
 
 /**
  * The part of a task the pre-check reads. `slot` is optional because the verdict screen is
