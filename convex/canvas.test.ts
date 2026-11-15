@@ -11,12 +11,19 @@ import {
   isSubmitted,
   matchAssignmentByTitle,
   normaliseBaseUrl,
-  pacificWeekStart,
-  unverifiable,
   verdictFor,
   type CanvasAssignment,
 } from "./canvas";
+import { rejectWithoutJudging } from "./lib/verdict";
+import { weekStartOf } from "./lib/week";
 import schema from "./schema";
+
+// addTask has the model rate the new task, as lineup.addFlexTask does. The
+// model is out of reach in tests, so it always answers 35.
+vi.mock("./ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ai")>()),
+  rateTask: async () => 35,
+}));
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -115,21 +122,6 @@ describe("verdictFor", () => {
   });
 });
 
-describe("pacificWeekStart", () => {
-  it("is Monday 00:00 in Los Angeles for any moment of that week", () => {
-    expect(pacificWeekStart(SUNDAY_AFTERNOON)).toBe(THIS_MONDAY);
-    expect(pacificWeekStart(THIS_MONDAY)).toBe(THIS_MONDAY);
-    expect(pacificWeekStart(THIS_MONDAY - 1)).toBe(Date.parse("2026-11-02T08:00:00Z"));
-    expect(pacificWeekStart(Date.parse("2026-11-16T07:59:59.999Z"))).toBe(THIS_MONDAY);
-  });
-  it("uses Monday's UTC offset in a week where the clocks change", () => {
-    // Clocks went back on Sun 1 Nov 2026; that week's Monday was still on daylight time.
-    expect(pacificWeekStart(Date.parse("2026-11-01T20:00:00Z"))).toBe(Date.parse("2026-10-26T07:00:00Z"));
-    // Clocks went forward on Sun 8 Mar 2026; that week's Monday was on standard time.
-    expect(pacificWeekStart(Date.parse("2026-03-08T19:00:00Z"))).toBe(Date.parse("2026-03-02T08:00:00Z"));
-  });
-});
-
 describe("demoSchool", () => {
   const school = demoSchool(SUNDAY_AFTERNOON);
 
@@ -140,7 +132,7 @@ describe("demoSchool", () => {
     expect(dueDates).toEqual([...dueDates].sort((a, b) => a - b));
     for (const dueAt of dueDates) {
       expect(dueAt).toBeGreaterThan(SUNDAY_AFTERNOON);
-      expect(pacificWeekStart(dueAt)).toBe(THIS_MONDAY);
+      expect(weekStartOf(dueAt)).toBe(THIS_MONDAY);
     }
   });
   it("has work handed in and exactly one assignment that is not, so both verdicts can be shown", async () => {
@@ -342,7 +334,7 @@ describe("canvas functions", () => {
       reason: "Canvas shows Problem Set 6 submitted Sat 9:00 PM.",
       highlight: 5,
       caption: "Handed in Problem Set 6.",
-      points: 30,
+      points: 20,
       closeCall: false,
     });
     expect((await t.run((ctx) => ctx.db.get("tasks", taskId)))?.status).toBe("verified");
@@ -429,6 +421,10 @@ describe("canvas functions", () => {
 
     const first = await add(maya.as, "1");
     expect(await slotOf(first)).toEqual(["mind", "draft"]);
+    // It is playable at once at the starting points, then rated like a flex task.
+    expect((await t.run((ctx) => ctx.db.get("tasks", first)))?.points).toBe(20);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await t.run((ctx) => ctx.db.get("tasks", first)))?.points).toBe(35);
     // The same assignment again is the same task, not a second one.
     expect(await add(maya.as, "1")).toBe(first);
     expect(await slotOf(await add(maya.as, "2"))).toEqual(["flex", "flex"]);
@@ -478,7 +474,7 @@ describe("canvas functions", () => {
     const { maya, proofsOf } = await setUp();
     await expect(maya.as.action(api.canvas.listAssignments, {})).rejects.toThrow(/Connect Canvas first/);
     const taskId = await maya.as.mutation(api.canvas.addTask, { courseId: "c", assignmentId: "1", title: "Essay" });
-    expect(await maya.as.action(api.canvas.verify, { taskId })).toEqual(unverifiable("Connect Canvas to prove this task."));
+    expect(await maya.as.action(api.canvas.verify, { taskId })).toEqual(rejectWithoutJudging("Connect Canvas to prove this task."));
     expect(await proofsOf(taskId)).toHaveLength(0);
   });
 
@@ -505,7 +501,7 @@ describe("canvas functions", () => {
     const listError = await maya.as.action(api.canvas.listAssignments, {}).catch((caught: unknown) => caught);
 
     expect(fetchMock.mock.calls[0][0]).toBe("https://canvas.school.edu/api/v1/courses/42/assignments/7/submissions/self");
-    expect(verdict).toEqual(unverifiable("Canvas rejected the access token. Reconnect Canvas with a new one."));
+    expect(verdict).toEqual(rejectWithoutJudging("Canvas rejected the access token. Reconnect Canvas with a new one."));
     expect(String(listError)).toMatch(/rejected the access token/);
     expect(JSON.stringify([connected, verdict, listError]) + String(listError)).not.toContain(TOKEN);
     expect(await proofsOf(taskId)).toHaveLength(0);

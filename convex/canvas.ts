@@ -29,6 +29,15 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import { MAX_FLEX_TASKS, tidyTask } from "./lib/lineupRules";
+import { rejectWithoutJudging, type Verdict } from "./lib/verdict";
+import {
+  HOUR_MS,
+  clockLabel,
+  weekEndOf,
+  weekStartOf,
+  weekdayLabel,
+} from "./lib/week";
 
 // ---------------------------------------------------------------------------
 // Shapes
@@ -53,17 +62,6 @@ export type CanvasAssignment = CanvasIds & {
 export type CanvasSubmission = {
   workflow_state: string; // "submitted" | "unsubmitted" | "graded" | "pending_review"
   submitted_at: string | null; // ISO 8601; null when nothing was handed in
-};
-
-/** The verdict every proof type returns (API.md). */
-export type Verdict = {
-  pass: boolean;
-  confidence: number;
-  reason: string;
-  highlight: number;
-  caption: string;
-  points: number;
-  closeCall: boolean;
 };
 
 type CanvasConnection = { baseUrl: string; token: string };
@@ -197,108 +195,17 @@ export function verdictFor(
       closeCall: false,
     };
   }
-  const when = pacificDayAndTime(Date.parse(submission.submitted_at));
+  // Pacific time, the zone Lineup's weeks are defined in: "Sat 9:12 PM".
+  const at = Date.parse(submission.submitted_at);
   return {
     pass: true,
     confidence: 1,
-    reason: `Canvas shows ${task.title} submitted ${when}.`,
+    reason: `Canvas shows ${task.title} submitted ${weekdayLabel(at)} ${clockLabel(at)}.`,
     highlight: 5,
     caption: `Handed in ${task.title}.`,
     points: task.points,
     closeCall: false,
   };
-}
-
-/**
- * The verdict when Canvas could not be asked at all (not connected, token
- * rejected, school unreachable, no such assignment). It fails with a reason
- * the player can act on, and confidence 0 marks it as "no answer" rather than
- * "Canvas says no". verify returns it without recording a proof, so a network
- * blip never shows up in the league's feed as a failed attempt.
- */
-export function unverifiable(reason: string): Verdict {
-  return {
-    pass: false,
-    confidence: 0,
-    reason,
-    highlight: 1,
-    caption: "",
-    points: 0,
-    closeCall: false,
-  };
-}
-
-// Lineup runs on Pacific time (weeks are Monday to Sunday in
-// America/Los_Angeles), so times shown to players use it too.
-const PACIFIC = "America/Los_Angeles";
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
-
-/** "Sat 9:12 PM". */
-function pacificDayAndTime(at: number): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: PACIFIC,
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).formatToParts(at);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((each) => each.type === type)?.value ?? "";
-  // Assembled by hand because the formatted string separates the time from
-  // AM/PM with a narrow no-break space on newer runtimes.
-  return `${part("weekday")} ${part("hour")}:${part("minute")} ${part("dayPeriod")}`;
-}
-
-/**
- * weekStart for the week containing `now`: Monday 00:00 in America/Los_Angeles
- * as epoch ms, the key every task and proof of that week carries.
- *
- * Works on the Pacific wall clock (read as if it were UTC) to find Monday's
- * date, then converts that midnight back to a real instant with the UTC offset
- * in force on that Monday, which differs from today's in a week where the
- * clocks change.
- */
-export function pacificWeekStart(now: number): number {
-  const wallNow = pacificWallClock(now);
-  const daysSinceMonday = (new Date(wallNow).getUTCDay() + 6) % 7;
-  const mondayWall = startOfUtcDay(wallNow) - daysSinceMonday * DAY_MS;
-  const offsetNow = wallNow - wholeSeconds(now);
-  const nearMonday = mondayWall - offsetNow;
-  const offsetOnMonday = pacificWallClock(nearMonday) - wholeSeconds(nearMonday);
-  return mondayWall - offsetOnMonday;
-}
-
-/** The Pacific date and time at `at`, encoded as the epoch ms that reads the same in UTC. */
-function pacificWallClock(at: number): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: PACIFIC,
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(at);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((each) => each.type === type)?.value);
-  return Date.UTC(
-    part("year"),
-    part("month") - 1,
-    part("day"),
-    part("hour"),
-    part("minute"),
-    part("second"),
-  );
-}
-
-function wholeSeconds(at: number): number {
-  return at - (at % 1000);
-}
-
-function startOfUtcDay(at: number): number {
-  return at - (at % DAY_MS);
 }
 
 // ---------------------------------------------------------------------------
@@ -364,10 +271,9 @@ const DEMO_ASSIGNMENTS = [
 ] as const;
 
 export function demoSchool(now: number): CanvasSchool {
-  // The last minute of this week's Sunday, give or take the hour a clock
-  // change adds or removes. Due dates are capped here so every demo
-  // assignment belongs to the week being played.
-  const weekEndsAt = pacificWeekStart(now) + 7 * DAY_MS - 60 * 1000;
+  // Sunday 23:59 of the week being played. Due dates are capped here so every
+  // demo assignment belongs to that week, however late in it the demo runs.
+  const weekEndsAt = weekEndOf(weekStartOf(now)) - 60 * 1000;
   return {
     async assignments() {
       return DEMO_ASSIGNMENTS.map((demo) => ({
@@ -659,6 +565,9 @@ export const verifyContext = internalQuery({
  * Leaves the same trail a photo proof leaves: a proofs row for the feed and
  * standings and, on a pass, the task marked verified. A miss leaves the task
  * open, because a failed proof can be retried until the week ends.
+ *
+ * It mirrors proofs.record rather than calling it because that mutation
+ * requires the stored photo or video, and a Canvas proof has no media.
  */
 export const recordVerdict = internalMutation({
   args: {
@@ -763,17 +672,17 @@ export const listAssignments = action({
   },
 });
 
-// A player may add up to three flex tasks to a week (SPEC, roster slots).
-const MAX_FLEX_TASKS = 3;
-// Coursework sits in the middle of the 10 to 50 range the draft uses; there
-// is no model here to rate how hard one assignment is.
-const CANVAS_TASK_POINTS = 30;
+// The points a Canvas task starts with, the same as a typed-in flex task
+// (lineup.addFlexTask): playable at once, then rated by the model on the scale
+// drafted tasks use.
+const UNRATED_POINTS = 20;
 
 /**
  * Adds a Canvas assignment to the caller's current week. It takes the Mind
  * slot (school and work) while that slot is free and the lineup is still
  * being drafted, and otherwise becomes a flex task, the only kind a locked
- * lineup accepts.
+ * lineup accepts. Week, flex limit and points follow lineup.ts, so the row is
+ * the one lineup.addFlexTask would write, plus the Canvas ids.
  */
 export const addTask = mutation({
   args: {
@@ -784,12 +693,11 @@ export const addTask = mutation({
   returns: v.id("tasks"),
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    const title = args.title.trim();
-    if (title === "" || args.courseId === "" || args.assignmentId === "") {
+    if (args.title.trim() === "" || args.courseId === "" || args.assignmentId === "") {
       throw new ConvexError("Pick an assignment to add.");
     }
-    const weekStart = pacificWeekStart(Date.now());
-    // A week holds five slots, three flex tasks and a few drops, far below 100.
+    const weekStart = weekStartOf(Date.now());
+    // A week holds a lineup of at most eight tasks plus a handful from drops.
     const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_user_week", (q) =>
@@ -822,24 +730,34 @@ export const addTask = mutation({
     const asFlex = locked || mindTaken;
     if (
       asFlex &&
-      tasks.filter((task) => task.source === "flex").length >= MAX_FLEX_TASKS
+      tasks.filter((task) => task.slot === "flex").length >= MAX_FLEX_TASKS
     ) {
       throw new ConvexError(
         `You already have ${MAX_FLEX_TASKS} flex tasks this week.`,
       );
     }
 
-    return await ctx.db.insert("tasks", {
+    const task = tidyTask({
+      slot: asFlex ? "flex" : "mind",
+      title: args.title,
+      points: UNRATED_POINTS,
+      proofType: "canvas",
+    });
+    const taskId = await ctx.db.insert("tasks", {
+      ...task,
       userId: user._id,
       weekStart,
-      slot: asFlex ? "flex" : "mind",
-      title,
-      points: CANVAS_TASK_POINTS,
-      proofType: "canvas",
       canvas: { courseId: args.courseId, assignmentId: args.assignmentId },
       status: "open",
       source: asFlex ? "flex" : "draft",
     });
+    // Despite its name this rates any open task; it is what gives a typed-in
+    // flex task its points.
+    await ctx.scheduler.runAfter(0, internal.lineup.rateFlexTask, {
+      taskId,
+      title: task.title,
+    });
+    return taskId;
   },
 });
 
@@ -847,8 +765,11 @@ export const addTask = mutation({
  * Proves a Canvas task by asking Canvas whether the assignment was handed in.
  *
  * A definite answer, yes or no, is recorded as a proof. When Canvas can't be
- * asked, the player gets a failing verdict that says why and nothing is
- * recorded (see unverifiable). Verifying a task that is already verified
+ * asked (not connected, token rejected, school unreachable, no such
+ * assignment), the player gets a failing verdict that says why, with
+ * confidence 0 to mark it as "no answer" rather than "Canvas says no", and
+ * nothing is recorded: a network blip must not show up in the league's feed
+ * as a failed attempt. Verifying a task that is already verified
  * returns the verdict on record without a second proof.
  */
 export const verify = action({
@@ -865,7 +786,7 @@ export const verify = action({
       return recorded;
     }
     if (connection === null) {
-      return unverifiable("Connect Canvas to prove this task.");
+      return rejectWithoutJudging("Connect Canvas to prove this task.");
     }
 
     let verdict: Verdict;
@@ -879,7 +800,7 @@ export const verify = action({
           await school.assignments("all"),
         );
         if (assignment === null) {
-          return unverifiable(
+          return rejectWithoutJudging(
             `Canvas has no assignment that matches "${task.title}". Add it from Connect Canvas instead.`,
           );
         }
@@ -894,7 +815,7 @@ export const verify = action({
       // The schools raise ConvexErrors written for the player; anything else
       // is a bug and should surface as one.
       if (error instanceof ConvexError && typeof error.data === "string") {
-        return unverifiable(error.data);
+        return rejectWithoutJudging(error.data);
       }
       throw error;
     }
