@@ -214,6 +214,8 @@ export const open = mutation({
       closesAt,
     });
     await ctx.db.patch("tasks", task._id, { status: "held" });
+    // The held points leave the leaderboards' stored copy of the owner's week.
+    await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: task.userId, weekStart: task.weekStart });
     await ctx.scheduler.runAt(closesAt, internal.challenges.close, {
       challengeId,
     });
@@ -317,6 +319,8 @@ async function settle(
     // challenger's points count in the week the result landed.
     closesAt: Math.min(challenge.closesAt, now),
   });
+  // The result moved the challenger's points, so the leaderboards rebuild the league's stored rows.
+  await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: challenge.leagueId });
 
   const proof = await ctx.db.get("proofs", challenge.proofId);
   const task = proof === null ? null : await ctx.db.get("tasks", proof.taskId);
@@ -328,6 +332,7 @@ async function settle(
     await ctx.db.patch("tasks", task._id, {
       status: status === "upheld" ? "verified" : "open",
     });
+    await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: task.userId, weekStart: task.weekStart });
   }
   await textLeague(
     ctx,

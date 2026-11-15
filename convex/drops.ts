@@ -536,6 +536,7 @@ export const recordHeadcount = internalMutation({
     if (drop === null || headcount <= (drop.headcount ?? 0)) return null;
     await ctx.db.patch("drops", dropId, { headcount, groupPhotoId: storageId });
     await reprice(ctx, { ...drop, headcount });
+    await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
     return null;
   },
 });
@@ -614,6 +615,8 @@ export const onTaskVerified = internalMutation({
     const drop = await ctx.db.get("drops", task.dropId);
     if (drop === null) return null;
     await reprice(ctx, drop);
+    // Repricing changed what members' tasks are worth, so the leaderboards rebuild the league's stored rows.
+    await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
     if (drop.kind === "group") {
       await ctx.scheduler.runAfter(0, internal.drops.countGroupPhoto, { dropId: drop._id, taskId });
     }
@@ -633,6 +636,8 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
     const points = drop.kind === "mystery" ? mysteryScore(drop.points, drop.wager ?? 0, false) : task.points;
     await ctx.db.patch("tasks", task._id, { status: "failed", points });
   }
+  // The last pricing and any mystery penalty are in; the leaderboards rebuild the league's stored rows.
+  await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
 
   if (drop.kind !== "group") return;
   const checkedIn = (await rsvpsOf(ctx, drop._id)).filter((rsvp) => rsvp.checkedIn).length;

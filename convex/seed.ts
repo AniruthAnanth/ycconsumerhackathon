@@ -645,6 +645,9 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
     }
   }
 
+  // The leaderboards keep stored rows per player and week; rebuild them for the fresh league.
+  await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
+
   return { photosMissing: PHOTO_KEYS.some((key) => photos[key] === undefined) };
 }
 

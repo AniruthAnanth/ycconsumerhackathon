@@ -192,6 +192,10 @@ describe("leaderboards.board", () => {
   test("the global boards rank the stored rows across leagues", async () => {
     const { t, leagueId, as } = await seededLeague();
     const viewer = as("Jordan");
+    // Start from nothing stored, as on a league no writer has touched yet.
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("scores").collect()) await ctx.db.delete("scores", row._id);
+    });
     expect((await viewer.query(api.leaderboards.board, { leagueId, board: "global" })).rows).toEqual([]);
 
     // Opening the Leaderboards screen is what asks for the rebuild.
@@ -231,6 +235,69 @@ describe("leaderboards.board", () => {
 
     const { rows } = await as("Leo").query(api.leaderboards.board, { leagueId, board: "global" });
     expect(rows.find((row) => row.isMe)).toMatchObject({ rank: 5, value: 65, movement: 1 });
+  });
+});
+
+describe("keeping the stored rows current", () => {
+  test("a seed reset rebuilds the league's rows", async () => {
+    const { t } = await seededLeague();
+    const rows = await t.run((ctx) => ctx.db.query("scores").collect());
+    expect(rows.filter((row) => row.weekStart !== 0).map((row) => row.points).sort((a, b) => b - a)).toEqual([
+      500, 285, 195, 120, 60, 0,
+    ]);
+  });
+
+  test("a verified proof refreshes the player's stored week", async () => {
+    const { t, leagueId, as, idOf } = await seededLeague();
+    const leo = idOf("Leo");
+    const { taskId, storageId } = await t.run(async (ctx) => {
+      const tasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_user_week", (q) => q.eq("userId", leo).eq("weekStart", weekStartOf(NOW)))
+        .collect();
+      return {
+        taskId: tasks.find((task) => task.slot === "mind")!._id,
+        storageId: await ctx.storage.store(new Blob(["a photo"])),
+      };
+    });
+    await t.mutation(internal.proofs.record, {
+      taskId,
+      userId: leo,
+      storageId,
+      mediaType: "photo",
+      via: "app",
+      verdict: { pass: true, confidence: 0.9, reason: "A finished report.", highlight: 7, caption: "Done.", points: 40, closeCall: false },
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    // 40 for the task, 25 for the slot, 5 for the day: past Ava's 60 on the global board, which only reads stored rows.
+    const { rows } = await as("Leo").query(api.leaderboards.board, { leagueId, board: "global" });
+    expect(rows.find((row) => row.isMe)).toMatchObject({ rank: 5, value: 70, movement: 1 });
+  });
+
+  test("a rebuild drops the rows of a player who left and of a week that was removed", async () => {
+    const { t, leagueId, idOf } = await seededLeague();
+    await t.run(async (ctx) => {
+      const ava = await ctx.db
+        .query("memberships")
+        .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", idOf("Ava")))
+        .unique();
+      await ctx.db.delete("memberships", ava!._id);
+      const maya = await ctx.db
+        .query("scores")
+        .withIndex("by_league_week_user", (q) =>
+          q.eq("leagueId", leagueId).eq("weekStart", weekStartOf(NOW)).eq("userId", idOf("Maya")),
+        )
+        .unique();
+      // A row for a week the league no longer has.
+      const { _id, _creationTime, ...row } = maya!;
+      await ctx.db.insert("scores", { ...row, weekStart: weekStartOf(NOW) - 7 * DAY_MS });
+    });
+    await t.mutation(internal.leaderboards.rebuild, { leagueId });
+
+    const rows = await t.run((ctx) => ctx.db.query("scores").collect());
+    expect(rows.some((row) => row.userId === idOf("Ava"))).toBe(false);
+    expect(rows.filter((row) => row.userId === idOf("Maya")).map((row) => row.points)).toEqual([500, 500]);
   });
 });
 

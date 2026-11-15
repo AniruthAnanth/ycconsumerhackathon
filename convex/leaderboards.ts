@@ -692,9 +692,36 @@ export const rebuild = internalMutation({
       }
     }
     for (const member of league.members) await storeAllTime(ctx, member.userId, today);
+    await removeStrayRows(ctx, league);
     return null;
   },
 });
+
+/**
+ * Deletes the league's stored rows that no longer belong to anything: a player
+ * who has left (a seed reset drops late joiners) or a week that was removed.
+ * Left alone they would sit on the global boards for ever.
+ */
+async function removeStrayRows(ctx: MutationCtx, league: League): Promise<void> {
+  const memberIds = new Set(league.members.map((member) => member.userId));
+  // Only a league whose every week was loaded can tell a removed week from an old one.
+  const weekStarts = league.weeks.length < MAX_WEEKS ? new Set(league.weeks.map((week) => week.startsAt)) : null;
+  // scores.by_league_week_user: every stored row of this league.
+  const rows = await ctx.db
+    .query("scores")
+    .withIndex("by_league_week_user", (q) => q.eq("leagueId", league.doc._id))
+    .take(MAX_STORED_ROWS);
+  const strays = rows.filter(
+    (row) =>
+      !memberIds.has(row.userId) || (row.weekStart !== ALL_TIME && weekStarts !== null && !weekStarts.has(row.weekStart)),
+  );
+  for (const row of strays) await ctx.db.delete("scores", row._id);
+  // A member whose removed week was their only one still has an all-time row to recount.
+  const today = startOfPacificDay(pacificDay(Date.now()));
+  for (const userId of new Set(strays.map((row) => row.userId))) {
+    if (memberIds.has(userId)) await storeAllTime(ctx, userId, today);
+  }
+}
 
 async function storeWeek(
   ctx: MutationCtx,
@@ -705,8 +732,13 @@ async function storeWeek(
   today: number,
 ): Promise<void> {
   const facts = await weekFacts(ctx, leagueId, userId, weekStart, adjustment);
-  // A week the player never drafted has nothing to rank; it reads as zeros without a row.
-  if (facts.tasks.length === 0 && adjustment === 0) return;
+  // A week the player never drafted has nothing to rank: it reads as zeros
+  // without a row, and a row left from before a reset must not outlive it.
+  if (facts.tasks.length === 0 && adjustment === 0) {
+    const stale = await storedRow(ctx, leagueId, weekStart, userId);
+    if (stale !== null) await ctx.db.delete("scores", stale._id);
+    return;
+  }
   const now = tallyWeek(facts);
   await store(ctx, {
     leagueId,
@@ -722,13 +754,19 @@ async function storeWeek(
 
 /** The all-time row of each league a player is in: the totals of their week rows there. */
 async function storeAllTime(ctx: MutationCtx, userId: UserId, today: number): Promise<void> {
-  // scores.by_user_week: every week row this player has, in every league.
+  // scores.by_user_week: every row this player has, in every league.
   const rows = await ctx.db
     .query("scores")
-    .withIndex("by_user_week", (q) => q.eq("userId", userId).gt("weekStart", ALL_TIME))
+    .withIndex("by_user_week", (q) => q.eq("userId", userId))
     .take(MAX_STORED_ROWS);
   const byLeague = new Map<Id<"leagues">, Doc<"scores">[]>();
-  for (const row of rows) byLeague.set(row.leagueId, [...(byLeague.get(row.leagueId) ?? []), row]);
+  for (const row of rows) {
+    if (row.weekStart !== ALL_TIME) byLeague.set(row.leagueId, [...(byLeague.get(row.leagueId) ?? []), row]);
+  }
+  // An all-time row with no week left under it totals nothing.
+  for (const row of rows) {
+    if (row.weekStart === ALL_TIME && !byLeague.has(row.leagueId)) await ctx.db.delete("scores", row._id);
+  }
 
   for (const [leagueId, weeks] of byLeague) {
     const now = totalStats(weeks.map((row) => ({ weekStart: row.weekStart, stats: row.now, activeDays: row.activeDays })));
@@ -748,13 +786,7 @@ type ScoreRow = Omit<Doc<"scores">, "_id" | "_creationTime">;
 
 /** Inserts or replaces the row for (league, week, player), and leaves it alone when nothing changed. */
 async function store(ctx: MutationCtx, row: ScoreRow): Promise<void> {
-  // scores.by_league_week_user
-  const existing = await ctx.db
-    .query("scores")
-    .withIndex("by_league_week_user", (q) =>
-      q.eq("leagueId", row.leagueId).eq("weekStart", row.weekStart).eq("userId", row.userId),
-    )
-    .unique();
+  const existing = await storedRow(ctx, row.leagueId, row.weekStart, row.userId);
   if (existing === null) {
     await ctx.db.insert("scores", row);
     return;
@@ -766,6 +798,19 @@ async function store(ctx: MutationCtx, row: ScoreRow): Promise<void> {
     sameStats(existing.yesterday, row.yesterday) &&
     existing.activeDays.join() === row.activeDays.join();
   if (!unchanged) await ctx.db.replace("scores", existing._id, row);
+}
+
+async function storedRow(
+  ctx: ReadCtx,
+  leagueId: Id<"leagues">,
+  weekStart: number,
+  userId: UserId,
+): Promise<Doc<"scores"> | null> {
+  // scores.by_league_week_user
+  return await ctx.db
+    .query("scores")
+    .withIndex("by_league_week_user", (q) => q.eq("leagueId", leagueId).eq("weekStart", weekStart).eq("userId", userId))
+    .unique();
 }
 
 export function sameStats(a: ScoreStats, b: ScoreStats): boolean {

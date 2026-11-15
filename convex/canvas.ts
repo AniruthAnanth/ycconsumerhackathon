@@ -601,6 +601,8 @@ export const recordVerdict = internalMutation({
     });
     if (args.pass) {
       await ctx.db.patch("tasks", task._id, { status: "verified" });
+      // Leaderboards keep a stored copy of each player's week; this rebuilds theirs.
+      await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: task.userId, weekStart: task.weekStart });
     }
     return null;
   },
