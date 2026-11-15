@@ -290,6 +290,32 @@ describe("mystery task", () => {
     expect(texts.join("\n")).toMatch(/Mystery task: \w+, 30 to 60 points\. Reply OPEN or PASS\./);
   });
 
+  it("reaches every league, however many there are", async () => {
+    const t = convexTest(schema, modules);
+    const leagues = 101; // one more than a single run of the morning job hands on
+    await t.run(async (ctx) => {
+      for (let n = 0; n < leagues; n++) {
+        const userId = await ctx.db.insert("users", { name: `Player ${n}` });
+        const leagueId = await ctx.db.insert("leagues", {
+          name: `League ${n}`,
+          inviteCode: `L${n}`,
+          stakeUsd: 0,
+          visibility: "private",
+          maxMembers: 12,
+          createdBy: userId,
+        });
+        await ctx.db.insert("memberships", { leagueId, userId, paid: false, joinedAt: NOW });
+      }
+    });
+
+    await t.mutation(internal.drops.dailyMystery, {});
+    await runScheduled(t);
+
+    const sealed = await t.run((ctx) => ctx.db.query("drops").take(500));
+    expect(sealed).toHaveLength(leagues);
+    expect(new Set(sealed.map((drop) => drop.leagueId)).size).toBe(leagues);
+  });
+
   it("searches the player's memory, then lets the model pick the task", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Maya"]);
