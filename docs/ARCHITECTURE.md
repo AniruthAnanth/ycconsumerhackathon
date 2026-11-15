@@ -76,7 +76,7 @@ flowchart LR
   LINEUP -->|"transcribe, draft, rate"| AI
   LINEUP -->|"past weeks"| MEMORY
   PROOFS -->|"image URLs"| AI
-  DROPS -->|"mystery task, headcount"| AI
+  DROPS -->|"headcount"| AI
   DROPS -->|"habits"| MEMORY
   KEIKI -->|"free text"| AI
   AI -->|"audio, text, images"| OPENAI
@@ -90,7 +90,7 @@ flowchart LR
   MEDIA -->|"photo download"| KEIKIAPI
   KEIKI -->|"texted photo"| PROOFS
   KEIKI -->|"replies, notices"| KEIKIAPI
-  KEIKI -->|"OPEN, PASS, IN"| DROPS
+  KEIKI -->|"IN"| DROPS
 
   PROOFS -->|"proof row, task verified"| DB
   DB -->|"tasks and proofs"| STAND
@@ -101,7 +101,6 @@ flowchart LR
   DROPS -->|"texts"| KEIKI
   SOCIAL -->|"vote texts"| KEIKI
 
-  CRONS -->|"daily mystery"| DROPS
   CRONS -->|"hourly sweep"| NUDGE
   SEED -->|"demo league rows"| DB
 ```
@@ -183,11 +182,11 @@ The app calls public functions in every backend module, and every module reads a
 
 **`convex/leaderboards.ts`** serves every ranking and the earnings projection. It owns `scores`, the only stored copy of a score, kept current by `refresh` after each proof. **`convex/lib/weekTally.ts`** reduces a week to the numbers a board ranks by, and **`convex/lib/ranking.ts`** words each row.
 
-**`convex/drops.ts`** owns the three bonus features: quick-time drops, the daily mystery task and group sessions. A drop opens and closes through scheduled functions, and its tasks are ordinary `tasks` rows. **`convex/lib/dropRules.ts`** holds durations and text wording.
+**`convex/drops.ts`** owns the two bonus features: quick-time drops and group sessions. A drop opens and closes through scheduled functions, and its tasks are ordinary `tasks` rows. **`convex/lib/dropRules.ts`** holds durations and text wording.
 
 ### Scheduled work
 
-**`convex/crons.ts`** declares the two recurring jobs: the daily mystery task and the hourly check-in sweep. One-off timing (a drop closing, a vote closing, follow-ups after a proof) is scheduled by the module that owns it.
+**`convex/crons.ts`** declares the one recurring job: the hourly check-in sweep. One-off timing (a drop closing, a vote closing, follow-ups after a proof) is scheduled by the module that owns it.
 
 ### The client
 

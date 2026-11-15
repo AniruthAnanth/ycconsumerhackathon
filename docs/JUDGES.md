@@ -44,9 +44,9 @@ Two-sentence answers to say aloud, hardest question first. Each was checked agai
 
 ## 6. Why would anyone open it every day?
 
-**Answer:** Roster shows one Up Next task with the camera one tap away, and a sealed mystery task worth double points arrives every morning. A streak bonus pays for proving something each day, and the leaderboards name your rival and the gap.
+**Answer:** Roster shows one Up Next task with the camera one tap away. A streak bonus pays for proving something each day, and the leaderboards name your rival and the gap.
 
-**Where it lives:** `convex/lineup.ts` (`roster`), `convex/drops.ts` (`dailyMystery`, scheduled in `convex/crons.ts`), `convex/lib/ranking.ts` (`rankBoard`).
+**Where it lives:** `convex/lineup.ts` (`roster`), `convex/lib/ranking.ts` (`rankBoard`).
 
 **If pressed:** There are no push notifications: evening nudges, lead changes and "you were passed" go by text, only to players who opted in (`convex/checkins.ts`, `convex/leadChange.ts`, `phonesOf` in `convex/keiki.ts`).
 
@@ -86,5 +86,5 @@ Two-sentence answers to say aloud, hardest question first. Each was checked agai
 
 - **That real money moves, or that real-money play is legal.** Whop is sandbox only, and `settleWeek` in `convex/whop.ts` expects Whop to refuse transfers out of a sandbox league, so payouts and the fee are ledger rows.
 - **An Apple Watch app or background geofencing.** The repository has no watch code, only a concept slide (`scripts/slides/README.md`); location uses the when-in-use permission (`app.json`) and is re-read only while the app is open (`components/checkin/useForegroundCoords.ts`).
-- **A week that ends and pays out on its own, or drops on a schedule.** `convex/crons.ts` runs two jobs, the morning mystery task and hourly check-in texts; settlement (`settleWeek` in `convex/whop.ts`) and quick-time drops (`triggerQuickTime` in `convex/drops.ts`) start from the demo controls.
+- **A week that ends and pays out on its own, or drops on a schedule.** `convex/crons.ts` runs one job, the hourly check-in texts; settlement (`settleWeek` in `convex/whop.ts`) and quick-time drops (`triggerQuickTime` in `convex/drops.ts`) start from the demo controls.
 - **An on-device AI check, or proving a location task by text.** `modules/on-device-referee` has no native code on main, so `precheck` in `lib/onDeviceReferee.ts` returns nothing; `rejectionBeforeJudging` in `convex/proofs.ts` refuses every texted proof of a location task, even after an arrival.
