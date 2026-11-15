@@ -166,6 +166,34 @@ describe("recordBuyIn", () => {
   });
 });
 
+describe("buyInFor", () => {
+  test("goes by the ledger, not the membership flag, on who has already paid", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, leagueId, weekId } = await leagueWithMember(t);
+    const member = t.withIdentity({ subject: `${userId}|session` });
+    // A flag left set by an earlier week must not block this week's buy-in.
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.query("memberships").first();
+      if (membership) await ctx.db.patch("memberships", membership._id, { paid: true });
+    });
+
+    expect(await member.query(internal.whop.buyInFor, { leagueId })).toMatchObject({ userId, stakeUsd: 5 });
+
+    await t.run((ctx) =>
+      ctx.db.insert("ledger", {
+        leagueId,
+        weekId,
+        userId,
+        kind: "buy_in",
+        amountUsd: 5,
+        idempotencyKey: "buy_in:pay_1",
+        createdAt: 0,
+      }),
+    );
+    await expect(member.query(internal.whop.buyInFor, { leagueId })).rejects.toThrow("already paid");
+  });
+});
+
 describe("POST /whop", () => {
   beforeEach(() => vi.stubEnv("WHOP_WEBHOOK_SECRET", WEBHOOK_SECRET));
   afterEach(() => vi.unstubAllEnvs());
