@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Icon, RowDivider } from "@/components/ui";
+import { Header, Icon, RowDivider } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { stakeLine } from "@/lib/leagueText";
@@ -44,12 +44,7 @@ export function LeagueSwitcher() {
 
   return (
     <View style={[styles.list, { paddingBottom: insets.bottom }]}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title} accessibilityRole="header">Your leagues</Text>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close" hitSlop={spacing.sm} style={styles.close}>
-          <Icon name="close" />
-        </Pressable>
-      </View>
+      <Header title="Your leagues" onClose={() => router.back()} />
       {(me?.leagues ?? []).map((league) => (
         <Pressable
           key={league._id}
@@ -81,9 +76,6 @@ export function LeagueSwitcher() {
 const styles = StyleSheet.create({
   // Room above the first row for the sheet's grabber.
   list: { backgroundColor: colors.background, paddingTop: spacing.lg },
-  titleRow: { minHeight: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: SCREEN_MARGIN },
-  title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
-  close: { minWidth: layout.rowMin, minHeight: layout.rowMin, alignItems: "flex-end", justifyContent: "center" },
   row: {
     minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",

@@ -44,7 +44,7 @@ describe("taskStatusLine", () => {
   });
 
   it("marks a challenged proof", () => {
-    expect(taskStatusLine({ ...base, status: "held" })).toBe("Challenged | Points on hold");
+    expect(taskStatusLine({ ...base, status: "held" })).toBe("Up for veto | Points on hold");
   });
 });
 
@@ -66,7 +66,7 @@ describe("taskRowLabel", () => {
 
   it("says Up next in place of the slot, and the score once there is one", () => {
     expect(taskRowLabel({ ...base, status: "held", score: 40 }, true)).toBe(
-      "Leg day, Up next, Challenged, Points on hold, 40 points",
+      "Leg day, Up next, Up for veto, Points on hold, 40 points",
     );
   });
 });

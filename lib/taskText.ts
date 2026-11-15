@@ -41,7 +41,7 @@ export function taskStatusLine(task: TaskRowData): string {
     case "verified":
       return task.verifiedAt == null ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
     case "held":
-      return "Challenged | Points on hold";
+      return "Up for veto | Points on hold";
     case "failed":
       // A rejected proof leaves a task open. Only a drop that closed with no
       // proof writes "failed", and that task can no longer be played.
