@@ -40,7 +40,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
           <View style={styles.hero}>
             <Artwork name={artworkForTask(task.slot, task.title)} size={104} />
           </View>
-          <TaskRow task={task} />
+          <TaskRow task={task} titleLines={3} />
           {canSubmitProof(task.status) ? (
             <View style={styles.action}>
               <Button label="Submit Proof" onPress={() => router.replace(submitProofHref(task))} />
