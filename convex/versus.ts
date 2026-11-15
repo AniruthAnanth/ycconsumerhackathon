@@ -361,29 +361,7 @@ export async function seedDemoVersus(
     .query("leagues")
     .withIndex("by_inviteCode", (q) => q.eq("inviteCode", DEMO_INVITE_CODE))
     .unique();
-  if (old !== null) {
-    for (const week of await ctx.db
-      .query("weeks")
-      .withIndex("by_league", (q) => q.eq("leagueId", old._id))
-      .take(LEDGER_ROWS)) {
-      for (const matchup of await ctx.db
-        .query("matchups")
-        .withIndex("by_week", (q) => q.eq("weekId", week._id))
-        .take(LEDGER_ROWS)) {
-        await ctx.db.delete("matchups", matchup._id);
-      }
-      await ctx.db.delete("weeks", week._id);
-    }
-    for (const row of await ctx.db
-      .query("ledger")
-      .withIndex("by_league", (q) => q.eq("leagueId", old._id))
-      .take(LEDGER_ROWS)) {
-      await ctx.db.delete("ledger", row._id);
-    }
-    for (const member of await membersInJoinOrder(ctx, old._id))
-      await ctx.db.delete("memberships", member._id);
-    await ctx.db.delete("leagues", old._id);
-  }
+  if (old !== null) await deleteGame(ctx, old._id);
 
   const leagueId = await ctx.db.insert("leagues", {
     name: "Sam's challenge",
@@ -421,6 +399,50 @@ export async function seedDemoVersus(
       await ctx.db.patch("memberships", membership._id, { paid: true });
   }
 }
+
+/** Deletes a versus and everything that belongs to it: weeks, matchups, ledger and seats. */
+async function deleteGame(
+  ctx: MutationCtx,
+  leagueId: Id<"leagues">,
+): Promise<void> {
+  for (const week of await ctx.db
+    .query("weeks")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .take(LEDGER_ROWS)) {
+    for (const matchup of await ctx.db
+      .query("matchups")
+      .withIndex("by_week", (q) => q.eq("weekId", week._id))
+      .take(LEDGER_ROWS)) {
+      await ctx.db.delete("matchups", matchup._id);
+    }
+    await ctx.db.delete("weeks", week._id);
+  }
+  for (const row of await ctx.db
+    .query("ledger")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .take(LEDGER_ROWS)) {
+    await ctx.db.delete("ledger", row._id);
+  }
+  for (const member of await membersInJoinOrder(ctx, leagueId))
+    await ctx.db.delete("memberships", member._id);
+  await ctx.db.delete("leagues", leagueId);
+}
+
+/**
+ * Removes a test game, so a seeded player's league switcher stays clean for the demo:
+ * npx convex run versus:remove '{"leagueId":"..."}'. Refuses an ordinary league.
+ */
+export const remove = internalMutation({
+  args: { leagueId: v.id("leagues") },
+  returns: v.null(),
+  handler: async (ctx, { leagueId }) => {
+    const league = await ctx.db.get("leagues", leagueId);
+    if (league?.mode !== "versus")
+      throw new ConvexError("Only a versus game can be removed this way");
+    await deleteGame(ctx, leagueId);
+    return null;
+  },
+});
 
 /** npx convex run versus:seedDemo, for a deployment that was reset before this game existed. */
 export const seedDemo = internalMutation({
