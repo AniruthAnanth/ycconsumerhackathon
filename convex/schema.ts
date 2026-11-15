@@ -177,7 +177,10 @@ export default defineSchema({
     closesAt: v.number(),
   })
     .index("by_proof", ["proofId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    // closesAt follows leagueId so standings can read the challenges decided
+    // in one week without scanning the league's whole history.
+    .index("by_league", ["leagueId", "closesAt"]),
 
   votes: defineTable({
     challengeId: v.id("challenges"),
