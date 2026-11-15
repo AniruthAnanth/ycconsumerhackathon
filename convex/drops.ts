@@ -15,7 +15,6 @@
  * moment it is earned and is never added again at read time. The numbers and the wording of
  * every text are in lib/dropRules.ts.
  */
-import { makeFunctionReference } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -784,38 +783,15 @@ async function currentWeekStart(ctx: QueryCtx, leagueId: Id<"leagues">): Promise
 
 // ─── Texts ───────────────────────────────────────────────────────────────────────────────────
 
-const recipient = {
-  userId: v.optional(v.id("users")),
-  leagueId: v.optional(v.id("leagues")),
-};
-
 /**
- * The one door from drops to Keiki. A text is scheduled, never awaited, so a slow or failing
- * send cannot delay or roll back the mutation that changed the drop.
+ * The one door from drops to Keiki. keiki.send texts one player, or every member of a league
+ * one by one. The text is scheduled, never awaited, so a slow or failing send cannot delay or
+ * roll back the mutation that changed the drop.
  */
 async function sendText(
   ctx: MutationCtx,
   to: { userId: Id<"users"> } | { leagueId: Id<"leagues"> },
   text: string,
 ): Promise<void> {
-  await ctx.scheduler.runAfter(0, internal.drops.deliverText, { ...to, text });
+  await ctx.scheduler.runAfter(0, internal.keiki.send, { ...to, text });
 }
-
-/**
- * Hands a text to keiki.send, the Keiki module's outbound action ({ userId | leagueId, text }).
- * It is looked up by name and a failure is only logged, so drops keep working on a deployment
- * where that action is missing. Once keiki.send is on main, sendText schedules it directly and
- * this action goes away.
- */
-export const deliverText = internalAction({
-  args: { ...recipient, text: v.string() },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    try {
-      await ctx.runAction(makeFunctionReference<"action">("keiki:send"), args);
-    } catch (error) {
-      console.warn(`Drop text not sent: ${args.text} (${String(error)})`);
-    }
-    return null;
-  },
-});
