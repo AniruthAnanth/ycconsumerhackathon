@@ -2,6 +2,8 @@ import { type ReactNode, useEffect } from "react";
 import { type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming, Easing } from "react-native-reanimated";
 
+import { STAMP_DROP_MS, STAMP_SETTLE_MS } from "@/lib/native/motion";
+
 import { useReduceMotion } from "./useReduceMotion";
 
 type Props = {
@@ -12,9 +14,6 @@ type Props = {
   onLand?: () => void;
   style?: StyleProp<ViewStyle>;
 };
-
-const DROP_MS = 170;
-const SETTLE_MS = 130;
 
 /**
  * Slams its child down from above full size, overshoots to slightly under, and settles: the
@@ -35,13 +34,13 @@ export function StampSlam({ children, delay = 0, onLand, style }: Props) {
     scale.value = withDelay(
       delay,
       withSequence(
-        withTiming(0.92, { duration: DROP_MS, easing: Easing.in(Easing.quad) }),
-        withTiming(1, { duration: SETTLE_MS, easing: Easing.out(Easing.quad) }),
+        withTiming(0.92, { duration: STAMP_DROP_MS, easing: Easing.in(Easing.quad) }),
+        withTiming(1, { duration: STAMP_SETTLE_MS, easing: Easing.out(Easing.quad) }),
       ),
     );
     opacity.value = withDelay(delay, withTiming(1, { duration: 90 }));
     // The thud belongs to the frame the stamp touches down, not to when it started falling.
-    const timer = setTimeout(() => onLand?.(), delay + DROP_MS);
+    const timer = setTimeout(() => onLand?.(), delay + STAMP_DROP_MS);
     return () => clearTimeout(timer);
     // onLand is a callback prop; re-running the slam when a parent re-renders would replay it.
     // eslint-disable-next-line react-hooks/exhaustive-deps

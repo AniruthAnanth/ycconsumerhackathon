@@ -26,7 +26,3 @@ export async function shareImage(fileUri: string, dialogTitle?: string): Promise
   }
 }
 
-/** The one invite text, so every share of a league says the same thing. */
-export function inviteMessage(leagueName: string, inviteCode: string): string {
-  return `Join my Lineup league "${leagueName}" with code ${inviteCode}.`;
-}
