@@ -40,7 +40,8 @@ export function Banner({ title, subtitle, icon, tone = "accent", onPress, childr
   );
   if (!onPress) return strip;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+    // A button's label replaces the text inside it, so the subtitle (a failed checkout, say) has to be part of it.
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}>
       {strip}
     </Pressable>
   );

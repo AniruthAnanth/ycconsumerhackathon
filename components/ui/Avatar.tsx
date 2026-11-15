@@ -33,7 +33,8 @@ export function Avatar({ uri, name, slot, size = 40 }: Props) {
     return <Image source={{ uri }} style={[styles.circle, circle]} contentFit="cover" transition={150} />;
   }
   return (
-    <View style={[styles.circle, circle]}>
+    // Initials only repeat the name beside them, so a screen reader skips them.
+    <View style={[styles.circle, circle]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {slot ? (
         <Icon name={SLOT_ICON[slot]} size={size * 0.5} color={colors.textMuted} />
       ) : (

@@ -29,12 +29,3 @@ export function pickBannerDrop<D extends Pick<Drop, "kind" | "closesAt">>(drops:
     .filter((drop) => drop.closesAt > now)
     .sort((a, b) => BANNER_PRIORITY[a.kind] - BANNER_PRIORITY[b.kind] || a.closesAt - b.closesAt)[0];
 }
-
-/** A countdown as a clock reads it: "1:59:32" with hours, "9:05" without, never below "0:00". */
-export function formatTimer(ms: number): string {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = String(total % 60).padStart(2, "0");
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}` : `${minutes}:${seconds}`;
-}

@@ -2,15 +2,17 @@ import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 
 import { Divider, Icon, SectionLabel } from "@/components/ui";
 import type { League, Pot } from "@/lib/backend";
-import { formatCountdown, formatUsd } from "@/lib/leagueText";
+import { formatCountdown, formatUsd, inviteMessage, isSettled } from "@/lib/leagueText";
 import { colors, font, spacing } from "@/theme";
 
 type Props = { league: League; pot: Pot; now: number };
 
 /** Flat label and value rows about the league. The invite code row opens the share sheet. */
 export function LeagueDetails({ league, pot, now }: Props) {
-  const shareInvite = () =>
-    Share.share({ message: `Join my Lineup league "${league.name}" with code ${league.inviteCode}.` });
+  // Share rejects where there is no share sheet (web). The code is on the row to read out, so the tap just does nothing.
+  const shareInvite = () => {
+    Share.share({ message: inviteMessage(league) }).catch(() => undefined);
+  };
 
   return (
     <View>
@@ -25,7 +27,7 @@ export function LeagueDetails({ league, pot, now }: Props) {
       <Divider />
       <DetailRow label="Stake" value={league.stakeUsd === 0 ? "Free" : formatUsd(league.stakeUsd)} />
       <DetailRow label="Members" value={String(league.memberCount)} />
-      <DetailRow label="Settles" value={formatCountdown(pot.settlesAt - now)} />
+      <DetailRow label="Settles" value={isSettled(pot, now) ? "Settled" : formatCountdown(pot.settlesAt - now)} />
     </View>
   );
 }

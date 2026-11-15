@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar, Icon } from "@/components/ui";
-import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
+import { colors, font, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
 type Props = {
   name: string;
@@ -48,7 +48,7 @@ export function PersonRow({ name, detail, selected, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   row: {
-    height: ROW_HEIGHT - spacing.md,
+    height: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,

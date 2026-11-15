@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatClock, formatScore, taskPlaceLine, taskStatusLine, type TaskRowData } from "./taskText";
+import { formatClock, formatScore, taskPlaceLine, taskRowLabel, taskStatusLine, type TaskRowData } from "./taskText";
 
 const base: TaskRowData = { slot: "body", title: "Leg day", points: 40, proofType: "photo_location" };
 
@@ -55,5 +55,18 @@ describe("taskPlaceLine", () => {
 
   it("is empty without a place", () => {
     expect(taskPlaceLine(base)).toBeUndefined();
+  });
+});
+
+describe("taskRowLabel", () => {
+  it("reads out everything the row shows", () => {
+    const task = { ...base, status: "open" as const, dueLabel: "Due Sun", place: { name: "YC office" } };
+    expect(taskRowLabel(task)).toBe("Leg day, Body, Photo + location, Due Sun, at YC office, 40 points on offer");
+  });
+
+  it("says Up next in place of the slot, and the score once there is one", () => {
+    expect(taskRowLabel({ ...base, status: "held", score: 40 }, true)).toBe(
+      "Leg day, Up next, Challenged, Points on hold, 40.0 points",
+    );
   });
 });

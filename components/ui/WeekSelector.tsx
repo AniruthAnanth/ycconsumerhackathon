@@ -22,7 +22,15 @@ export function WeekSelector({ label, onPrev, onNext, onLongPress }: Props) {
       <Pressable onPress={onPrev} disabled={!onPrev} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous week">
         <Icon name="chevron-back" size={18} color={onPrev ? colors.text : colors.textFaint} />
       </Pressable>
-      <Pressable onLongPress={onLongPress} delayLongPress={600} disabled={!onLongPress} accessibilityLabel={label}>
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={600}
+        disabled={!onLongPress}
+        // Nothing on screen shows the door, so the hint is how a screen reader user finds it.
+        accessibilityRole={onLongPress ? "button" : "text"}
+        accessibilityLabel={label}
+        accessibilityHint={onLongPress ? "Hold for demo controls" : undefined}
+      >
         <Text style={styles.label}>{label}</Text>
       </Pressable>
       <Pressable onPress={onNext} disabled={!onNext} hitSlop={12} accessibilityRole="button" accessibilityLabel="Next week">

@@ -9,11 +9,15 @@ import { spacing } from "@/theme";
 import { ErrorLine } from "./ErrorLine";
 import type { useJoinLeague } from "./useJoinLeague";
 
+/** The second way into a league: a code a friend sent. The keyboard's Go key and the Join pill do the same thing. */
 export function InviteCodeSection({ joining }: { joining: ReturnType<typeof useJoinLeague> }) {
   const joinByCode = useMutation(backend.leagues.joinByCode);
   const { join, busy, failure } = joining;
   const [code, setCode] = useState("");
   const inviteCode = code.trim();
+  const submit = () => {
+    if (inviteCode) void join("inviteCode", () => joinByCode({ inviteCode }));
+  };
   return (
     <>
       <SectionLabel left="Invite code" />
@@ -28,14 +32,10 @@ export function InviteCodeSection({ joining }: { joining: ReturnType<typeof useJ
               autoCorrect={false}
               editable={!busy}
               returnKeyType="go"
-              onSubmitEditing={() => inviteCode && join("inviteCode", () => joinByCode({ inviteCode }))}
+              onSubmitEditing={submit}
             />
           </View>
-          <OutlinedPillButton
-            label="Join"
-            disabled={busy || !inviteCode}
-            onPress={() => join("inviteCode", () => joinByCode({ inviteCode }))}
-          />
+          <OutlinedPillButton label="Join" disabled={busy || !inviteCode} onPress={submit} />
         </View>
         {failure?.section === "inviteCode" ? <ErrorLine message={failure.message} /> : null}
       </View>

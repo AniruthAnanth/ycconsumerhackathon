@@ -12,7 +12,7 @@ type Props = { value: Stake; onChange: (stakeUsd: Stake) => void; disabled?: boo
  */
 export function StakePicker({ value, onChange, disabled = false }: Props) {
   return (
-    <View style={styles.row}>
+    <View style={styles.row} accessibilityRole="radiogroup">
       {STAKES.map(({ stakeUsd, label }) => {
         const selected = stakeUsd === value;
         return (
@@ -23,7 +23,7 @@ export function StakePicker({ value, onChange, disabled = false }: Props) {
             disabled={disabled}
             accessibilityRole="radio"
             accessibilityLabel={`Stake ${label}`}
-            accessibilityState={{ selected, disabled }}
+            accessibilityState={{ checked: selected, disabled }}
           >
             <Text style={[styles.label, selected && styles.selectedLabel]}>{label}</Text>
           </Pressable>

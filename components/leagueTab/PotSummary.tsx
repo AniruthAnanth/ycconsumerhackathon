@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Divider, Icon } from "@/components/ui";
 import type { Pot } from "@/lib/backend";
-import { formatCountdown, formatUsd } from "@/lib/leagueText";
+import { formatCountdown, formatUsd, isSettled } from "@/lib/leagueText";
 import { colors, font, spacing } from "@/theme";
 
 type Props = { pot: Pot; now: number };
@@ -22,7 +22,7 @@ export function PotSummary({ pot, now }: Props) {
         <View style={styles.meta}>
           {free ? null : <Text style={styles.muted}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>}
           <Text style={styles.muted}>
-            {pot.settlesAt <= now ? "Settled" : `Settles in ${formatCountdown(pot.settlesAt - now)}`}
+            {isSettled(pot, now) ? "Settled" : `Settles in ${formatCountdown(pot.settlesAt - now)}`}
           </Text>
         </View>
       </View>
@@ -64,8 +64,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   label: { fontSize: font.label, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
-  // Larger than font.total on purpose: the pot is what the whole league plays for.
-  amount: { fontSize: 44, fontWeight: "800", color: colors.text, fontVariant: ["tabular-nums"] },
+  amount: { fontSize: font.pot, fontWeight: "800", color: colors.text, fontVariant: ["tabular-nums"] },
   meta: { alignItems: "flex-end", gap: 2 },
   muted: { fontSize: font.body, color: colors.textMuted },
   group: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs },

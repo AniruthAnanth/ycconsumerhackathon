@@ -9,12 +9,14 @@ type Props = {
   onPress: () => void;
   icon?: IconName;
   disabled?: boolean;
+  /** For a label that means nothing out of context, such as "$5". Defaults to the label. */
+  accessibilityLabel?: string;
   /** Layout only, for example `{ flex: 1 }` for two buttons side by side. */
   style?: StyleProp<ViewStyle>;
 };
 
 /** A secondary action: blue outline, blue text, fully rounded, as ESPN's Quick Lineup button. */
-export function OutlinedPillButton({ label, onPress, icon, disabled = false, style }: Props) {
+export function OutlinedPillButton({ label, onPress, icon, disabled = false, accessibilityLabel = label, style }: Props) {
   const tint = disabled ? colors.textFaint : colors.accent;
   return (
     <Pressable
@@ -22,7 +24,7 @@ export function OutlinedPillButton({ label, onPress, icon, disabled = false, sty
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel}
     >
       {icon ? <Icon name={icon} size={16} color={tint} /> : null}
       <Text style={[styles.label, { color: tint }]}>{label}</Text>

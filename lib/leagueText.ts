@@ -3,6 +3,26 @@ export function formatUsd(amount: number): string {
   return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
 }
 
+/** A league's stake under its name in the league switcher: "Free", or the buy-in and whether this player has paid it. */
+export function stakeLine(league: { stakeUsd: number; paid: boolean }): string {
+  if (league.stakeUsd === 0) return "Free";
+  return `${formatUsd(league.stakeUsd)} buy-in | ${league.paid ? "Paid" : "Unpaid"}`;
+}
+
+/** The text a player sends to bring a friend into their league. */
+export function inviteMessage(league: { name: string; inviteCode: string }): string {
+  return `Join my Lineup league "${league.name}" with code ${league.inviteCode}.`;
+}
+
+/**
+ * Whether the league's week has settled. The server keeps settlesAt at the
+ * week's scheduled end even when the week is settled before it (the demo
+ * controls do that), so payouts existing decides first and the clock second.
+ */
+export function isSettled(pot: { settlesAt: number; payouts?: readonly unknown[] }, now: number): boolean {
+  return pot.payouts !== undefined || pot.settlesAt <= now;
+}
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
