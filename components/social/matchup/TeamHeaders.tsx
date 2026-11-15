@@ -1,8 +1,10 @@
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { Avatar, Score } from "@/components/ui";
+import { colors, font, spacing } from "@/theme";
+
 import type { MatchupSide } from "../contract";
-import { Avatar, colors, Score } from "../kit";
 
 export function TeamHeaders({ me, opponent }: { me: MatchupSide; opponent: MatchupSide }) {
   return (
@@ -32,7 +34,7 @@ function TeamHeader({ side, align }: { side: MatchupSide; align: "flex-start" | 
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 16, gap: 16 },
-  team: { flex: 1, gap: 4 },
-  name: { color: colors.text, fontSize: 15, fontWeight: "700", maxWidth: "100%" },
+  row: { flexDirection: "row", paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.lg },
+  team: { flex: 1, gap: spacing.xs },
+  name: { color: colors.text, fontSize: font.title, fontWeight: "700", maxWidth: "100%" },
 });

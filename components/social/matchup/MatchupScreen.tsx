@@ -1,8 +1,10 @@
 import { useQuery } from "convex/react";
 import { ScrollView } from "react-native";
 
+import { SectionLabel } from "@/components/ui";
+import { useCurrentLeague } from "@/lib/currentLeague";
+
 import { socialApi } from "../contract";
-import { SectionLabel, useCurrentLeague } from "../kit";
 import { ScreenState } from "../ScreenState";
 import { SlotRow } from "./SlotRow";
 import { TeamHeaders } from "./TeamHeaders";

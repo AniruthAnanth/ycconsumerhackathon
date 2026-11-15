@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { PositionPill, Score } from "@/components/ui";
+import { colors, font, hairline, ROW_HEIGHT, spacing } from "@/theme";
+
 import type { Matchup, TaskRow } from "../contract";
-import { colors, PositionPill, Score } from "../kit";
 import { statusLine } from "./matchupLogic";
 
 export function SlotRow({ row }: { row: Matchup["rows"][number] }) {
@@ -34,29 +36,26 @@ function TaskSide({ task, side }: { task?: TaskRow; side: "mine" | "theirs" }) {
           {statusLine(task)}
         </Text>
       </View>
-      <View style={styles.score}>
-        <Score value={task.score} />
-      </View>
+      <Score value={task.score} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    height: 72,
+    height: ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.hairline,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.divider,
   },
-  side: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  side: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   sideMirrored: { flexDirection: "row-reverse" },
   text: { flex: 1, gap: 2 },
   textRight: { textAlign: "right" },
-  title: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  status: { color: colors.muted, fontSize: 12 },
-  score: { minWidth: 40 },
-  empty: { flex: 1, color: colors.muted, fontSize: 17, textAlign: "center" },
+  title: { color: colors.text, fontSize: font.body, fontWeight: "700" },
+  status: { color: colors.textMuted, fontSize: font.meta },
+  empty: { flex: 1, color: colors.textFaint, fontSize: font.header, textAlign: "center" },
 });

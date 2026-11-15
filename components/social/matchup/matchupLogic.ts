@@ -1,3 +1,5 @@
+import { formatClock } from "@/lib/taskText";
+
 import type { TaskRow } from "../contract";
 
 const clampProbability = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);
@@ -16,18 +18,11 @@ export function winBarSplit(mine: number, theirs: number) {
   return { mineShare, minePercent, theirsPercent: 100 - minePercent };
 }
 
-/** "2:14 PM", in the device's time zone. Formatted by hand because Intl pads AM/PM with a narrow no-break space on some engines. */
-export function clockTime(timestamp: number) {
-  const date = new Date(timestamp);
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${date.getHours() % 12 || 12}:${minutes} ${date.getHours() < 12 ? "AM" : "PM"}`;
-}
-
 /** The grey line under a task title. A held task has its points on hold while the league votes on a challenge. */
 export function statusLine(task: Pick<TaskRow, "status" | "verifiedAt" | "dueLabel">) {
   switch (task.status) {
     case "verified":
-      return task.verifiedAt === undefined ? "Verified" : `Verified ${clockTime(task.verifiedAt)}`;
+      return task.verifiedAt === undefined ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
     case "open":
       return task.dueLabel;
     case "held":

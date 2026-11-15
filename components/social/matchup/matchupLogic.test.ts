@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clockTime, statusLine, winBarSplit } from "./matchupLogic";
+import { statusLine, winBarSplit } from "./matchupLogic";
 
 describe("winBarSplit", () => {
   it("sizes the bar by probability and rounds labels to sum to 100", () => {
@@ -19,14 +19,6 @@ describe("winBarSplit", () => {
     expect(winBarSplit(Number.NaN, Number.POSITIVE_INFINITY)).toEqual(even);
     expect(winBarSplit(Number.NaN, 0.4)).toEqual({ mineShare: 0, minePercent: 0, theirsPercent: 100 });
     expect(winBarSplit(Number.NaN, Number.NaN)).toEqual(even);
-  });
-});
-
-describe("clockTime", () => {
-  it("formats on a 12-hour clock", () => {
-    expect(clockTime(new Date(2026, 10, 15, 14, 14).getTime())).toBe("2:14 PM");
-    expect(clockTime(new Date(2026, 10, 15, 0, 5).getTime())).toBe("12:05 AM");
-    expect(clockTime(new Date(2026, 10, 15, 12, 0).getTime())).toBe("12:00 PM");
   });
 });
 
