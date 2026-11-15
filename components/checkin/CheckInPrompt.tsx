@@ -6,6 +6,7 @@ import { proofCameraHref } from "@/components/capture/proofRoute";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useDevFlags } from "@/lib/devFlags";
+import { announceArrival } from "@/lib/notifications/arrival";
 
 import { CheckInPromptRow } from "./CheckInPromptRow";
 import { arrivalKey } from "./coords";
@@ -99,6 +100,14 @@ function Prompt({ leagueId }: { leagueId: Id<"leagues"> | null }) {
     // Fire and forget: a failed report must never break the row.
     recordArrival({ taskId: arrivedTaskId, lat, lng, placeName }).catch(() => {});
   }, [arrivedTaskId, lat, lng, placeName, recordArrival]);
+
+  // The arrival is also announced as a notification with Check In and Pass on it
+  // (lib/notifications). Keyed on the task alone, so it is said once per arrival
+  // and not again for each position fix or query result that follows.
+  const arrival = prompt?.kind === "nearby" ? prompt : null;
+  useEffect(() => {
+    if (arrival) announceArrival({ taskId: arrival.taskId, ...arrival.task }, placeName);
+  }, [arrivedTaskId]);
 
   if (!prompt) return null;
   return (

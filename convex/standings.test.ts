@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { weekEndOf, weekStartOf } from "./lib/week";
+import { pacificDay, startOfPacificDay, weekEndOf, weekStartOf } from "./lib/week";
 import schema from "./schema";
 import { pointsInLeague } from "./standings";
 
@@ -290,6 +290,141 @@ describe("standings.matchup", () => {
   });
 });
 
+/**
+ * A full league, written in the order the app writes it: every settled week with each member's
+ * buy-in, refund and winnings and the fee (37 ledger rows a week), then the week in play with its
+ * buy-ins.
+ */
+async function fullLeague(t: Harness, settledWeeks: number) {
+  return await t.run(async (ctx) => {
+    const userIds: Id<"users">[] = [];
+    for (let i = 1; i <= 12; i++) userIds.push(await ctx.db.insert("users", { name: `Player ${i}` }));
+    const leagueId = await ctx.db.insert("leagues", {
+      name: "All year",
+      inviteCode: "ALLYEAR",
+      stakeUsd: 20,
+      visibility: "private",
+      maxMembers: 12,
+      createdBy: userIds[0],
+      seasonWeeks: 52,
+    });
+    for (const userId of userIds) {
+      await ctx.db.insert("memberships", { leagueId, userId, paid: true, joinedAt: NOW });
+    }
+
+    const addWeek = async (number: number, status: "open" | "settled") => {
+      const startsAt = startOfPacificDay(pacificDay(WEEK) - 7 * (settledWeeks + 1 - number));
+      const weekId = await ctx.db.insert("weeks", { leagueId, number, startsAt, endsAt: weekEndOf(startsAt), status });
+      const row = { leagueId, weekId, createdAt: startsAt };
+      for (const userId of userIds) {
+        const key = `${weekId}:${userId}`;
+        await ctx.db.insert("ledger", { ...row, userId, kind: "buy_in", amountUsd: 20, idempotencyKey: `buy_in:${key}` });
+        if (status === "open") continue;
+        await ctx.db.insert("ledger", { ...row, userId, kind: "refund", amountUsd: 20, idempotencyKey: `refund:${key}` });
+        await ctx.db.insert("ledger", { ...row, userId, kind: "winnings", amountUsd: 1, idempotencyKey: `winnings:${key}` });
+      }
+      if (status === "settled") {
+        await ctx.db.insert("ledger", { ...row, kind: "fee", amountUsd: 12, idempotencyKey: `fee:${weekId}` });
+      }
+      return weekId;
+    };
+    let lastWeekId: Id<"weeks"> | undefined;
+    for (let number = 1; number <= settledWeeks; number++) lastWeekId = await addWeek(number, "settled");
+    const weekId = await addWeek(settledWeeks + 1, "open");
+    return { leagueId, weekId, lastWeekId, userIds };
+  });
+}
+
+describe("standings at the size of a full league and a long season", () => {
+  // Six weeks is the seeded season so far. Thirty is a long season: 1,110 ledger rows sit ahead
+  // of this week's twelve, and a read of the league's ledger from its start never reaches them.
+  test.each([6, 30])("pot shows this week's buy-ins and payouts with %i settled weeks behind it", async (settledWeeks) => {
+    const t = convexTest(schema, modules);
+    const { leagueId, weekId, lastWeekId, userIds } = await fullLeague(t, settledWeeks);
+    const [winner, viewer] = userIds;
+
+    const open = await as(t, viewer).query(api.standings.pot, { leagueId });
+    expect(open).toMatchObject({ stakeUsd: 20, potUsd: 240, settlesAt: weekEndOf(WEEK) });
+    expect(open.paid).toHaveLength(12);
+    expect(open.payouts).toBeUndefined();
+
+    await t.run(async (ctx) => {
+      const row = { leagueId, weekId, createdAt: NOW };
+      await ctx.db.insert("ledger", { ...row, userId: winner, kind: "refund", amountUsd: 20, idempotencyKey: "r" });
+      await ctx.db.insert("ledger", { ...row, userId: winner, kind: "winnings", amountUsd: 198, idempotencyKey: "w" });
+      await ctx.db.insert("ledger", { ...row, kind: "fee", amountUsd: 22, idempotencyKey: "f" });
+      // A payout of last week that landed late belongs to last week's pot, not this one.
+      if (lastWeekId === undefined) throw new Error("The league has no settled week");
+      await ctx.db.insert("ledger", { ...row, weekId: lastWeekId, userId: viewer, kind: "refund", amountUsd: 20, idempotencyKey: "late" });
+      await ctx.db.patch("weeks", weekId, { status: "settled" });
+    });
+
+    const settled = await as(t, viewer).query(api.standings.pot, { leagueId });
+    expect(settled.potUsd).toBe(240);
+    expect(settled.payouts).toEqual([
+      { userId: winner, name: "Player 1", kind: "winnings", amountUsd: 198 },
+      { userId: winner, name: "Player 1", kind: "refund", amountUsd: 20 },
+    ]);
+  });
+
+  // The most a full league writes in a week: twelve members, seven tasks each, every task passing
+  // on its fifth attempt. That is 35 proofs a member, far inside the bound on a member's week.
+  test("table gets every member's points and streak right when every task took five attempts", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await fullLeague(t, 0);
+    const day = 24 * 60 * 60 * 1000;
+    const slots = ["body", "mind", "recharge", "chores", "people", "flex", "flex"] as const;
+    // Member n's passing proofs fall on the last (n mod 7) + 1 days, so no two neighbours share a streak.
+    const streakOf = (member: number) => (member % 7) + 1;
+    await t.run(async (ctx) => {
+      for (const [member, userId] of userIds.entries()) {
+        for (const [index, slot] of slots.entries()) {
+          const taskId = await ctx.db.insert("tasks", {
+            userId,
+            weekStart: WEEK,
+            slot,
+            title: `Task ${index + 1}`,
+            points: 10,
+            proofType: "photo",
+            status: "verified",
+            source: slot === "flex" ? "flex" : "draft",
+          });
+          const passedAt = NOW - (index % streakOf(member)) * day;
+          for (let attempt = 1; attempt <= 5; attempt++) {
+            await ctx.db.insert("proofs", {
+              taskId,
+              userId,
+              weekStart: WEEK,
+              mediaType: "photo",
+              pass: attempt === 5,
+              confidence: 0.9,
+              reason: attempt === 5 ? "The task, done." : "Too dark to tell.",
+              highlight: 5,
+              caption: "Attempt.",
+              via: "app",
+              createdAt: passedAt - (5 - attempt) * 60_000,
+            });
+          }
+        }
+      }
+    });
+
+    const table = await as(t, userIds[0]).query(api.standings.table, { leagueId });
+
+    // 70 in tasks, 125 for five slots and 100 for the sweep, then 5 a day rising to the cap of 25.
+    const streakBonus = [5, 15, 30, 50, 75, 100, 125];
+    expect(table).toHaveLength(12);
+    for (const [member, userId] of userIds.entries()) {
+      const streak = streakOf(member);
+      expect(table.find((row) => row.userId === userId)).toMatchObject({
+        slotsCleared: 5,
+        streak,
+        points: 295 + streakBonus[streak - 1],
+      });
+    }
+  });
+});
+
 describe("standings.pot", () => {
   test("adds up the week's buy-ins and lists who has paid", async () => {
     const t = convexTest(schema, modules);
@@ -397,6 +532,24 @@ describe("standings.pot", () => {
     expect(pot.potUsd).toBe(120);
     expect(pot.payouts).toEqual([
       { userId: ids.Maya, name: "Maya Chen", kind: "winnings", amountUsd: 90 },
+      { userId: ids.Maya, name: "Maya Chen", kind: "refund", amountUsd: 20 },
+    ]);
+  });
+
+  test("carries the Whop id of a payout once the money has moved", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, weekId, ids } = await seeded(t);
+    await t.run(async (ctx) => {
+      const row = { leagueId, weekId, createdAt: NOW };
+      await ctx.db.insert("ledger", { ...row, userId: ids.Maya, kind: "winnings", amountUsd: 90, idempotencyKey: "w", whopId: "ctt_sent" });
+      await ctx.db.insert("ledger", { ...row, userId: ids.Maya, kind: "refund", amountUsd: 20, idempotencyKey: "r" });
+      await ctx.db.patch("weeks", weekId, { status: "settled" });
+    });
+
+    const pot = await as(t, ids.Sam).query(api.standings.pot, { leagueId });
+
+    expect(pot.payouts).toEqual([
+      { userId: ids.Maya, name: "Maya Chen", kind: "winnings", amountUsd: 90, whopId: "ctt_sent" },
       { userId: ids.Maya, name: "Maya Chen", kind: "refund", amountUsd: 20 },
     ]);
   });

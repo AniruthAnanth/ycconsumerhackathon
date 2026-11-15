@@ -80,7 +80,7 @@ function task(taskId: string, fields: Partial<Task> = {}): Task {
 }
 
 function roster(rows: Task[], fields: Partial<Roster> = {}): Roster {
-  return { locked: true, weekStart: local(11, 9, 0), total: 0, rows, ...fields };
+  return { locked: true, weekStart: local(11, 9, 0), total: 0, bonusPoints: 0, bonusLabels: [], rows, ...fields };
 }
 
 /** A standings table from each player's points, ranked the way standings.table ranks it. */
