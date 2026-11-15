@@ -51,7 +51,7 @@ theme/        Design tokens: colours, spacing, hairline.
 lib/          Client helpers: the Convex client, token storage, the current league, development flags.
 modules/      on-device-referee, the one native module. Standalone iOS builds only.
 convex/       The backend, one module per domain. convex/lib/ holds the pure rules, each with its test.
-scripts/      The cloud iPhone build recipe and the slide tooling.
+scripts/      The cloud iPhone build recipe, the Expo Go check and the demo media tools.
 docs/         Engineering docs: architecture, schema, scoring, device checks.
 ```
 

@@ -101,6 +101,7 @@ flowchart LR
   SOCIAL -->|"vote texts"| KEIKI
 
   CRONS -->|"hourly sweep"| NUDGE
+  CRONS -->|"week-end sweep"| WHOP
   SEED -->|"demo league rows"| DB
 ```
 
@@ -109,8 +110,8 @@ The app calls public functions in every backend module, and every module reads a
 ## Boundary rules
 
 1. **Outside calls happen only in Convex actions.** No file under `app/`, `components/`, `lib/`, `theme/` or `modules/` imports `openai`, `supermemory` or `@whop/sdk`, so no key reaches a phone. The app's only `fetch` is `uploadToConvex` in `components/capture/uploadToConvex.ts`, which posts media to Convex file storage. The app does open two outside pages itself: Whop's hosted checkout (`components/roster/PayBanner.tsx`) and a Messages link (`components/keiki/PlayByTextRow.tsx`).
-2. **One file per service.** The OpenAI SDK is imported only in `convex/ai.ts`, Supermemory only in `convex/memory.ts`, the Whop SDK only in `convex/whop.ts`. Keiki is called only from `convex/keiki.ts` and `convex/keikiMedia.ts`, Canvas only from `convex/canvas.ts`. Keys, timeouts and failure handling for a service are then in one place. (`chat` in `convex/keiki.ts` posts to a path named `/openai/chat/completions`; that is Keiki's gateway, not OpenAI.)
-3. **`convex/http.ts` only routes.** It is 15 lines. The handlers are `whopWebhook` in `convex/whop.ts` and `keikiTurn` in `convex/keiki.ts`, and each checks a signature on the raw body before parsing it.
+2. **One file per service.** The OpenAI SDK is imported only in `convex/ai.ts`, Supermemory only in `convex/memory.ts`, the Whop SDK only in `convex/whop.ts`. Keiki is called only from `convex/keiki.ts` and `convex/keikiMedia.ts`, Canvas only from `convex/canvas.ts`, Expo's push service only from `convex/push.ts`. Keys, timeouts and failure handling for a service are then in one place. (`chat` in `convex/keiki.ts` posts to a path named `/openai/chat/completions`; that is Keiki's gateway, not OpenAI.)
+3. **`convex/http.ts` only routes.** The handlers are `whopWebhook` in `convex/whop.ts` and `keikiTurn` in `convex/keiki.ts`, which each check a signature on the raw body before parsing it, and `invitePage` in `convex/referrals.ts`, the public `GET /i/<token>` page a texted invite link opens.
 4. **The server decides who is calling.** Public queries and mutations call `requireUser` in `convex/lib/auth.ts`, which honours `users.demoActAs` (the demo's Switch Player). Actions have no database, so each resolves its caller through an internal query that calls `requireUser`, for example `callerId` in `convex/lineup.ts` and `context` in `convex/proofs.ts`. Exceptions on main: `reset` and `players` in `convex/seed.ts` check no caller at all, so any client can reset the demo league. `createUser`, `actAs`, and Keiki's `line` and `setOptIn` act on the device's own account on purpose.
 5. **`convex/lib/` is pure.** Its files take plain data and return plain data: no database, storage, network, environment or clock. The one exception is `convex/lib/auth.ts`, which reads the `users` table. Each file has a `*.test.ts` beside it except `auth.ts` and the generated `seedPhotos.ts`. Not every pure rule lives there: `challenges.ts`, `feed.ts`, `profile.ts`, `wrapped.ts`, `canvas.ts` and `leadChange.ts` keep their rules at the top of their own file.
 6. **Scoring, the week and settlement have one definition each.** Points come from `scoreWeek` in `convex/lib/scoring.ts`, a league table from `leagueStandings` in `convex/standings.ts`, a week start from `weekStartOf` in `convex/lib/week.ts`, and payouts from `computeSettlement` in `convex/lib/settlement.ts`. Two small gaps: the client steps weeks with its own `shiftWeekStart` in `lib/week.ts`, and `ordinal` is written three times (`convex/wrapped.ts`, `convex/lib/ranking.ts`, `convex/lib/keikiText.ts`).
@@ -135,7 +136,7 @@ The app calls public functions in every backend module, and every module reads a
 
 **`convex/users.ts`** owns the `users` row: `me`, `createUser` (name and phone at onboarding) and `matchContacts`.
 
-**`convex/leagues.ts`** owns leagues, memberships, weeks and matchups: `create`, `joinByCode`, `quickMatch`, `get`, and the helpers other modules import (`currentWeek`, `addMember`). A league's latest `weeks` row, not the calendar, is its current week. No scheduled job opens a new week: `ensureCurrentWeek` runs when a member joins, and the internal `startWeek` has no caller on main.
+**`convex/leagues.ts`** owns leagues, memberships, weeks and matchups: `create`, `joinByCode`, `quickMatch`, `get`, and the helpers other modules import (`currentWeek`, `addMember`). A league's latest `weeks` row, not the calendar, is its current week. Every hour `sweepEndedWeeks` hands each league whose week is over to `endWeek` in `convex/whop.ts`, which settles that week and opens the next one. `ensureCurrentWeek` also opens a week when a member joins.
 
 **`convex/seed.ts`** rebuilds the demo league in place (`reset`) and powers Switch Player (`players`, `actAs`). **`convex/lib/seedPhotos.ts`** embeds the demo's generated proof photos as base64, because a Convex function cannot read files from the repository.
 
@@ -153,7 +154,7 @@ The app calls public functions in every backend module, and every module reads a
 
 ### Money
 
-**`convex/whop.ts`** carries every dollar: `createCheckout` opens a hosted checkout on the league's own Whop company, `whopWebhook` is the only thing that marks a member paid, and `settleWeek` writes ledger rows in one transaction (`closeWeek`) before sending any transfer. `whopClient` refuses to run unless the environment is set to sandbox. Per the comment in `settleWeek`, Whop refuses transfers out of unverified sandbox companies, so payouts are shown from ledger rows. No job ends a week; a member presses End Week Now in the demo controls.
+**`convex/whop.ts`** carries every dollar: `createCheckout` opens a hosted checkout on the league's own Whop company, `whopWebhook` is the only thing that marks a member paid, and `settleWeek` writes ledger rows in one transaction (`closeWeek`) before sending any transfer. `whopClient` refuses to run unless the environment is set to sandbox. Per the comment in `settleWeek`, Whop refuses transfers out of unverified sandbox companies, so payouts are shown from ledger rows. A week ends on the calendar: the hourly sweep calls `endWeek`, whose `rollWeek` settles the week and opens the next in one transaction. End Week Now in the demo controls settles the current week early.
 
 **`convex/lib/settlement.ts`** is the payout maths in whole cents (`computeSettlement`), and **`convex/lib/projection.ts`** forecasts a payout by calling it, so a projection cannot disagree with the settlement.
 
@@ -185,7 +186,7 @@ The app calls public functions in every backend module, and every module reads a
 
 ### Scheduled work
 
-**`convex/crons.ts`** declares the one recurring job: the hourly check-in sweep. One-off timing (a drop closing, a vote closing, follow-ups after a proof) is scheduled by the module that owns it.
+**`convex/crons.ts`** declares the two recurring jobs, both hourly: the check-in sweep, and the week-end sweep (`leagues.sweepEndedWeeks`), which settles every league whose week is over and opens its next week. One-off timing (a drop closing, a vote closing, follow-ups after a proof) is scheduled by the module that owns it.
 
 ### The client
 
