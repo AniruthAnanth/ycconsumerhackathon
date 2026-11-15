@@ -2,6 +2,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
+import { OnDeviceRead } from "@/components/onDeviceReferee/OnDeviceRead";
+import { useOnDeviceRead } from "@/components/onDeviceReferee/useOnDeviceRead";
+
 import { parseCapture, parseProofTarget, proofCameraHref } from "../proofRoute";
 import { ReviewingOverlay } from "./ReviewingOverlay";
 import { StampBadge } from "./StampBadge";
@@ -15,7 +18,9 @@ export function VerdictScreen() {
   const params = useLocalSearchParams();
   const target = useMemo(() => parseProofTarget(params), [params]);
   const capture = useMemo(() => parseCapture(params), [params]);
-  const { phase, retry } = useSubmitProof(target, capture);
+  // The phone's own instant read of a photo. Absent in Expo Go, where it changes nothing.
+  const onDevice = useOnDeviceRead(capture.mediaType === "photo" ? capture.uri : undefined, target);
+  const { phase, retry } = useSubmitProof(target, capture, onDevice.beforeVerify);
   const impact = useStampImpact(phase.name === "verdict" ? phase.verdict.pass : undefined);
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
@@ -34,6 +39,14 @@ export function VerdictScreen() {
         onDone={close}
         onRetry={phase.name === "error" ? retry : retryProof}
         onClose={close}
+        whileReviewing={
+          <OnDeviceRead
+            read={onDevice.read}
+            asking={onDevice.asking}
+            onRetake={retryProof}
+            onSendAnyway={onDevice.sendAnyway}
+          />
+        }
       />
     </Animated.View>
   );
