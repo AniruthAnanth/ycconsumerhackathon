@@ -9,7 +9,8 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
-import { canSubmitProof, findTask, submitProofHref } from "./taskSheetRules";
+import { howToProve } from "../proofKinds";
+import { canSubmitProof, findTask, submitProofHref, toProofTarget } from "./taskSheetRules";
 
 export function TaskSheet({ taskId }: { taskId: string }) {
   const router = useRouter();
@@ -42,6 +43,11 @@ export function TaskSheet({ taskId }: { taskId: string }) {
           </View>
           <TaskRow task={task} titleLines={3} />
           {canSubmitProof(task.status) ? (
+            <Text style={styles.howTo} testID="task-how-to-prove">
+              {howToProve(toProofTarget(task))}
+            </Text>
+          ) : null}
+          {canSubmitProof(task.status) ? (
             <View style={styles.action}>
               <Button label="Submit Proof" onPress={() => router.replace(submitProofHref(task))} />
             </View>
@@ -56,5 +62,6 @@ export function TaskSheet({ taskId }: { taskId: string }) {
 const styles = StyleSheet.create({
   hero: { alignItems: "center", paddingTop: spacing.lg, paddingBottom: spacing.md },
   action: { padding: SCREEN_MARGIN },
+  howTo: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.md, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
   missing: { padding: SCREEN_MARGIN, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
 });

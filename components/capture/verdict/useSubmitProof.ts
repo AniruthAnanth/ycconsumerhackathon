@@ -32,13 +32,14 @@ export function useSubmitProof(target: ProofTarget, capture: Capture, beforeVeri
       generateUploadUrl: () => requestUploadUrl({}),
       uploadMedia: uploadToConvex,
       captureStill,
-      verifyMedia: async ({ taskId, storageId, frameStorageIds, ...rest }) => {
+      verifyMedia: async ({ taskId, storageId, frameStorageIds, beforeStorageId, ...rest }) => {
         await beforeVerify?.();
         return verifyMedia({
           ...rest,
           taskId: taskId as Id<"tasks">,
           storageId: storageId as Id<"_storage">,
           frameStorageIds: frameStorageIds as Id<"_storage">[] | undefined,
+          ...(beforeStorageId && { beforeStorageId: beforeStorageId as Id<"_storage"> }),
         });
       },
       verifyCanvas: ({ taskId }) => verifyCanvasTask({ taskId: taskId as Id<"tasks"> }),

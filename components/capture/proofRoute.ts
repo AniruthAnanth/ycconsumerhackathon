@@ -5,9 +5,11 @@
  */
 import type { Href } from "expo-router";
 
-import { SLOT_ORDER, type ProofType, type Slot } from "@/lib/slots";
+import { SLOT_ORDER, type Slot } from "@/lib/slots";
 
-export type { ProofType } from "@/lib/slots";
+import { parseProofType, type CaptureProofType } from "./proofKinds";
+
+export type ProofType = CaptureProofType;
 
 /** What the camera and the verdict screen need to know about the task being proven. */
 export type ProofTarget = {
@@ -20,6 +22,8 @@ export type ProofTarget = {
   gesture?: string;
   /** Optional because drops and check-ins may not have one; the on-device pre-check reads it. */
   slot?: Slot;
+  /** How long a timelapse should run; only a timelapse task has one. */
+  targetMinutes?: number;
 };
 
 /**
@@ -28,7 +32,19 @@ export type ProofTarget = {
  * A Canvas task has no media: the backend reads the submission.
  */
 export type Capture =
-  | { mediaType: "photo" | "video"; uri: string; lat?: number; lng?: number; durationMs?: number }
+  | {
+      mediaType: "photo" | "video";
+      uri: string;
+      lat?: number;
+      lng?: number;
+      durationMs?: number;
+      /** Epoch ms the shot was taken (for a timelapse, its last frame): the referee refuses a stale one. */
+      capturedAt?: number;
+      /** Before/after: the first shot. `uri` is the after. */
+      beforeUri?: string;
+      /** Timelapse: up to eight stills in time order, with when each was taken. `uri` is the last. */
+      frames?: { uri: string; at: number }[];
+    }
   | { mediaType: "canvas" };
 
 export type RouteParams = Record<string, string | string[] | undefined>;
@@ -47,6 +63,7 @@ function targetParams(target: ProofTarget): Record<string, string> {
   }
   if (target.gesture) params.gesture = target.gesture;
   if (target.slot) params.slot = target.slot;
+  if (target.targetMinutes !== undefined) params.targetMinutes = String(target.targetMinutes);
   return params;
 }
 
@@ -66,6 +83,9 @@ export function verdictHref(target: ProofTarget, capture: Capture): Href {
       params.lng = String(capture.lng);
     }
     if (capture.durationMs !== undefined) params.durationMs = String(capture.durationMs);
+    if (capture.capturedAt !== undefined) params.capturedAt = String(capture.capturedAt);
+    if (capture.beforeUri) params.beforeUri = capture.beforeUri;
+    if (capture.frames?.length) params.frames = JSON.stringify(capture.frames);
   }
   return { pathname: "/proof/verdict", params } as Href;
 }
@@ -83,7 +103,6 @@ function number(value: string | string[] | undefined): number | undefined {
 }
 
 export function parseProofTarget(params: RouteParams): ProofTarget {
-  const proofType = text(params.proofType);
   const placeName = text(params.placeName);
   const placeLat = number(params.placeLat);
   const placeLng = number(params.placeLng);
@@ -92,13 +111,14 @@ export function parseProofTarget(params: RouteParams): ProofTarget {
     taskId: text(params.taskId) ?? "",
     title: text(params.title) ?? "",
     points: number(params.points) ?? 0,
-    proofType: proofType === "photo_location" || proofType === "canvas" ? proofType : "photo",
+    proofType: parseProofType(text(params.proofType)),
     place:
       placeName !== undefined && placeLat !== undefined && placeLng !== undefined
         ? { name: placeName, lat: placeLat, lng: placeLng }
         : undefined,
     gesture: text(params.gesture),
     slot,
+    targetMinutes: number(params.targetMinutes),
   };
 }
 
@@ -111,5 +131,19 @@ export function parseCapture(params: RouteParams): Capture {
     lat: number(params.lat),
     lng: number(params.lng),
     durationMs: number(params.durationMs),
+    capturedAt: number(params.capturedAt),
+    beforeUri: text(params.beforeUri),
+    frames: parseFrames(text(params.frames)),
   };
+}
+
+function parseFrames(raw: string | undefined): { uri: string; at: number }[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const frames: unknown = JSON.parse(raw);
+    if (!Array.isArray(frames)) return undefined;
+    return frames.filter((f): f is { uri: string; at: number } => typeof f?.uri === "string" && typeof f?.at === "number");
+  } catch {
+    return undefined;
+  }
 }

@@ -49,6 +49,19 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
   }
 
   const { verdict } = phase;
+  // A held proof is neither a pass nor a fail yet, so it gets no points, no stamp and no Retry.
+  if (verdict.needsVote) {
+    return (
+      <View style={[styles.panel, { paddingBottom: bottom }]} testID="verdict-vote">
+        <Text style={styles.reason}>Sent to your league for a vote</Text>
+        <Text style={[styles.reasonPass]}>{verdict.reason}</Text>
+        <View style={styles.spacer} />
+        <View style={styles.actions}>
+          <Button label="Done" onPress={onDone} />
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={[styles.panel, { paddingBottom: bottom }]}>
       {verdict.pass ? (

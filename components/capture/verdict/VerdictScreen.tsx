@@ -39,7 +39,7 @@ export function VerdictScreen() {
         {/* The proof runs under the clock and battery. A dark band with light glyphs keeps them readable on any photo. */}
         <View pointerEvents="none" style={[styles.statusBand, { height: insets.top }]} />
         {phase.name === "reviewing" && <ReviewingOverlay title={target.title} />}
-        {phase.name === "verdict" && <StampBadge pass={phase.verdict.pass} onLand={impact.land} />}
+        {phase.name === "verdict" && !phase.verdict.needsVote && <StampBadge pass={phase.verdict.pass} onLand={impact.land} />}
       </View>
       <VerdictPanel
         phase={phase}
