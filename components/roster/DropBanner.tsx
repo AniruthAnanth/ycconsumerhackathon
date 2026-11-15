@@ -17,21 +17,22 @@ export function DropBanner({ leagueId }: { leagueId: Id<"leagues"> }) {
   const drops = useQuery(backend.drops.active, { leagueId });
   // Re-checked every second so the strip leaves the moment its drop closes.
   const drop = pickBannerDrop(drops ?? [], useNow(1000));
-  if (!drop) return null;
+  const kind = drop && KIND[drop.kind];
+  if (!drop || !kind) return null;
 
   return (
     <Banner
       tone="live"
-      icon={KIND[drop.kind].icon}
+      icon={kind.icon}
       title={drop.title}
-      subtitle={drop.place?.name ?? KIND[drop.kind].label}
+      subtitle={drop.place?.name ?? kind.label}
     >
       <DropActions drop={drop} leagueId={leagueId} />
     </Banner>
   );
 }
 
-const KIND: Record<Drop["kind"], { icon: IconName; label: string }> = {
+const KIND: Partial<Record<Drop["kind"], { icon: IconName; label: string }>> = {
   quicktime: { icon: "flash", label: "Quick-time drop" },
   group: { icon: "people", label: "Group session" },
 };

@@ -62,6 +62,10 @@ describe("dropView", () => {
     expect(dropView(drop({ taskId: undefined }), NOW)).toMatchObject({ type: "timed", proof: undefined });
   });
 
+  it("shows nothing for a drop of a kind the app no longer has", () => {
+    expect(dropView(drop({ kind: "mystery" }), NOW)).toEqual({ type: "hidden" });
+  });
+
   it("counts a group session down to its start, then to its end", () => {
     const attendees = [
       { userId: "u1" as Id<"users">, name: "Ana", checkedIn: true },

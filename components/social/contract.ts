@@ -136,7 +136,7 @@ export type CanvasAssignment = {
 
 export type Drop = {
   dropId: Id<"drops">;
-  kind: "quicktime" | "group";
+  kind: "quicktime" | "mystery" | "group";
   title: string;
   slot: Slot;
   points: number;

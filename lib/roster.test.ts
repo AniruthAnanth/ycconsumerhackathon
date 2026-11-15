@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Drop, Task } from "./backend";
+import type { Task } from "./backend";
 import { flexTasksLeft, pickBannerDrop, splitRoster } from "./roster";
 
 function task(taskId: string, slot: Task["slot"], source: Task["source"] = "draft"): Task {
@@ -79,7 +79,7 @@ describe("pickBannerDrop", () => {
   });
 
   it("ignores a drop of a kind it does not know", () => {
-    const unknown = "mystery" as unknown as Drop["kind"];
+    const unknown = "mystery" as const;
     expect(pickBannerDrop([{ kind: unknown, closesAt: now + 10 }], now)).toBeUndefined();
     expect(pickBannerDrop([{ kind: unknown, closesAt: now + 10 }, { kind: "group" as const, closesAt: now + 20 }], now)?.kind).toBe("group");
   });

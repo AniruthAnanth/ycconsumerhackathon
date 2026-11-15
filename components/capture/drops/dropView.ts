@@ -47,6 +47,8 @@ export function dropView(drop: Drop, now: number, meId?: Id<"users">): DropView 
     };
   }
 
+  if (drop.kind !== "quicktime") return { type: "hidden" };
+
   return {
     type: "timed",
     countdown: formatCountdown(drop.closesAt - now),
