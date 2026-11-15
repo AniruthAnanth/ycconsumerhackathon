@@ -342,6 +342,71 @@ describe("seed.reset", () => {
   });
 });
 
+describe("seed.reset leaves nothing behind", () => {
+  test("forgets who led, so the first proof after a reset announces no lead change", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+    const { _id: leagueId } = await league(t);
+    await t.run(async (ctx) => {
+      const guestId = await ctx.db.insert("users", { name: "Guest" });
+      await ctx.db.patch("leagues", leagueId, { leaderId: guestId });
+    });
+
+    await reset(t);
+
+    expect((await league(t)).leaderId).toBeUndefined();
+  });
+
+  test("clears the check-in marks, so the next proof is not measured against the old table", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+    const { _id: leagueId } = await league(t);
+    const players = await t.query(api.seed.players, {});
+    await t.run(async (ctx) => {
+      const guestId = await ctx.db.insert("users", { name: "Guest" });
+      await ctx.db.insert("checkinMarks", { leagueId, userId: guestId, points: 310 });
+      // Leo had 150 before the reset and has 0 after it.
+      await ctx.db.insert("checkinMarks", { leagueId, userId: players[3]._id, points: 150 });
+    });
+
+    await reset(t);
+
+    expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toEqual([]);
+  });
+
+  test("clears what a seeded player picked up from a switched phone: texts, arrivals and a Canvas connection", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+    const players = await t.query(api.seed.players, {});
+    const [maya, , , , , sam] = players;
+    await t.run(async (ctx) => {
+      const task = await ctx.db
+        .query("tasks")
+        .withIndex("by_user_week", (q) => q.eq("userId", sam._id))
+        .first();
+      if (task === null) throw new Error("Sam has no task");
+      // Three texts are a player's whole day: left behind, Sam is never texted after the reset.
+      for (const kind of ["evening", "rival_passed", "arrival"] as const) {
+        await ctx.db.insert("checkinNudges", { userId: sam._id, kind, day: "2026-11-15", text: "Stray.", sentAt: NOW });
+      }
+      await ctx.db.insert("arrivals", { userId: sam._id, taskId: task._id, lat: 37.76, lng: -122.43, at: NOW });
+      await ctx.db.insert("canvasConnections", { userId: sam._id, baseUrl: "https://canvas.example.edu", token: "stray" });
+    });
+
+    await reset(t);
+
+    const state = await t.run(async (ctx) => ({
+      nudges: await ctx.db.query("checkinNudges").collect(),
+      arrivals: await ctx.db.query("arrivals").collect(),
+      connections: await ctx.db.query("canvasConnections").collect(),
+    }));
+    expect(state.nudges).toEqual([]);
+    expect(state.arrivals).toEqual([]);
+    // Only the demo school the seed connects Maya to.
+    expect(state.connections.map((connection) => connection.userId)).toEqual([maya._id]);
+  });
+});
+
 describe("seed.players and seed.actAs", () => {
   test("players lists the six seeded players in seed order", async () => {
     const t = convexTest(schema, modules);

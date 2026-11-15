@@ -587,9 +587,22 @@ async function clearLeague(ctx: MutationCtx, leagueId: Id<"leagues">): Promise<v
     for (const task of tasks) await deleteTask(ctx, task._id);
     await ctx.db.delete("drops", drop._id);
   }
+
+  // Both are a "before" that a later proof is compared with: every member's points when
+  // check-ins last looked, and who led when a text last said so. Left from the old table, the
+  // first proof after a reset texts that players were passed or that the lead changed hands.
+  const marks = await ctx.db
+    .query("checkinMarks")
+    .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId))
+    .take(SWEEP_LIMIT);
+  for (const mark of marks) await ctx.db.delete("checkinMarks", mark._id);
+  await ctx.db.patch("leagues", leagueId, { leaderId: undefined });
 }
 
-/** Removes a seeded player's lineups, tasks and proofs, for every week. */
+/**
+ * Removes a seeded player's lineups, tasks and proofs, for every week, and whatever else a phone
+ * switched to them left under their id.
+ */
 async function clearPlayer(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
   const lineups = await ctx.db
     .query("lineups")
@@ -602,6 +615,26 @@ async function clearPlayer(ctx: MutationCtx, userId: Id<"users">): Promise<void>
     .withIndex("by_user_week", (q) => q.eq("userId", userId))
     .take(SWEEP_LIMIT);
   for (const task of tasks) await deleteTask(ctx, task._id);
+
+  // Texts already sent today count towards the three a player may get in a day.
+  const nudges = await ctx.db
+    .query("checkinNudges")
+    .withIndex("by_user_day", (q) => q.eq("userId", userId))
+    .take(SWEEP_LIMIT);
+  for (const nudge of nudges) await ctx.db.delete("checkinNudges", nudge._id);
+
+  const arrivals = await ctx.db
+    .query("arrivals")
+    .withIndex("by_user_task", (q) => q.eq("userId", userId))
+    .take(SWEEP_LIMIT);
+  for (const arrival of arrivals) await ctx.db.delete("arrivals", arrival._id);
+
+  // restoreSeed connects Maya to the demo school again; nobody else starts connected.
+  const connections = await ctx.db
+    .query("canvasConnections")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(SWEEP_LIMIT);
+  for (const connection of connections) await ctx.db.delete("canvasConnections", connection._id);
 }
 
 /** Rebuilds the league. Reports whether any photo is not in file storage yet. */
