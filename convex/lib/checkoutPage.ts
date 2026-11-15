@@ -24,6 +24,28 @@ export type CheckoutPage = {
   returned: "succeeded" | "failed" | "canceled" | null;
 };
 
+export type CheckoutMessage = "ready" | "complete" | "failed" | "returned";
+
+const MESSAGE_TYPES: readonly string[] = ["ready", "complete", "failed", "returned"];
+
+/**
+ * Reads one message the page posted, as the app receives it. Anything else that reaches the
+ * app's listener (another frame's message, a browser extension's) is null.
+ */
+export function parseCheckoutMessage(data: unknown): CheckoutMessage | null {
+  if (typeof data !== "string") return null;
+  let message: unknown;
+  try {
+    message = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  if (typeof message !== "object" || message === null) return null;
+  const { source, type } = message as { source?: unknown; type?: unknown };
+  if (source !== CHECKOUT_MESSAGE_SOURCE || typeof type !== "string") return null;
+  return MESSAGE_TYPES.includes(type) ? (type as CheckoutMessage) : null;
+}
+
 /** True for a Whop checkout configuration id and nothing else, which is what may reach the page. */
 export function isCheckoutId(value: string): boolean {
   return /^ch_[A-Za-z0-9]+$/.test(value);

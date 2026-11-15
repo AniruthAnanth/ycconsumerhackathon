@@ -19,6 +19,9 @@ export const STAMP_SETTLE_MS = 130;
 /** A fade or a tab change: short ease-out, so content arrives without a wait. */
 export const FADE_MS = 180;
 
+/** A bottom sheet rising from the edge of the screen. */
+export const SHEET_MS = 280;
+
 /** The gap between rows of a staggered entrance, and the most rows that wait for it. */
 export const STAGGER_MS = 45;
 export const STAGGER_MAX_ROWS = 8;
