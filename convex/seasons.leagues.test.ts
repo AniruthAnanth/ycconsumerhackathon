@@ -67,6 +67,16 @@ async function storedPairs(t: ReturnType<typeof newHarness>, leagueId: Id<"leagu
   });
 }
 
+describe("seasons.overview", () => {
+  it("turns away a player who is not in the league", async () => {
+    const { t, leagueId } = await leagueOf(["Ava", "Ben"]);
+    const outsider = await t.run((ctx) => ctx.db.insert("users", { name: "Zed" }));
+    await expect(
+      t.withIdentity({ subject: outsider + "|session" }).query(api.seasons.overview, { leagueId }),
+    ).rejects.toThrow("You are not in this league.");
+  });
+});
+
 describe("leagues.create with settings", () => {
   it("keeps weekly, 8 weeks and round robin for a league created without any", async () => {
     const { t, leagueId, overview } = await leagueOf(["Ava", "Ben"]);
