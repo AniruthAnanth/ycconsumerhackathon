@@ -53,17 +53,13 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
       accessibilityLabel={[`${league.name}, ${members}`, `${week}${timing}`, scoreboard].join(". ")}
       testID="roster-hero"
     >
+      {/* The header above already names the league in full, so the card only adds what it lacks. */}
       <View style={styles.head}>
-        <View style={styles.headText}>
-          <Text style={styles.league} numberOfLines={1}>
-            {league.name} · {members}
-          </Text>
-          <Text style={styles.meta}>
-            {week}
-            {timing}
-          </Text>
-        </View>
-        <Artwork name="sunny" size={78} />
+        <Text style={[styles.meta, styles.headText]} numberOfLines={1}>
+          {members} · {week}
+          {timing}
+        </Text>
+        <Artwork name="sunny" size={48} />
       </View>
 
       {matchup ? (
@@ -88,13 +84,6 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           <Text style={styles.name}>points this week</Text>
         </View>
       )}
-      {chance !== null ? (
-        <View style={styles.chance}>
-          <Text style={styles.chanceLabel}>{chance}% to win</Text>
-          <ProgressFill ratio={chance / 100} height={6} />
-        </View>
-      ) : null}
-
       {plan.possible > 0 ? (
         <View
           style={styles.plan}
@@ -103,9 +92,12 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           accessibilityLabel={planProgressLabel(plan)}
           accessibilityValue={{ min: 0, max: plan.possible, now: plan.confirmed }}
         >
-          <Text style={styles.planLabel}>
-            Your weekly plan · {plan.confirmed} / {plan.possible} pts
-          </Text>
+          <View style={styles.planHead}>
+            <Text style={styles.planLabel} numberOfLines={1}>
+              Your weekly plan · {plan.confirmed} / {plan.possible} pts
+            </Text>
+            {chance !== null ? <Text style={styles.chance}>{chance}% to win</Text> : null}
+          </View>
           <ProgressFill ratio={plan.ratio} />
           {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}
         </View>
@@ -116,19 +108,21 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
 
 const styles = StyleSheet.create({
   card: {
-    margin: SCREEN_MARGIN,
-    marginBottom: spacing.md,
-    padding: SCREEN_MARGIN,
-    gap: spacing.lg,
+    marginHorizontal: SCREEN_MARGIN,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
     borderWidth: hairline,
     borderColor: colors.divider,
   },
   loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
-  head: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  headText: { flex: 1, gap: 2 },
-  league: { ...type.label, color: colors.text },
+  // Sunny stays small here: the card shares the first screen with the starters.
+  head: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: -spacing.sm },
+  headText: { flex: 1 },
   meta: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
   scores: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
   side: { flex: 1 },
@@ -138,9 +132,9 @@ const styles = StyleSheet.create({
   theirScore: { ...type.title, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   name: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
   vs: { ...type.caption, color: colors.textFaint, paddingBottom: spacing.lg },
-  chance: { gap: spacing.xs },
-  chanceLabel: { ...type.caption, color: colors.accent },
   plan: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
-  planLabel: { ...type.label, color: colors.text },
+  planHead: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  planLabel: { ...type.label, flex: 1, color: colors.text },
+  chance: { ...type.caption, color: colors.accent },
   pending: { ...type.small, color: colors.warning },
 });

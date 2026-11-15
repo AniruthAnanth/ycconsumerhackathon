@@ -84,7 +84,26 @@ export function RosterScreen() {
           </Entrance>
         ) : null}
         {lead ? <Entrance index={1}>{row(lead, true)}</Entrance> : null}
-        <Entrance index={2} style={styles.actions}>
+        {noLineup ? (
+          <Text style={styles.none}>No lineup this week</Text>
+        ) : (
+          <Entrance index={2}>
+            <SectionLabel left="Starters" right="Score" />
+            {starters.map(({ slot, task }) => (task ? listed(task) : <EmptySlotRow key={slot} slot={slot} onPress={draft} />))}
+            {extras.length > 0 || takesFlex ? <SectionLabel left="Flex and bonus" /> : null}
+            {extras.map(listed)}
+            {takesFlex ? <AddFlexTask /> : null}
+            {/* The hero already leads with the score, so the box-score total closes the sheet instead of pinning a footer over the starters. */}
+            {undrafted ? null : (
+              <>
+                {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
+                <RosterTotal total={roster?.total ?? null} bonusPoints={roster?.bonusPoints} bonusLabels={roster?.bonusLabels} />
+              </>
+            )}
+          </Entrance>
+        )}
+        {/* Secondary actions sit under the lineup: the starters, not these, are what the first screen is for. */}
+        <Entrance index={3} style={styles.actions}>
           <OutlinedPillButton label="Voice Draft" icon="mic-outline" style={styles.action} onPress={() => router.push("/draft")} />
           <OutlinedPillButton
             label="Week Stats"
@@ -93,26 +112,8 @@ export function RosterScreen() {
             onPress={() => router.push({ pathname: "/wrapped", params: { leagueId: leagueId ?? undefined, weekNumber } })}
           />
         </Entrance>
-        {noLineup ? (
-          <Text style={styles.none}>No lineup this week</Text>
-        ) : (
-          <Entrance index={3}>
-            <SectionLabel left="Starters" right="Score" />
-            {starters.map(({ slot, task }) => (task ? listed(task) : <EmptySlotRow key={slot} slot={slot} onPress={draft} />))}
-            {extras.length > 0 || takesFlex ? <SectionLabel left="Flex and bonus" /> : null}
-            {extras.map(listed)}
-            {takesFlex ? <AddFlexTask /> : null}
-          </Entrance>
-        )}
       </ScrollView>
-      {undrafted ? (
-        <Button label="Draft your week" style={styles.draft} onPress={() => router.push("/draft")} />
-      ) : noLineup ? null : (
-        <>
-          {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
-          <RosterTotal total={roster?.total ?? null} bonusPoints={roster?.bonusPoints} bonusLabels={roster?.bonusLabels} />
-        </>
-      )}
+      {undrafted ? <Button label="Draft your week" style={styles.draft} onPress={() => router.push("/draft")} /> : null}
     </Screen>
   );
 }
