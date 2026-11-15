@@ -53,6 +53,7 @@
     "supermemory": "^5.1.2"
   },
   "devDependencies": {
+    "@bacons/apple-targets": "^5.0.0",
     "@edge-runtime/vm": "^5.0.0",
     "@types/heic-decode": "^2.0.1",
     "@types/react": "~19.3.0",
