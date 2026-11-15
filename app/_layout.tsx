@@ -1,16 +1,17 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { type ErrorBoundaryProps, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthGate } from "@/components/AuthGate";
 import { NotificationsHost } from "@/components/notifications/NotificationsHost";
-import { OutlinedPillButton } from "@/components/ui";
 import { convex } from "@/lib/convex";
 import { CurrentLeagueProvider } from "@/lib/currentLeague";
 import { tokenStorage } from "@/lib/tokenStorage";
-import { colors, font, spacing } from "@/theme";
+import { colors } from "@/theme";
+
+export { RootError as ErrorBoundary } from "@/components/shell/RootError";
 
 export default function RootLayout() {
   return (
@@ -43,30 +44,6 @@ export default function RootLayout() {
   );
 }
 
-/**
- * CurrentLeagueProvider reads users.me() above every screen, so when that read
- * fails (no connection, or the backend is mid-deploy) no screen is left to show
- * the failure. Expo Router renders this in place of the whole app instead of a
- * blank page; Try Again mounts everything afresh.
- */
-export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
-  return (
-    <View style={styles.failure}>
-      <Text style={styles.message}>Couldn't reach Lineup.</Text>
-      <OutlinedPillButton label="Try Again" onPress={retry} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  failure: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.lg,
-    padding: spacing.xl,
-    backgroundColor: colors.background,
-  },
-  message: { fontSize: font.title, color: colors.textMuted },
 });
