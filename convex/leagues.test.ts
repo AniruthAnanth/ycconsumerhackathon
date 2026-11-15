@@ -112,6 +112,15 @@ async function markAllPaid(t: Harness, leagueId: Id<"leagues">) {
   });
 }
 
+/** The arguments of every call the backend has scheduled to this function. */
+async function scheduledTo(
+  t: Harness,
+  name: "whop:endWeek" | "whop:retryPayouts" | "leagues:sweepEndedWeeks",
+) {
+  const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  return jobs.filter((job) => job.name === name).map((job) => job.args[0]);
+}
+
 /** What the Whop webhook writes for a verified payment into the league's current week. */
 async function buyIn(t: Harness, leagueId: Id<"leagues">, userId: Id<"users">) {
   await t.run(async (ctx) => {
@@ -472,7 +481,105 @@ describe("leagues.get", () => {
   });
 });
 
+describe("leagues.sweepEndedWeeks", () => {
+  it("hands over a league whose week is over, and leaves one in its current week alone", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const lastWeeks = await createLeague(t, ava, { name: "Since last week" });
+
+    await t.mutation(internal.leagues.sweepEndedWeeks, {});
+    expect(await scheduledTo(t, "whop:endWeek")).toEqual([]);
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await createLeague(t, ben, { name: "Since today" });
+    await t.mutation(internal.leagues.sweepEndedWeeks, {});
+
+    expect(await scheduledTo(t, "whop:endWeek")).toEqual([{ leagueId: lastWeeks.leagueId }]);
+  });
+
+  it("leaves a finished versus alone, because it has no next week", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const league = await createLeague(t, ava, { name: "League" });
+    const versus = await createLeague(t, ben, { name: "Versus" });
+    const stillOpen = await createLeague(t, ben, { name: "Versus, never settled" });
+    await t.run(async (ctx) => {
+      for (const { leagueId } of [versus, stillOpen]) {
+        await ctx.db.patch("leagues", leagueId, { mode: "versus" });
+      }
+      const week = await ctx.db
+        .query("weeks")
+        .withIndex("by_league", (q) => q.eq("leagueId", versus.leagueId))
+        .unique();
+      if (week === null) throw new Error("missing week");
+      await ctx.db.patch("weeks", week._id, { status: "settled" });
+    });
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.sweepEndedWeeks, {});
+
+    expect(await scheduledTo(t, "whop:endWeek")).toEqual([
+      { leagueId: league.leagueId },
+      { leagueId: stillOpen.leagueId },
+    ]);
+  });
+
+  it("carries on in a run of its own when there are more leagues than one run reads", async () => {
+    const t = newHarness();
+    const ava = await addUser(t);
+    const total = 205;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < total; i++) {
+        const leagueId = await ctx.db.insert("leagues", {
+          name: `League ${i}`,
+          inviteCode: `CODE${i}`,
+          stakeUsd: 0,
+          visibility: "private",
+          maxMembers: 12,
+          createdBy: ava,
+        });
+        const startsAt = Date.UTC(2026, 10, 16, 8);
+        await ctx.db.insert("weeks", {
+          leagueId,
+          number: 1,
+          startsAt,
+          endsAt: startsAt + WEEK_MS,
+          status: "open",
+        });
+      }
+    });
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await t.mutation(internal.leagues.sweepEndedWeeks, {});
+    const [next] = await scheduledTo(t, "leagues:sweepEndedWeeks");
+    expect(await scheduledTo(t, "whop:endWeek")).toHaveLength(200);
+
+    await t.mutation(internal.leagues.sweepEndedWeeks, next);
+    expect(await scheduledTo(t, "whop:endWeek")).toHaveLength(total);
+    expect(await scheduledTo(t, "leagues:sweepEndedWeeks")).toHaveLength(1);
+  });
+});
+
 describe("leagues.startWeek", () => {
+  it("has the week it leaves behind settled, when a join opens the new week before the sweep", async () => {
+    const t = newHarness();
+    const [ava, ben] = [await addUser(t), await addUser(t)];
+    const { leagueId, inviteCode } = await createLeague(t, ava);
+    const firstWeek = await t.run((ctx) =>
+      ctx.db
+        .query("weeks")
+        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+        .unique(),
+    );
+
+    vi.setSystemTime(NOW + WEEK_MS);
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+    // Already in the new week: nothing more to close.
+    await t.mutation(internal.leagues.startWeek, { leagueId });
+
+    expect(await scheduledTo(t, "whop:retryPayouts")).toEqual([{ leagueId, weekId: firstWeek?._id }]);
+  });
+
   it("rolls the league into the new calendar week with fresh pairings", async () => {
     const t = newHarness();
     const [ava, ben, cal, dee] = [
