@@ -11,6 +11,7 @@
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
 import type * as canvas from "../canvas.js";
+import type * as challenges from "../challenges.js";
 import type * as crons from "../crons.js";
 import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
   canvas: typeof canvas;
+  challenges: typeof challenges;
   crons: typeof crons;
   drops: typeof drops;
   feed: typeof feed;
