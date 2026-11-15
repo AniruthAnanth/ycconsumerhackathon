@@ -58,7 +58,8 @@ export function useProofCapture(target: ProofTarget) {
   function takePhoto() {
     if (busy || !camera.current) return;
     return guarded(async () => {
-      const photo = await camera.current!.takePictureAsync({ quality: PHOTO_QUALITY });
+      // The web camera writes PNG unless told otherwise, and the upload is labelled image/jpeg.
+      const photo = await camera.current!.takePictureAsync({ quality: PHOTO_QUALITY, imageType: "jpg" });
       await finish({ mediaType: "photo", uri: photo.uri });
     });
   }
