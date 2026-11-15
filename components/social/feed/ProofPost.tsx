@@ -9,10 +9,12 @@ import { confirmAction, notify } from "@/components/social/notify";
 import { Avatar, PositionPill, Score } from "@/components/ui";
 import { colors } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
+import { haptics } from "@/lib/native/haptics";
 import { shareText } from "@/lib/native/share";
 
 import { ChallengeBar } from "./ChallengeBar";
-import { canChallenge, KIND_LABEL, proofShareText, reactionButtons, timeAgo } from "./feedLogic";
+import { canChallenge, KIND_LABEL, proofShareText, REACTION_EMOJI, reactionButtons, timeAgo } from "./feedLogic";
+import { ProofSwipeRow } from "./ProofSwipeRow";
 import { ReactionBar } from "./ReactionBar";
 
 /**
@@ -35,6 +37,10 @@ export function ProofPost({
   const openChallenge = useMutation(socialApi.challenges.open);
   const react = useMutation(socialApi.feed.react);
   const challengeable = canChallenge(item, myUserId, now, memberCount);
+  const toggleReaction = (emoji: string) => {
+    haptics.select();
+    react({ proofId: item.proofId, emoji }).catch((error) => notify(errorMessage(error)));
+  };
   const kindLabel = KIND_LABEL[item.kind];
 
   // A failed challenge costs the challenger points, so it takes a second tap.
@@ -54,51 +60,53 @@ export function ProofPost({
         post's actions. Link.Menu is iOS-only and renders nothing elsewhere, so Android and the
         web keep the plain link and the buttons below.
       */}
-      <Link href={`/profile/${item.user._id}`} asChild>
-        <Link.Trigger>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${item.user.name}'s profile`}
-            style={styles.byline}
-          >
-            <Avatar uri={item.user.avatarUrl} name={item.user.name} size={40} />
-            <View style={styles.who}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.user.name}
-                <Text style={styles.age}>{`  ${timeAgo(item.createdAt, now)}`}</Text>
-              </Text>
-              <View style={styles.task}>
-                <PositionPill slot={item.slot} />
-                <Text style={styles.taskTitle} numberOfLines={1}>
-                  {item.taskTitle}
+      <ProofSwipeRow
+        reactEmoji={REACTION_EMOJI[0]}
+        onReact={() => toggleReaction(REACTION_EMOJI[0])}
+        onChallenge={challengeable ? confirmChallenge : undefined}
+      >
+        <Link href={`/profile/${item.user._id}`} asChild>
+          <Link.Trigger>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${item.user.name}'s profile`}
+              style={styles.byline}
+            >
+              <Avatar uri={item.user.avatarUrl} name={item.user.name} size={40} />
+              <View style={styles.who}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {item.user.name}
+                  <Text style={styles.age}>{`  ${timeAgo(item.createdAt, now)}`}</Text>
                 </Text>
+                <View style={styles.task}>
+                  <PositionPill slot={item.slot} />
+                  <Text style={styles.taskTitle} numberOfLines={1}>
+                    {item.taskTitle}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <Score value={item.points} />
-          </Pressable>
-        </Link.Trigger>
-        <Link.Menu>
-          <Link.Menu title="React" icon="face.smiling" palette>
-            {reactionButtons(item.reactions).map(({ emoji, mine }) => (
-              <Link.MenuAction
-                key={emoji}
-                isOn={mine}
-                onPress={() => react({ proofId: item.proofId, emoji }).catch((error) => notify(errorMessage(error)))}
-              >
-                {emoji}
+              <Score value={item.points} />
+            </Pressable>
+          </Link.Trigger>
+          <Link.Menu>
+            <Link.Menu title="React" icon="face.smiling" palette>
+              {reactionButtons(item.reactions).map(({ emoji, mine }) => (
+                <Link.MenuAction key={emoji} isOn={mine} onPress={() => toggleReaction(emoji)}>
+                  {emoji}
+                </Link.MenuAction>
+              ))}
+            </Link.Menu>
+            {challengeable ? (
+              <Link.MenuAction icon="flag" onPress={confirmChallenge}>
+                Challenge
               </Link.MenuAction>
-            ))}
-          </Link.Menu>
-          {challengeable ? (
-            <Link.MenuAction icon="flag" onPress={confirmChallenge}>
-              Challenge
+            ) : null}
+            <Link.MenuAction icon="square.and.arrow.up" onPress={() => shareText(proofShareText(item))}>
+              Share
             </Link.MenuAction>
-          ) : null}
-          <Link.MenuAction icon="square.and.arrow.up" onPress={() => shareText(proofShareText(item))}>
-            Share
-          </Link.MenuAction>
-        </Link.Menu>
-      </Link>
+          </Link.Menu>
+        </Link>
+      </ProofSwipeRow>
 
       {item.mediaUrl && item.mediaType !== "canvas" ? (
         <ProofMedia uri={item.mediaUrl} mediaType={item.mediaType} style={styles.media} />
@@ -126,13 +134,7 @@ export function ProofPost({
         </View>
       </View>
 
-      {item.challenge ? (
-        <ChallengeBar
-          challenge={item.challenge}
-          votable={item.challenge.canVote}
-          now={now}
-        />
-      ) : null}
+      {item.challenge ? <ChallengeBar challenge={item.challenge} votable={item.challenge.canVote} now={now} /> : null}
     </View>
   );
 }
