@@ -623,6 +623,26 @@ describe("checkins.afterProof", () => {
     expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(3);
   });
 
+  it("invents no pass over a member whose points fell without a proof of their own", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya", "Jo"]);
+    const [me, maya, jo] = userIds;
+    await addTask(t, jo, { points: 100, status: "verified" }); // the leader throughout
+    // My last proof left me on 50. A challenge has since held it, and I stand on 20.
+    await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 20, status: "verified" });
+    await addTask(t, me, { slot: "flex", source: "flex", title: "Meal prep", points: 30, status: "held" });
+    // Maya was already ahead of that on 40, and proves ten more.
+    await addTask(t, maya, { slot: "flex", source: "flex", title: "Stretch", points: 40, status: "verified" });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("checkinMarks", { leagueId, userId: me, points: 50, weekStart: WEEK_START });
+      await ctx.db.insert("checkinMarks", { leagueId, userId: maya, points: 40, weekStart: WEEK_START });
+    });
+    const more = await addTask(t, maya, { slot: "flex", source: "flex", title: "Tidy desk", points: 10, status: "verified" });
+
+    await t.mutation(internal.checkins.afterProof, { taskId: more });
+    expect(await textsTo(t, me)).toEqual([]);
+  });
+
   it("leaves a pass that took the league's lead to the league's own text: one text per event", async () => {
     const t = convexTest(schema, modules);
     const { userIds } = await startLeague(t, ["Me", "Maya"]);
