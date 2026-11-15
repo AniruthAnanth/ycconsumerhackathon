@@ -237,6 +237,59 @@ describe("seed.reset", () => {
     expect(state.members.some((member) => member.userId === guestId)).toBe(false);
     expect(state.task).not.toBeNull();
   });
+
+  test("clears a challenge opened in the league on a guest's proof, and gives the guest's task back", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+    const { _id: leagueId } = await league(t);
+    const [maya] = await t.query(api.seed.players, {});
+    const taskId = await t.run(async (ctx) => {
+      const guestId = await ctx.db.insert("users", { name: "Guest" });
+      const taskId = await ctx.db.insert("tasks", {
+        userId: guestId,
+        weekStart: weekStartOf(NOW),
+        slot: "body",
+        title: "Swim",
+        points: 30,
+        proofType: "photo",
+        status: "held",
+        source: "draft",
+      });
+      const proofId = await ctx.db.insert("proofs", {
+        taskId,
+        userId: guestId,
+        weekStart: weekStartOf(NOW),
+        mediaType: "photo",
+        pass: true,
+        confidence: 0.7,
+        reason: "A pool lane.",
+        highlight: 5,
+        caption: "Lengths.",
+        via: "app",
+        createdAt: NOW - 60_000,
+      });
+      const challengeId = await ctx.db.insert("challenges", {
+        proofId,
+        leagueId,
+        challengerId: maya._id,
+        status: "open",
+        closesAt: NOW + 60_000,
+      });
+      await ctx.db.insert("votes", { challengeId, userId: maya._id, legit: false });
+      return taskId;
+    });
+
+    await reset(t);
+
+    const state = await t.run(async (ctx) => ({
+      challenges: await ctx.db.query("challenges").collect(),
+      votes: await ctx.db.query("votes").collect(),
+      task: await ctx.db.get("tasks", taskId),
+    }));
+    expect(state.challenges).toEqual([]);
+    expect(state.votes).toEqual([]);
+    expect(state.task?.status).toBe("verified");
+  });
 });
 
 describe("seed.players and seed.actAs", () => {

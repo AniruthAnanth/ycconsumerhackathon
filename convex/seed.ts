@@ -453,6 +453,15 @@ async function upsertLeague(ctx: MutationCtx, createdBy: Id<"users">): Promise<I
   return existing._id;
 }
 
+async function deleteChallenge(ctx: MutationCtx, challengeId: Id<"challenges">): Promise<void> {
+  const votes = await ctx.db
+    .query("votes")
+    .withIndex("by_challenge", (q) => q.eq("challengeId", challengeId))
+    .take(SWEEP_LIMIT);
+  for (const vote of votes) await ctx.db.delete("votes", vote._id);
+  await ctx.db.delete("challenges", challengeId);
+}
+
 async function deleteProof(ctx: MutationCtx, proofId: Id<"proofs">): Promise<void> {
   const reactions = await ctx.db
     .query("reactions")
@@ -464,14 +473,7 @@ async function deleteProof(ctx: MutationCtx, proofId: Id<"proofs">): Promise<voi
     .query("challenges")
     .withIndex("by_proof", (q) => q.eq("proofId", proofId))
     .take(SWEEP_LIMIT);
-  for (const challenge of challenges) {
-    const votes = await ctx.db
-      .query("votes")
-      .withIndex("by_challenge", (q) => q.eq("challengeId", challenge._id))
-      .take(SWEEP_LIMIT);
-    for (const vote of votes) await ctx.db.delete("votes", vote._id);
-    await ctx.db.delete("challenges", challenge._id);
-  }
+  for (const challenge of challenges) await deleteChallenge(ctx, challenge._id);
   await ctx.db.delete("proofs", proofId);
 }
 
@@ -486,10 +488,26 @@ async function deleteTask(ctx: MutationCtx, taskId: Id<"tasks">): Promise<void> 
 
 /**
  * Removes everything that belongs to the league itself: its weeks and matchups, its ledger, its
- * drops and its memberships. Anyone who joined since the last reset is out again; their own
- * lineup stays theirs, since tasks belong to the player and not to a league.
+ * challenges, its drops and its memberships. Anyone who joined since the last reset is out
+ * again; their own lineup stays theirs, since tasks belong to the player and not to a league.
  */
 async function clearLeague(ctx: MutationCtx, leagueId: Id<"leagues">): Promise<void> {
+  // Challenges on a seeded player's proof go with that proof. These are the rest: opened in this
+  // league on a guest's proof, they would keep paying or costing their challenger after the
+  // reset. An open one is holding the guest's task, so the task gets its points back.
+  const challenges = await ctx.db
+    .query("challenges")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .take(SWEEP_LIMIT);
+  for (const challenge of challenges) {
+    const proof = await ctx.db.get("proofs", challenge.proofId);
+    const task = proof && (await ctx.db.get("tasks", proof.taskId));
+    if (challenge.status === "open" && task?.status === "held") {
+      await ctx.db.patch("tasks", task._id, { status: "verified" });
+    }
+    await deleteChallenge(ctx, challenge._id);
+  }
+
   const weeks = await ctx.db
     .query("weeks")
     .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
