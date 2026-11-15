@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { InviteButton } from "@/components/invite";
 import { Divider, Icon, SectionLabel } from "@/components/ui";
 import type { League, Pot } from "@/lib/backend";
 import { formatCountdown, formatUsd, inviteMessage, isSettled } from "@/lib/leagueText";
@@ -25,6 +26,9 @@ export function LeagueDetails({ league, pot, now }: Props) {
           <Icon name="share-outline" size={18} color={colors.accent} />
         </View>
       </Pressable>
+      <View style={styles.invite}>
+        <InviteButton leagueId={league._id} />
+      </View>
       <Divider />
       <DetailRow label="Stake" value={league.stakeUsd === 0 ? "Free" : formatUsd(league.stakeUsd)} />
       <DetailRow label="Members" value={String(league.memberCount)} />
@@ -49,5 +53,6 @@ const styles = StyleSheet.create({
   row: { height: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md },
   label: { fontSize: font.body, color: colors.textMuted },
   value: { fontSize: font.body, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] },
+  invite: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   valueWithIcon: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });
