@@ -4,10 +4,10 @@ import { useState } from "react";
 
 import { errorMessage } from "@/components/join/errorMessage";
 import type { Stake } from "@/components/join/stakes";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
-import { versusApi } from "./api";
 import { shareInvite } from "./shareInvite";
 
 /** Who to challenge. "link" creates the versus with an open seat and shares its code. */
@@ -23,7 +23,7 @@ export type Opponent =
 export function useChallenge() {
   const router = useRouter();
   const { setLeagueId } = useCurrentLeague();
-  const challengeMutation = useMutation(versusApi.challenge);
+  const challengeMutation = useMutation(api.versus.challenge);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
