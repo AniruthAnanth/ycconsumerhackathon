@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation } from "convex/react";
 import { StyleSheet, Text } from "react-native";
 
@@ -33,11 +34,15 @@ export function VetoChip({
 }) {
   const cast = useMutation(socialApi.vetoes.cast);
   const label = chipLabel(veto);
+  // A tap toggles my vote, so a double tap would cast and take it back; ignore taps while one is in flight.
+  const [pending, setPending] = useState(false);
   const onPress = () => {
+    if (pending) return;
+    setPending(true);
     haptics.veto();
-    cast({ taskId: veto.taskId, leagueId }).catch((error) =>
-      notify(errorMessage(error)),
-    );
+    cast({ taskId: veto.taskId, leagueId })
+      .catch((error) => notify(errorMessage(error)))
+      .finally(() => setPending(false));
   };
   const quiet = isQuiet(veto);
   const style = [
