@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Task } from "./backend";
-import { flexTasksLeft, pickBannerDrop, splitRoster } from "./roster";
+import { flexTasksLeft, pickBannerDrop, splitRoster, weekActions } from "./roster";
 
 function task(taskId: string, slot: Task["slot"], source: Task["source"] = "draft"): Task {
   return {
@@ -55,6 +55,57 @@ describe("flexTasksLeft", () => {
     const flex = ["a", "b", "c", "d"].map((id) => task(id, "flex", "flex"));
     expect(flexTasksLeft(flex.slice(0, 3))).toBe(0);
     expect(flexTasksLeft(flex)).toBe(0);
+  });
+});
+
+describe("weekActions", () => {
+  const thisWeek = 1_000;
+  const lastWeek = 400;
+  const nextWeek = 1_600;
+  const drafted = [task("gym", "body"), task("stretch", "flex", "flex")];
+
+  it("offers the draft for the week in play while nothing is drafted", () => {
+    const actions = weekActions({ roster: { locked: false, rows: [] }, shownWeekStart: undefined, currentWeekStart: thisWeek });
+    expect(actions).toEqual({ canDraft: true, noLineup: false, undrafted: true, takesFlex: false });
+  });
+
+  it("offers flex tasks on a locked lineup in the week in play, until it holds three", () => {
+    const week = { shownWeekStart: undefined, currentWeekStart: thisWeek };
+    expect(weekActions({ ...week, roster: { locked: true, rows: drafted } }).takesFlex).toBe(true);
+    const full = ["a", "b", "c"].map((id) => task(id, "flex", "flex"));
+    expect(weekActions({ ...week, roster: { locked: true, rows: full } }).takesFlex).toBe(false);
+    expect(weekActions({ ...week, roster: { locked: false, rows: drafted } }).takesFlex).toBe(false);
+  });
+
+  it("never offers the draft or a flex task on a week that has ended", () => {
+    const week = { shownWeekStart: lastWeek, currentWeekStart: thisWeek };
+    expect(weekActions({ ...week, roster: { locked: false, rows: [] } })).toEqual({
+      canDraft: false,
+      noLineup: true,
+      undrafted: false,
+      takesFlex: false,
+    });
+    expect(weekActions({ ...week, roster: { locked: true, rows: drafted } })).toEqual({
+      canDraft: false,
+      noLineup: false,
+      undrafted: false,
+      takesFlex: false,
+    });
+  });
+
+  it("offers the draft for next week but adds no flex task to it", () => {
+    const week = { shownWeekStart: nextWeek, currentWeekStart: thisWeek };
+    expect(weekActions({ ...week, roster: { locked: false, rows: [] } }).undrafted).toBe(true);
+    expect(weekActions({ ...week, roster: { locked: true, rows: drafted } }).takesFlex).toBe(false);
+  });
+
+  it("offers nothing but the draft while the roster or the league loads", () => {
+    expect(weekActions({ roster: undefined, shownWeekStart: undefined, currentWeekStart: undefined })).toEqual({
+      canDraft: true,
+      noLineup: false,
+      undrafted: false,
+      takesFlex: false,
+    });
   });
 });
 

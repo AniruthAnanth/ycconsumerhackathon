@@ -1,6 +1,6 @@
 import { MAX_FLEX_TASKS } from "../convex/lib/lineupRules";
 
-import type { Drop, Task } from "./backend";
+import type { Drop, Roster, Task } from "./backend";
 import { SLOT_ORDER, type Slot } from "./slots";
 
 export type StarterSlot = { slot: Slot; task: Task | undefined };
@@ -26,6 +26,35 @@ export function splitRoster(rows: readonly Task[]): { starters: StarterSlot[]; e
  */
 export function flexTasksLeft(rows: readonly Pick<Task, "slot">[]): number {
   return Math.max(0, MAX_FLEX_TASKS - rows.filter((row) => row.slot === "flex").length);
+}
+
+/**
+ * What Roster offers for the week on show.
+ *
+ * shownWeekStart is undefined for the league's week in play: the header keeps
+ * no start for that week and lets the server resolve it (lib/currentLeague.tsx),
+ * so "undefined" is how a caller says "this week".
+ */
+export function weekActions(week: {
+  /** lineup.roster for the week on show; undefined while it loads. */
+  roster: Pick<Roster, "locked" | "rows"> | undefined;
+  shownWeekStart: number | undefined;
+  /** The start of the league's week in play; undefined while the league loads. */
+  currentWeekStart: number | undefined;
+}) {
+  const { roster, shownWeekStart, currentWeekStart } = week;
+  const past = shownWeekStart !== undefined && currentWeekStart !== undefined && shownWeekStart < currentWeekStart;
+  const empty = roster !== undefined && roster.rows.length === 0;
+  return {
+    /** A week that has ended is shown as it was; only the week in play or the next one can be drafted. */
+    canDraft: !past,
+    /** A past week the player never drafted: nothing to list and nothing to offer. */
+    noLineup: empty && past,
+    /** Nothing drafted yet in a week that still can be. */
+    undrafted: empty && !past && !roster.locked,
+    /** A locked lineup can't be edited but still takes flex tasks, and lineup.addFlexTask always adds to the week in play. */
+    takesFlex: roster !== undefined && roster.locked && shownWeekStart === undefined && flexTasksLeft(roster.rows) > 0,
+  };
 }
 
 /**
