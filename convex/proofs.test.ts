@@ -410,6 +410,15 @@ describe("anti-cheat", () => {
     expect(judgeProof).not.toHaveBeenCalled();
   });
 
+  it("lets a player resend the shots of a proof that failed", async () => {
+    const { t, as, taskId } = await playerWithTask();
+    const stale = await as.action(api.proofs.verify, { taskId, storageId: await upload(t, "image/jpeg", "retry bytes"), mediaType: "photo", capturedAt: NOW - 20 * 60_000 });
+    expect(stale.flags).toEqual(["stale_capture"]);
+
+    const retry = await as.action(api.proofs.verify, { taskId, storageId: await upload(t, "image/jpeg", "retry bytes"), mediaType: "photo", capturedAt: NOW });
+    expect(retry).toMatchObject({ pass: true, points: 30 });
+  });
+
   it("turns away a shot taken more than 15 minutes ago", async () => {
     const { t, as, taskId } = await playerWithTask();
     const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", capturedAt: NOW - 16 * 60_000 });
