@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Avatar, PositionPill, Score, SLOT_NAME, type Slot } from "@/components/ui";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
+import { Avatar, PositionPill, RowDivider, Score, SLOT_NAME, type Slot } from "@/components/ui";
+import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, TASK_TEXT_INSET } from "@/theme";
 
 /**
  * A starter slot with nothing drafted in it. Same height and columns as a
@@ -15,6 +15,7 @@ export function EmptySlotRow({ slot, onPress }: { slot: Slot; onPress?: () => vo
       <Avatar slot={slot} />
       <Text style={styles.empty}>Empty</Text>
       <Score value={null} />
+      <RowDivider inset={TASK_TEXT_INSET} />
     </>
   );
   if (!onPress) return <View style={styles.row}>{columns}</View>;
@@ -30,10 +31,8 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: layout.columnGap,
     paddingHorizontal: SCREEN_MARGIN,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   empty: { flex: 1, fontFamily: fontFamily.regular, fontSize: font.title, color: colors.textFaint },
 });

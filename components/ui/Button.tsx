@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, type StyleProp, type ViewStyle } f
 
 import { PressScale } from "@/components/motion";
 
-import { colors, font, fontFamily, radius, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, radius, spacing } from "@/theme";
 
 type Props = {
   label: string;
@@ -32,7 +32,7 @@ export function Button({ label, onPress, loading = false, disabled = false, styl
 
 const styles = StyleSheet.create({
   button: {
-    height: 48,
+    height: layout.control,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xl,

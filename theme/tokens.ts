@@ -50,20 +50,50 @@ export const colors = {
   scrim: "rgba(23, 43, 35, 0.4)",
 } as const;
 
-/** The 4-point grid. */
+/** The 4-point grid. Every padding, margin and gap comes from here or from layout below. */
 export const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
+  /** The screen margin's step on the scale. */
+  xlm: 20,
   xl: 24,
   xxl: 32,
 } as const;
 
-/** Left and right page margin on every screen. */
+/** Left and right page margin on every screen: content, dividers and full-width buttons all start here. */
 export const SCREEN_MARGIN = 20;
-/** The smallest tappable area, in points. */
+/** The smallest tappable area, in points (HIG: 44 x 44). */
 export const MIN_TARGET = 44;
+
+/**
+ * The one layout grid. Rows are built from fixed leading columns and a right-aligned numeric
+ * column, so the same kind of value lines up on one edge on every screen.
+ */
+export const layout = {
+  margin: SCREEN_MARGIN,
+  /** Every row is at least this tall. */
+  rowMin: MIN_TARGET,
+  /** Every button and text field. */
+  control: 48,
+  /** The position pill column at the start of a task row. */
+  pillColumn: 40,
+  avatar: 40,
+  avatarCompact: 32,
+  /** Trailing score and points columns: right-aligned, tabular figures. */
+  numericColumn: 56,
+  /** The gap between a row's columns. */
+  columnGap: 12,
+} as const;
+
+/** Where a task row's text starts; its inset divider starts here too, as in an iOS list. */
+export const TASK_TEXT_INSET = SCREEN_MARGIN + layout.pillColumn + layout.columnGap + layout.avatar + layout.columnGap;
+/** Where a person row's text starts (compact avatar). */
+export const PERSON_TEXT_INSET = SCREEN_MARGIN + layout.avatarCompact + layout.columnGap;
+
+/** Figures that line up in a column. */
+export const tabular = { fontVariant: ["tabular-nums" as const] };
 
 export const radius = {
   sm: 8,
