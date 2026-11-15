@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { eventsBetween, readyToSchedule, scheduledFor, type Snapshot } from "@/lib/notifications/events";
+import { onLineupLocked } from "@/lib/notifications/lineupLock";
 import * as device from "@/lib/notifications/native";
 import { presentationFor } from "@/lib/notifications/rules";
 import { usePermission } from "@/lib/notifications/usePermission";
@@ -52,7 +53,7 @@ function Notifier() {
   const feed = useQuery(api.feed.list, inLeague);
 
   const permission = usePermission();
-  useAskAfterLock(roster?.locked, permission);
+  useAskAfterLock(permission);
   // Undefined until the system's answer and the Push switch have both been read: not knowing
   // yet is not the same as off, and the reminders below must be able to tell the two apart.
   const enabled =
@@ -139,20 +140,17 @@ function Notifier() {
 }
 
 /**
- * Puts the system's question, "may Lineup notify?", once: just after a lineup is seen to lock.
- * By then the player has a week worth being told about, where a dialog on first launch would
- * mostly be answered No. The answer is not kept here: requestPermission publishes it, and
- * usePermission hands it to this host and to the Push switch alike.
+ * Puts the system's question, "may Lineup notify?", once: just after the player locks a
+ * lineup. By then they have a week worth being told about, where a dialog on first launch
+ * would mostly be answered No. The answer is not kept here: requestPermission publishes it,
+ * and usePermission hands it to this host and to the Push switch alike.
  */
-function useAskAfterLock(locked: boolean | undefined, permission: device.Permission | undefined): void {
-  // Only a change from unlocked to locked counts. A lineup that was already locked when the
-  // app opened says nothing about this moment, and "loading" is not "unlocked".
-  const wasLocked = useRef(locked);
+function useAskAfterLock(permission: device.Permission | undefined): void {
+  // The lock is the one Lock Lineup announces (lineupLock.ts), never one read off the roster
+  // query: that query also turns locked when the player locked nothing, as under Switch Player.
+  // So a lineup that was already locked when the app opened says nothing about this moment.
   const [justLocked, setJustLocked] = useState(false);
-  useEffect(() => {
-    if (wasLocked.current === false && locked === true) setJustLocked(true);
-    wasLocked.current = locked;
-  }, [locked]);
+  useEffect(() => onLineupLocked(() => setJustLocked(true)), []);
 
   useEffect(() => {
     if (!justLocked || permission !== "undetermined") return;
