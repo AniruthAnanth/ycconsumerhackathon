@@ -395,7 +395,12 @@ export const closeWeek = internalMutation({
           });
         }
       }
-      await ctx.db.patch("weeks", week._id, { status: "settled" });
+      // A week closed early with End Week Now is over at once. Its end time is what the League
+      // tab counts down to and where the week's challenge window stops, so both follow.
+      await ctx.db.patch("weeks", week._id, {
+        status: "settled",
+        endsAt: Math.min(week.endsAt, Date.now()),
+      });
       // Next week's draft learns from this one. It runs on its own, so it can't hold up or fail
       // the settlement, and only the call that closes the week schedules it.
       await ctx.scheduler.runAfter(0, internal.lineup.rememberOutcomes, {
