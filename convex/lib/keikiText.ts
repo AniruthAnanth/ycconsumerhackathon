@@ -107,8 +107,11 @@ export type ProofTargets<TaskId> = {
   quickTime: { taskId: TaskId; title: string } | null;
   /** Open tasks a photo alone can prove, oldest first so their numbering is stable between texts. */
   photoTasks: { taskId: TaskId; title: string }[];
-  /** Open tasks that also need GPS, which a text can't carry. */
-  locationTasks: { title: string; placeName?: string }[];
+  /**
+   * Open tasks tied to a place. A text carries no GPS, so one of these counts only while
+   * `arrived` is true: the app saw this phone reach the place within the last hour.
+   */
+  locationTasks: { taskId: TaskId; title: string; placeName?: string; arrived: boolean }[];
 };
 
 export type ProofChoice<TaskId> =
@@ -119,8 +122,9 @@ export type ProofChoice<TaskId> =
 
 /**
  * Decides which task a texted photo is for. A live quick-time drop wins,
- * because it is what the player was just asked for. Otherwise the caption
- * decides, then "the only open task"; with several candidates we ask.
+ * because it is what the player was just asked for. Then the caption decides,
+ * then the place the player has just arrived at, then "the only open task";
+ * with several candidates left we ask.
  */
 export function chooseProofTarget<TaskId>(targets: ProofTargets<TaskId>, caption: string): ProofChoice<TaskId> {
   if (targets.quickTime) return { kind: "task", taskId: targets.quickTime.taskId };
@@ -129,12 +133,17 @@ export function chooseProofTarget<TaskId>(targets: ProofTargets<TaskId>, caption
   if (named !== null) return { kind: "task", taskId: targets.photoTasks[named].taskId };
 
   const namedPlace = taskNamedIn(caption, targets.locationTasks.map((task) => task.title));
-  if (namedPlace !== null) return { kind: "checkIn", ...targets.locationTasks[namedPlace] };
+  const atPlace = namedPlace !== null ? targets.locationTasks[namedPlace] : targets.locationTasks.find((task) => task.arrived);
+  if (atPlace !== undefined) return atPlace.arrived ? { kind: "task", taskId: atPlace.taskId } : checkIn(atPlace);
 
   if (targets.photoTasks.length === 1) return { kind: "task", taskId: targets.photoTasks[0].taskId };
   if (targets.photoTasks.length > 1) return { kind: "ask", titles: targets.photoTasks.map((task) => task.title) };
-  if (targets.locationTasks.length > 0) return { kind: "checkIn", ...targets.locationTasks[0] };
+  if (targets.locationTasks.length > 0) return checkIn(targets.locationTasks[0]);
   return { kind: "none" };
+}
+
+function checkIn<TaskId>(task: { title: string; placeName?: string }): ProofChoice<TaskId> {
+  return { kind: "checkIn", title: task.title, placeName: task.placeName };
 }
 
 /** "Mon 7:00 AM", in the league's timezone: weeks and sessions all run on Pacific time. */
@@ -225,6 +234,7 @@ export const reply = {
   noMystery: "No mystery task is waiting for you.",
   mysteryPassed: "Passed. Nothing lost.",
   noSession: 'No group session is open. Propose one, like "run tomorrow 7am at Dolores Park".',
+  sessionNeedsDetail: 'Say what, when and where, like "run tomorrow 7am at Dolores Park".',
   noLeague: "Join a league in the app first, then text me again.",
   help: "Send a photo to prove a task. Commands: STANDINGS, OPEN, PASS, IN.",
   trouble: "Something went wrong on my side. Try that again in a minute.",

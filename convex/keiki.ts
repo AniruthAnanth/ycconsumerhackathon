@@ -16,7 +16,11 @@
  * Two limits of the shared number shape this file: it has no group chats, so a league text is
  * sent to each member one-to-one, and the agent may only text someone who has texted it first
  * (the join code, see `line`).
+ *
+ * Playing by text is opt-in (users.keikiOptIn). Texting the number opts a phone in, the app's
+ * "Play by text" switch turns it on or off, and send never texts an account that hasn't.
  */
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { makeFunctionReference } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
@@ -27,11 +31,14 @@ import {
   env,
   httpAction,
   internalAction,
+  internalMutation,
   internalQuery,
+  mutation,
   query,
   type ActionCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { askJson } from "./ai";
 import { requireUser } from "./lib/auth";
 import {
   parseKeikiEvent,
@@ -61,27 +68,47 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /** A player's week and a league's roster are far smaller; this only bounds the reads. */
 const MAX_ROWS = 200;
 
-type Verdict = { pass: boolean; points: number; reason: string };
+/** The API gateway names a conversation "api:<agent id>:<x-conversation-id>"; a phone line uses the number. */
+const GATEWAY_PREFIX = "api:";
+
 type League = { leagueId: Id<"leagues">; name: string };
-type Player = { userId: Id<"users">; league: League | null };
+type Place = { name: string; lat: number; lng: number };
+type Arrival = { lat: number; lng: number };
+
+/** Who a conversation is with. */
+type Player = {
+  /** The account that owns the phone. */
+  accountId: Id<"users">;
+  /** That account's users.keikiOptIn, null while they were never asked. */
+  optIn: boolean | null;
+  /** The player the account plays as: itself, or a seeded player under Switch Player. */
+  userId: Id<"users">;
+  league: League | null;
+};
+
+/** What proofTargets reads; answerPhoto adds whether the player has arrived at each place. */
+type OpenTasks = Pick<ProofTargets<Id<"tasks">>, "quickTime" | "photoTasks"> & {
+  locationTasks: { taskId: Id<"tasks">; title: string; placeName?: string }[];
+};
 
 /**
- * Entry points other modules own. A text has no signed-in caller, so each takes the player
- * explicitly. They are named here rather than imported from `internal` because those modules
- * land on main in parallel with this one; until one exists, only the reply that needs it fails.
+ * Entry points of modules that land on main in parallel with this one. A text has no
+ * signed-in caller, so each takes the player explicitly. They are called by name instead of
+ * through `internal`, so this file builds and deploys before they exist; until one does, only
+ * the reply that needs it fails.
  */
 const seams = {
-  verifyProof: makeFunctionReference<
-    "action",
-    { userId: Id<"users">; taskId: Id<"tasks">; storageId: Id<"_storage">; mediaType: "photo" | "video"; via: "keiki" },
-    Verdict
-  >("proofs:verifyForUser"),
   standings: makeFunctionReference<"query", { leagueId: Id<"leagues"> }, StandingRow[]>("standings:tableForLeague"),
-  acceptMystery: makeFunctionReference<"mutation", { userId: Id<"users">; dropId: Id<"drops">; wager?: number }, null>(
-    "drops:acceptMysteryFor",
-  ),
-  passMystery: makeFunctionReference<"mutation", { userId: Id<"users">; dropId: Id<"drops"> }, null>("drops:passMysteryFor"),
   rsvp: makeFunctionReference<"mutation", { userId: Id<"users">; dropId: Id<"drops"> }, null>("drops:rsvpFor"),
+  createGroupSession: makeFunctionReference<
+    "mutation",
+    { userId: Id<"users">; leagueId: Id<"leagues">; title: string; place: Place; startsAt: number },
+    Id<"drops">
+  >("drops:createGroupSessionFor"),
+  /** The newest in-app arrival within 100 ft of the task's place in the last hour, if any. */
+  recentArrival: makeFunctionReference<"query", { userId: Id<"users">; taskId: Id<"tasks"> }, (Arrival & { at: number }) | null>(
+    "checkins:recentArrival",
+  ),
 };
 
 // ─── Inbound: POST /keiki/turn ───────────────────────────────────────────────────────────────
@@ -185,11 +212,23 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
   });
   if (player === null) return [...outbound, reply.unknownNumber];
 
+  // Texting the number is the opt-in. The first text from a phone turns it on; after the
+  // player has switched it off in the app, only sending the join code again turns it back on.
+  const onPhone = !turn.conversationId.startsWith(GATEWAY_PREFIX);
+  const sentJoinCode = saysJoinCode(said.text);
+  if (onPhone && (player.optIn === null || (sentJoinCode && !player.optIn))) {
+    await ctx.runMutation(internal.keiki.recordOptIn, { accountId: player.accountId });
+  }
+
   const file = written.flatMap((message) => message.attachments)[0];
-  const answer = file
-    ? await answerPhoto(ctx, turn, bearer, player, file.id, said.text)
-    : await answerText(ctx, turn, bearer, player, said.text);
-  return [...outbound, answer];
+  if (file) return [...outbound, await answerPhoto(ctx, turn, bearer, player, file.id, said.text)];
+  if (sentJoinCode) return [...outbound, reply.welcome];
+  return [...outbound, await answerText(ctx, turn, bearer, player, said.text)];
+}
+
+function saysJoinCode(text: string): boolean {
+  const joinCode = env.KEIKI_JOIN_CODE;
+  return joinCode !== undefined && joinCode !== "" && text.toUpperCase().includes(joinCode.toUpperCase());
 }
 
 // ─── A texted proof ──────────────────────────────────────────────────────────────────────────
@@ -202,15 +241,35 @@ async function answerPhoto(
   attachmentId: string,
   caption: string,
 ): Promise<string> {
-  const targets: ProofTargets<Id<"tasks">> = await ctx.runQuery(internal.keiki.proofTargets, {
-    userId: player.userId,
-    now: Date.now(),
-  });
+  const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now: Date.now() });
+
+  // A text carries no GPS. A task tied to a place can still be proved by text when the app has
+  // just seen this phone arrive there: the arrival supplies the coordinates the referee needs.
+  const arrivals = new Map<Id<"tasks">, Arrival>();
+  for (const task of open.locationTasks) {
+    const arrival = await recentArrival(ctx, player.userId, task.taskId);
+    if (arrival !== null) arrivals.set(task.taskId, arrival);
+  }
+  const targets: ProofTargets<Id<"tasks">> = {
+    ...open,
+    locationTasks: open.locationTasks.map((task) => ({ ...task, arrived: arrivals.has(task.taskId) })),
+  };
+
   const choice = chooseProofTarget(targets, caption);
   if (choice.kind === "ask") return reply.whichTask(choice.titles);
   if (choice.kind === "checkIn") return reply.needsCheckIn(choice.title, choice.placeName);
   if (choice.kind === "none") return reply.nothingToProve;
-  return await judge(ctx, turn, bearer, player, choice.taskId, attachmentId);
+  return await judge(ctx, turn, bearer, player, choice.taskId, attachmentId, arrivals.get(choice.taskId));
+}
+
+/** Allowed to fail: while checkins.ts is not deployed, a location task keeps asking for the in-app check-in. */
+async function recentArrival(ctx: ActionCtx, userId: Id<"users">, taskId: Id<"tasks">): Promise<Arrival | null> {
+  try {
+    const arrival = await ctx.runQuery(seams.recentArrival, { userId, taskId });
+    return arrival === null ? null : { lat: arrival.lat, lng: arrival.lng };
+  } catch {
+    return null;
+  }
 }
 
 /** Stores the photo, runs the same referee the app uses, and words the verdict. */
@@ -221,6 +280,7 @@ async function judge(
   player: Player,
   taskId: Id<"tasks">,
   attachmentId: string,
+  arrival?: Arrival,
 ): Promise<string> {
   // Fetched through the turn's own route rather than the signed URL in the payload: it needs
   // no stored credential and still works for a photo sent a few texts ago.
@@ -231,12 +291,13 @@ async function judge(
   });
   if (!media.ok) return media.reason === "unsupported" ? reply.notMedia : reply.mediaFailed;
 
-  const verdict = await ctx.runAction(seams.verifyProof, {
+  const verdict = await ctx.runAction(internal.proofs.verifyForUser, {
     userId: player.userId,
     taskId,
     storageId: media.storageId,
     mediaType: media.mediaType,
     via: "keiki",
+    ...arrival,
   });
   if (!verdict.pass) return reply.verdict(verdict, "");
 
@@ -275,10 +336,10 @@ async function answerText(
     const { mystery } = await ctx.runQuery(internal.keiki.dropsFor, { userId: player.userId, now });
     if (mystery === null) return reply.noMystery;
     if (command.kind === "pass") {
-      await ctx.runMutation(seams.passMystery, { userId: player.userId, dropId: mystery.dropId });
+      await ctx.runMutation(internal.drops.passMysteryFor, { userId: player.userId, dropId: mystery.dropId });
       return reply.mysteryPassed;
     }
-    await ctx.runMutation(seams.acceptMystery, {
+    await ctx.runMutation(internal.drops.acceptMysteryFor, {
       userId: player.userId,
       dropId: mystery.dropId,
       ...(command.wager > 0 ? { wager: command.wager } : {}),
@@ -299,15 +360,123 @@ async function answerText(
     // The answer to "Which task is this for?": the photo is the last one in the conversation.
     const attachmentId = lastAttachmentId(turn.history);
     if (attachmentId === null) return reply.noPendingPhoto;
-    const targets: ProofTargets<Id<"tasks">> = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now });
-    const task = targets.photoTasks[command.choice - 1];
+    const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now });
+    const task = open.photoTasks[command.choice - 1];
     if (task === undefined) return reply.nothingToProve;
     return await judge(ctx, turn, bearer, player, task.taskId, attachmentId);
   }
 
-  // The first text on the shared number is the join code; anything else gets the menu.
-  const joinCode = env.KEIKI_JOIN_CODE;
-  return joinCode && command.text.toUpperCase().includes(joinCode.toUpperCase()) ? reply.welcome : reply.help;
+  return await answerFreeText(ctx, turn, player, command.text);
+}
+
+// ─── Free text ───────────────────────────────────────────────────────────────────────────────
+
+type Understood = {
+  isSessionProposal: boolean;
+  title: string | null;
+  placeName: string | null;
+  lat: number | null;
+  lng: number | null;
+  /** ISO 8601 with an offset. */
+  startsAt: string | null;
+  reply: string;
+};
+
+const UNDERSTAND_INSTRUCTIONS = [
+  "You are the Lineup league agent: the referee and scorekeeper of a fantasy league for people's own lives.",
+  "A player sent you the message at the end. Do exactly one of two things.",
+  "1. If it proposes a group session for the league (an activity with a place and a time, like 'run tomorrow 7am at",
+  "Dolores Park'), set isSessionProposal to true and fill title (two to five words, like 'Morning run'), placeName, lat",
+  "and lng (your best estimate of that place's coordinates; the league is in San Francisco unless the message says",
+  "otherwise) and startsAt (ISO 8601 with the America/Los_Angeles offset, resolving 'tomorrow' and weekday names from",
+  "the current time given). Leave reply empty. If the place or the time is missing, it is not a proposal yet.",
+  "2. Otherwise set isSessionProposal to false, set the session fields to null, and write reply: one or two short",
+  "lines, sports-desk tone, no emojis, answered only from the league facts given. If the facts don't answer it, say",
+  "what you can do: judge a photo proof, STANDINGS, OPEN or PASS the mystery task, IN to join a group session.",
+].join(" ");
+
+const UNDERSTAND_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["isSessionProposal", "title", "placeName", "lat", "lng", "startsAt", "reply"],
+  properties: {
+    isSessionProposal: { type: "boolean" },
+    title: { type: ["string", "null"] },
+    placeName: { type: ["string", "null"] },
+    lat: { type: ["number", "null"] },
+    lng: { type: ["number", "null"] },
+    startsAt: { type: ["string", "null"] },
+    reply: { type: "string" },
+  },
+};
+
+/** A session can be proposed up to two weeks out; anything further is a misread date. */
+const SESSION_HORIZON_MS = 2 * WEEK_MS;
+
+/**
+ * Anything that is not a command. One model call decides whether the player proposed a group
+ * session ("run tomorrow 7am at Dolores Park") or asked something, and answers the latter from
+ * the league's own numbers. If the model can't be reached, the player gets the command menu.
+ */
+async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, text: string): Promise<string> {
+  if (text === "") return reply.help;
+  const now = Date.now();
+
+  let understood: Understood;
+  try {
+    understood = await askJson<Understood>({
+      name: "league_agent_message",
+      instructions: UNDERSTAND_INSTRUCTIONS,
+      text: await leagueFacts(ctx, turn, player, text, now),
+      schema: UNDERSTAND_SCHEMA,
+    });
+  } catch (error) {
+    console.warn(`The league agent could not reach the model: ${String(error)}`);
+    return reply.help;
+  }
+  if (!understood.isSessionProposal) return understood.reply.trim() || reply.help;
+
+  const { title, placeName, lat, lng } = understood;
+  const startsAt = Date.parse(understood.startsAt ?? "");
+  const usable = title && placeName && lat !== null && lng !== null && startsAt > now && startsAt < now + SESSION_HORIZON_MS;
+  if (!usable) return reply.sessionNeedsDetail;
+  if (player.league === null) return reply.noLeague;
+
+  // drops announces the session to the league itself, so this is the only text we send.
+  await ctx.runMutation(seams.createGroupSession, {
+    userId: player.userId,
+    leagueId: player.league.leagueId,
+    title,
+    place: { name: placeName, lat, lng },
+    startsAt,
+  });
+  return reply.sessionPosted({ title, placeName, when: leagueTime(startsAt) });
+}
+
+/** What the model is told about the league: enough to answer "how am I doing", nothing private. */
+async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text: string, now: number): Promise<string> {
+  const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now });
+  const openTitles = [open.quickTime, ...open.photoTasks, ...open.locationTasks].flatMap((task) => (task ? [task.title] : []));
+  const table =
+    player.league === null
+      ? "The player is not in a league yet."
+      : await ctx
+          .runQuery(seams.standings, { leagueId: player.league.leagueId })
+          .then((rows) => reply.standings(player.league?.name ?? "", rows, player.userId))
+          .catch(() => "Standings are unavailable right now.");
+  const earlier = turn.history
+    .slice(-6)
+    .map((entry) => `${entry.role === "user" ? "Player" : "You"}: ${splitLeagueTag(captionOf(entry.content)).text}`);
+
+  return [
+    `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
+    `Standings ("You" is this player):\n${table}`,
+    `This player's open tasks: ${openTitles.join("; ") || "none"}.`,
+    earlier.length > 0 ? `Earlier in this conversation:\n${earlier.join("\n")}` : "",
+    `Message: ${text}`,
+  ]
+    .filter((part) => part !== "")
+    .join("\n\n");
 }
 
 // ─── Outbound: texts from the rest of the backend ────────────────────────────────────────────
@@ -317,8 +486,9 @@ async function answerText(
  * (`ctx.scheduler.runAfter(0, internal.keiki.send, { leagueId, text })`) and never await it.
  *
  * Keiki has no "send a text" call for an agent like ours: we raise a notice on the player's
- * conversation, Keiki turns it into a turn, and answerTurn posts the text. A player who has
- * never texted the number has no conversation, and is skipped.
+ * conversation, Keiki turns it into a turn, and answerTurn posts the text. Only players who
+ * opted in to playing by text are sent anything (see phonesOf), and one who has never texted
+ * the number has no conversation and is skipped.
  */
 export const send = internalAction({
   args: {
@@ -417,22 +587,61 @@ export const chatCaller = internalQuery({
   },
 });
 
+// ─── Play by text: the opt-in ────────────────────────────────────────────────────────────────
+
 /**
- * The number players text and the link that opens Messages with the join code typed. The app
- * shows it as "Text Lineup": on the shared number, sending that first text is what allows the
- * agent to text the player back, so nobody gets a drop by text until they have done it once.
+ * What the app's "Play by text" row shows: the number, the link that opens Messages with the
+ * join code typed, and whether this device has opted in. On the shared number, sending that
+ * first text is what allows the agent to text the player back, so the row's switch opens it.
  */
 export const line = query({
   args: {},
-  returns: v.union(v.null(), v.object({ number: v.string(), joinCode: v.string(), smsUrl: v.string() })),
+  returns: v.union(
+    v.null(),
+    v.object({ number: v.string(), joinCode: v.string(), smsUrl: v.string(), optedIn: v.boolean() }),
+  ),
   handler: async (ctx) => {
-    await requireUser(ctx);
+    const account = await deviceAccount(ctx);
     const number = env.KEIKI_LINE_NUMBER;
     const joinCode = env.KEIKI_JOIN_CODE;
     if (!number || !joinCode) return null;
-    return { number, joinCode, smsUrl: joinLink(number, joinCode) };
+    return { number, joinCode, smsUrl: joinLink(number, joinCode), optedIn: account.keikiOptIn === true };
   },
 });
+
+/** The "Play by text" switch. */
+export const setOptIn = mutation({
+  args: { optIn: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { optIn }) => {
+    const account = await deviceAccount(ctx);
+    await ctx.db.patch("users", account._id, { keikiOptIn: optIn });
+    return null;
+  },
+});
+
+/** A text arrived from this account's phone, which is the other way to opt in. */
+export const recordOptIn = internalMutation({
+  args: { accountId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, { accountId }) => {
+    await ctx.db.patch("users", accountId, { keikiOptIn: true });
+    return null;
+  },
+});
+
+/**
+ * The account signed in on this device. Under Switch Player this is deliberately not
+ * requireUser's answer: texting belongs to the phone in the player's hand and its number, not
+ * to the seeded player the device is acting as.
+ */
+async function deviceAccount(ctx: QueryCtx): Promise<Doc<"users">> {
+  await requireUser(ctx);
+  const accountId = await getAuthUserId(ctx);
+  const account = accountId === null ? null : await ctx.db.get("users", accountId);
+  if (account === null) throw new ConvexError("Not signed in");
+  return account;
+}
 
 // ─── Reads ───────────────────────────────────────────────────────────────────────────────────
 
@@ -442,6 +651,8 @@ export const playerFor = internalQuery({
   returns: v.union(
     v.null(),
     v.object({
+      accountId: v.id("users"),
+      optIn: v.union(v.boolean(), v.null()),
       userId: v.id("users"),
       league: v.union(v.null(), v.object({ leagueId: v.id("leagues"), name: v.string() })),
     }),
@@ -453,14 +664,18 @@ export const playerFor = internalQuery({
     // so the demo phone's proof lands on the roster that phone is showing.
     const actedAs = account.demoActAs === undefined ? null : await ctx.db.get("users", account.demoActAs);
     const player = actedAs ?? account;
-    return { userId: player._id, league: await leagueInPlay(ctx, player._id, leagueTag) };
+    return {
+      accountId: account._id,
+      optIn: account.keikiOptIn ?? null,
+      userId: player._id,
+      league: await leagueInPlay(ctx, player._id, leagueTag),
+    };
   },
 });
 
 async function accountBehind(ctx: QueryCtx, conversationId: string): Promise<Doc<"users"> | null> {
-  // The API gateway names a conversation "api:<agent id>:<x-conversation-id>", and chat sets
-  // that last part to the player's id.
-  if (conversationId.startsWith("api:")) {
+  // On the gateway, chat sets the x-conversation-id part to the player's id.
+  if (conversationId.startsWith(GATEWAY_PREFIX)) {
     const userId = ctx.db.normalizeId("users", conversationId.slice(conversationId.lastIndexOf(":") + 1));
     return userId === null ? null : await ctx.db.get("users", userId);
   }
@@ -494,7 +709,7 @@ export const proofTargets = internalQuery({
   returns: v.object({
     quickTime: v.union(v.null(), v.object({ taskId: v.id("tasks"), title: v.string() })),
     photoTasks: v.array(v.object({ taskId: v.id("tasks"), title: v.string() })),
-    locationTasks: v.array(v.object({ title: v.string(), placeName: v.optional(v.string()) })),
+    locationTasks: v.array(v.object({ taskId: v.id("tasks"), title: v.string(), placeName: v.optional(v.string()) })),
   }),
   handler: async (ctx, { userId, now }) => {
     const newestFirst = await ctx.db
@@ -503,14 +718,14 @@ export const proofTargets = internalQuery({
       .order("desc")
       .take(MAX_ROWS);
 
-    const targets: ProofTargets<Id<"tasks">> = { quickTime: null, photoTasks: [], locationTasks: [] };
+    const targets: OpenTasks = { quickTime: null, photoTasks: [], locationTasks: [] };
     for (const task of newestFirst.reverse()) {
       // Only this week: next week's lineup can already be drafted, and last week's is settled.
       const thisWeek = task.weekStart <= now && now < task.weekStart + WEEK_MS;
       if (task.status !== "open" || !thisWeek) continue;
 
       if (task.proofType === "photo_location") {
-        targets.locationTasks.push({ title: task.title, placeName: task.place?.name });
+        targets.locationTasks.push({ taskId: task._id, title: task.title, placeName: task.place?.name });
         continue;
       }
       if (task.proofType !== "photo") continue;
@@ -581,7 +796,7 @@ export const wagerOn = internalQuery({
   handler: async (ctx, { dropId }) => (await ctx.db.get("drops", dropId))?.wager ?? 0,
 });
 
-/** The phone numbers behind a send: one player's, or every member's of a league. */
+/** The phone numbers behind a send: one player's or a league's members', opted-in accounts only. */
 export const phonesOf = internalQuery({
   args: { userId: v.optional(v.id("users")), leagueId: v.optional(v.id("leagues")) },
   returns: v.array(v.string()),
@@ -597,15 +812,15 @@ export const phonesOf = internalQuery({
     }
 
     const phones = new Set<string>();
-    for (const playerId of players) {
-      const phone = (await ctx.db.get("users", playerId))?.phone;
-      if (phone) phones.add(phone);
-    }
+    const addIfOptedIn = (account: Doc<"users"> | null) => {
+      if (account?.phone && account.keikiOptIn === true) phones.add(account.phone);
+    };
+    for (const playerId of players) addIfOptedIn(await ctx.db.get("users", playerId));
     // Switch Player: a device acting as one of these players gets their texts too, or the
     // demo phone would never see the drop it is about to prove. There is no index on
     // demoActAs, and the whole users table is a hackathon's worth of rows.
     for (const account of await ctx.db.query("users").take(1000)) {
-      if (account.phone && account.demoActAs !== undefined && players.has(account.demoActAs)) phones.add(account.phone);
+      if (account.demoActAs !== undefined && players.has(account.demoActAs)) addIfOptedIn(account);
     }
     return [...phones];
   },

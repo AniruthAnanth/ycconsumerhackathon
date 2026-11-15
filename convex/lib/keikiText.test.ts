@@ -96,7 +96,8 @@ describe("captionOf", () => {
 describe("chooseProofTarget", () => {
   const gym = { taskId: "t-gym", title: "Gym session" };
   const laundry = { taskId: "t-laundry", title: "Do laundry" };
-  const office = { title: "Work from the YC office", placeName: "YC office" };
+  const office = { taskId: "t-office", title: "Work from the YC office", placeName: "YC office", arrived: false };
+  const checkInAtOffice = { kind: "checkIn", title: office.title, placeName: office.placeName };
   const nothing = { quickTime: null, photoTasks: [], locationTasks: [] };
 
   it("gives a live quick-time drop the photo, whatever else is open", () => {
@@ -114,11 +115,20 @@ describe("chooseProofTarget", () => {
     expect(chooseProofTarget(targets, "")).toEqual({ kind: "ask", titles: ["Gym session", "Do laundry"] });
   });
 
-  it("sends a location task to the in-app check-in", () => {
-    expect(chooseProofTarget({ ...nothing, locationTasks: [office] }, "")).toEqual({ kind: "checkIn", ...office });
-    expect(chooseProofTarget({ ...nothing, photoTasks: [gym, laundry], locationTasks: [office] }, "at the office")).toEqual({
-      kind: "checkIn",
-      ...office,
+  it("sends a location task to the in-app check-in when the phone hasn't been seen there", () => {
+    expect(chooseProofTarget({ ...nothing, locationTasks: [office] }, "")).toEqual(checkInAtOffice);
+    expect(chooseProofTarget({ ...nothing, photoTasks: [gym, laundry], locationTasks: [office] }, "at the office")).toEqual(
+      checkInAtOffice,
+    );
+  });
+
+  it("accepts a texted photo for a place the player has just arrived at", () => {
+    const arrived = { ...office, arrived: true };
+    expect(chooseProofTarget({ ...nothing, locationTasks: [arrived] }, "")).toEqual({ kind: "task", taskId: "t-office" });
+    // Being there outranks guessing between the photo tasks.
+    expect(chooseProofTarget({ ...nothing, photoTasks: [gym, laundry], locationTasks: [arrived] }, "")).toEqual({
+      kind: "task",
+      taskId: "t-office",
     });
   });
 
