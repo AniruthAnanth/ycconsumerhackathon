@@ -4,7 +4,6 @@
 | --- | --- |
 | `build-ios-sim.sh` | The one recipe for a standalone iOS Simulator build (JavaScript bundled, `EXPO_PUBLIC_CONVEX_URL` baked in). |
 | `check-expo-go.mjs` | Fails when a dependency would force a custom development build, so the app keeps opening in Expo Go. |
-| `slides/` | Turns raw screenshots into framed pitch slides. See `slides/README.md`. |
 
 ## The iOS Simulator build
 
