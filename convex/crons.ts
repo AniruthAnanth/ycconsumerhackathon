@@ -11,9 +11,6 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// 16:00 UTC is 8 AM Pacific in winter and 9 AM in summer: "each morning" either way.
-crons.cron("daily mystery task", "0 16 * * *", internal.drops.dailyMystery, {});
-
 // Every hour, on the hour. Who is due the evening text (from 6 PM) or the last-day text (from
 // 10 AM) is decided in Pacific time inside the check-in module, so no UTC offset lives here and
 // daylight saving cannot move a text into the night.
