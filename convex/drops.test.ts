@@ -170,6 +170,30 @@ describe("quick-time drop", () => {
     expect(texts.join("\n")).toContain(`Quick-time: ${drop.title} in the next 2 hours, ${drop.gesture} in the photo.`);
   });
 
+  it("pushes the league the notification the app raises for the drop", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+
+    const dropId = await as(t, userIds[0]).mutation(api.drops.triggerQuickTime, { leagueId });
+    await runScheduled(t);
+
+    const drop = await getDrop(t, dropId);
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.filter((job) => job.name === "push:send").map((job) => job.args[0])).toEqual([
+      {
+        leagueId,
+        notification: {
+          id: `drop:${dropId}`,
+          kind: "drop",
+          title: `Quick-time drop: +${drop.points}`,
+          body: `${drop.title}. Show ${drop.gesture} in the photo. 2h left.`,
+          url: "/",
+          category: "checkin",
+        },
+      },
+    ]);
+  });
+
   it("pays the first finisher +10 and everyone after the drop's own points", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam", "Leo"]);
