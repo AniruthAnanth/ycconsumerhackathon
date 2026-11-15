@@ -196,6 +196,16 @@ describe("proofs.verify", () => {
     expect(await proofsOf(t)).toHaveLength(1);
   });
 
+  it("asks for a retake when the model can't read the photo, and leaves the task open", async () => {
+    const { t, as, taskId } = await playerWithTask();
+    vi.mocked(judgeProof).mockResolvedValueOnce(null);
+
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
+
+    expect(verdict).toMatchObject({ pass: false, points: 0, reason: "That shot couldn't be read. Take it again." });
+    expect((await taskOf(t, taskId))?.status).toBe("open");
+  });
+
   it("turns away a file the model can't read without calling it", async () => {
     const { t, as, taskId } = await playerWithTask();
     const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t, "image/heic"), mediaType: "photo" });
