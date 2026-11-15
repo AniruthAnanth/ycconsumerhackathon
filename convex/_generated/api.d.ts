@@ -16,6 +16,7 @@ import type * as checkins from "../checkins.js";
 import type * as crons from "../crons.js";
 import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
+import type * as fixtures from "../fixtures.js";
 import type * as http from "../http.js";
 import type * as keiki from "../keiki.js";
 import type * as keikiMedia from "../keikiMedia.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   drops: typeof drops;
   feed: typeof feed;
+  fixtures: typeof fixtures;
   http: typeof http;
   keiki: typeof keiki;
   keikiMedia: typeof keikiMedia;
