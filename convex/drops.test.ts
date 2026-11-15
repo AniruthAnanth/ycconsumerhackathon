@@ -252,18 +252,18 @@ describe("mystery task", () => {
     return envelope;
   }
 
-  /** Banks points for a player: a verified drafted task from this week. */
+  /** Gives a player points in the league: a verified flex task, which scores exactly its points. */
   async function bank(t: Backend, userId: Id<"users">, points: number) {
     await t.run((ctx) =>
       ctx.db.insert("tasks", {
         userId,
         weekStart: WEEK_START,
-        slot: "body",
-        title: "Leg day",
+        slot: "flex",
+        title: "Extra mile",
         points,
         proofType: "photo",
         status: "verified",
-        source: "draft",
+        source: "flex",
       }),
     );
   }
@@ -339,7 +339,7 @@ describe("mystery task", () => {
     });
   });
 
-  it("cuts a wager down to 50 and to the points the player has banked", async () => {
+  it("cuts a wager down to 50 and to the points the player has in the league", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
     await bank(t, userIds[0], 200);

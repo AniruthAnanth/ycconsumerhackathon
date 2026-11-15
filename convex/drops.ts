@@ -30,6 +30,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { askJson } from "./ai";
+import { announceLeadChanges } from "./leadChange";
 import { requireUser } from "./lib/auth";
 import {
   clampMysteryPoints,
@@ -59,6 +60,7 @@ import { clampWager, groupSessionScore, mysteryScore, quickTimeScore } from "./l
 import { weekStartOf } from "./lib/week";
 import { searchMemories } from "./memory";
 import { place, slot } from "./schema";
+import { pointsInLeague } from "./standings";
 
 /** leagues.maxMembers keeps every list here far below this; it only bounds the reads. */
 const MAX_ROWS = 500;
@@ -322,12 +324,12 @@ async function openEnvelope(
   requestedWager: number | undefined,
 ): Promise<void> {
   const drop = await sealedEnvelope(ctx, userId, dropId);
-  const weekStart = weekStartOf(Date.now());
-  // An over-sized wager is cut down rather than refused, so "OPEN 80" by text still opens.
-  const wager = clampWager(requestedWager ?? 0, await bankedPoints(ctx, drop.leagueId, userId, weekStart));
+  // A wager is "of their own points", so it is capped at what the player has in this league.
+  // An over-sized one is cut down rather than refused, so "OPEN 80" by text still opens.
+  const wager = clampWager(requestedWager ?? 0, await pointsInLeague(ctx, drop.leagueId, userId));
   await ctx.db.patch("drops", dropId, { sealed: false, wager });
   // Priced for success now. If the envelope closes unfinished, close() turns this negative.
-  await giveTask(ctx, drop, userId, weekStart, mysteryScore(drop.points, wager, true));
+  await giveTask(ctx, drop, userId, weekStartOf(Date.now()), mysteryScore(drop.points, wager, true));
 }
 
 /** A passed envelope is closed still sealed: no task was ever created, so nothing is scored. */
@@ -345,30 +347,6 @@ async function sealedEnvelope(ctx: QueryCtx, userId: Id<"users">, dropId: Id<"dr
     throw new ConvexError("That mystery task was already opened, passed or has expired");
   }
   return drop;
-}
-
-/**
- * The points a player has banked in a league this week: the most they can wager, because a
- * wager is "of their own points". It counts verified tasks only, and a drop task only where
- * its drop belongs to this league.
- */
-async function bankedPoints(
-  ctx: QueryCtx,
-  leagueId: Id<"leagues">,
-  userId: Id<"users">,
-  weekStart: number,
-): Promise<number> {
-  const tasks = await ctx.db
-    .query("tasks")
-    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
-    .take(MAX_ROWS);
-  let banked = 0;
-  for (const task of tasks) {
-    if (task.status !== "verified") continue;
-    if (task.dropId !== undefined && (await ctx.db.get("drops", task.dropId))?.leagueId !== leagueId) continue;
-    banked += task.points;
-  }
-  return banked;
 }
 
 // ─── Group sessions ──────────────────────────────────────────────────────────────────────────
@@ -617,6 +595,8 @@ export const onTaskVerified = internalMutation({
     await reprice(ctx, drop);
     // Repricing changed what members' tasks are worth, so the leaderboards rebuild the league's stored rows.
     await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId: drop.leagueId });
+    // The bonus just written can be what decides the lead, so the lead is checked from here too.
+    await announceLeadChanges(ctx, task.userId);
     if (drop.kind === "group") {
       await ctx.scheduler.runAfter(0, internal.drops.countGroupPhoto, { dropId: drop._id, taskId });
     }

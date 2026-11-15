@@ -19,6 +19,7 @@ import type * as feed from "../feed.js";
 import type * as http from "../http.js";
 import type * as keiki from "../keiki.js";
 import type * as keikiMedia from "../keikiMedia.js";
+import type * as leadChange from "../leadChange.js";
 import type * as leaderboards from "../leaderboards.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   keiki: typeof keiki;
   keikiMedia: typeof keikiMedia;
+  leadChange: typeof leadChange;
   leaderboards: typeof leaderboards;
   leagues: typeof leagues;
   "lib/auth": typeof lib_auth;
