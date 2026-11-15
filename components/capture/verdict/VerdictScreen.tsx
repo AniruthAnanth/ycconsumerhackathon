@@ -28,11 +28,11 @@ export function VerdictScreen() {
   const retryProof = capture.mediaType === "canvas" ? retry : () => router.replace(proofCameraHref(target));
 
   return (
-    <Animated.View style={[styles.screen, impact]}>
+    <Animated.View style={[styles.screen, impact.style]}>
       <View style={styles.media}>
         <VerdictMedia capture={capture} />
         {phase.name === "reviewing" && <ReviewingOverlay title={target.title} />}
-        {phase.name === "verdict" && <StampBadge pass={phase.verdict.pass} />}
+        {phase.name === "verdict" && <StampBadge pass={phase.verdict.pass} onLand={impact.land} />}
       </View>
       <VerdictPanel
         phase={phase}

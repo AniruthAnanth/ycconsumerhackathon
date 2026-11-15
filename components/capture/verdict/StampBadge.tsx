@@ -1,27 +1,21 @@
-import { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+
+import { StampSlam } from "@/components/motion";
+
+import { STAMP_DELAY_MS } from "./timing";
 
 const VERIFIED_GREEN = "#1E9E4A";
 const REJECTED_RED = "#D93025";
 
-type Props = { pass: boolean };
+type Props = { pass: boolean; onLand: () => void };
 
-/** The referee's stamp: it lands from three times its size and sits slightly crooked, like ink. */
-export function StampBadge({ pass }: Props) {
-  const scale = useRef(new Animated.Value(3)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, tension: 140, friction: 7, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 140, useNativeDriver: true }),
-    ]).start();
-  }, [opacity, scale]);
-
+/** The referee's stamp: it slams down with a slight overshoot and sits slightly crooked, like ink. */
+export function StampBadge({ pass, onLand }: Props) {
   const color = pass ? VERIFIED_GREEN : REJECTED_RED;
   return (
     <View style={styles.anchor} pointerEvents="none">
-      <Animated.View style={{ opacity, transform: [{ rotate: "-8deg" }, { scale }] }}>
+      <StampSlam delay={STAMP_DELAY_MS} onLand={onLand}>
+        {/* The tilt sits inside the slam, whose animated transform would replace it. */}
         <View style={[styles.outer, { borderColor: color }]}>
           <View style={[styles.inner, { borderColor: color }]}>
             <Text style={[styles.label, { color }]} numberOfLines={1} adjustsFontSizeToFit>
@@ -29,14 +23,14 @@ export function StampBadge({ pass }: Props) {
             </Text>
           </View>
         </View>
-      </Animated.View>
+      </StampSlam>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   anchor: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  outer: { borderWidth: 4, padding: 4, backgroundColor: "rgba(255,255,255,0.9)" },
+  outer: { borderWidth: 4, padding: 4, backgroundColor: "rgba(255,255,255,0.9)", transform: [{ rotate: "-8deg" }] },
   inner: { borderWidth: 2, paddingHorizontal: 18, paddingVertical: 8 },
   label: { fontSize: 32, fontWeight: "900", letterSpacing: 4, textTransform: "uppercase" },
 });
