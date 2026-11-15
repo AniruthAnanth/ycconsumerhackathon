@@ -1,17 +1,25 @@
 import type { Id } from "@/convex/_generated/dataModel";
 
-type Props = {
-  /** One element of drops.active({ leagueId }). */
-  drop: { dropId: Id<"drops">; kind: "quicktime" | "mystery" | "group" };
-  leagueId: Id<"leagues">;
-};
+import { GroupActions } from "./drops/GroupActions";
+import { SealedMysteryActions } from "./drops/SealedMysteryActions";
+import { TimedActions } from "./drops/TimedActions";
+import { type ActiveDrop, dropView } from "./drops/dropView";
+import { useNow } from "./drops/useNow";
 
-/**
- * The controls inside Roster's live drop banner: Submit for a quick-time drop,
- * Open, Pass and the wager stepper for a sealed mystery task.
- *
- * Placeholder so Roster compiles; the capture thread (YCCO-11) owns this file.
- */
-export function DropActions(_props: Props) {
-  return null;
+type Props = { drop: ActiveDrop; leagueId: Id<"leagues"> };
+
+/** The actions inside a live drop's banner on Roster. */
+export function DropActions({ drop }: Props) {
+  const view = dropView(drop, useNow());
+
+  switch (view.type) {
+    case "hidden":
+      return null;
+    case "sealed":
+      return <SealedMysteryActions view={view} />;
+    case "timed":
+      return <TimedActions view={view} />;
+    case "group":
+      return <GroupActions view={view} />;
+  }
 }
