@@ -109,6 +109,45 @@ export function pickFallbackMystery(random: () => number = Math.random): DropIde
   return pick(MYSTERY_FALLBACKS, random);
 }
 
+/** What Supermemory is asked for before the model picks: how this player's past weeks went. */
+export const MYSTERY_MEMORY_QUERY = "tasks this player completed, skipped or failed in past weeks, by slot";
+
+export const MYSTERY_INSTRUCTIONS = [
+  "You set today's mystery task for one player of Lineup, a fantasy league for real life.",
+  "Pick ONE task they can finish today in under 30 minutes and prove with a single photo.",
+  "Slots: body (fitness), mind (school or work), recharge (destress), chores (life admin), people (connection).",
+  "Use their history: choose the slot they have been skipping, and make it easy if they keep failing it.",
+  "title: an imperative of at most 8 words. No emoji, nothing unsafe, nothing that costs money.",
+  "points: 15 for something trivial up to 30 for real effort.",
+].join("\n");
+
+/** Strict schema for the model's answer; parseMystery still checks it, because points are scored. */
+export const MYSTERY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "slot", "points"],
+  properties: {
+    title: { type: "string" },
+    slot: { type: "string", enum: ["body", "mind", "recharge", "chores", "people"] },
+    points: { type: "integer" },
+  },
+} as const;
+
+export function mysteryPrompt(memories: readonly string[]): string {
+  if (memories.length === 0) return "This player has no history yet. Pick a good all-round task.";
+  return `What we remember about this player's past weeks:\n${memories.map((memory) => `- ${memory}`).join("\n")}`;
+}
+
+/** The model's answer as a task we can seal, or null when it is not usable. */
+export function parseMystery(answer: unknown): DropIdea | null {
+  if (typeof answer !== "object" || answer === null) return null;
+  const { title, slot, points } = answer as Record<string, unknown>;
+  if (typeof title !== "string" || title.trim() === "") return null;
+  if (typeof slot !== "string" || !(MYSTERY_SCHEMA.properties.slot.enum as readonly string[]).includes(slot)) return null;
+  if (typeof points !== "number") return null;
+  return { title: title.trim(), slot: slot as Slot, points: clampMysteryPoints(points) };
+}
+
 /** The model proposes the points; this keeps whatever it says inside the advertised range. */
 export function clampMysteryPoints(points: number): number {
   if (!Number.isFinite(points)) return MYSTERY_BASE_POINTS.min;

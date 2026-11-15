@@ -5,8 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { MYSTERY_WINDOW_MS, QUICK_TIME_WINDOW_MS } from "./lib/dropRules";
+import { askJson } from "./ai";
+import { MYSTERY_FALLBACKS, MYSTERY_WINDOW_MS, QUICK_TIME_WINDOW_MS } from "./lib/dropRules";
+import { searchMemories } from "./memory";
 import schema from "./schema";
+
+// No test may reach OpenAI or Supermemory: each one says what the model and memory answer.
+vi.mock("./ai", async (original) => ({ ...(await original<typeof import("./ai")>()), askJson: vi.fn() }));
+vi.mock("./memory", async (original) => ({
+  ...(await original<typeof import("./memory")>()),
+  searchMemories: vi.fn(),
+}));
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -24,6 +33,9 @@ beforeEach(() => {
   // keiki.send does not exist in this backend, so every text ends up in the shim's warning.
   texts = [];
   vi.spyOn(console, "warn").mockImplementation((message: unknown) => void texts.push(String(message)));
+  // By default the model is down and memory is empty, which is the path that must still work.
+  vi.mocked(askJson).mockRejectedValue(new Error("no model in tests"));
+  vi.mocked(searchMemories).mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -267,6 +279,28 @@ describe("mystery task", () => {
     expect(banner).toMatchObject({ kind: "mystery", sealed: true, title: "Mystery task", points: 2 * envelope.points });
     expect(banner.taskId).toBeUndefined();
     expect(texts.join("\n")).toMatch(/Mystery task: \w+, 30 to 60 points\. Reply OPEN or PASS\./);
+  });
+
+  it("searches the player's memory, then lets the model pick the task", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
+    vi.mocked(searchMemories).mockResolvedValue(["Skipped Body twice last week"]);
+    vi.mocked(askJson).mockResolvedValue({ title: "Ten-minute jog", slot: "body", points: 22 });
+
+    const envelope = await envelopeFor(t, leagueId, userIds[0]);
+
+    expect(envelope).toMatchObject({ title: "Ten-minute jog", slot: "body", points: 22 });
+    expect(searchMemories).toHaveBeenCalledWith(userIds[0], expect.any(String));
+    expect(vi.mocked(askJson).mock.calls[0][0].text).toContain("Skipped Body twice last week");
+  });
+
+  it("falls back to the fixed list when the model is unavailable", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
+
+    const envelope = await envelopeFor(t, leagueId, userIds[0]);
+
+    expect(MYSTERY_FALLBACKS.map((idea) => idea.title)).toContain(envelope.title);
   });
 
   it("opens into a task worth double, plus the wager", async () => {

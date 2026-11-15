@@ -25,6 +25,7 @@ import type * as lib_keikiProtocol from "../lib/keikiProtocol.js";
 import type * as lib_keikiText from "../lib/keikiText.js";
 import type * as lib_lineupRules from "../lib/lineupRules.js";
 import type * as lib_mediaType from "../lib/mediaType.js";
+import type * as lib_projection from "../lib/projection.js";
 import type * as lib_schedule from "../lib/schedule.js";
 import type * as lib_settlement from "../lib/settlement.js";
 import type * as lib_verdict from "../lib/verdict.js";
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   "lib/keikiText": typeof lib_keikiText;
   "lib/lineupRules": typeof lib_lineupRules;
   "lib/mediaType": typeof lib_mediaType;
+  "lib/projection": typeof lib_projection;
   "lib/schedule": typeof lib_schedule;
   "lib/settlement": typeof lib_settlement;
   "lib/verdict": typeof lib_verdict;
