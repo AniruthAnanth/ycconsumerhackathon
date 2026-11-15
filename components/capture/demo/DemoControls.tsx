@@ -5,10 +5,12 @@
  */
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
+import { useRef } from "react";
 
 import { capture } from "@/components/capture/backend";
 import { DeviceError } from "@/components/capture/errorMessage";
 import { Header, Screen, SectionLabel } from "@/components/ui";
+import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { setDevFlag, useDevFlags } from "@/lib/devFlags";
@@ -36,6 +38,8 @@ export function DemoControls() {
   const resetSeed = useMutation(capture.seed.reset);
   const actAs = useMutation(capture.seed.actAs);
   const pinCheckIn = useMutation(capture.demo.pinCheckIn);
+  const nudgeNow = useMutation(api.checkins.nudgeNow);
+  const nudgeTurn = useRef(0);
   const flags = useDevFlags();
   const actingAsId = me?.actingAs?._id;
 
@@ -66,6 +70,16 @@ export function DemoControls() {
       <ActionRow label="Pin check-in here" run={async () => pinCheckIn(await phoneCoords(PHONE_GPS))} />
 
       <SectionLabel left="NOTIFICATIONS" />
+      {/* The Keiki nudge this player is due, without waiting for its hour. Each tap sends the next kind. */}
+      <ActionRow
+        label="Send nudge now"
+        run={async () => {
+          const nudge = await nudgeNow({ leagueId: leagueId ?? undefined, turn: nudgeTurn.current++ });
+          if (nudge.text === null) throw new DeviceError("Nothing to nudge about: no task is open this week.");
+          // Not opted in to texts and no phone to push: show the words here instead.
+          if (!nudge.delivered) throw new DeviceError(`Turn on Play by text to receive it: ${nudge.text}`);
+        }}
+      />
       {/* Five seconds out, so there is time to lock the phone and show it arriving. */}
       <ActionRow
         label="Preview Drop Notification (5 s)"

@@ -375,7 +375,7 @@ describe("checkins.nudge", () => {
     await addTask(t, me, { slot: "mind", title: "Problem set", points: 30, status: "verified" });
     await addTask(t, maya, { points: 45, status: "verified" });
 
-    const text = "Last day. Body and Chores are still open. $20 is on the line. Maya's up 15.";
+    const text = "Last day. Body and Chores still open, $20 on the line.";
     expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBe(text);
     expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
     expect(await textsTo(t, me)).toEqual([text]);
@@ -393,9 +393,8 @@ describe("checkins.nudge", () => {
     const run = await addTask(t, maya, { weekStart, title: "5k run" });
     await addTask(t, maya, { weekStart, slot: "chores", title: "Laundry", points: 20 });
 
-    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBe(
-      "Leg day isn't on the board yet. Tied with Maya. Reply with a photo.",
-    );
+    // Wednesday with nothing cleared is behind the pace, so the evening's one text says so.
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBe("Wednesday and 0 of 5 cleared. Leg day tonight?");
 
     // Maya proved her run an hour ago. She still has laundry open, but her day is not empty.
     await t.run(async (ctx) => {
@@ -415,6 +414,47 @@ describe("checkins.nudge", () => {
       });
     });
     expect(await t.mutation(internal.checkins.nudge, { userId: maya })).toBeNull();
+  });
+
+  it("makes the last call about two hours before the week ends, even as the day's fourth text", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    await addTask(t, me);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 3; i++) {
+        await ctx.db.insert("checkinNudges", { userId: me, kind: "rival_passed", day: "2026-11-15", text: "…", sentAt: NOON });
+      }
+    });
+
+    // 9 PM: three hours left. Nothing goes out, and the 9:51 PM run is booked.
+    vi.setSystemTime(NOON + 9 * HOUR_MS);
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
+    expect(await scheduledTo(t, "checkins:nudge")).toEqual([{ userId: me }]);
+
+    vi.setSystemTime(NOON + 9 * HOUR_MS + 51 * MINUTE_MS);
+    const text = "It's Sunday, two hours to get Leg day in, $20 on the line. Reply with a photo.";
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBe(text);
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
+  });
+
+  it("sends the caller the most pressing nudge on demand, then the next, and logs neither", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya"]);
+    const [me, maya] = userIds;
+    await addTask(t, me);
+    await addTask(t, maya, { points: 45, status: "verified" });
+
+    const first = await as(t, me).mutation(api.checkins.nudgeNow, { leagueId });
+    expect(first).toEqual({ text: "Last day. Body still open, $20 on the line.", delivered: true });
+    const second = await as(t, me).mutation(api.checkins.nudgeNow, { leagueId, turn: 1 });
+    // The test clock moves a little between calls, so twelve hours may already read as eleven.
+    expect(second.text).toMatch(/^It's Sunday, 1[12] hours to get Leg day in, \$20 on the line\. Reply with a photo\.$/);
+    const third = await as(t, me).mutation(api.checkins.nudgeNow, { leagueId, turn: 2 });
+    expect(third.text).toBe("You're falling behind: Maya is up 70 on you this week. Leg day ties it.");
+
+    expect(await scheduledTo(t, "keiki:send")).toEqual([first, second, third].map(({ text }) => ({ userId: me, text })));
+    expect(await textsTo(t, me)).toEqual([]);
   });
 
   it("never texts in quiet hours and stops at three texts a day", async () => {
@@ -447,7 +487,7 @@ describe("check-ins for a player who is pushed instead of texted", () => {
     await t.run((ctx) => ctx.db.patch("users", maya, { keikiOptIn: undefined }));
 
     const text = await t.mutation(internal.checkins.nudge, { userId: me });
-    expect(text).toMatch(/^Last day\. Body is still open\./);
+    expect(text).toMatch(/^Last day\. Body still open/);
     expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
     expect(await t.mutation(internal.checkins.nudge, { userId: maya })).toBeNull();
 
@@ -507,7 +547,7 @@ describe("check-ins for a player who is pushed instead of texted", () => {
 
     await t.mutation(internal.checkins.afterProof, { taskId: mayas });
 
-    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 15."]);
+    expect(await textsTo(t, me)).toEqual(["You're falling behind: Maya is up 15 on you this week."]);
     expect(await scheduledTo(t, "keiki:send")).toEqual([]);
     expect(await scheduledTo(t, "push:send")).toEqual([
       {
@@ -561,7 +601,7 @@ describe("checkins.afterProof", () => {
 
     await t.mutation(internal.checkins.afterProof, { taskId: mayas });
     expect(await textsTo(t, me)).toEqual([
-      "Maya just passed you in YC Hackathon, up 15. Leg day flips it. Reply with a photo.",
+      "You're falling behind: Maya is up 15 on you this week. Leg day flips it.",
     ]);
     expect(await textsTo(t, sam)).toEqual([]);
 
@@ -583,7 +623,7 @@ describe("checkins.afterProof", () => {
     const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
 
     await t.mutation(internal.checkins.afterProof, { taskId: run });
-    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 50."]);
+    expect(await textsTo(t, me)).toEqual(["You're falling behind: Maya is up 50 on you this week."]);
   });
 
   it("still reports a pass when another member's proof landed in the same moment and its hook ran first", async () => {
@@ -598,7 +638,7 @@ describe("checkins.afterProof", () => {
     // Both tasks are verified before either hook runs, so Sam's hook already sees Maya's points.
     await t.mutation(internal.checkins.afterProof, { taskId: sams });
     await t.mutation(internal.checkins.afterProof, { taskId: mayas });
-    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 40."]);
+    expect(await textsTo(t, me)).toEqual(["You're falling behind: Maya is up 40 on you this week."]);
   });
 
   it("starts every week from zero: last week's marks neither hide a pass nor invent one", async () => {
@@ -617,10 +657,28 @@ describe("checkins.afterProof", () => {
 
     await t.mutation(internal.checkins.afterProof, { taskId: run });
     // Maya went from nothing to 70 this week: past me, and not past Sam, who has nothing yet.
-    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 40."]);
+    expect(await textsTo(t, me)).toEqual(["You're falling behind: Maya is up 40 on you this week."]);
     expect(await textsTo(t, sam)).toEqual([]);
     // Her row moved to this week; no fourth row was added.
     expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(3);
+  });
+
+  it("tells a matchup opponent they are falling behind, once a day per rival", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, weekId, userIds } = await startLeague(t, ["Me", "Maya", "Jo"]);
+    const [me, maya, jo] = userIds;
+    await addTask(t, jo, { points: 100, status: "verified" }); // the leader throughout
+    await t.run((ctx) => ctx.db.insert("matchups", { weekId, userA: me, userB: maya }));
+    // Maya is already ahead of me. In a matchup every proof of hers is ground I lose.
+    await addTask(t, maya, { slot: "flex", source: "flex", title: "Stretch", points: 40, status: "verified" });
+    await t.run((ctx) => ctx.db.insert("checkinMarks", { leagueId, userId: maya, points: 40, weekStart: WEEK_START }));
+    const more = await addTask(t, maya, { slot: "flex", source: "flex", title: "Tidy desk", points: 10, status: "verified" });
+    await t.mutation(internal.checkins.afterProof, { taskId: more });
+    expect(await textsTo(t, me)).toEqual(["You're falling behind: Maya is up 50 on you this week."]);
+
+    const again = await addTask(t, maya, { slot: "flex", source: "flex", title: "Water plants", points: 10, status: "verified" });
+    await t.mutation(internal.checkins.afterProof, { taskId: again });
+    expect(await textsTo(t, me)).toHaveLength(1);
   });
 
   it("invents no pass over a member whose points fell without a proof of their own", async () => {

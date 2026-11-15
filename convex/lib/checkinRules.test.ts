@@ -12,7 +12,11 @@ import {
   pacificClock,
   passedBy,
   tookTheLead,
-  passedText,
+  behindText,
+  finalHoursText,
+  leftBehind,
+  paceText,
+  relevantNudges,
   pickCheckIn,
   pickRival,
   pointsIfProven,
@@ -406,23 +410,37 @@ describe("wording", () => {
   });
 
   it("lists the open slots and the dollars at stake on the last day", () => {
-    expect(lastDayText({ slots: ["body", "chores", "people"], stakeUsd: 20, rival: maya })).toBe(
-      "Last day. Body, Chores and People are still open. $20 is on the line. Maya's up 15.",
+    expect(lastDayText({ slots: ["body", "chores", "people"], stakeUsd: 20 })).toBe(
+      "Last day. Body, Chores and People still open, $20 on the line.",
     );
-    expect(lastDayText({ slots: ["mind"], stakeUsd: 7.5, rival: null })).toBe("Last day. Mind is still open. $7.50 is on the line.");
-    expect(lastDayText({ slots: ["body", "mind"], stakeUsd: 0, rival: null })).toBe("Last day. Body and Mind are still open.");
+    expect(lastDayText({ slots: ["mind"], stakeUsd: 7.5 })).toBe("Last day. Mind still open, $7.50 on the line.");
+    expect(lastDayText({ slots: ["body", "mind"], stakeUsd: 0 })).toBe("Last day. Body and Mind still open.");
+  });
+
+  it("counts down the last hours by naming the day, the time left and one task", () => {
+    const at = (hoursIn: number, minutes = 0) => NOW + hoursIn * HOUR + minutes * 60 * 1000;
+    const call = (now: number, stakeUsd = 20) => finalHoursText({ now, weekEndsAt: WEEK.endsAt, task: legDay, stakeUsd });
+    expect(call(at(9, 51))).toBe("It's Sunday, two hours to get Leg day in, $20 on the line. Reply with a photo.");
+    expect(call(at(10, 30), 0)).toBe("It's Sunday, one hour to get Leg day in. Reply with a photo.");
+    expect(call(at(11, 30), 0)).toBe("It's Sunday, under an hour to get Leg day in. Reply with a photo.");
+    expect(call(at(0))).toBe("It's Sunday, 12 hours to get Leg day in, $20 on the line. Reply with a photo.");
+  });
+
+  it("says how far behind the pace a midweek is", () => {
+    const wednesday = NOW - 4 * 24 * HOUR;
+    expect(paceText({ now: wednesday, cleared: 1, task: legDay })).toBe("Wednesday and 1 of 5 cleared. Leg day tonight?");
   });
 
   it("names who passed the player, by how much, and the way back", () => {
     const wayBack = { ...legDay, worth: 65 };
-    expect(passedText({ rivalName: "Maya Chen", gap: 15, leagueName: "YC Hackathon", wayBack })).toBe(
-      "Maya just passed you in YC Hackathon, up 15. Leg day flips it. Reply with a photo.",
+    expect(behindText({ rivalName: "Maya Chen", gap: 15, wayBack })).toBe(
+      "You're falling behind: Maya is up 15 on you this week. Leg day flips it.",
     );
-    expect(passedText({ rivalName: "Maya", gap: 90, leagueName: "YC Hackathon", wayBack })).toBe(
-      "Maya just passed you in YC Hackathon, up 90. Leg day cuts it to 25. Reply with a photo.",
+    expect(behindText({ rivalName: "Maya", gap: 90, wayBack })).toBe(
+      "You're falling behind: Maya is up 90 on you this week. Leg day cuts it to 25.",
     );
-    expect(passedText({ rivalName: "Maya", gap: 15, leagueName: "YC Hackathon", wayBack: null })).toBe(
-      "Maya just passed you in YC Hackathon, up 15.",
+    expect(behindText({ rivalName: "Maya", gap: 15, wayBack: null })).toBe(
+      "You're falling behind: Maya is up 15 on you this week.",
     );
   });
 });
@@ -445,6 +463,7 @@ describe("when the agent may text", () => {
       sentToday: [],
       provedToday: false,
       slotsAtStake: 2,
+      cleared: 3,
       hasCheckIn: true,
       ...over,
     });
@@ -476,6 +495,44 @@ describe("when the agent may text", () => {
     const lastEvening = { weekEndsAt: NOW + 6 * HOUR, pacificHour: 18 };
     expect(due(lastEvening)).toBe("last_day");
     expect(due({ ...lastEvening, sentToday: ["last_day"] })).toBe("evening");
+  });
+
+  it("makes the last call inside the last two hours, once, and lets it be the day's fourth text", () => {
+    const lastHours = { weekEndsAt: NOW + 2 * HOUR, pacificHour: 21 };
+    const three: ("rival_passed" | "last_day")[] = ["last_day", "rival_passed", "rival_passed"];
+    expect(due(lastHours)).toBe("final_hours");
+    expect(due({ ...lastHours, sentToday: three })).toBe("final_hours");
+    expect(due({ ...lastHours, sentToday: [...three, "rival_passed"] })).toBeNull();
+    expect(due({ ...lastHours, sentToday: ["final_hours"] })).toBeNull();
+    expect(due({ ...lastHours, pacificHour: 22 })).toBeNull();
+    // Three hours out is still the evening's business.
+    expect(due({ weekEndsAt: NOW + 3 * HOUR, pacificHour: 21, sentToday: ["last_day"] })).toBe("evening");
+  });
+
+  it("sends the pace text midweek when cleared slots trail the days gone, in place of the evening text", () => {
+    const wednesday = { now: NOW - 4 * 24 * HOUR, weekEndsAt: NOW + 12 * HOUR, pacificHour: 18 };
+    expect(due({ ...wednesday, cleared: 1 })).toBe("pace");
+    expect(due({ ...wednesday, cleared: 3 })).toBe("evening");
+    expect(due({ ...wednesday, cleared: 1, sentToday: ["pace"] })).toBeNull();
+    expect(due({ ...wednesday, cleared: 1, provedToday: true })).toBeNull();
+    // Monday is too early to call a pattern.
+    expect(due({ ...wednesday, now: NOW - 6 * 24 * HOUR, cleared: 0 })).toBe("evening");
+  });
+
+  it("counts a matchup opponent as left behind by every proof that leaves them trailing", () => {
+    const others = [{ userId: "me", points: 20 }, { userId: "jo", points: 60 }];
+    const prover = { before: 40, after: 50 };
+    expect(leftBehind({ prover, others })).toEqual([]);
+    expect(leftBehind({ prover, others, opponent: "me" })).toEqual([{ userId: "me", gap: 30 }]);
+    expect(leftBehind({ prover, others, opponent: "jo" })).toEqual([]);
+  });
+
+  it("lists every nudge that is true right now for Send nudge now, most pressing first", () => {
+    const facts = { now: NOW, weekEndsAt: NOW + 12 * HOUR, slotsAtStake: 2, cleared: 3, hasCheckIn: true, rivalGap: 40 };
+    expect(relevantNudges(facts)).toEqual(["last_day", "final_hours", "rival_passed", "evening"]);
+    expect(relevantNudges({ ...facts, weekEndsAt: NOW + 2 * HOUR })[0]).toBe("final_hours");
+    expect(relevantNudges({ ...facts, now: NOW - 4 * 24 * HOUR, cleared: 1, rivalGap: -5 })).toEqual(["pace"]);
+    expect(relevantNudges({ ...facts, weekEndsAt: NOW })).toEqual([]);
   });
 
   it("sends nothing past the cap or after the week ends", () => {
