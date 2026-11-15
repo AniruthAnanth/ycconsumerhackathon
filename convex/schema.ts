@@ -88,7 +88,9 @@ export default defineSchema({
     createdAt: v.optional(v.number()),
   })
     .index("email", ["email"]) // looked up by Convex Auth under this exact name
-    .index("by_phone", ["phone"]),
+    .index("by_phone", ["phone"])
+    // Which devices are acting as a player (Switch Player), so they get that player's texts.
+    .index("by_demoActAs", ["demoActAs"]),
 
   leagues: defineTable({
     name: v.string(),
@@ -362,4 +364,10 @@ export default defineSchema({
     lng: v.number(),
     at: v.number(),
   }).index("by_user_task", ["userId", "taskId"]),
+
+  // Turns Keiki has pushed to us that convex/keiki.ts has taken on, so a turn
+  // delivered twice is answered once. A row is deleted an hour later.
+  keikiTurns: defineTable({
+    turnId: v.string(),
+  }).index("by_turnId", ["turnId"]),
 });
