@@ -27,14 +27,13 @@ import {
   currentWeek,
   ensureCurrentWeek,
   membersInJoinOrder,
+  MAX_MEMBERS,
+  MAX_STAKE_USD,
   paidInto,
 } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { leagueStandings } from "./standings";
 
-const MAX_STAKE_USD = 1000;
-/** A versus that grows into a league gets the seats an ordinary league has. */
-const LEAGUE_SEATS = 12;
 const FRIENDS_LISTED = 50;
 const LEDGER_ROWS = 50;
 /** The seeded demo game's invite code, which is also how a reset finds it again. */
@@ -307,6 +306,22 @@ export const rematch = mutation({
     if (opponent === null)
       throw new ConvexError("Nobody accepted this challenge");
 
+    // Both players may tap Rematch: the second tap joins the game the first one made.
+    for (const { leagueId: otherId } of await ctx.db
+      .query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", caller._id))
+      .take(FRIENDS_LISTED)) {
+      const other = await ctx.db.get("leagues", otherId);
+      if (
+        other?.mode !== "versus" ||
+        other._creationTime <= league._creationTime
+      )
+        continue;
+      const seats = await membersInJoinOrder(ctx, otherId);
+      if (seats.some((seat) => seat.userId === opponent._id))
+        return { leagueId: otherId };
+    }
+
     const { league: next } = await createVersus(ctx, caller, league.stakeUsd);
     await addOpponent(ctx, next, caller, opponent);
     return { leagueId: next._id };
@@ -322,6 +337,21 @@ export const toLeague = mutation({
   returns: v.object({ leagueId: v.id("leagues"), inviteCode: v.string() }),
   handler: async (ctx, { leagueId }) => {
     const { league, members } = await requireVersusMember(ctx, leagueId);
+    // Growing changes the payout rule, so it can't happen with stakes riding on the head-to-head.
+    const week = await currentWeek(ctx, leagueId);
+    const staked =
+      week !== null &&
+      week.status === "open" &&
+      (
+        await ctx.db
+          .query("ledger")
+          .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+          .take(LEDGER_ROWS)
+      ).some((row) => row.weekId === week._id && row.kind === "buy_in");
+    if (staked)
+      throw new ConvexError(
+        "Stakes are in for this week. Add friends once it settles",
+      );
     const names = await Promise.all(
       members.map(async ({ userId }) =>
         firstName(await ctx.db.get("users", userId)),
@@ -329,7 +359,10 @@ export const toLeague = mutation({
     );
     await ctx.db.patch("leagues", leagueId, {
       mode: "league",
-      maxMembers: LEAGUE_SEATS,
+      // Back to the league defaults: a one-week season would replay round 1 forever.
+      seasonWeeks: undefined,
+      // The seats an ordinary league has; membersInJoinOrder reads at most this many.
+      maxMembers: MAX_MEMBERS,
       name: `${names.join(" & ")}'s League`,
     });
     return { leagueId, inviteCode: league.inviteCode };
@@ -350,7 +383,8 @@ export async function versusLabel(
 /**
  * The demo's versus: Sam against Maya for $5 each, both paid, in the current week. Their seeded
  * lineups already score here, because a lineup scores in every league its player is in. Rebuilt
- * from scratch on every call (seed.reset calls it), found again by its invite code.
+ * from scratch on every call, found again by its invite code. seed.reset does not call it (its tests
+ * count every league on the deployment); run npx convex run versus:seedDemo after a reset.
  */
 export async function seedDemoVersus(
   ctx: MutationCtx,
