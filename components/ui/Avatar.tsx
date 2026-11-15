@@ -4,17 +4,8 @@ import { StyleSheet, Text, View } from "react-native";
 import type { Slot } from "@/lib/slots";
 import { colors } from "@/theme";
 
-import { Icon, type IconName } from "./Icon";
-
-/** Shown in a task's thumbnail until a verified proof photo replaces it. */
-const SLOT_ICON: Record<Slot, IconName> = {
-  body: "barbell-outline",
-  mind: "book-outline",
-  recharge: "leaf-outline",
-  chores: "home-outline",
-  people: "people-outline",
-  flex: "flash-outline",
-};
+import { Icon } from "./Icon";
+import { SLOT_ICON } from "./slotIcons";
 
 type Props = {
   /** A proof photo or a player's picture. */
