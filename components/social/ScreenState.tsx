@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "./kit";
+import { colors } from "@/theme";
 
 /**
  * What a social screen shows in place of its content: a spinner while its query
@@ -9,12 +9,12 @@ import { colors } from "./kit";
 export function ScreenState({ loading, message }: { loading?: boolean; message?: string }) {
   return (
     <View style={styles.state}>
-      {loading ? <ActivityIndicator color={colors.muted} /> : <Text style={styles.text}>{message}</Text>}
+      {loading ? <ActivityIndicator color={colors.textMuted} /> : <Text style={styles.text}>{message}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  state: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, backgroundColor: colors.bg },
-  text: { color: colors.muted, fontSize: 15, textAlign: "center" },
+  state: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, backgroundColor: colors.background },
+  text: { color: colors.textMuted, fontSize: 15, textAlign: "center" },
 });
