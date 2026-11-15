@@ -13,7 +13,7 @@ type Props = {
   tone?: "accent" | "live";
   /** Makes the whole strip a button and shows a chevron. */
   onPress?: () => void;
-  /** Controls on the right, for example a drop's Submit or Open and Pass. */
+  /** Controls on the right, for example a drop's countdown and Submit. */
   children?: ReactNode;
 };
 
@@ -25,7 +25,7 @@ export function Banner({ title, subtitle, icon, tone = "accent", onPress, childr
     <View style={[styles.strip, live && styles.live]}>
       {icon ? <Icon name={icon} size={20} color={live ? colors.background : colors.accent} /> : null}
       <View style={styles.text}>
-        <Text style={[styles.title, { color: ink }]} numberOfLines={1}>
+        <Text style={[styles.title, { color: ink }]} numberOfLines={2}>
           {title}
         </Text>
         {subtitle ? (
