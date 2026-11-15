@@ -158,6 +158,6 @@ export const backend = {
     active: query<{ leagueId: Id<"leagues"> }, Drop[]>("drops:active"),
   },
   whop: {
-    createCheckout: action<{ leagueId: Id<"leagues"> }, { purchaseUrl: string }>("whop:createCheckout"),
+    createCheckout: action<{ leagueId: Id<"leagues"> }, { purchaseUrl: string; embedUrl: string }>("whop:createCheckout"),
   },
 } as const;
