@@ -82,36 +82,10 @@ export function clockLabel(ts: number): string {
 }
 
 /**
- * Head-to-head pairs for one league week, by the round-robin circle method so that opponents
- * rotate from week to week.
- *
- * With an odd number of members the one left over also plays the first paired member, so nobody
- * opens an empty Matchup tab. That extra pair is always last, which `pairsAfterJoin` relies on.
- */
-export function weekPairings<T>(members: readonly T[], weekNumber: number): [T, T][] {
-  if (members.length < 2) return [];
-  // The circle method needs an even field; null is the empty seat of an odd league.
-  const seats: (T | null)[] = members.length % 2 === 0 ? [...members] : [...members, null];
-  const [fixed, ...circle] = seats;
-  const turns = (weekNumber - 1) % circle.length;
-  const round = [fixed, ...circle.slice(turns), ...circle.slice(0, turns)];
-
-  const pairs: [T, T][] = [];
-  let leftOver: T | null = null;
-  for (let i = 0; i < round.length / 2; i++) {
-    const a = round[i];
-    const b = round[round.length - 1 - i];
-    if (a !== null && b !== null) pairs.push([a, b]);
-    else leftOver = a ?? b;
-  }
-  if (leftOver !== null) pairs.push([leftOver, pairs[0][0]]);
-  return pairs;
-}
-
-/**
  * A week's pairs after `newcomer` joins mid-week. Head-to-heads already under way never change:
  * the newcomer either takes over the extra pair of an odd league, giving its left-over member a
  * real opponent, or becomes the left-over member of a now-odd league.
+ * The extra pair is always stored last, left-over member first: `withStandIns` in lib/schedule.ts.
  *
  * Only the last pair differs from the input, replaced when the lengths match and appended otherwise.
  */

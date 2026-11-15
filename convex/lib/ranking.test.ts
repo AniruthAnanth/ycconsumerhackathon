@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FORMATS, formatDuration, ordinal, rankBoard, type Entry } from "./ranking";
+import { FORMATS, formatDuration, rankBoard, type Entry } from "./ranking";
 
 const entry = (name: string, value: number, previous: number | null = value): Entry<string> => ({
   userId: name.toLowerCase(),
@@ -142,13 +142,5 @@ describe("formatDuration", () => {
     expect(formatDuration(42)).toBe("42s");
     expect(formatDuration(60)).toBe("1m 00s");
     expect(formatDuration(185)).toBe("3m 05s");
-  });
-});
-
-describe("ordinal", () => {
-  it("handles the teens", () => {
-    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 103].map(ordinal)).toEqual([
-      "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "103rd",
-    ]);
   });
 });
