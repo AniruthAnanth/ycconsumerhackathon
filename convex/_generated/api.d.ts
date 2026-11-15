@@ -23,6 +23,7 @@ import type * as leaderboards from "../leaderboards.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_checkinRules from "../lib/checkinRules.js";
+import type * as lib_clip from "../lib/clip.js";
 import type * as lib_dropRules from "../lib/dropRules.js";
 import type * as lib_geo from "../lib/geo.js";
 import type * as lib_keikiProtocol from "../lib/keikiProtocol.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   leagues: typeof leagues;
   "lib/auth": typeof lib_auth;
   "lib/checkinRules": typeof lib_checkinRules;
+  "lib/clip": typeof lib_clip;
   "lib/dropRules": typeof lib_dropRules;
   "lib/geo": typeof lib_geo;
   "lib/keikiProtocol": typeof lib_keikiProtocol;
