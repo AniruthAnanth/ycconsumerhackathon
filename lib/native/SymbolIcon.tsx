@@ -21,7 +21,7 @@ type Props = {
  * native) and the nearest Ionicon elsewhere. expo-symbols is inside Expo Go, so Expo Go on an
  * iPhone shows the real symbols too.
  */
-export function Symbol({ ios, fallback, size = 20, color, weight = "regular" }: Props) {
+export function SymbolIcon({ ios, fallback, size = 20, color, weight = "regular" }: Props) {
   const ionicon = <Ionicons name={fallback} size={size} color={color} />;
   if (Platform.OS !== "ios") return ionicon;
   return (

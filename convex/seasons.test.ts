@@ -156,6 +156,27 @@ describe("buildSeason", () => {
       expect(season.weeks[7].byes).toEqual(["g"]);
     });
 
+    it("shows who went through when a playoff game is tied", () => {
+      const input = league("bracket", 6, { newestIsLive: false });
+      const tied = input.results.map((result) =>
+        result.week === 6 ? { ...result, scoreA: 80, scoreB: 80 } : result,
+      );
+      const season = buildSeason({ ...input, results: tied });
+
+      // d is the fourth seed and e the fifth; c is third and f sixth.
+      expect(season.weeks[5].matchups.map(({ a, b, winnerId }) => [a, b, winnerId])).toEqual([
+        ["d", "e", "d"],
+        ["c", "f", "c"],
+      ]);
+      // A tie in the regular season is still nobody's win.
+      const regularTie = input.results.map((result) =>
+        result.week === 1 ? { ...result, scoreA: 80, scoreB: 80 } : result,
+      );
+      expect(
+        buildSeason({ ...input, results: regularTie }).weeks[0].matchups.map((m) => m.winnerId),
+      ).toEqual([null, null, null]);
+    });
+
     it("crowns a champion when the final is over", () => {
       const season = buildSeason(league("bracket", 8, { newestIsLive: false }));
       expect(season.bracket?.champion).toBe("a");

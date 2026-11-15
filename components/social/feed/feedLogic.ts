@@ -19,13 +19,20 @@ export function reactionButtons(reactions: FeedReaction[]): FeedReaction[] {
   return [...offered, ...reactions.filter((reaction) => !REACTION_EMOJI.includes(reaction.emoji))];
 }
 
-/** A proof can be challenged once, by another league member, within a day of being verified. */
+/**
+ * A proof can be challenged once, by another league member, within a day of being verified.
+ * The server also refuses a challenge nobody could vote on (eligibleVoters in convex/challenges.ts
+ * excludes the owner and the challenger), so a league needs three members before any proof qualifies.
+ */
 export function canChallenge(
   item: Pick<FeedItem, "user" | "challenge" | "createdAt">,
   myUserId: string | undefined,
   now: number,
+  memberCount: number | undefined,
 ): boolean {
   return (
+    memberCount !== undefined &&
+    memberCount >= 3 &&
     item.challenge === undefined &&
     myUserId !== undefined &&
     item.user._id !== myUserId &&

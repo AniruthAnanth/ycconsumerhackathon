@@ -6,9 +6,11 @@ import { ScrollView } from "react-native";
 import { Header, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { useNow } from "@/lib/useNow";
 
 import { BoardPicker } from "./BoardPicker";
 import { parseBoardKey } from "./boards";
+import { hourStart } from "./format";
 import { LeaderboardTable } from "./LeaderboardTable";
 import { RivalLine } from "./RivalLine";
 
@@ -17,7 +19,9 @@ export function LeaderboardsScreen() {
   const params = useLocalSearchParams<{ board?: string }>();
   const { leagueId } = useCurrentLeague();
   const [board, setBoard] = useState(parseBoardKey(params.board) ?? "week");
-  const result = useQuery(api.leaderboards.board, leagueId ? { leagueId, board } : "skip");
+  // Only the money board is projected from the clock, so only it takes the hour: the other boards keep their cached result across hours.
+  const at = hourStart(useNow(60_000));
+  const result = useQuery(api.leaderboards.board, leagueId ? { leagueId, board, ...(board === "money" ? { at } : {}) } : "skip");
   const sync = useMutation(api.leaderboards.sync);
 
   // The boards are rebuilt from write hooks; syncing on open covers a hook that was missed.

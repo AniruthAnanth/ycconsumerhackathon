@@ -413,6 +413,7 @@ const UNDERSTAND_INSTRUCTIONS = [
   "the question is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I',",
   "the task titles for 'what's left'. Speak to the player as 'you'. If the facts don't answer it, say",
   "what you can do: judge a photo proof, STANDINGS, OPEN or PASS the mystery task, IN to join a group session.",
+  "When the facts do answer it, answer and stop: no sign-off, and no tip about a command to send next.",
 ].join(" ");
 
 const UNDERSTAND_SCHEMA = {
@@ -500,6 +501,8 @@ async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text
 
   return [
     `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
+    // The model words a reply for where it will be read: a chat reply should not say "text me".
+    `The player is writing ${turn.conversationId.startsWith(GATEWAY_PREFIX) ? "in the app's chat screen" : "by text message"}.`,
     week,
     `This player's open tasks this week and how each is proved: ${openTasks.join("; ") || "none"}.`,
     `How scoring works: ${SCORING_RULES}`,

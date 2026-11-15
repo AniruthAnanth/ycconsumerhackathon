@@ -1,10 +1,8 @@
 import { Redirect, useRouter, useSegments } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { LeagueSwitcher } from "@/components/shell/LeagueSwitcher";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
 import { Header, TopTabs, WeekSelector } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -28,8 +26,7 @@ const TABS = [
  */
 export default function TabsLayout() {
   const router = useRouter();
-  const { me, leagueId, setLeagueId, membership, weekNumber, showPreviousWeek, showNextWeek } = useCurrentLeague();
-  const [switching, setSwitching] = useState(false);
+  const { me, membership, weekNumber, showPreviousWeek, showNextWeek } = useCurrentLeague();
   // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others.
   const tabSegment = (useSegments() as string[])[1];
   const active = TABS.find((tab) => tab.key === tabSegment) ?? TABS[0];
@@ -48,7 +45,7 @@ export default function TabsLayout() {
       <SafeAreaView edges={["top"]}>
         <Header
           title={membership?.name ?? "Lineup"}
-          onTitlePress={() => setSwitching(true)}
+          onTitlePress={() => router.push("/league-switcher")}
           onChatPress={() => router.push("/chat")}
         />
         <TopTabs
@@ -72,21 +69,6 @@ export default function TabsLayout() {
           <Tabs.Screen key={tab.key} name={tab.key} />
         ))}
       </Tabs>
-      <LeagueSwitcher
-        visible={switching}
-        leagues={me.leagues}
-        currentId={leagueId}
-        onPick={(id) => {
-          if (id !== leagueId) haptics.select();
-          setLeagueId(id);
-          setSwitching(false);
-        }}
-        onJoin={() => {
-          setSwitching(false);
-          router.push("/join");
-        }}
-        onClose={() => setSwitching(false)}
-      />
     </View>
   );
 }
