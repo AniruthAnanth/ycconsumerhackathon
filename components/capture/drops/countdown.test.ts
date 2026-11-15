@@ -23,5 +23,7 @@ describe("formatCountdown", () => {
 
   it("never goes negative", () => {
     expect(formatCountdown(-5_000)).toBe("0:00");
+    expect(formatCountdown(-1)).toBe("0:00");
+    expect(formatCountdown(-3_600_000)).toBe("0:00");
   });
 });

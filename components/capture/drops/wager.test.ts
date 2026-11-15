@@ -30,6 +30,12 @@ describe("stepWager", () => {
     expect(stepWager(20, -1)).toBe(10);
   });
 
+  it("walks the whole range in tens", () => {
+    const up = [0];
+    while (up.length < 7) up.push(stepWager(up[up.length - 1], 1));
+    expect(up).toEqual([0, 10, 20, 30, 40, 50, 50]);
+  });
+
   it("stops at both ends", () => {
     expect(stepWager(0, -1)).toBe(0);
     expect(stepWager(50, 1)).toBe(50);

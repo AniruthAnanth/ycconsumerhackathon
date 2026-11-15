@@ -46,6 +46,7 @@ export function SealedMysteryActions({ view }: { view: SealedView }) {
         <WagerStepper value={wager} onChange={setWager} disabled={busy} />
       </View>
       <View style={styles.row}>
+        <Text style={styles.worth}>{`WORTH ${view.points}`}</Text>
         <Button
           label="Open"
           style={styles.open}
@@ -73,6 +74,7 @@ const styles = StyleSheet.create({
   open: { height: 36, paddingHorizontal: spacing.xl },
   pass: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   passDisabled: { opacity: 0.4 },
+  worth: { color: colors.divider, fontSize: font.label, fontWeight: "700", letterSpacing: 0.6 },
   passLabel: { color: colors.divider, fontSize: font.body, fontWeight: "600" },
   error: { color: colors.background, fontSize: font.meta },
 });

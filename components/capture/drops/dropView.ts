@@ -7,7 +7,7 @@ import { formatCountdown } from "./countdown";
 /** What the banner shows for a drop at a given moment. */
 export type DropView =
   | { type: "hidden" }
-  | { type: "sealed"; dropId: Id<"drops">; slot: Drop["slot"] }
+  | { type: "sealed"; dropId: Id<"drops">; slot: Drop["slot"]; points: number }
   | {
       type: "timed";
       countdown: string;
@@ -35,7 +35,8 @@ export function dropView(drop: Drop, now: number): DropView {
   if (now >= drop.closesAt) return { type: "hidden" };
 
   if (drop.kind === "group") {
-    const started = now >= drop.opensAt;
+    // Check-in opens before the start time, and drops.active sends my taskId from that moment.
+    const started = drop.taskId !== undefined || now >= drop.opensAt;
     const attendees = drop.attendees ?? [];
     return {
       type: "group",
@@ -47,7 +48,7 @@ export function dropView(drop: Drop, now: number): DropView {
   }
 
   if (drop.kind === "mystery" && drop.sealed) {
-    return { type: "sealed", dropId: drop.dropId, slot: drop.slot };
+    return { type: "sealed", dropId: drop.dropId, slot: drop.slot, points: drop.points };
   }
 
   return {
