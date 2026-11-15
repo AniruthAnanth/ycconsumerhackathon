@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
 import { Icon, OutlinedPillButton } from "@/components/ui";
+import { MAX_TITLE_LENGTH } from "@/convex/lib/lineupRules";
 import { backend } from "@/lib/backend";
 import { colors, font, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
 
@@ -60,8 +61,8 @@ export function AddFlexTask() {
           accessibilityLabel="Flex task title"
           autoFocus
           editable={!saving}
-          // The backend cuts a title at 60 characters, so the field stops there.
-          maxLength={60}
+          // The backend cuts a title at this length, so the field stops there.
+          maxLength={MAX_TITLE_LENGTH}
           returnKeyType="done"
           onSubmitEditing={submit}
           // Leaving an empty field is how the player backs out.
