@@ -141,8 +141,6 @@ export type Drop = {
   slot: Slot;
   points: number;
   gesture?: string;
-  sealed: boolean;
-  wager?: number;
   place?: Place;
   opensAt: number;
   closesAt: number;

@@ -55,7 +55,6 @@ function drop(dropId: string, fields: Partial<Drop> = {}): Drop {
     slot: "body",
     points: 40,
     gesture: "three fingers up",
-    sealed: false,
     opensAt: NOW - HOUR_MS,
     closesAt: NOW + HOUR_MS,
     taskId: `${dropId}-task` as Drop["taskId"],
@@ -222,7 +221,6 @@ describe("eventsBetween: a quick-time drop opens", () => {
 
   it.each([
     ["was already listed", [drop("drop1")], [drop("drop1")]],
-    ["is a mystery envelope", [], [drop("drop1", { kind: "mystery" })]],
     ["is a group session", [], [drop("drop1", { kind: "group" })]],
     ["closes at this very moment", [], [drop("drop1", { closesAt: NOW })]],
     ["has already closed", [], [drop("drop1", { closesAt: NOW - MINUTE_MS })]],

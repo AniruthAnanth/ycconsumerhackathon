@@ -14,7 +14,6 @@ function drop(overrides: Partial<Drop>): Drop {
     title: "Hold a plank",
     slot: "body",
     points: 15,
-    sealed: false,
     opensAt: NOW - 60_000,
     closesAt: NOW + 90_000,
     taskId: "task1" as Id<"tasks">,
@@ -41,7 +40,6 @@ describe("dropView", () => {
       countdown: "1:30",
       points: 15,
       gesture: "three fingers up",
-      wager: undefined,
       proof: {
         taskId: "task1",
         title: "Hold a plank",
@@ -64,14 +62,8 @@ describe("dropView", () => {
     expect(dropView(drop({ taskId: undefined }), NOW)).toMatchObject({ type: "timed", proof: undefined });
   });
 
-  it("seals a mystery task until it is opened, without its title", () => {
-    const view = dropView(drop({ kind: "mystery", sealed: true }), NOW);
-    expect(view).toEqual({ type: "sealed", dropId: "drop1", slot: "body", points: 15 });
-  });
-
-  it("shows an opened mystery task as timed, carrying the wager", () => {
-    const view = dropView(drop({ kind: "mystery", sealed: false, wager: 20, points: 30 }), NOW);
-    expect(view).toMatchObject({ type: "timed", points: 30, wager: 20 });
+  it("shows nothing for a drop of a kind the app no longer has", () => {
+    expect(dropView(drop({ kind: "mystery" }), NOW)).toEqual({ type: "hidden" });
   });
 
   it("counts a group session down to its start, then to its end", () => {

@@ -116,6 +116,26 @@ describe("users.me", () => {
     });
   });
 
+  it("lists leagues by when the player joined, not by when the membership row was written", async () => {
+    const t = newHarness();
+    const ava = await addUser(t);
+    await createLeague(t, ava, "Joined today", 0);
+    const { leagueId: earlier } = await createLeague(t, await addUser(t), "Joined on Monday", 0);
+    // What a seed reset does: a fresh row for a league the player has been in all week.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("memberships", {
+        leagueId: earlier,
+        userId: ava,
+        paid: true,
+        joinedAt: NOW - 2 * 24 * 60 * 60 * 1000,
+      });
+    });
+
+    const me = await asUser(t, ava).query(api.users.me, {});
+
+    expect(me?.leagues.map((league) => league.name)).toEqual(["Joined on Monday", "Joined today"]);
+  });
+
   it("lists leagues in the order the player joined them", async () => {
     const t = newHarness();
     const [ava, ben] = [await addUser(t), await addUser(t)];

@@ -121,9 +121,6 @@ export type Drop = {
   slot: Slot;
   points: number;
   gesture?: string;
-  /** A mystery task stays sealed until the player opens it. */
-  sealed: boolean;
-  wager?: number;
   place?: Place;
   opensAt: number;
   closesAt: number;

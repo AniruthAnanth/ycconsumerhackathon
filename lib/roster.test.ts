@@ -62,29 +62,26 @@ describe("pickBannerDrop", () => {
   const now = 1_000_000;
   const taskId = "task" as Task["taskId"];
 
-  it("prefers a quick-time drop over a mystery task or a group session", () => {
+  it("prefers a quick-time drop over a group session", () => {
     const drops = [
-      { kind: "group" as const, closesAt: now + 10 },
-      { kind: "mystery" as const, closesAt: now + 20 },
+      { kind: "group" as const, closesAt: now + 10, taskId },
       { kind: "quicktime" as const, closesAt: now + 30 },
     ];
     expect(pickBannerDrop(drops, now)?.kind).toBe("quicktime");
   });
 
-  it("puts a group session whose check-in is open above a mystery task", () => {
-    const drops = [
-      { kind: "mystery" as const, closesAt: now + 10 },
-      { kind: "group" as const, closesAt: now + 20, taskId },
-    ];
-    expect(pickBannerDrop(drops, now)?.kind).toBe("group");
-  });
-
-  it("keeps a session that is still gathering RSVPs behind a mystery task", () => {
+  it("puts a group session whose check-in is open above one still gathering RSVPs", () => {
     const drops = [
       { kind: "group" as const, closesAt: now + 10 },
-      { kind: "mystery" as const, closesAt: now + 20, taskId },
+      { kind: "group" as const, closesAt: now + 20, taskId },
     ];
-    expect(pickBannerDrop(drops, now)?.kind).toBe("mystery");
+    expect(pickBannerDrop(drops, now)?.taskId).toBe(taskId);
+  });
+
+  it("ignores a drop of a kind it does not know", () => {
+    const unknown = "mystery" as const;
+    expect(pickBannerDrop([{ kind: unknown, closesAt: now + 10 }], now)).toBeUndefined();
+    expect(pickBannerDrop([{ kind: unknown, closesAt: now + 10 }, { kind: "group" as const, closesAt: now + 20 }], now)?.kind).toBe("group");
   });
 
   it("takes the one closing soonest within a kind", () => {

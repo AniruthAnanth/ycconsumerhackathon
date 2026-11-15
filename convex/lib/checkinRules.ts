@@ -12,9 +12,12 @@
  */
 import { distanceMeters, isValidLatLng, type LatLng } from "./geo";
 import { CORE_SLOTS, scoreWeek, type Slot } from "./scoring";
-import { DAY_MS, HOUR_MS, pacificOffsetHours } from "./week";
+import { DAY_MS, HOUR_MS, dayOfWeek, pacificOffsetHours } from "./week";
 
 const MINUTE_MS = 60 * 1000;
+
+/** Indexed by lib/week.ts dayOfWeek: 0 is Monday. */
+const WEEKDAY = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const SLOT_LABEL: Record<Slot, string> = {
   body: "Body",
@@ -211,6 +214,12 @@ export function provenSlots(tasks: readonly SlotFacts[]): Set<Slot> {
   return proven;
 }
 
+/** How many of the five core slots are cleared: the "1 of 5" in a pace text. */
+export function clearedCount(tasks: readonly SlotFacts[]): number {
+  const proven = provenSlots(tasks);
+  return CORE_SLOTS.filter((slot) => proven.has(slot)).length;
+}
+
 /** The core slots with an open task and no proof yet, in roster order: what the stake rides on. */
 export function slotsAtStake(tasks: readonly SlotFacts[]): Slot[] {
   const proven = provenSlots(tasks);
@@ -277,6 +286,24 @@ export function passedBy<UserId>(input: {
   return input.others
     .filter((other) => other.points > 0 && other.points >= prover.before && other.points < prover.after)
     .map((other) => ({ userId: other.userId, gap: prover.after - other.points }));
+}
+
+/**
+ * Members a proof leaves behind: everyone the prover went past, and the prover's head-to-head
+ * opponent whenever the proof leaves the opponent trailing, because in a matchup every point the
+ * other side scores is ground lost. gap is how far ahead the prover is now.
+ */
+export function leftBehind<UserId>(input: {
+  prover: { before: number; after: number };
+  others: readonly { userId: UserId; points: number }[];
+  /** The prover's matchup opponent this week, when there is one. */
+  opponent?: UserId;
+}): { userId: UserId; gap: number }[] {
+  const passed = passedBy(input);
+  const opponent = input.others.find((other) => other.userId === input.opponent);
+  if (opponent === undefined || opponent.points >= input.prover.after) return passed;
+  if (passed.some((member) => member.userId === opponent.userId)) return passed;
+  return [...passed, { userId: opponent.userId, gap: input.prover.after - opponent.points }];
 }
 
 /**
@@ -367,27 +394,54 @@ export function eveningText(task: Pick<CheckInTask<unknown>, "title" | "proofTyp
   return `${task.title} isn't on the board yet.${gap} ${howToProve(task.proofType)}`;
 }
 
-/** Last day: "Last day. Body and Chores are still open. $20 is on the line. Maya's up 15." */
-export function lastDayText(input: { slots: readonly Slot[]; stakeUsd: number; rival: RivalGap | null }): string {
-  const names = listOf(input.slots.map((slot) => SLOT_LABEL[slot]));
-  const open = `${names} ${input.slots.length === 1 ? "is" : "are"} still open.`;
-  const stake = input.stakeUsd > 0 ? ` ${dollars(input.stakeUsd)} is on the line.` : "";
-  const gap = input.rival ? ` ${rivalLine(input.rival)}` : "";
-  return `Last day. ${open}${stake}${gap}`;
+/** The morning of the last day: "Last day. Body and Chores still open, $20 on the line." */
+export function lastDayText(input: { slots: readonly Slot[]; stakeUsd: number }): string {
+  return `Last day. ${listOf(input.slots.map((slot) => SLOT_LABEL[slot]))} still open${onTheLine(input.stakeUsd)}.`;
 }
 
-/** A rival went past: "Maya just passed you in YC Hackathon, up 15. Leg day flips it. Reply with a photo." */
-export function passedText(input: {
+/**
+ * The last call, about two hours before the week ends: "It's Sunday, two hours to get Leg day in,
+ * $20 on the line. Reply with a photo." It names one task, the one most at risk, because a text
+ * that lists five things to do in two hours gets none of them done.
+ */
+export function finalHoursText(input: {
+  now: number;
+  weekEndsAt: number;
+  task: Pick<CheckInTask<unknown>, "title" | "proofType">;
+  stakeUsd: number;
+}): string {
+  const { now, weekEndsAt, task } = input;
+  const left = hoursLeft(weekEndsAt - now);
+  return `It's ${WEEKDAY[dayOfWeek(now)]}, ${left} to get ${task.title} in${onTheLine(input.stakeUsd)}. ${howToProve(task.proofType)}`;
+}
+
+/** Midweek, behind the pace: "Wednesday and 1 of 5 cleared. Leg day tonight?" */
+export function paceText(input: { now: number; cleared: number; task: Pick<CheckInTask<unknown>, "title"> }): string {
+  return `${WEEKDAY[dayOfWeek(input.now)]} and ${input.cleared} of ${CORE_SLOTS.length} cleared. ${input.task.title} tonight?`;
+}
+
+/** A rival pulled away: "You're falling behind: Maya is up 40 on you this week. Leg day flips it." */
+export function behindText(input: {
   rivalName: string;
   gap: number;
-  leagueName: string;
-  /** The passed player's way back, with what proving it is worth (pointsIfProven), when they have one. */
-  wayBack: (Pick<CheckInTask<unknown>, "title" | "proofType"> & { worth: number }) | null;
+  /** The player's way back, with what proving it is worth (pointsIfProven), when they have one. */
+  wayBack: (Pick<CheckInTask<unknown>, "title"> & { worth: number }) | null;
 }): string {
   const { gap, wayBack } = input;
-  const passed = `${firstName(input.rivalName)} just passed you in ${input.leagueName}, up ${gap}.`;
-  if (wayBack === null) return passed;
-  return `${passed} ${swingLine(wayBack.title, wayBack.worth, gap)} ${howToProve(wayBack.proofType)}`;
+  const behind = `You're falling behind: ${firstName(input.rivalName)} is up ${gap} on you this week.`;
+  return wayBack === null ? behind : `${behind} ${swingLine(wayBack.title, wayBack.worth, gap)}`;
+}
+
+/** ", $20 on the line" when money rides on the week, and nothing when it is a free league. */
+function onTheLine(stakeUsd: number): string {
+  return stakeUsd > 0 ? `, ${dollars(stakeUsd)} on the line` : "";
+}
+
+/** "two hours", the way a person says it. Rounded down, so the text never promises time that is gone. */
+function hoursLeft(ms: number): string {
+  const hours = Math.floor(ms / HOUR_MS);
+  if (hours < 1) return "under an hour";
+  return ["one hour", "two hours", "three hours"][hours - 1] ?? `${hours} hours`;
 }
 
 /** On arrival, to a player who plays by text: the photo is still required, but a reply is enough. */
@@ -428,6 +482,15 @@ export type NudgeKind = "evening" | "last_day" | "final_hours" | "pace" | "rival
 
 /** More than this in a day and the agent is a nag the player mutes. */
 export const DAILY_TEXT_CAP = 3;
+/** The week's last call is the one text the day's others must not crowd out, so it alone may be a fourth. */
+const LAST_CALL_CAP = DAILY_TEXT_CAP + 1;
+/**
+ * The last call goes out with about two hours left. A week ends at midnight Pacific, so that is
+ * 9:50 PM, the last moment before quiet hours.
+ */
+export const LAST_CALL_MS = 2 * HOUR_MS + 10 * MINUTE_MS;
+/** A pace text is for Wednesday to Saturday: by Wednesday a slow start is a pattern, and Sunday has the countdowns. */
+const PACE_WEEKDAYS = [2, 3, 4, 5];
 /** Nobody is texted from 10 PM to 8 AM Pacific. */
 const QUIET_FROM_HOUR = 22;
 const QUIET_UNTIL_HOUR = 8;
@@ -437,15 +500,26 @@ const EVENING_FROM_HOUR = 18;
 const LAST_DAY_FROM_HOUR = 10;
 
 /** The hard limits every text obeys, whatever triggered it. */
-export function mayText(pacificHour: number, sentToday: number): boolean {
+export function mayText(pacificHour: number, sentToday: number, lastCall = false): boolean {
   const quiet = pacificHour >= QUIET_FROM_HOUR || pacificHour < QUIET_UNTIL_HOUR;
-  return !quiet && sentToday < DAILY_TEXT_CAP;
+  return !quiet && sentToday < (lastCall ? LAST_CALL_CAP : DAILY_TEXT_CAP);
 }
 
 /**
- * The scheduled text a player is due at this hour, if any. Each kind goes out at most once a day.
- * The last-day text wins when both are due; the evening text follows an hour later if the day is
- * still empty.
+ * Whether cleared slots trail the days of the week gone by. One slot a day is the pace that
+ * clears five with the weekend to spare: one of five on a Wednesday is two behind.
+ */
+export function behindPace(now: number, cleared: number): boolean {
+  const weekday = dayOfWeek(now);
+  return PACE_WEEKDAYS.includes(weekday) && cleared < Math.min(weekday + 1, CORE_SLOTS.length);
+}
+
+/**
+ * The scheduled text a player is due right now, if any. Each kind goes out at most once a day.
+ *
+ * The week's deadline comes first: the last call with about two hours left, and before it the
+ * last-day text in the morning. Otherwise an empty day gets one text in the evening: the pace
+ * text midweek when cleared slots trail the days gone, the plain evening text when they do not.
  */
 export function scheduledNudge(input: {
   now: number;
@@ -456,20 +530,55 @@ export function scheduledNudge(input: {
   provedToday: boolean;
   /** From slotsAtStake. */
   slotsAtStake: number;
+  /** From clearedCount. */
+  cleared: number;
   /** Whether pickCheckIn found anything to ask for. */
   hasCheckIn: boolean;
-}): "last_day" | "evening" | null {
+}): "final_hours" | "last_day" | "pace" | "evening" | null {
   const { now, pacificHour, weekEndsAt, sentToday } = input;
-  if (!mayText(pacificHour, sentToday.length) || now >= weekEndsAt) return null;
+  if (now >= weekEndsAt) return null;
+  const sent = (kind: NudgeKind) => sentToday.includes(kind);
+  const atStake = input.slotsAtStake > 0;
+
+  if (weekEndsAt - now <= LAST_CALL_MS && atStake && input.hasCheckIn && !sent("final_hours")) {
+    return mayText(pacificHour, sentToday.length, true) ? "final_hours" : null;
+  }
+  if (!mayText(pacificHour, sentToday.length)) return null;
 
   const lastDay = weekEndsAt - now <= DAY_MS;
-  if (lastDay && pacificHour >= LAST_DAY_FROM_HOUR && input.slotsAtStake > 0 && !sentToday.includes("last_day")) {
+  // Never after the last call: "Last day" two hours from the end would read as old news.
+  if (lastDay && pacificHour >= LAST_DAY_FROM_HOUR && atStake && !sent("last_day") && !sent("final_hours")) {
     return "last_day";
   }
-  if (pacificHour >= EVENING_FROM_HOUR && !input.provedToday && input.hasCheckIn && !sentToday.includes("evening")) {
-    return "evening";
-  }
+  const evening = pacificHour >= EVENING_FROM_HOUR && !input.provedToday && input.hasCheckIn && !sent("final_hours");
+  if (evening && !sent("evening") && !sent("pace")) return behindPace(now, input.cleared) ? "pace" : "evening";
   return null;
+}
+
+/**
+ * Every nudge that has something true to say to a player right now, most pressing first, whatever
+ * the hour and whatever went out today. Demo controls' "Send nudge now" walks this list so each
+ * kind can be shown on stage without waiting for its moment.
+ */
+export function relevantNudges(input: {
+  now: number;
+  weekEndsAt: number;
+  slotsAtStake: number;
+  cleared: number;
+  hasCheckIn: boolean;
+  /** How far ahead the rival is, from pickRival; null with no rival. */
+  rivalGap: number | null;
+}): Exclude<NudgeKind, "arrival">[] {
+  const left = input.weekEndsAt - input.now;
+  if (left <= 0) return [];
+  const lastDay = left <= DAY_MS && input.slotsAtStake > 0;
+  const kinds: Exclude<NudgeKind, "arrival">[] = [];
+  if (lastDay) kinds.push("last_day");
+  if (lastDay && input.hasCheckIn) kinds.push("final_hours");
+  if (input.rivalGap !== null && input.rivalGap > 0) kinds.push("rival_passed");
+  if (input.hasCheckIn) kinds.push(behindPace(input.now, input.cleared) ? "pace" : "evening");
+  // Inside the last two hours the last call is the news.
+  return left <= LAST_CALL_MS ? kinds.sort((a, b) => Number(b === "final_hours") - Number(a === "final_hours")) : kinds;
 }
 
 /**

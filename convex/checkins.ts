@@ -34,26 +34,31 @@ import {
   type CheckInTask,
   type NudgeKind,
   type Rival,
+  LAST_CALL_MS,
   arrivalPlace,
   arrivalText,
+  behindText,
+  clearedCount,
   eveningText,
+  finalHoursText,
   lastDayText,
+  leftBehind,
   mayText,
   pacificClock,
-  passedBy,
-  passedText,
+  paceText,
   pickCheckIn,
   tookTheLead,
   pickRival,
   pointsIfProven,
   promptCopy,
+  relevantNudges,
   scheduledNudge,
   slotsAtStake,
 } from "./lib/checkinRules";
 import { currentWeek } from "./leagues";
 import { isValidLatLng } from "./lib/geo";
 import { type LineupNotification, eveningNudge, rivalPassed, settlingSoon } from "./lib/notificationContent";
-import { pacificDay } from "./lib/week";
+import { HOUR_MS, pacificDay } from "./lib/week";
 import { reachableByPush } from "./push";
 import { leagueStandings } from "./standings";
 
@@ -259,35 +264,129 @@ export const nudge = internalMutation({
 
     const tasks = await tasksInLeague(ctx, userId, home.week);
     const slots = slotsAtStake(tasks);
-    const checkIn = pickCheckIn({ now, week: { endsAt: home.week.endsAt, settled: false }, tasks });
+    const sentToday = (await sentOn(ctx, userId, clock.day)).map((sent) => sent.kind);
+
+    // The cron runs on the hour and the last call belongs about two hours before the week ends,
+    // which for a midnight deadline is 9:50 PM. The sweep before it books that moment.
+    const lastCallAt = home.week.endsAt - LAST_CALL_MS + 60 * 1000;
+    if (slots.length > 0 && !sentToday.includes("final_hours") && lastCallAt > now && lastCallAt - now <= HOUR_MS) {
+      await ctx.scheduler.runAt(lastCallAt, internal.checkins.nudge, { userId });
+    }
+
     const kind = scheduledNudge({
       now,
       pacificHour: clock.hour,
       weekEndsAt: home.week.endsAt,
-      sentToday: (await sentOn(ctx, userId, clock.day)).map((sent) => sent.kind),
+      sentToday,
       provedToday: (await proofDaysOf(ctx, userId, home.week, tasks)).includes(pacificDay(now)),
       slotsAtStake: slots.length,
-      hasCheckIn: checkIn !== null,
+      cleared: clearedCount(tasks),
+      hasCheckIn: pickCheckIn({ now, week: { endsAt: home.week.endsAt, settled: false }, tasks }) !== null,
     });
     if (kind === null) return null;
-
-    const rival = await rivalOf(ctx, home.week, userId, await standingsOf(ctx, home.week));
-    let text: string;
-    // The notification the app raises for the same moment, for a player who is pushed instead.
-    let push: LineupNotification;
-    if (kind === "last_day") {
-      text = lastDayText({ slots, stakeUsd: home.stakeUsd, rival });
-      const { leagueId, endsAt } = home.week;
-      const leagueName = (await ctx.db.get("leagues", leagueId))?.name ?? "Your league";
-      push = settlingSoon({ leagueId, leagueName, settlesAt: endsAt, msLeft: endsAt - now });
-    } else if (checkIn !== null) {
-      text = eveningText(checkIn.task, rival);
-      const openTasks = tasks.filter((task) => task.status === "open").length;
-      push = eveningNudge({ day: clock.day, openTasks, upNext: checkIn.task });
-    } else return null;
-    return (await sendText(ctx, userId, kind, text, { push })) ? text : null;
+    const made = await nudgeOf(ctx, userId, home, kind, now);
+    if (made === null) return null;
+    return (await sendText(ctx, userId, kind, made.text, { push: made.push })) ? made.text : null;
   },
 });
+
+/**
+ * Demo controls' "Send nudge now": sends the caller the most pressing nudge that is true for them
+ * this minute and returns its words, without waiting for the hour it would go out. turn walks on
+ * to the next kind, so pressing again shows another.
+ *
+ * It only ever reaches the caller's own phone, so it skips the daily cap and "already sent today"
+ * and leaves no row behind: a stage demo must not use up the day's real nudges.
+ */
+export const nudgeNow = mutation({
+  args: { leagueId: v.optional(v.id("leagues")), turn: v.optional(v.number()) },
+  returns: v.object({ text: v.union(v.null(), v.string()), delivered: v.boolean() }),
+  handler: async (ctx, { leagueId, turn }) => {
+    const me = await requireUser(ctx);
+    const now = Date.now();
+    let home = await homeLeague(ctx, me._id, now);
+    // The league on screen, when the caller is playing its week; otherwise the one texts use.
+    const shown = leagueId !== undefined && (await isMember(ctx, leagueId, me._id)) ? await currentWeek(ctx, leagueId) : null;
+    if (shown !== null && shown.status !== "settled" && now < shown.endsAt) {
+      home = { week: shown, stakeUsd: home?.stakeUsd ?? 0 };
+    }
+    if (home === null) return { text: null, delivered: false };
+
+    const tasks = await tasksInLeague(ctx, me._id, home.week);
+    const rival = await rivalOf(ctx, home.week, me._id, await standingsOf(ctx, home.week));
+    const kinds = relevantNudges({
+      now,
+      weekEndsAt: home.week.endsAt,
+      slotsAtStake: slotsAtStake(tasks).length,
+      cleared: clearedCount(tasks),
+      hasCheckIn: pickCheckIn({ now, week: { endsAt: home.week.endsAt, settled: false }, tasks }) !== null,
+      rivalGap: rival?.gap ?? null,
+    });
+    if (kinds.length === 0) return { text: null, delivered: false };
+    const made = await nudgeOf(ctx, me._id, home, kinds[Math.abs(Math.trunc(turn ?? 0)) % kinds.length], now);
+    if (made === null) return { text: null, delivered: false };
+
+    const texted = me.keikiOptIn === true;
+    const pushed = !texted && (await reachableByPush(ctx, me._id));
+    if (texted) await ctx.scheduler.runAfter(0, internal.keiki.send, { userId: me._id, text: made.text });
+    if (pushed) await ctx.scheduler.runAfter(0, internal.push.send, { userId: me._id, notification: made.push });
+    return { text: made.text, delivered: texted || pushed };
+  },
+});
+
+/**
+ * The words of one kind of nudge for a player, with the notification the app raises for the same
+ * moment (for a player who is pushed instead of texted). Null when that kind has nothing to say.
+ */
+async function nudgeOf(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  home: { week: Doc<"weeks">; stakeUsd: number },
+  kind: Exclude<NudgeKind, "arrival">,
+  now: number,
+): Promise<{ text: string; push: LineupNotification } | null> {
+  const { week, stakeUsd } = home;
+  const tasks = await tasksInLeague(ctx, userId, week);
+  const during = { now, week: { endsAt: week.endsAt, settled: false } };
+
+  if (kind === "last_day") {
+    const leagueName = (await ctx.db.get("leagues", week.leagueId))?.name ?? "Your league";
+    return {
+      text: lastDayText({ slots: slotsAtStake(tasks), stakeUsd }),
+      push: settlingSoon({ leagueId: week.leagueId, leagueName, settlesAt: week.endsAt, msLeft: week.endsAt - now }),
+    };
+  }
+  if (kind === "rival_passed") {
+    const rival = await rivalOf(ctx, week, userId, await standingsOf(ctx, week));
+    if (rival === null || rival.gap <= 0) return null;
+    return {
+      text: behindText({ rivalName: rival.name, gap: rival.gap, wayBack: await wayBackOf(ctx, userId, week, now) }),
+      push: rivalPassed({ leagueId: week.leagueId, rivalId: rival.userId, rivalName: rival.name, gap: rival.gap }),
+    };
+  }
+
+  // The deadline and the pace are about slots, so they name a task of the player's own week and
+  // leave a live drop to the drop's own text. The evening text asks for whatever is most urgent.
+  const own = kind === "evening" ? tasks : tasks.filter((task) => task.source !== "drop");
+  const checkIn = pickCheckIn({ ...during, tasks: own }) ?? pickCheckIn({ ...during, tasks });
+  if (checkIn === null) return null;
+  const openTasks = tasks.filter((task) => task.status === "open").length;
+  const push = eveningNudge({ day: pacificClock(now).day, openTasks, upNext: checkIn.task });
+  if (kind === "final_hours") {
+    return { text: finalHoursText({ now, weekEndsAt: week.endsAt, task: checkIn.task, stakeUsd }), push };
+  }
+  if (kind === "pace") return { text: paceText({ now, cleared: clearedCount(tasks), task: checkIn.task }), push };
+  return { text: eveningText(checkIn.task, await rivalOf(ctx, week, userId, await standingsOf(ctx, week))), push };
+}
+
+/** The check-in a player would be asked for right now, with what proving it is worth: their way back at a rival. */
+async function wayBackOf(ctx: QueryCtx, userId: Id<"users">, week: Doc<"weeks">, now: number) {
+  const tasks = await tasksInLeague(ctx, userId, week);
+  const checkIn = pickCheckIn({ now, week: { endsAt: week.endsAt, settled: false }, tasks });
+  if (checkIn === null) return null;
+  const worth = pointsIfProven(checkIn.task, tasks, await proofDaysOf(ctx, userId, week, tasks), pacificDay(now));
+  return { ...checkIn.task, worth };
+}
 
 // ─── A rival goes past ───────────────────────────────────────────────────────────────────────
 
@@ -344,22 +443,25 @@ export const afterProof = internalMutation({
         others: standings.filter((row) => row.userId !== prover.userId),
       };
       // A new leader is the league's news, and leadChange texts it to everyone.
-      const passed = tookTheLead(movement) ? [] : passedBy(movement);
-      for (const { userId, gap } of passed) {
-        // Name the way back: the check-in the passed player would be asked for right now, and
-        // what it would do to the new gap.
-        const theirs = await tasksInLeague(ctx, userId, week);
-        const checkIn = pickCheckIn({ now, week: { endsAt: week.endsAt, settled: false }, tasks: theirs });
-        const wayBack = checkIn && {
-          ...checkIn.task,
-          worth: pointsIfProven(checkIn.task, theirs, await proofDaysOf(ctx, userId, week, theirs), pacificDay(now)),
-        };
+      const behind = tookTheLead(movement)
+        ? []
+        : leftBehind({ ...movement, opponent: await opponentOf(ctx, week, prover.userId) });
+      const today = pacificClock(now).day;
+      for (const { userId, gap } of behind) {
+        // Once per rival per day: a rival on a run proves three tasks in an evening, and the
+        // second and third texts would say nothing the first did not.
+        const told = (await sentOn(ctx, userId, today)).some(
+          (sent) => sent.kind === "rival_passed" && sent.rivalId === prover.userId,
+        );
+        if (told) continue;
+        // Name the way back: the check-in the player would be asked for right now, and what it
+        // would do to the new gap.
         await sendText(
           ctx,
           userId,
           "rival_passed",
-          passedText({ rivalName: prover.name, gap, leagueName: league.name, wayBack }),
-          { push: rivalPassed({ leagueId, rivalId: prover.userId, rivalName: prover.name, gap }) },
+          behindText({ rivalName: prover.name, gap, wayBack: await wayBackOf(ctx, userId, week, now) }),
+          { rivalId: prover.userId, push: rivalPassed({ leagueId, rivalId: prover.userId, rivalName: prover.name, gap }) },
         );
       }
 
@@ -406,7 +508,7 @@ async function sendText(
   userId: Id<"users">,
   kind: NudgeKind,
   text: string,
-  also: { taskId?: Id<"tasks">; push?: LineupNotification } = {},
+  also: { taskId?: Id<"tasks">; rivalId?: Id<"users">; push?: LineupNotification } = {},
 ): Promise<boolean> {
   const now = Date.now();
   const clock = pacificClock(now);
@@ -416,8 +518,16 @@ async function sendText(
   const texted = (await ctx.db.get("users", userId))?.keikiOptIn === true;
   const push = also.push !== undefined && (await reachableByPush(ctx, userId)) ? also.push : undefined;
   if (!texted && push === undefined) return false;
-  if (!mayText(clock.hour, (await sentOn(ctx, userId, clock.day)).length)) return false;
-  await ctx.db.insert("checkinNudges", { userId, kind, day: clock.day, text, sentAt: now, taskId: also.taskId });
+  if (!mayText(clock.hour, (await sentOn(ctx, userId, clock.day)).length, kind === "final_hours")) return false;
+  await ctx.db.insert("checkinNudges", {
+    userId,
+    kind,
+    day: clock.day,
+    text,
+    sentAt: now,
+    taskId: also.taskId,
+    rivalId: also.rivalId,
+  });
   // Scheduled, never awaited: a slow or failing send must not undo the mutation that decided it.
   if (texted) await ctx.scheduler.runAfter(0, internal.keiki.send, { userId, text });
   if (push !== undefined) await ctx.scheduler.runAfter(0, internal.push.send, { userId, notification: push });
@@ -487,13 +597,17 @@ async function rivalOf(
   userId: Id<"users">,
   standings: readonly Standing[],
 ): Promise<Rival<Id<"users">> | null> {
+  return pickRival(userId, standings, await opponentOf(ctx, week, userId));
+}
+
+/** Who the player is matched against this week, when the league has paired them. */
+async function opponentOf(ctx: QueryCtx, week: Doc<"weeks">, userId: Id<"users">): Promise<Id<"users"> | undefined> {
   const matchups = await ctx.db
     .query("matchups")
     .withIndex("by_week", (q) => q.eq("weekId", week._id))
     .take(MAX_ROWS);
   const mine = matchups.find((matchup) => matchup.userA === userId || matchup.userB === userId);
-  const opponent = mine === undefined ? undefined : mine.userA === userId ? mine.userB : mine.userA;
-  return pickRival(userId, standings, opponent);
+  return mine === undefined ? undefined : mine.userA === userId ? mine.userB : mine.userA;
 }
 
 /**

@@ -31,22 +31,21 @@ export function flexTasksLeft(rows: readonly Pick<Task, "slot">[]): number {
 /**
  * Where a drop stands in the queue for Roster's single banner: first what the
  * player can act on now. A group session has a task only once its check-in has
- * opened; before that it is an RSVP, which waits behind a mystery task. Ranking
- * by kind alone hid an open check-in behind an envelope the player may hold all
- * day.
+ * opened; before that it is an RSVP, which waits behind one that is open. Ranking
+ * by kind alone hid an open check-in behind an RSVP the player may not act on.
  */
 function bannerRank(drop: Pick<Drop, "kind" | "taskId">): number {
   if (drop.kind === "quicktime") return 0;
-  if (drop.kind === "mystery") return 2;
-  return drop.taskId ? 1 : 3;
+  return drop.taskId ? 1 : 2;
 }
 
 /**
  * Roster shows a single banner. When several drops are live, the one the
- * player can act on now wins, then the one closing soonest.
+ * player can act on now wins, then the one closing soonest. A kind the app
+ * does not know, which an older backend may still send, is skipped.
  */
 export function pickBannerDrop<D extends Pick<Drop, "kind" | "closesAt" | "taskId">>(drops: readonly D[], now: number): D | undefined {
   return drops
-    .filter((drop) => drop.closesAt > now)
+    .filter((drop) => (drop.kind === "quicktime" || drop.kind === "group") && drop.closesAt > now)
     .sort((a, b) => bannerRank(a) - bannerRank(b) || a.closesAt - b.closesAt)[0];
 }
