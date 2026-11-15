@@ -206,6 +206,7 @@ describe("POST /whop", () => {
     const response = await t.fetch("/whop", signedRequest(body));
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ outcome: "recorded" });
     expect((await t.run((ctx) => ctx.db.query("memberships").first()))?.paid).toBe(true);
   });
 
@@ -216,6 +217,7 @@ describe("POST /whop", () => {
     const response = await t.fetch("/whop", signedRequest(body));
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ outcome: "ignored" });
   });
 });
 

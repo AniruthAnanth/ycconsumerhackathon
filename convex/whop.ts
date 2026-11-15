@@ -183,11 +183,18 @@ export const whopWebhook = httpAction(async (ctx, request) => {
     return new Response("Signature verification failed", { status: 401 });
   }
 
+  // Whop reads the reply as JSON and files anything else in its delivery log as an error.
+  const acknowledge = (outcome: "recorded" | "ignored") =>
+    new Response(JSON.stringify({ outcome }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
   const payment = paidBuyIn(event);
   // Anything else Whop sends is acknowledged, or it would be retried for days.
-  if (payment === null) return new Response("Ignored", { status: 200 });
+  if (payment === null) return acknowledge("ignored");
   await ctx.runMutation(internal.whop.recordBuyIn, payment);
-  return new Response("OK", { status: 200 });
+  return acknowledge("recorded");
 });
 
 export type PaidBuyIn = {
