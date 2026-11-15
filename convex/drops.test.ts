@@ -6,7 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { askJson } from "./ai";
-import { MYSTERY_FALLBACKS, MYSTERY_WINDOW_MS, QUICK_TIME_WINDOW_MS } from "./lib/dropRules";
+import {
+  GROUP_CHECK_IN_WINDOW_MS,
+  GROUP_REMINDER_LEAD_MS,
+  MYSTERY_FALLBACKS,
+  MYSTERY_WINDOW_MS,
+  QUICK_TIME_WINDOW_MS,
+} from "./lib/dropRules";
 import { searchMemories } from "./memory";
 import schema from "./schema";
 
@@ -95,6 +101,7 @@ async function passProof(t: Backend, taskId: Id<"tasks">) {
       taskId,
       userId: task.userId,
       weekStart: task.weekStart,
+      storageId: await ctx.storage.store(new Blob(["a photo"], { type: "image/jpeg" })),
       mediaType: "photo",
       pass: true,
       confidence: 0.9,
@@ -402,5 +409,182 @@ describe("mystery task", () => {
     ).rejects.toThrow(/not yours/);
     const samsBanners = await as(t, userIds[1]).query(api.drops.active, { leagueId });
     expect(samsBanners.map((banner) => banner.dropId)).not.toContain(envelope._id);
+  });
+});
+
+describe("group session", () => {
+  const HOUR_MS = 60 * 60 * 1000;
+  const park = { name: "Dolores Park", lat: 37.7596, lng: -122.4269 };
+  const startsAt = NOW + 2 * HOUR_MS; // Sunday 2:00 PM in Los Angeles
+
+  async function callSession(t: Backend, leagueId: Id<"leagues">, creator: Id<"users">) {
+    const dropId = await as(t, creator).mutation(api.drops.createGroupSession, {
+      leagueId,
+      title: "Morning run",
+      place: park,
+      startsAt,
+    });
+    await runScheduled(t);
+    return dropId;
+  }
+
+  async function taskOf(t: Backend, dropId: Id<"drops">, userId: Id<"users">) {
+    const task = (await tasksOfDrop(t, dropId)).find((candidate) => candidate.userId === userId);
+    if (task === undefined) throw new Error("attendee has no check-in task");
+    return task;
+  }
+
+  /** An attendee checks in with a photo in which the model counts this many people. */
+  async function checkIn(t: Backend, dropId: Id<"drops">, userId: Id<"users">, peopleInPhoto: number) {
+    vi.mocked(askJson).mockResolvedValue({ people: peopleInPhoto });
+    await passProof(t, (await taskOf(t, dropId, userId))._id);
+    await runScheduled(t);
+  }
+
+  it("announces the session, counts its creator in and lists it for the league", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
+
+    const dropId = await callSession(t, leagueId, userIds[0]);
+
+    expect(await getDrop(t, dropId)).toMatchObject({
+      kind: "group",
+      status: "scheduled",
+      place: park,
+      opensAt: startsAt,
+      closesAt: startsAt + GROUP_CHECK_IN_WINDOW_MS,
+    });
+    expect(texts.join("\n")).toContain(
+      "Maya started a group session: Morning run at Dolores Park, Sun 2:00 PM. Reply IN to join.",
+    );
+    const [banner] = await as(t, userIds[1]).query(api.drops.active, { leagueId });
+    expect(banner).toMatchObject({
+      dropId,
+      kind: "group",
+      place: park,
+      attendees: [{ userId: userIds[0], name: "Maya", checkedIn: false }],
+    });
+    // Check-in is not open yet, so there is nothing to submit.
+    expect(banner.taskId).toBeUndefined();
+  });
+
+  it("takes one RSVP per player, from the app or by text, and only from the league", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam", "Leo"]);
+    const dropId = await callSession(t, leagueId, userIds[0]);
+    const outsider = await t.run((ctx) => ctx.db.insert("users", { name: "Stranger" }));
+
+    await as(t, userIds[1]).mutation(api.drops.rsvp, { dropId });
+    await as(t, userIds[1]).mutation(api.drops.rsvp, { dropId });
+    await t.mutation(internal.drops.rsvpFor, { userId: userIds[2], dropId });
+
+    const [banner] = await as(t, userIds[0]).query(api.drops.active, { leagueId });
+    expect(banner.attendees?.map((attendee) => attendee.name)).toEqual(["Maya", "Sam", "Leo"]);
+    await expect(as(t, outsider).mutation(api.drops.rsvp, { dropId })).rejects.toThrow(/Join the league/);
+  });
+
+  it("opens check-in 30 minutes before the start and reminds everyone who is going", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam", "Leo"]);
+    const dropId = await callSession(t, leagueId, userIds[0]);
+    await as(t, userIds[1]).mutation(api.drops.rsvp, { dropId });
+
+    await runScheduled(t, 2 * HOUR_MS - GROUP_REMINDER_LEAD_MS);
+
+    expect((await getDrop(t, dropId)).status).toBe("open");
+    const tasks = await tasksOfDrop(t, dropId);
+    expect(tasks.map((task) => task.userId).sort()).toEqual([userIds[0], userIds[1]].sort());
+    for (const task of tasks) {
+      expect(task).toMatchObject({ status: "open", source: "group", proofType: "photo_location", place: park, points: 30 });
+    }
+    const reminders = texts.filter((text) =>
+      text.includes("Morning run at Dolores Park starts in 30 minutes. Check in there with a group photo."),
+    );
+    expect(reminders).toHaveLength(2);
+    const [banner] = await as(t, userIds[1]).query(api.drops.active, { leagueId });
+    expect(banner.taskId).toBe((await taskOf(t, dropId, userIds[1]))._id);
+
+    // Someone who says IN after check-in opened can check in straight away.
+    await as(t, userIds[2]).mutation(api.drops.rsvp, { dropId });
+    expect((await taskOf(t, dropId, userIds[2])).status).toBe("open");
+  });
+
+  it("opens at once, without a second text, when the session is called for right now", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
+
+    const dropId = await as(t, userIds[0]).mutation(api.drops.createGroupSession, {
+      leagueId,
+      title: "Lunch walk",
+      place: park,
+      startsAt: NOW - HOUR_MS,
+    });
+    await runScheduled(t);
+
+    expect(await getDrop(t, dropId)).toMatchObject({ status: "open", opensAt: NOW });
+    expect((await taskOf(t, dropId, userIds[0])).status).toBe("open");
+    expect(texts.filter((text) => text.includes("starts in"))).toEqual([]);
+  });
+
+  it("pays the base plus 5 for every other attendee the group photo shows", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam", "Leo"]);
+    const dropId = await callSession(t, leagueId, userIds[0]);
+    await as(t, userIds[1]).mutation(api.drops.rsvp, { dropId });
+    await as(t, userIds[2]).mutation(api.drops.rsvp, { dropId });
+    await runScheduled(t, 2 * HOUR_MS);
+
+    // Maya arrives first and her selfie shows only her.
+    await checkIn(t, dropId, userIds[0], 1);
+    expect((await taskOf(t, dropId, userIds[0])).points).toBe(30);
+
+    // Sam checks in with a photo of all three, but only two have checked in at the place.
+    await checkIn(t, dropId, userIds[1], 3);
+    expect((await taskOf(t, dropId, userIds[0])).points).toBe(35);
+    expect((await taskOf(t, dropId, userIds[1])).points).toBe(35);
+
+    // Leo's own photo shows fewer people; the fuller photo stays the group photo.
+    await checkIn(t, dropId, userIds[2], 2);
+    for (const userId of userIds) expect((await taskOf(t, dropId, userId)).points).toBe(40);
+
+    const drop = await getDrop(t, dropId);
+    expect(drop.headcount).toBe(3);
+    expect(drop.groupPhotoId).toBeDefined();
+    const [banner] = await as(t, userIds[0]).query(api.drops.active, { leagueId });
+    expect(banner.attendees?.every((attendee) => attendee.checkedIn)).toBe(true);
+    expect(vi.mocked(askJson).mock.lastCall?.[0].imageUrls).toHaveLength(1);
+  });
+
+  it("counts no more attendees than any photo shows", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam", "Leo"]);
+    const dropId = await callSession(t, leagueId, userIds[0]);
+    await as(t, userIds[1]).mutation(api.drops.rsvp, { dropId });
+    await as(t, userIds[2]).mutation(api.drops.rsvp, { dropId });
+    await runScheduled(t, 2 * HOUR_MS);
+
+    for (const userId of userIds) await checkIn(t, dropId, userId, 2);
+
+    for (const userId of userIds) expect((await taskOf(t, dropId, userId)).points).toBe(35);
+  });
+
+  it("closes two hours after the start: no-shows fail and the league gets the wrap-up", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam", "Leo"]);
+    const dropId = await callSession(t, leagueId, userIds[0]);
+    await as(t, userIds[1]).mutation(api.drops.rsvp, { dropId });
+    await as(t, userIds[2]).mutation(api.drops.rsvp, { dropId });
+    await runScheduled(t, 2 * HOUR_MS);
+    await checkIn(t, dropId, userIds[0], 2);
+    await checkIn(t, dropId, userIds[1], 2);
+
+    await runScheduled(t, GROUP_CHECK_IN_WINDOW_MS);
+
+    expect((await getDrop(t, dropId)).status).toBe("closed");
+    expect(await taskOf(t, dropId, userIds[2])).toMatchObject({ status: "failed" });
+    expect(await taskOf(t, dropId, userIds[0])).toMatchObject({ status: "verified", points: 35 });
+    expect(texts.join("\n")).toMatch(/Morning run is done: 2 people checked in, \+35 each\. Group photo: \S+/);
+    expect(await as(t, userIds[0]).query(api.drops.active, { leagueId })).toEqual([]);
+    await expect(as(t, userIds[2]).mutation(api.drops.rsvp, { dropId })).rejects.toThrow(/is over/);
   });
 });
