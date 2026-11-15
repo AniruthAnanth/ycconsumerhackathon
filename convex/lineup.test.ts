@@ -245,9 +245,24 @@ describe("lineup.roster", () => {
     await as.mutation(api.lineup.lock, { tasks: FULL_LINEUP });
     const mayaId = await t.run((ctx) => ctx.db.insert("users", { name: "Maya" }));
     const asMaya = t.withIdentity({ subject: mayaId + "|session" });
+    await t.run(async (ctx) => {
+      const leagueId = await ctx.db.insert("leagues", { name: "HOME", inviteCode: "HOME", stakeUsd: 0, visibility: "private", maxMembers: 12, createdBy: userId });
+      for (const member of [userId, mayaId]) {
+        await ctx.db.insert("memberships", { leagueId, userId: member, paid: true, joinedAt: NOW });
+      }
+    });
 
     expect((await asMaya.query(api.lineup.roster, {})).rows).toEqual([]);
     expect((await asMaya.query(api.lineup.roster, { userId })).rows).toHaveLength(5);
+  });
+
+  it("keeps a roster from a player who shares no league with its owner", async () => {
+    const { t, as, userId } = await signedIn("Sam");
+    await as.mutation(api.lineup.lock, { tasks: FULL_LINEUP });
+    const strangerId = await t.run((ctx) => ctx.db.insert("users", { name: "Zed" }));
+    const asStranger = t.withIdentity({ subject: strangerId + "|session" });
+
+    await expect(asStranger.query(api.lineup.roster, { userId })).rejects.toThrow("That player isn't in any of your leagues.");
   });
 
   it("puts a live drop first in line and keeps it out of other leagues", async () => {

@@ -314,6 +314,10 @@ export const roster = query({
   handler: async (ctx, args): Promise<{ locked: boolean; weekStart: number; total: number; rows: TaskRow[] }> => {
     const caller = await requireUser(ctx);
     const userId = args.userId ?? caller._id;
+    // Someone else's week (their tasks, places and proof photos) is for the players they share a league with.
+    if (userId !== caller._id && !(await shareALeague(ctx, caller._id, userId))) {
+      throw new ConvexError("That player isn't in any of your leagues.");
+    }
     // Reading the clock in a query is normally wrong because the result is not
     // recomputed as time passes. Here the answer changes once a week, at
     // Monday midnight, and the app passes weekStart when it browses weeks.
@@ -413,6 +417,18 @@ async function lineupFor(ctx: QueryCtx, userId: Id<"users">, weekStart: number):
     .query("lineups")
     .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
     .first();
+}
+
+async function shareALeague(ctx: QueryCtx, a: Id<"users">, b: Id<"users">): Promise<boolean> {
+  const mine = await ctx.db.query("memberships").withIndex("by_user", (q) => q.eq("userId", a)).take(100);
+  for (const { leagueId } of mine) {
+    const theirs = await ctx.db
+      .query("memberships")
+      .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", b))
+      .first();
+    if (theirs !== null) return true;
+  }
+  return false;
 }
 
 async function isLocked(ctx: QueryCtx, userId: Id<"users">, weekStart: number): Promise<boolean> {
