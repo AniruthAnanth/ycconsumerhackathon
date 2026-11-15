@@ -41,6 +41,7 @@ import {
   passedBy,
   passedText,
   pickCheckIn,
+  tookTheLead,
   pickRival,
   pointsIfProven,
   promptCopy,
@@ -313,7 +314,7 @@ export const afterProof = internalMutation({
       const markOf = (userId: Id<"users">) =>
         marks.find((mark) => mark.userId === userId && mark.weekStart === week.startsAt);
 
-      const passed = passedBy({
+      const movement = {
         prover: {
           // No mark yet means this is the prover's first proof in the league. Where they stood
           // before it is where they stand now, less everything the proof added.
@@ -323,7 +324,9 @@ export const afterProof = internalMutation({
         others: standings
           .filter((row) => row.userId !== prover.userId)
           .map((row) => ({ userId: row.userId, before: markOf(row.userId)?.points ?? row.points, after: row.points })),
-      });
+      };
+      // A new leader is the league's news, and leadChange texts it to everyone.
+      const passed = tookTheLead(movement) ? [] : passedBy(movement);
       for (const { userId, gap } of passed) {
         // Name the way back: the check-in the passed player would be asked for right now, and
         // what it would do to the new gap.

@@ -447,11 +447,12 @@ describe("checkins.afterProof", () => {
 
   it("counts the bonuses a first proof earned when it works out who was passed", async () => {
     const t = convexTest(schema, modules);
-    const { userIds } = await startLeague(t, ["Me", "Maya"]);
-    const [me, maya] = userIds;
+    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
+    const [me, maya, sam] = userIds;
     // I have 20 (a flex task earns no slot bonus). Maya had nothing and proves a drafted Body task:
     // 45 for the task and 25 for the slot is 70. Taking only the 45 off would put her "before" at
-    // 25, already ahead of me, and the pass would go unsaid.
+    // 25, already ahead of me, and the pass would go unsaid. Sam leads throughout.
+    await addTask(t, sam, { points: 100, status: "verified" });
     await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 20, status: "verified" });
     const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
 
@@ -461,8 +462,9 @@ describe("checkins.afterProof", () => {
 
   it("still reports a pass when another member's proof landed in the same moment and its hook ran first", async () => {
     const t = convexTest(schema, modules);
-    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
-    const [me, maya, sam] = userIds;
+    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam", "Jo"]);
+    const [me, maya, sam, jo] = userIds;
+    await addTask(t, jo, { points: 100, status: "verified" }); // the leader throughout
     await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 30, status: "verified" });
     const mayas = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" }); // 70: past me
     const sams = await addTask(t, sam, { slot: "flex", source: "flex", title: "Stretch", points: 10, status: "verified" });
@@ -475,9 +477,10 @@ describe("checkins.afterProof", () => {
 
   it("starts every week from zero: last week's marks neither hide a pass nor invent one", async () => {
     const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
-    const [me, maya, sam] = userIds;
-    // Last week ended Sam 200, Maya 150, me 40. This week only I have scored, 30.
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya", "Sam", "Jo"]);
+    const [me, maya, sam, jo] = userIds;
+    // Last week ended Sam 200, Maya 150, me 40. This week Jo leads on 125 and I have 30.
+    await addTask(t, jo, { points: 100, status: "verified" });
     await t.run(async (ctx) => {
       for (const [userId, points] of [[sam, 200], [maya, 150], [me, 40]] as const) {
         await ctx.db.insert("checkinMarks", { leagueId, userId, points, weekStart: WEEK_START - 7 * DAY_MS });
@@ -492,5 +495,18 @@ describe("checkins.afterProof", () => {
     expect(await textsTo(t, sam)).toEqual([]);
     // Her row moved to this week; no fourth row was added.
     expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(3);
+  });
+
+  it("leaves a pass that took the league's lead to the league's own text: one text per event", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me", "Maya"]);
+    const [me, maya] = userIds;
+    await addTask(t, me, { slot: "mind", title: "Problem set", points: 30, status: "verified" }); // 55: the leader
+    const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" }); // 70: the new leader
+
+    await t.mutation(internal.checkins.afterProof, { taskId: run });
+    // leadChange tells the whole league that Maya took the lead, me included.
+    expect(await textsTo(t, me)).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(1);
   });
 });
