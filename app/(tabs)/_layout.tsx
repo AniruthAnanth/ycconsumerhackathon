@@ -33,8 +33,12 @@ export default function TabsLayout() {
   const active = TABS.find((tab) => tab.key === tabSegment) ?? TABS[0];
 
   if (me === undefined) return <View style={styles.page} />;
-  if (me === null || !me.onboarded) return <Redirect href="/onboarding" />;
-  if (me.leagues.length === 0) return <Redirect href="/join" />;
+  // A league is proof the player has been through the front door. `onboarded`
+  // alone is not: the backend moves a phone number to the newest account that
+  // enters it, which clears the flag on the older one, and that must not throw
+  // a player out of a week they are already playing.
+  const playing = me !== null && me.leagues.length > 0;
+  if (!playing) return <Redirect href={me?.onboarded ? "/join" : "/onboarding"} />;
 
   return (
     <View style={styles.page}>
