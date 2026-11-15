@@ -1,78 +1,56 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { CountUp } from "@/components/motion";
-import { Divider, Icon } from "@/components/ui";
-import type { Pot } from "@/lib/backend";
+import { EscrowFlow } from "@/components/money";
+import { Divider } from "@/components/ui";
+import type { Pot, Standing } from "@/lib/backend";
+import { escrowFlowData } from "@/lib/escrow";
 import { formatCountdown, formatUsd, isSettled } from "@/lib/leagueText";
 import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
-type Props = { pot: Pot; now: number };
+type Props = {
+  pot: Pot;
+  /** The standings rows, for the members' pictures. The card still draws without them, with initials. */
+  standings?: readonly Standing[];
+  now: number;
+};
 
 /**
- * The league's pot as the biggest figure on the screen, then who has paid in.
- * A free league has no pot and nobody to pay, so it draws nothing: the stake
- * and the time to settlement are already rows in LeagueDetails.
+ * The league's pot as a picture of the money: every member's buy-in flowing into the pot, and the
+ * pot down to what the winner takes. The avatars say who has paid, so there is no list of names.
+ * A free league has no pot and nobody to pay, so it draws nothing: the stake and the time to
+ * settlement are already rows in LeagueDetails.
  */
-export function PotSummary({ pot, now }: Props) {
+export function PotSummary({ pot, standings = [], now }: Props) {
   if (pot.stakeUsd === 0) return null;
+  const memberCount = pot.paid.length + pot.unpaid.length;
   return (
     <View>
-      <View style={styles.top}>
-        <View>
-          <Text style={styles.label}>POT</Text>
-          {/* Ticks up when a buy-in lands, so the pot visibly grows. */}
-          <CountUp style={styles.amount} value={pot.potUsd} format={formatUsd} accessibilityLabel={`Pot ${formatUsd(pot.potUsd)}`} />
-        </View>
-        <View style={styles.meta}>
+      <View style={styles.card}>
+        <View style={styles.top}>
           <Text style={styles.muted}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>
           <Text style={styles.muted}>
             {isSettled(pot, now) ? "Settled" : `Settles in ${formatCountdown(pot.settlesAt - now)}`}
           </Text>
         </View>
+        <EscrowFlow {...escrowFlowData(pot, standings, now)} testID="pot-escrow" />
+        <Text style={styles.count}>{`${pot.paid.length} OF ${memberCount} PAID IN`}</Text>
       </View>
-      <NameGroup label={`PAID ${pot.paid.length}`} names={pot.paid.map((p) => ({ id: p.userId, name: p.name }))} paid />
-      <NameGroup label={`UNPAID ${pot.unpaid.length}`} names={pot.unpaid.map((p) => ({ id: p.userId, name: p.name }))} paid={false} />
       <Divider />
     </View>
   );
 }
 
-function NameGroup({ label, names, paid }: { label: string; names: { id: string; name: string }[]; paid: boolean }) {
-  if (names.length === 0) return null;
-  return (
-    <View style={styles.group}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.names}>
-        {names.map(({ id, name }) => (
-          <View key={id} style={styles.name} accessible accessibilityLabel={`${name}, ${paid ? "paid" : "unpaid"}`}>
-            {paid ? <Icon name="checkmark" size={14} color={colors.tabActive} /> : null}
-            <Text style={[styles.nameText, !paid && styles.unpaid]}>{name}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  top: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
+  card: {
     marginHorizontal: SCREEN_MARGIN,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
     padding: spacing.lg,
+    gap: spacing.md,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
   },
-  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
-  amount: { fontSize: font.pot, fontFamily: fontFamily.extraBold, color: colors.text, fontVariant: ["tabular-nums"] },
-  meta: { alignItems: "flex-end", gap: 2 },
+  top: { flexDirection: "row", justifyContent: "space-between" },
   muted: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
-  group: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, gap: spacing.xs },
-  names: { flexDirection: "row", flexWrap: "wrap", columnGap: spacing.md, rowGap: spacing.xs },
-  name: { flexDirection: "row", alignItems: "center", gap: 2 },
-  nameText: { fontFamily: fontFamily.semiBold, fontSize: font.body, color: colors.text },
-  unpaid: { color: colors.textMuted },
+  count: { textAlign: "center", fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
 });
