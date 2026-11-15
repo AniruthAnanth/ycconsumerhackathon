@@ -44,25 +44,31 @@ export default function RosterScreen() {
   // A locked lineup can't be edited, but it still takes flex tasks, and
   // lineup.addFlexTask always adds to the week in play.
   const takesFlex = roster !== undefined && roster.locked && weekStart === undefined && flexTasksLeft(roster.rows) > 0;
+  // Once the lineup is locked, the next task is why the player opened the app,
+  // so it leads the screen above the banners and the pills. Its row stays in
+  // the sheet below as an ordinary row, so the lineup keeps its five slots.
+  const lead = roster?.locked ? roster.rows.find((task) => task.upNext) : undefined;
 
-  const row = (task: Task) => (
+  const row = (task: Task, upNext: boolean) => (
     <TaskRow
       key={task.taskId}
       task={task}
-      highlighted={task.upNext}
+      highlighted={upNext}
       onPress={() => router.push(`/task/${task.taskId}`)}
       // Up Next skips the task sheet: its camera is one tap from here. A Canvas
       // task has no camera, so it keeps the score column and opens the sheet.
       right={
-        task.upNext && task.proofType !== "canvas" ? (
+        upNext && task.proofType !== "canvas" ? (
           <OutlinedPillButton label="Submit Proof" onPress={() => router.push(proofCameraHref(task))} />
         ) : undefined
       }
     />
   );
+  const listed = (task: Task) => row(task, task.upNext && !lead);
 
   return (
     <Screen edges={["bottom"]}>
+      {lead ? row(lead, true) : null}
       {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
       <CheckInPrompt leagueId={leagueId} />
       {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
@@ -86,9 +92,9 @@ export default function RosterScreen() {
         ) : (
           <>
             <SectionLabel left="Starters" right="Score" />
-            {starters.map(({ slot, task }) => (task ? row(task) : <EmptySlotRow key={slot} slot={slot} onPress={draft} />))}
+            {starters.map(({ slot, task }) => (task ? listed(task) : <EmptySlotRow key={slot} slot={slot} onPress={draft} />))}
             {extras.length > 0 || takesFlex ? <SectionLabel left="Flex and bonus" /> : null}
-            {extras.map(row)}
+            {extras.map(listed)}
             {takesFlex ? <AddFlexTask /> : null}
           </>
         )}
