@@ -26,6 +26,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import { place } from "./schema";
 import {
   ARRIVAL_WINDOW_MS,
   type CheckInTask,
@@ -82,6 +83,14 @@ export const prompt = query({
       label: v.string(),
       /** One sentence that names the rival and the gap: "Maya's up 15. Leg day flips it." */
       line: v.string(),
+      /** What the proof camera shows about the task, so Check In can open it without another read. */
+      task: v.object({
+        title: v.string(),
+        points: v.number(),
+        proofType: v.union(v.literal("photo"), v.literal("photo_location"), v.literal("canvas")),
+        place: v.optional(place),
+        gesture: v.optional(v.string()),
+      }),
     }),
   ),
   handler: async (ctx, { leagueId, now, lat, lng }) => {
@@ -104,7 +113,8 @@ export const prompt = query({
       rival: await rivalOf(ctx, week, me._id, await standingsOf(ctx, week)),
       worth: pointsIfProven(checkIn.task, tasks, await proofDaysOf(ctx, me._id, week, tasks), pacificDay(now)),
     });
-    return { kind: checkIn.kind, taskId: checkIn.task.taskId, ...copy };
+    const { taskId, title, points, proofType, place, gesture } = checkIn.task;
+    return { kind: checkIn.kind, taskId, ...copy, task: { title, points, proofType, place, gesture } };
   },
 });
 
@@ -386,6 +396,7 @@ async function tasksInLeague(ctx: QueryCtx, userId: Id<"users">, week: Doc<"week
       proofType: row.proofType,
       source: row.source,
       place: row.place,
+      gesture: drop?.gesture,
       closesAt: drop?.closesAt ?? week.endsAt,
     });
   }

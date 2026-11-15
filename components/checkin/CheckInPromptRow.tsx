@@ -33,7 +33,8 @@ export function CheckInPromptRow({ kind, label, line, onCheckIn }: Props) {
       <Text style={[styles.label, { color: labelColor[kind] }]} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={styles.line} numberOfLines={1} ellipsizeMode="tail">
+      {/* A long task title shrinks a little before it is cut off, so the rival and the gap stay whole. */}
+      <Text style={styles.line} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit minimumFontScale={0.85}>
         {line}
       </Text>
       <Pressable

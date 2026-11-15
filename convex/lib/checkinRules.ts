@@ -52,6 +52,8 @@ export type CheckInTask<TaskId> = {
   /** "drop" is the task a quick-time drop gave this player. */
   source: "draft" | "flex" | "drop" | "mystery" | "group";
   place?: LatLng & { name: string };
+  /** The gesture a quick-time drop demands in the photo, which the camera shows over the viewfinder. */
+  gesture?: string;
   /** The drop's close for a task that came from a drop, otherwise the end of the week. */
   closesAt: number;
 };

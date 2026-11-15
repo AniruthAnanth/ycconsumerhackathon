@@ -107,6 +107,7 @@ describe("checkins.prompt", () => {
       taskId: legDay,
       label: "12H LEFT",
       line: "Maya's up 40. Leg day flips it.",
+      task: { title: "Leg day", points: 40, proofType: "photo" },
     });
   });
 
@@ -124,7 +125,7 @@ describe("checkins.prompt", () => {
     expect(prompt?.line).toBe("Sam's up 115. Leg day cuts it to 45.");
   });
 
-  it("puts a live quick-time drop first, with its countdown", async () => {
+  it("puts a live quick-time drop first, with its countdown and the gesture for the camera", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Me"]);
     const [me] = userIds;
@@ -136,6 +137,7 @@ describe("checkins.prompt", () => {
         title: "20 push-ups",
         slot: "body",
         points: 40,
+        gesture: "three fingers up",
         sealed: false,
         opensAt: NOON - 73 * MINUTE_MS,
         closesAt: NOON + 47 * MINUTE_MS,
@@ -149,6 +151,7 @@ describe("checkins.prompt", () => {
       taskId: pushUps,
       label: "LIVE 47M",
       line: "20 push-ups, +40.",
+      task: { title: "20 push-ups", points: 40, proofType: "photo", gesture: "three fingers up" },
     });
   });
 
@@ -164,6 +167,7 @@ describe("checkins.prompt", () => {
       taskId: gym,
       label: "HERE",
       line: "You're at Fitness SF. Check in?",
+      task: { title: "Leg day", points: 40, proofType: "photo_location", place: GYM },
     });
     const away = await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON, ...DOWN_THE_STREET });
     expect(away?.kind).toBe("at_risk");
