@@ -24,7 +24,7 @@ export default function JoinScreen() {
         <ChallengeSection disabled={joining.busy} />
         <QuickMatchSection joining={joining} />
         <InviteCodeSection joining={joining} />
-        <CreateLeagueSection joining={joining} />
+        <CreateLeagueSection disabled={joining.busy} />
       </FormBody>
     </Screen>
   );

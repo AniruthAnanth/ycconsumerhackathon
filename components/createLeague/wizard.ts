@@ -60,7 +60,9 @@ export function progressOf(step: Step): { label: string; ratio: number } {
 /** Why Next is unavailable on this step, or null when the step's answer is fine. */
 export function blockerOf(step: Step, draft: Draft): string | null {
   if (draft.name.trim().length === 0) return "Give your league a name";
-  if (step !== "name" && draft.stakeUsd === null) return `Enter a whole number of dollars from 1 to ${MAX_STAKE_USD}`;
+  // Only from the stakes step on: before it, Next is how the player gets there to fix the amount.
+  const stakeAsked = step !== "name" && step !== "kind";
+  if (stakeAsked && draft.stakeUsd === null) return `Enter a whole-dollar buy-in from $1 to ${usd(MAX_STAKE_USD)}`;
   return null;
 }
 
@@ -99,7 +101,18 @@ export function parseStake(text: string): number | null {
 /** How many players the pot example imagines. */
 export const EXAMPLE_PLAYERS = 6;
 
-const usd = (dollars: number) => `$${dollars.toLocaleString("en-US")}`;
+function usd(dollars: number): string {
+  return `$${dollars.toLocaleString("en-US")}`;
+}
+
+/** The fourth stake choice: it opens a field for any other amount. */
+export const CUSTOM_STAKE_CHOICE = { label: "Custom", explanation: `Any whole-dollar buy-in from $1 to ${usd(MAX_STAKE_USD)}.` };
+
+/** Where the money goes, in one sentence; who takes the pot follows the payout the league picked. */
+export function potExplanation(payout: Payout): string {
+  const winner = payout === "season" ? "the season's winner takes it at the end" : "the weekly winner takes it";
+  return `Everyone pays in, the money is held in the league pot, and ${winner}.`;
+}
 
 /** The live example under the stake choices: "6 players × $20 = $120 pot". */
 export function potExample(stakeUsd: number | null): string {
