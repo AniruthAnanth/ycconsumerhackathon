@@ -14,20 +14,20 @@ This page says how Convex, Capy and Revyl were each used, with the file to open 
 
 ## The numbers
 
-Counted on `main` at commit `b396a71`, 12:28 PM Pacific on November 15, 2026. The first commit landed at 11:46 AM.
+Counted on `main` at commit `d71de2e`, 1:21 PM Pacific on November 15, 2026. The first commit landed at 11:46 AM.
 
 | | Count | Where |
 | --- | --- | --- |
-| Capy threads | 20: one Captain and a crew of 19 | |
-| Subagents started by those threads | 72 | |
-| Pull requests | 125 opened, 119 merged, 1 closed unmerged | every one opened by a crew thread |
-| Time from opening a pull request to merging it | 1.7 minutes at the median, 3.6 at the 90th percentile | `.github/workflows/ci.yml` gates each one |
-| Convex tables and indexes | 19 and 30 | `convex/schema.ts` |
-| Convex public functions | 46: 16 queries, 23 mutations, 7 actions | `convex/*.ts` |
-| Convex internal functions | 59 | `convex/*.ts` |
-| HTTP actions and cron jobs | 2 and 1 | `convex/http.ts`, `convex/crons.ts` |
-| Tests | 835 in 71 files, run in about 9 seconds | `npm test` |
-| Device acceptance checks | 8 defined, 0 run so far | `docs/demo/ACCEPTANCE.md` |
+| Capy threads | 26: one Captain and a crew of 25 | |
+| Subagents started by those threads | 123 | |
+| Pull requests | 317 opened, 309 merged, 3 closed unmerged, in 93 minutes | every one opened by a crew thread |
+| Time from opening a pull request to merging it | 1.7 minutes at the median, 4.2 at the 90th percentile | `.github/workflows/ci.yml` gates each one |
+| Convex tables and indexes | 23 and 38 | `convex/schema.ts` |
+| Convex public functions | 62: 23 queries, 32 mutations, 7 actions | `convex/*.ts` |
+| Convex internal functions | 72 | `convex/*.ts` |
+| HTTP actions and cron jobs | 3 and 2 | `convex/http.ts`, `convex/crons.ts` |
+| Tests | 1,330 in 101 files | `npm test` |
+| Device acceptance checks | 8 defined; none marked run in the file at this commit | `docs/demo/ACCEPTANCE.md` |
 
 ## Convex
 
@@ -35,9 +35,9 @@ Convex is the whole backend. There is no other server, database or job queue.
 
 - **Live queries are the product.** Standings are never stored. `convex/standings.ts` recomputes the league table from tasks, proofs, challenges and ledger rows inside a query, so when a proof is verified on one phone the League tab on every other phone reorders without a refresh. `convex/leaderboards.ts` does the same for the week in play and reads finished weeks from stored `scores` rows through an index.
 - **One referee path.** A proof sent from the app (`proofs.verify`) and a photo texted to the league agent (`internal.proofs.verifyForUser`) run the same code in `convex/proofs.ts`: the model describes the photo, pure code in `convex/lib/verdict.ts` decides, and one mutation writes the proof row and scores the task.
-- **Every outside call is a Convex action.** OpenAI is called only from `convex/ai.ts`, Supermemory only from `convex/memory.ts`, Whop only from `convex/whop.ts`, Keiki only from `convex/keiki.ts` and `convex/keikiMedia.ts`, and the Canvas school API only from `convex/canvas.ts`. The app imports none of their SDKs and holds no key.
-- **HTTP actions take the two webhooks.** `POST /whop` receives Whop's payment event and `POST /keiki/turn` receives each texted message. Each handler checks the signature before it reads the body and answers 401 when the check fails (`whopWebhook` in `convex/whop.ts`, `keikiTurn` in `convex/keiki.ts`). `convex/http.ts` only routes.
-- **The scheduler replaces a job server.** A quick-time drop opens and closes on time with `ctx.scheduler.runAt` (`convex/drops.ts`). A challenge vote closes itself 12 hours after it opens (`convex/challenges.ts`). A passing proof schedules the leaderboard refresh, the lead-change text and the check-in nudge (`convex/proofs.ts`). One cron in `convex/crons.ts` sweeps for check-in nudges every hour.
+- **Every outside call is a Convex action.** OpenAI is called only from `convex/ai.ts`, Supermemory only from `convex/memory.ts`, Whop only from `convex/whop.ts`, Keiki only from `convex/keiki.ts` and `convex/keikiMedia.ts`, the Canvas school API only from `convex/canvas.ts`, and Expo's push service only from `convex/push.ts`. The app imports none of their SDKs and holds no key.
+- **HTTP actions take the two webhooks and one page.** `POST /whop` receives Whop's payment event and `POST /keiki/turn` receives each texted message. Each handler checks the signature before it reads the body and answers 401 when the check fails (`whopWebhook` in `convex/whop.ts`, `keikiTurn` in `convex/keiki.ts`). A third route, `GET /i/<token>`, serves the page a texted invite link opens (`invitePage` in `convex/referrals.ts`). `convex/http.ts` only routes.
+- **The scheduler replaces a job server.** A quick-time drop opens and closes on time with `ctx.scheduler.runAt` (`convex/drops.ts`). A challenge vote closes itself 12 hours after it opens (`convex/challenges.ts`). A passing proof schedules the leaderboard refresh, the lead-change text and the check-in nudge (`convex/proofs.ts`). Two crons are declared in `convex/crons.ts`: an hourly sweep for check-in nudges, and the morning mystery-task job, which is still there although the mystery task was taken out of the app.
 - **File storage.** Proof photos, short videos and the voice note go straight from the phone to an upload URL (`proofs.generateUploadUrl`, `components/capture/uploadToConvex.ts`). A photo texted to the agent is downloaded and stored by `convex/keikiMedia.ts`, the one Node action, because it converts iPhone HEIC photos to JPEG.
 - **Auth with no sign-up.** Convex Auth's Anonymous provider (`convex/auth.ts`) gives each device an account with no password, and the session is kept in the keychain (`lib/tokenStorage.ts`). Queries and mutations resolve the caller through `convex/lib/auth.ts`; an action does it through an internal query first.
 - **Typed environment.** Every secret the backend reads is declared in `convex/convex.config.ts` and read through the typed `env`. None is in the repository or the app.
