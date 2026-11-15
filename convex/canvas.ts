@@ -39,6 +39,7 @@ import {
   weekStartOf,
   weekdayLabel,
 } from "./lib/week";
+import { verdictFields } from "./proofs";
 
 // ---------------------------------------------------------------------------
 // Shapes
@@ -442,16 +443,6 @@ function byDueDate(a: CanvasAssignment, b: CanvasAssignment): number {
 // Internal functions: the only code that touches canvasConnections
 // ---------------------------------------------------------------------------
 
-const verdictValidator = v.object({
-  pass: v.boolean(),
-  confidence: v.number(),
-  reason: v.string(),
-  highlight: v.number(),
-  caption: v.string(),
-  points: v.number(),
-  closeCall: v.boolean(),
-});
-
 const canvasIdsValidator = v.object({
   courseId: v.string(),
   assignmentId: v.string(),
@@ -517,7 +508,7 @@ export const verifyContext = internalQuery({
       canvas: v.optional(canvasIdsValidator),
     }),
     connection: v.union(v.null(), connectionValidator),
-    recorded: v.union(v.null(), verdictValidator),
+    recorded: v.union(v.null(), verdictFields),
   }),
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -780,7 +771,7 @@ export const addTask = mutation({
  */
 export const verify = action({
   args: { taskId: v.id("tasks") },
-  returns: verdictValidator,
+  returns: verdictFields,
   handler: async (ctx, args): Promise<Verdict> => {
     // verifyContext resolves the caller with requireUser and checks the task
     // is theirs.

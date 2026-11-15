@@ -250,7 +250,7 @@ export const context = internalQuery({
   },
 });
 
-const verdictFields = v.object({
+export const verdictFields = v.object({
   pass: v.boolean(),
   confidence: v.number(),
   reason: v.string(),

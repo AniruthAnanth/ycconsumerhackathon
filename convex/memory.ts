@@ -1,5 +1,5 @@
 // The single place that talks to Supermemory. Everything else in the backend
-// calls these helpers (or the internal actions below) so the SDK, the API key
+// calls these helpers (or the internal action below) so the SDK, the API key
 // and the failure policy live in one file.
 //
 // The namespace is the user's id, so one player's history can never leak into
@@ -43,27 +43,20 @@ export async function searchMemories(
 export async function addMemory(
   userId: string,
   content: string,
-  metadata?: Record<string, string | number | boolean>,
 ): Promise<void> {
   try {
     const sm = client();
     if (!sm) return;
     // "instant" indexes in a few seconds instead of waiting for background
     // consolidation, so a memory written after one draft helps the next.
-    await sm.add(userId, { content, metadata, dreaming: "instant" }, { timeoutInSeconds: 10, maxRetries: 1 });
+    await sm.add(userId, { content, dreaming: "instant" }, { timeoutInSeconds: 10, maxRetries: 1 });
   } catch (err) {
     console.warn("memory add failed:", err instanceof Error ? err.message : "unknown error");
   }
 }
 
-// Thin wrappers so other modules can use memory via ctx.runAction without
+// A thin wrapper so other modules can use memory via ctx.runAction without
 // importing the SDK.
-export const search = internalAction({
-  args: { userId: v.string(), query: v.string(), limit: v.optional(v.number()) },
-  returns: v.array(v.string()),
-  handler: async (_ctx, { userId, query, limit }) => searchMemories(userId, query, limit),
-});
-
 export const add = internalAction({
   args: { userId: v.string(), content: v.string() },
   returns: v.null(),
