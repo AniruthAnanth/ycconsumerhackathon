@@ -1,5 +1,6 @@
 import { Redirect, useRouter, useSegments } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
+import { useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -27,9 +28,13 @@ const TABS = [
 export default function TabsLayout() {
   const router = useRouter();
   const { me, membership, league, weekNumber, showPreviousWeek, showNextWeek } = useCurrentLeague();
-  // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others.
-  const tabSegment = (useSegments() as string[])[1];
-  const active = TABS.find((tab) => tab.key === tabSegment) ?? TABS[0];
+  // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others. While a sheet
+  // such as the league switcher sits over the tabs, the segments name the sheet instead, so the
+  // last tab is kept rather than snapping the underline back to Roster behind it.
+  const segments = useSegments() as string[];
+  const lastTab = useRef<(typeof TABS)[number]>(TABS[0]);
+  if (segments[0] === "(tabs)") lastTab.current = TABS.find((tab) => tab.key === segments[1]) ?? TABS[0];
+  const active = lastTab.current;
   usePaidHaptic(membership);
   // Only Roster can show another week. The other tabs always show the current
   // one, so the header must say so instead of following the browsed week.
