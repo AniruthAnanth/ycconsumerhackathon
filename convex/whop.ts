@@ -288,25 +288,53 @@ export const recordBuyIn = internalMutation({
  *
  * The ledger is written first and the money moved second. closeWeek freezes the result in one
  * transaction: refund, winnings and fee rows that add up to the buy-ins, and the week marked
- * settled. Only then is each member's transfer sent, under a key Whop will not pay twice. So
- * calling this again pays nobody again: it only retries transfers Whop has not accepted yet.
+ * settled. Only then is the money moved on Whop, each movement under a key Whop will not pay
+ * twice. So calling this again pays nobody again: it only retries what Whop has not accepted yet.
+ *
+ * A stake goes back the way it came, as a refund of the member's buy-in payment. Winnings are
+ * new money to the member, so they go as a transfer out of the league's company.
  */
 export const settleWeek = action({
   args: { leagueId: v.id("leagues") },
   returns: v.null(),
   handler: async (ctx, { leagueId }) => {
     await ctx.runQuery(internal.whop.requireMember, { leagueId });
-    const { whopCompanyId, transfers }: Owed = await ctx.runMutation(internal.whop.closeWeek, {
-      leagueId,
-    });
+    const { whopCompanyId, refunds, transfers }: Owed = await ctx.runMutation(
+      internal.whop.closeWeek,
+      { leagueId },
+    );
     // A settled week carries the matchup bonus, so the leaderboards rebuild the league's stored rows.
     await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
-    // A league nobody has paid into through Whop, like the seeded one, has no company to pay from.
-    if (whopCompanyId === null || transfers.length === 0) return null;
+    // A league nobody has paid into through Whop, like the seeded one, has nothing to move there.
+    if (refunds.length === 0 && transfers.length === 0) return null;
 
     const whop = whopClient();
-    for (const transfer of transfers) {
+    /** Moves one payout on Whop and stamps its ledger rows. A refusal leaves them for the next call. */
+    const pay = async (key: string, ledgerIds: Id<"ledger">[], move: () => Promise<string>) => {
       try {
+        const whopId = await move();
+        await ctx.runMutation(internal.whop.recordPaid, { ledgerIds, whopId });
+      } catch (error) {
+        if (!(error instanceof WhopError)) throw error;
+        console.warn(`Whop did not accept ${key}: ${error.message}`);
+      }
+    };
+
+    for (const refund of refunds) {
+      await pay(refund.idempotencyKey, [refund.ledgerId], async () => {
+        // An amount that covers all that is left to refund refunds the rest of the payment.
+        await whop.payments.refund(
+          { id: refund.whopPaymentId, partial_amount: refund.amountUsd },
+          { idempotencyKey: refund.idempotencyKey },
+        );
+        return refund.whopPaymentId;
+      });
+    }
+    // Whop refuses transfers out of a company that has not passed identity verification, which
+    // no sandbox league has. Those rows stand, and the app shows the payout from the ledger.
+    if (whopCompanyId === null) return null;
+    for (const transfer of transfers) {
+      await pay(transfer.idempotenceKey, transfer.ledgerIds, async () => {
         const sent = await whop.transfers.create({
           type: "balance",
           origin_id: whopCompanyId,
@@ -316,17 +344,8 @@ export const settleWeek = action({
           idempotence_key: transfer.idempotenceKey,
           notes: "Lineup payout",
         });
-        await ctx.runMutation(internal.whop.recordTransfer, {
-          ledgerIds: transfer.ledgerIds,
-          whopTransferId: sent.id,
-        });
-      } catch (error) {
-        // Whop refuses transfers out of a company that has not passed identity verification,
-        // which no sandbox league has. The ledger rows stand, the app shows payouts from
-        // them, and the next call retries under the same key.
-        if (!(error instanceof WhopError)) throw error;
-        console.warn(`Whop did not accept transfer ${transfer.idempotenceKey}: ${error.message}`);
-      }
+        return sent.id;
+      });
     }
     return null;
   },
@@ -344,7 +363,14 @@ export const requireMember = internalQuery({
   },
 });
 
-/** One member's payout as a single Whop transfer: their refund and winnings rows together. */
+/** A member's stake, to go back as a refund of the Whop payment that bought them in. */
+const owedRefund = v.object({
+  ledgerId: v.id("ledger"),
+  whopPaymentId: v.string(),
+  amountUsd: v.number(),
+  idempotencyKey: v.string(),
+});
+/** The rest of a member's payout as a single Whop transfer. */
 const owedTransfer = v.object({
   ledgerIds: v.array(v.id("ledger")),
   whopUserId: v.string(),
@@ -353,6 +379,7 @@ const owedTransfer = v.object({
 });
 const owed = v.object({
   whopCompanyId: v.union(v.string(), v.null()),
+  refunds: v.array(owedRefund),
   transfers: v.array(owedTransfer),
 });
 type Owed = typeof owed.type;
@@ -381,9 +408,11 @@ export const closeWeek = internalMutation({
     // One season per league today; a second would need its number in here.
     const scope = bySeason ? `${leagueId}:season` : week._id;
 
+    // The weeks one settlement covers: the buy-ins it returns were paid in these.
+    const weeks = bySeason ? await weeksOfSeason(ctx, week, seasonWeeks) : [week];
+
     if (week.status === "open") {
       if (!bySeason || isFinalWeek(week.number, seasonWeeks)) {
-        const weeks = bySeason ? await weeksOfSeason(ctx, week, seasonWeeks) : [week];
         const entrants = await entrantsOver(ctx, leagueId, weeks);
         // A 1v1 versus pays the higher score; a league pays its finishers (convex/versus.ts).
         const settle = league.mode === "versus" ? computeVersusSettlement : computeSettlement;
@@ -414,18 +443,21 @@ export const closeWeek = internalMutation({
 
     return {
       whopCompanyId: league.whopCompanyId ?? null,
-      transfers: await unsentTransfers(ctx, leagueId, scope),
+      ...(await unpaidOnWhop(ctx, leagueId, scope, weeks)),
     };
   },
 });
 
-/** Stamps the Whop transfer onto the ledger rows it paid, which is what marks them as sent. */
-export const recordTransfer = internalMutation({
-  args: { ledgerIds: v.array(v.id("ledger")), whopTransferId: v.string() },
+/**
+ * Stamps ledger rows with the Whop object that paid them, which is what marks them as paid: the
+ * transfer, or for a returned stake the buy-in payment that was refunded.
+ */
+export const recordPaid = internalMutation({
+  args: { ledgerIds: v.array(v.id("ledger")), whopId: v.string() },
   returns: v.null(),
-  handler: async (ctx, { ledgerIds, whopTransferId }) => {
+  handler: async (ctx, { ledgerIds, whopId }) => {
     for (const ledgerId of ledgerIds) {
-      await ctx.db.patch("ledger", ledgerId, { whopId: whopTransferId });
+      await ctx.db.patch("ledger", ledgerId, { whopId });
     }
     return null;
   },
@@ -487,24 +519,47 @@ async function weeksOfSeason(
 }
 
 /**
- * The transfers a settlement still owes: per member, their refund and winnings rows that carry
- * no Whop id yet. Members who never paid through Whop (seeded players) have no Whop user to
- * send to; their rows stay in the ledger as the record of what they are owed.
+ * What a settlement still owes on Whop: its refund and winnings rows that carry no Whop id yet.
+ *
+ * A refund row whose member bought in with a Whop payment is paid by refunding that payment,
+ * which Whop allows whatever the state of the league's company. Everything else a member is
+ * owed goes in one transfer to their Whop user. Members who never paid through Whop (seeded
+ * players) have neither; their rows stay in the ledger as the record of what they are owed.
  */
-async function unsentTransfers(
+async function unpaidOnWhop(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
   scope: string,
-): Promise<Owed["transfers"]> {
-  const rowsByUser = new Map<Id<"users">, Doc<"ledger">[]>();
-  for (const row of await leagueLedger(ctx, leagueId)) {
+  weeks: Doc<"weeks">[],
+): Promise<Pick<Owed, "refunds" | "transfers">> {
+  const ledger = await leagueLedger(ctx, leagueId);
+  const weekIds = new Set(weeks.map((week) => week._id));
+  const buyInPayment = new Map<Id<"users">, string>();
+  for (const row of ledger) {
+    if (row.kind !== "buy_in" || !weekIds.has(row.weekId)) continue;
+    if (row.userId !== undefined && row.whopId !== undefined) buyInPayment.set(row.userId, row.whopId);
+  }
+
+  const refunds: Owed["refunds"] = [];
+  const byTransfer = new Map<Id<"users">, Doc<"ledger">[]>();
+  for (const row of ledger) {
     if (row.userId === undefined || row.whopId !== undefined) continue;
     if (!row.idempotencyKey.startsWith(`${scope}:`)) continue;
-    rowsByUser.set(row.userId, [...(rowsByUser.get(row.userId) ?? []), row]);
+    const whopPaymentId = buyInPayment.get(row.userId);
+    if (row.kind === "refund" && whopPaymentId !== undefined) {
+      refunds.push({
+        ledgerId: row._id,
+        whopPaymentId,
+        amountUsd: row.amountUsd,
+        idempotencyKey: row.idempotencyKey,
+      });
+    } else {
+      byTransfer.set(row.userId, [...(byTransfer.get(row.userId) ?? []), row]);
+    }
   }
 
   const transfers: Owed["transfers"] = [];
-  for (const [userId, rows] of rowsByUser) {
+  for (const [userId, rows] of byTransfer) {
     const user = await ctx.db.get("users", userId);
     if (!user?.whopUserId) continue;
     const cents = rows.reduce((sum, row) => sum + Math.round(row.amountUsd * 100), 0);
@@ -515,7 +570,7 @@ async function unsentTransfers(
       idempotenceKey: `${scope}:${userId}`,
     });
   }
-  return transfers;
+  return { refunds, transfers };
 }
 
 // ---- Shared reads -------------------------------------------------------------------------------

@@ -427,7 +427,7 @@ describe("closeWeek", () => {
     expect(addMemory).toHaveBeenCalled();
   });
 
-  test("owes one transfer per member with a Whop user, until Whop has accepted it", async () => {
+  test("owes each stake as a refund of its Whop payment and the winnings as one transfer, until Whop has accepted them", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
@@ -435,25 +435,44 @@ describe("closeWeek", () => {
 
     const first = await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Sam is owed money too, but never paid through Whop, so there is nowhere to send it.
     expect(first.whopCompanyId).toBe("biz_league");
-    expect(first.transfers).toHaveLength(1);
-    expect(first.transfers[0]).toMatchObject({
-      whopUserId: "user_maya",
-      amountUsd: 7.78,
-      idempotenceKey: `${weekId}:${userIds.maya}`,
-    });
-    expect(first.transfers[0].ledgerIds).toHaveLength(2);
+    expect(first.refunds.map(({ ledgerId: _, ...refund }) => refund)).toEqual([
+      { whopPaymentId: "pay_maya", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.maya}:refund` },
+      { whopPaymentId: "pay_sam", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.sam}:refund` },
+    ]);
+    // Sam is owed winnings too, but has no Whop user to send them to.
+    expect(first.transfers.map(({ ledgerIds: _, ...transfer }) => transfer)).toEqual([
+      { whopUserId: "user_maya", amountUsd: 2.78, idempotenceKey: `${weekId}:${userIds.maya}` },
+    ]);
 
-    await t.mutation(internal.whop.recordTransfer, {
+    await t.mutation(internal.whop.recordPaid, {
+      ledgerIds: first.refunds.map((refund) => refund.ledgerId),
+      whopId: "pay_refunded",
+    });
+    await t.mutation(internal.whop.recordPaid, {
       ledgerIds: first.transfers[0].ledgerIds,
-      whopTransferId: "ctt_1",
+      whopId: "ctt_1",
     });
     const second = await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    expect(second.transfers).toEqual([]);
-    const sent = (await settlementRows(t)).filter((row) => row.whopId === "ctt_1");
-    expect(sent.map((row) => row.kind)).toEqual(["refund", "winnings"]);
+    expect(second).toEqual({ whopCompanyId: "biz_league", refunds: [], transfers: [] });
+  });
+
+  test("a stake bought in without a Whop payment rides in the member's transfer", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
+      whopCompanyId: "biz_league",
+    });
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("ledger").collect()) {
+        if (row.userId === userIds.maya) await ctx.db.patch("ledger", row._id, { whopId: undefined });
+      }
+    });
+
+    const owed = await t.mutation(internal.whop.closeWeek, { leagueId });
+
+    expect(owed.refunds.map((refund) => refund.whopPaymentId)).toEqual(["pay_sam"]);
+    expect(owed.transfers).toMatchObject([{ whopUserId: "user_maya", amountUsd: 7.78 }]);
   });
 
   test("with no finishers every buy-in is refunded and no fee is taken", async () => {
@@ -556,7 +575,7 @@ describe("closeWeek on the seeded demo league", () => {
     );
     expect(new Set(rows.map((row) => row.idempotencyKey)).size).toBe(rows.length);
     // Seeded players never went through Whop, so their payouts are shown from the ledger alone.
-    expect(owed).toEqual({ whopCompanyId: null, transfers: [] });
+    expect(owed).toEqual({ whopCompanyId: null, refunds: [], transfers: [] });
   });
 });
 
@@ -622,15 +641,25 @@ describe("settleWeek", () => {
   const as = (t: ReturnType<typeof convexTest>, userId: Id<"users">) =>
     t.withIdentity({ subject: `${userId}|session` });
 
-  test("keeps the ledger rows when Whop refuses the transfer, and retries on the next call", async () => {
-    const whopRequests: string[] = [];
-    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
-      whopRequests.push(String(input instanceof Request ? input.url : input));
-      return Response.json(
+  /** Stubs Whop's API and records each request as "METHOD path". */
+  function whopAnswers(answer: () => Response) {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      expect(request.url.startsWith("https://sandbox-api.whop.com/")).toBe(true);
+      requests.push(`${request.method} ${new URL(request.url).pathname.replace("/api/v1", "")}`);
+      return answer();
+    });
+    return requests;
+  }
+
+  test("keeps the ledger rows when Whop refuses, and retries on the next call", async () => {
+    const requests = whopAnswers(() =>
+      Response.json(
         { error: { type: "bad_request", message: "Please verify your business before transferring funds." } },
         { status: 400 },
-      );
-    });
+      ),
+    );
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
@@ -642,21 +671,29 @@ describe("settleWeek", () => {
     const rows = await settlementRows(t);
     expect(rows).toHaveLength(5);
     expect(rows.every((row) => row.whopId === undefined)).toBe(true);
-    expect(whopRequests).toHaveLength(2);
-    expect(whopRequests.every((url) => url.startsWith("https://sandbox-api.whop.com/"))).toBe(true);
+    const attempt = ["POST /payments/pay_maya/refund", "POST /payments/pay_sam/refund", "POST /transfers"];
+    expect(requests).toEqual([...attempt, ...attempt]);
   });
 
-  test("stamps the transfer onto the rows it paid when Whop accepts it", async () => {
-    vi.stubGlobal("fetch", async () => Response.json({ id: "ctt_1", object: "transfer" }));
+  test("refunds each stake on its Whop payment, transfers the winnings, and does neither twice", async () => {
+    const requests = whopAnswers(() => Response.json({ id: "ctt_1", object: "transfer" }));
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
     });
 
     await as(t, userIds.maya).action(api.whop.settleWeek, { leagueId });
+    await as(t, userIds.maya).action(api.whop.settleWeek, { leagueId });
 
-    const paid = (await settlementRows(t)).filter((row) => row.whopId === "ctt_1");
-    expect(paid.map((row) => row.userId)).toEqual([userIds.maya, userIds.maya]);
+    // Sam has no Whop user, so his winnings stay a ledger row with nothing sent.
+    expect((await settlementRows(t)).map(({ userId, kind, whopId }) => ({ userId, kind, whopId }))).toEqual([
+      { userId: userIds.maya, kind: "refund", whopId: "pay_maya" },
+      { userId: userIds.maya, kind: "winnings", whopId: "ctt_1" },
+      { userId: userIds.sam, kind: "refund", whopId: "pay_sam" },
+      { userId: userIds.sam, kind: "winnings", whopId: undefined },
+      { userId: undefined, kind: "fee", whopId: undefined },
+    ]);
+    expect(requests).toEqual(["POST /payments/pay_maya/refund", "POST /payments/pay_sam/refund", "POST /transfers"]);
   });
 
   test("refuses a caller who is not in the league", async () => {
