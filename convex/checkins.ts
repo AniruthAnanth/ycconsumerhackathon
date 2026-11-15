@@ -50,6 +50,7 @@ import {
   scheduledNudge,
   slotsAtStake,
 } from "./lib/checkinRules";
+import { currentWeek } from "./leagues";
 import { isValidLatLng } from "./lib/geo";
 import { type LineupNotification, eveningNudge, rivalPassed, settlingSoon } from "./lib/notificationContent";
 import { pacificDay } from "./lib/week";
@@ -102,7 +103,7 @@ export const prompt = query({
   ),
   handler: async (ctx, { leagueId, now, lat, lng, placeName }) => {
     const me = await requireUser(ctx);
-    const week = await weekInPlay(ctx, leagueId, now);
+    const week = await currentWeek(ctx, leagueId);
     if (week === null || !(await isMember(ctx, leagueId, me._id))) return null;
 
     const here = { lat: lat ?? Number.NaN, lng: lng ?? Number.NaN };
@@ -201,7 +202,7 @@ async function stillInPlay(ctx: QueryCtx, task: Doc<"tasks">, now: number): Prom
     .withIndex("by_user", (q) => q.eq("userId", task.userId))
     .take(MAX_ROWS);
   for (const { leagueId } of memberships) {
-    const week = await weekInPlay(ctx, leagueId, now);
+    const week = await currentWeek(ctx, leagueId);
     if (week !== null && week.startsAt === task.weekStart && week.status !== "settled" && now < week.endsAt) return true;
   }
   return false;
@@ -315,30 +316,32 @@ export const afterProof = internalMutation({
       // A drop task scores only in its drop's league, so nothing moved anywhere else.
       if (task.dropId && drop?.leagueId !== leagueId) continue;
       const league = await ctx.db.get("leagues", leagueId);
-      const week = await weekInPlay(ctx, leagueId, now);
+      const week = await currentWeek(ctx, leagueId);
       if (league === null || week === null || week.status === "settled") continue;
 
       const standings = await standingsOf(ctx, week);
       const prover = standings.find((row) => row.userId === task.userId);
       if (prover === undefined) continue;
-      const marks = await ctx.db
+      // One row per member and league, carried from week to week rather than added to.
+      const mark = await ctx.db
         .query("checkinMarks")
-        .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId))
-        .take(MAX_ROWS);
+        .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", prover.userId))
+        .first();
       // Every week starts from zero, so a mark left in an earlier week says nothing about this one.
-      const markOf = (userId: Id<"users">) =>
-        marks.find((mark) => mark.userId === userId && mark.weekStart === week.startsAt);
+      const lastSeen = mark?.weekStart === week.startsAt ? mark.points : undefined;
 
       const movement = {
         prover: {
-          // No mark yet means this is the prover's first proof in the league. Where they stood
-          // before it is where they stand now, less everything the proof added.
-          before: markOf(prover.userId)?.points ?? prover.points - (await pointsAddedBy(ctx, task, week, now)),
+          // No mark this week means this is the prover's first proof of it. Where they stood
+          // before is where they stand now, less everything the proof added.
+          before: lastSeen ?? prover.points - (await pointsAddedBy(ctx, task, week, now)),
           after: prover.points,
         },
-        others: standings
-          .filter((row) => row.userId !== prover.userId)
-          .map((row) => ({ userId: row.userId, before: markOf(row.userId)?.points ?? row.points, after: row.points })),
+        // Everyone else is measured where they stand now. A member's points also fall without a
+        // proof of their own (a proof held under challenge, a failed mystery task), and a figure
+        // remembered from before the fall would report a pass that never happened, again on
+        // every later proof.
+        others: standings.filter((row) => row.userId !== prover.userId),
       };
       // A new leader is the league's news, and leadChange texts it to everyone.
       const passed = tookTheLead(movement) ? [] : passedBy(movement);
@@ -364,9 +367,7 @@ export const afterProof = internalMutation({
       // count both when the first hook runs: moving the other prover's mark here would leave
       // their own hook nothing to report, and the pass they made would go unsaid.
       const seen = { points: prover.points, weekStart: week.startsAt };
-      // One row per member and league, carried from week to week rather than added to.
-      const mark = marks.find((row) => row.userId === prover.userId);
-      if (mark === undefined) await ctx.db.insert("checkinMarks", { leagueId, userId: prover.userId, ...seen });
+      if (mark === null) await ctx.db.insert("checkinMarks", { leagueId, userId: prover.userId, ...seen });
       else await ctx.db.patch("checkinMarks", mark._id, seen);
     }
     return null;
@@ -431,15 +432,6 @@ async function sentOn(ctx: QueryCtx, userId: Id<"users">, day: string): Promise<
 }
 
 // ─── Reads shared by the functions above ─────────────────────────────────────────────────────
-
-/** The league's week in play: the newest one that has started. A week made ahead of time is not in play yet. */
-async function weekInPlay(ctx: QueryCtx, leagueId: Id<"leagues">, now: number): Promise<Doc<"weeks"> | null> {
-  const weeks = await ctx.db
-    .query("weeks")
-    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-    .take(MAX_ROWS);
-  return weeks.filter((week) => week.startsAt <= now).sort((a, b) => b.startsAt - a.startsAt)[0] ?? null;
-}
 
 async function isMember(ctx: QueryCtx, leagueId: Id<"leagues">, userId: Id<"users">): Promise<boolean> {
   const membership = await ctx.db
@@ -521,7 +513,7 @@ async function homeLeague(
   let home: Doc<"weeks"> | null = null;
   let stakeUsd = 0;
   for (const membership of [...memberships].sort((a, b) => a.joinedAt - b.joinedAt)) {
-    const week = await weekInPlay(ctx, membership.leagueId, now);
+    const week = await currentWeek(ctx, membership.leagueId);
     if (week === null || week.status === "settled" || now >= week.endsAt) continue;
     home ??= week;
     if (membership.paid) stakeUsd += (await ctx.db.get("leagues", membership.leagueId))?.stakeUsd ?? 0;

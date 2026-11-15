@@ -280,7 +280,7 @@ describe("pickRival", () => {
 });
 
 describe("passedBy", () => {
-  const still = (userId: string, points: number) => ({ userId, before: points, after: points });
+  const still = (userId: string, points: number) => ({ userId, points });
 
   it("finds the members the prover went past, with the new gap", () => {
     const others = [still("maya", 120), still("sam", 105), still("level", 90), still("jo", 60)];
@@ -311,9 +311,8 @@ describe("passedBy", () => {
     expect(tookTheLead({ prover: { before: 0, after: 40 }, others: [] })).toBe(false);
   });
 
-  it("does not count someone the prover was already ahead of, whose points then dropped", () => {
-    const others = [{ userId: "sam", before: 80, after: 60 }];
-    expect(passedBy({ prover: { before: 90, after: 110 }, others })).toEqual([]);
+  it("does not count someone the prover was already ahead of", () => {
+    expect(passedBy({ prover: { before: 90, after: 110 }, others: [still("sam", 60)] })).toEqual([]);
   });
 });
 

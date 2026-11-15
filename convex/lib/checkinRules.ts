@@ -264,18 +264,19 @@ export function pickRival<UserId>(
 }
 
 /**
- * Members the prover has just gone past: level or ahead the last time anyone looked, behind now.
- * gap is how far ahead the prover is now. A member with nothing on the board has not been passed
- * by anyone; without that, the first proof of a week would text the whole league.
+ * Members the prover has just gone past: level with or ahead of where the prover stood before the
+ * proof, and behind where the prover stands now. gap is how far ahead the prover is now. A member
+ * with nothing on the board has not been passed by anyone; without that, the first proof of a
+ * week would text the whole league.
  */
 export function passedBy<UserId>(input: {
   prover: { before: number; after: number };
-  others: readonly { userId: UserId; before: number; after: number }[];
+  others: readonly { userId: UserId; points: number }[];
 }): { userId: UserId; gap: number }[] {
   const { prover } = input;
   return input.others
-    .filter((other) => other.before > 0 && other.before >= prover.before && other.after < prover.after)
-    .map((other) => ({ userId: other.userId, gap: prover.after - other.after }));
+    .filter((other) => other.points > 0 && other.points >= prover.before && other.points < prover.after)
+    .map((other) => ({ userId: other.userId, gap: prover.after - other.points }));
 }
 
 /**
@@ -286,10 +287,10 @@ export function passedBy<UserId>(input: {
  */
 export function tookTheLead(input: {
   prover: { before: number; after: number };
-  others: readonly { before: number; after: number }[];
+  others: readonly { points: number }[];
 }): boolean {
   const { prover, others } = input;
-  return others.every((other) => other.after < prover.after) && others.some((other) => other.before >= prover.before);
+  return others.every((other) => other.points < prover.after) && others.some((other) => other.points >= prover.before);
 }
 
 // ─── Wording ─────────────────────────────────────────────────────────────────────────────────
