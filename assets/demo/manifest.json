@@ -11,7 +11,8 @@
     "taskTitle": "The task the photo is a proof for.",
     "pass": "Whether the referee should accept the photo for that task.",
     "reason": "The one-line reason the referee gives in its verdict.",
-    "caption": "The caption shown with the proof in the feed."
+    "caption": "The caption shown with the proof in the feed.",
+    "sampleKey": "Set when a file that is not kind sample is also bundled as a camera stand-in: its SampleMedia key."
   },
   "files": [
     {
@@ -351,6 +352,7 @@
       "pass": true,
       "reason": "A video call on the laptop with mom waving on screen, matches calling mom.",
       "caption": "She says hi to everyone.",
+      "sampleKey": "call_mom",
       "width": 1200,
       "height": 806,
       "bytes": 137570,
@@ -395,6 +397,7 @@
       "pass": true,
       "reason": "Push-up position on the grass with three fingers held up, matches the drop and its gesture.",
       "caption": "Twenty done. Proof attached.",
+      "sampleKey": "pushups",
       "width": 1200,
       "height": 806,
       "bytes": 149565,
@@ -409,6 +412,7 @@
       "pass": true,
       "reason": "Four people in running clothes together on a hillside park, matches the group session and its head count of four.",
       "caption": "Four of us made it out.",
+      "sampleKey": "group",
       "width": 1200,
       "height": 806,
       "bytes": 112226,
@@ -483,8 +487,8 @@
       "caption": "Rest day, apparently.",
       "width": 1200,
       "height": 806,
-      "bytes": 128584,
-      "sha256": "04aca1f423376b30101ece44b8ef1a671bdb12376d64750fe5638fdaab8136b2"
+      "bytes": 80439,
+      "sha256": "8f8b6395e097eab2d43571a4a7f8271e5594020e24c09fbdb1bf49029475dc27"
     },
     {
       "file": "samples/gym_clip.mp4",

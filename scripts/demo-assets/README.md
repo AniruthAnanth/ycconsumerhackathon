@@ -9,7 +9,7 @@ Every image is generated (Capy's image tool, Gemini 3.1 Flash Image). None is a 
 | Reader | What it takes |
 | --- | --- |
 | `convex/seed.ts` | The entries marked `seeded`, through `convex/lib/seedPhotos.ts`, which `embed-seed-photos.mjs` writes. Reset Seed stores them in Convex file storage and attaches them to the seeded proofs and players. |
-| `components/capture/samples` | The five files in `assets/demo/samples/`, bundled into the app for the sample-media development flag. |
+| `components/capture/samples` | The five files in `assets/demo/samples/` and three of the spares (a call with mom, a gesture photo, the group photo), bundled into the app for the sample-media development flag. |
 | Slides and the recording | Anything in the manifest. The entries that are not seeded (a call with mom, meal prep, a second gesture photo, the group photo) are spares for a live demo: text one to the league number or pick it as a proof. |
 
 ## Scripts
