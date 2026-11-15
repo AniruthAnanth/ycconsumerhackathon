@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
 import { Divider, OutlinedPillButton, Screen } from "@/components/ui";
+import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors } from "@/theme";
 import { ScreenState } from "@/components/social/ScreenState";
@@ -22,6 +23,7 @@ export function FeedScreen() {
   const { leagueId } = useCurrentLeague();
   const myUserId = useMyUserId();
   const feed = useQuery(socialApi.feed.list, leagueId ? { leagueId } : "skip");
+  const memberCount = useQuery(backend.leagues.get, leagueId ? { leagueId } : "skip")?.memberCount;
   const now = useNow();
 
   if (!leagueId || feed === undefined) return <ScreenState loading />;
@@ -31,7 +33,7 @@ export function FeedScreen() {
       <FlatList
         data={feed}
         keyExtractor={(item) => item.proofId}
-        renderItem={({ item }) => <ProofPost item={item} leagueId={leagueId} myUserId={myUserId} now={now} />}
+        renderItem={({ item }) => <ProofPost item={item} leagueId={leagueId} memberCount={memberCount} myUserId={myUserId} now={now} />}
         ItemSeparatorComponent={Divider}
         ListHeaderComponent={
           <View style={styles.shortcuts}>
