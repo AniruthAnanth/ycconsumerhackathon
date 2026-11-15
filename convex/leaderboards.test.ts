@@ -93,6 +93,41 @@ describe("leaderboards.board", () => {
     expect(result.rows.map((row) => row.isRival)).toEqual([false, false, false, true, false, false]);
   });
 
+  test("This Week equals the standings table, before and after the week settles", async () => {
+    const { t, leagueId, as } = await seededLeague();
+    const viewer = as("Maya");
+    const boardAndTable = async () => {
+      const table = await viewer.query(api.standings.table, { leagueId });
+      const { rows } = await viewer.query(api.leaderboards.board, { leagueId, board: "week" });
+      expect(rows.map((row) => [row.rank, row.name, row.value])).toEqual(
+        table.map((row) => [row.rank, row.name, row.points]),
+      );
+      return rows;
+    };
+    await boardAndTable();
+
+    // End Week Now: the ledger is written, the week settles, and each matchup's winner gains 50.
+    await viewer.action(api.whop.settleWeek, { leagueId });
+    // Settlement schedules the rebuild of the stored rows. It is run by hand here, because
+    // running everything settlement schedules would also send its texts and memories.
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.map((job) => job.name)).toContain("leaderboards:rebuild");
+    await t.mutation(internal.leaderboards.rebuild, { leagueId });
+    const settled = await boardAndTable();
+    expect(settled.map((row) => row.value)).toEqual([550, 285, 245, 170, 60, 0]);
+
+    // The stored rows behind the global board carry the bonus too.
+    const global = await viewer.query(api.leaderboards.board, { leagueId, board: "global" });
+    expect(global.rows.map((row) => row.value)).toEqual([550, 285, 245, 170, 60, 0]);
+
+    // Maya was the only finisher: the other five stakes, less the 10% fee.
+    const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money" });
+    expect(money.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "$90.00", isMe: true });
+    // With the week over there is nothing left to project: every case is the payout itself.
+    const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
+    expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Projected: +$90.00" });
+  });
+
   test("a new proof reorders the board at once and shows as movement", async () => {
     const { t, leagueId, as, idOf } = await seededLeague();
     // Leo's gym session: 35 for the task, 25 for the slot, 5 for the day.
@@ -129,28 +164,27 @@ describe("leaderboards.board", () => {
     const { leagueId, as } = await seededLeague();
     const { rows } = await as("Sam").query(api.leaderboards.board, { leagueId, board: "headToHead" });
     // The seeded season has four finished weeks: Sam won all four and Maya lost one.
-    expect(rows[0]).toMatchObject({ name: "Sam Patel", valueLabel: "4-0", detail: "Trailing Maya Chen 285-500" });
-    expect(rows[1]).toMatchObject({ name: "Maya Chen", valueLabel: "3-1", detail: "Leading Sam Patel 500-285" });
-    expect(rows.find((row) => row.isMe)?.detail).toBe("Trailing Maya Chen 285-500");
+    expect(rows[0]).toMatchObject({ name: "Sam Patel", valueLabel: "4-0", detail: "Trailing Maya Chen 285 to 500" });
+    expect(rows[1]).toMatchObject({ name: "Maya Chen", valueLabel: "3-1", detail: "Leading Sam Patel 500 to 285" });
+    expect(rows.find((row) => row.isMe)?.detail).toBe("Trailing Maya Chen 285 to 500");
   });
 
   test("season and all-time add finished weeks from the stored rows to the week in play", async () => {
     const { t, leagueId, as, idOf } = await seededLeague();
     const lastWeek = weekStartOf(NOW) - 7 * DAY_MS;
-    // Make the seeded week the league's second, and give Leo a strong first one.
+    // The seeded season's four finished weeks are final scores kept on their matchups. Take them
+    // off week 4, so it is tallied from tasks like a week played in the app, and give Leo a task in it.
     await t.run(async (ctx) => {
-      const [thisWeek] = await ctx.db
+      const weeks = await ctx.db
         .query("weeks")
         .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
         .collect();
-      await ctx.db.patch("weeks", thisWeek._id, { number: 2 });
-      await ctx.db.insert("weeks", {
-        leagueId,
-        number: 1,
-        startsAt: lastWeek,
-        endsAt: weekStartOf(NOW),
-        status: "settled",
-      });
+      const week4 = weeks.find((week) => week.startsAt === lastWeek)!;
+      const pairs = await ctx.db
+        .query("matchups")
+        .withIndex("by_week", (q) => q.eq("weekId", week4._id))
+        .collect();
+      for (const pair of pairs) await ctx.db.patch("matchups", pair._id, { scoreA: undefined, scoreB: undefined });
       const taskId = await ctx.db.insert("tasks", {
         userId: idOf("Leo"),
         weekStart: lastWeek,
@@ -183,9 +217,10 @@ describe("leaderboards.board", () => {
       return rows.find((row) => row.isMe)?.value;
     };
     expect(await points("week")).toBe(0);
-    // Last week: 40 for the task, 25 for the slot, 5 for the day.
-    expect(await points("season")).toBe(70);
-    expect(await points("allTime")).toBe(70);
+    // Weeks 1 to 3 as kept on their matchups (150, 120, 205), then week 4 from
+    // the task: 40 for it, 25 for the slot, 5 for the day.
+    expect(await points("season")).toBe(545);
+    expect(await points("allTime")).toBe(545);
 
     const proofs = await viewer.query(api.leaderboards.board, { leagueId, board: "highlights" });
     expect(proofs.rows[0]).toMatchObject({ name: "Leo Martinez", valueLabel: "10/10" });
@@ -204,18 +239,55 @@ describe("leaderboards.board", () => {
     await viewer.mutation(api.leaderboards.sync, { leagueId });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
-    for (const board of ["global", "globalAllTime"] as const) {
+    const ranked = async (board: "global" | "globalAllTime") => {
       const { rows } = await viewer.query(api.leaderboards.board, { leagueId, board });
-      expect(rows.map((row) => [row.name, row.value])).toEqual([
-        ["Maya Chen", 500],
-        ["Sam Patel", 285],
-        ["Priya Shah", 195],
-        ["Jordan Lee", 120],
-        ["Ava Kim", 60],
-        ["Leo Martinez", 0],
-      ]);
       expect(rows[0].detail).toBe("YC Hackathon");
+      return rows.map((row) => [row.name, row.value]);
+    };
+    expect(await ranked("global")).toEqual([
+      ["Maya Chen", 500],
+      ["Sam Patel", 285],
+      ["Priya Shah", 195],
+      ["Jordan Lee", 120],
+      ["Ava Kim", 60],
+      ["Leo Martinez", 0],
+    ]);
+    // All-time adds the season's four finished weeks, whose final scores are kept on their matchups.
+    expect(await ranked("globalAllTime")).toEqual([
+      ["Maya Chen", 2099],
+      ["Sam Patel", 1787],
+      ["Priya Shah", 1446],
+      ["Jordan Lee", 1282],
+      ["Ava Kim", 970],
+      ["Leo Martinez", 635],
+    ]);
+  });
+
+  test("a league's boards are for its members; the global boards are for anyone", async () => {
+    const { t, leagueId } = await seededLeague();
+    const outsider = await t.run((ctx) => ctx.db.insert("users", { name: "Visitor" }));
+    const visitor = t.withIdentity({ subject: `${outsider}|session` });
+    for (const board of ["week", "season", "streak", "headToHead", "money"] as const) {
+      expect((await visitor.query(api.leaderboards.board, { leagueId, board })).rows).toEqual([]);
     }
+    expect((await visitor.query(api.leaderboards.board, { leagueId, board: "global" })).rows).toHaveLength(6);
+  });
+
+  test("a stand-in matchup for a member with the week off is not a head-to-head game", async () => {
+    const { t, leagueId, as, idOf } = await seededLeague();
+    // What leagues.ts stores last in an odd league's week, so nobody's Matchup tab is empty.
+    await t.run(async (ctx) => {
+      const weeks = await ctx.db
+        .query("weeks")
+        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+        .collect();
+      for (const week of weeks) {
+        const final = week.startsAt === weekStartOf(NOW) ? {} : { scoreA: 900, scoreB: 1 };
+        await ctx.db.insert("matchups", { weekId: week._id, userA: idOf("Leo"), userB: idOf("Maya"), ...final });
+      }
+    });
+    const { rows } = await as("Maya").query(api.leaderboards.board, { leagueId, board: "headToHead" });
+    expect(rows.find((row) => row.isMe)).toMatchObject({ valueLabel: "3-1", detail: "Leading Sam Patel 500 to 285" });
   });
 
   test("rebuilding twice writes nothing the second time", async () => {
@@ -224,8 +296,8 @@ describe("leaderboards.board", () => {
     const before = await t.run((ctx) => ctx.db.query("scores").collect());
     await t.mutation(internal.leaderboards.rebuild, { leagueId });
     const after = await t.run((ctx) => ctx.db.query("scores").collect());
-    // Six week rows and six all-time rows, untouched by the second run.
-    expect(after).toHaveLength(12);
+    // Six rows for each of the season's five weeks and six all-time rows, untouched by the second run.
+    expect(after).toHaveLength(36);
     expect(after).toEqual(before);
   });
 
@@ -244,9 +316,11 @@ describe("keeping the stored rows current", () => {
   test("a seed reset rebuilds the league's rows", async () => {
     const { t } = await seededLeague();
     const rows = await t.run((ctx) => ctx.db.query("scores").collect());
-    expect(rows.filter((row) => row.weekStart !== 0).map((row) => row.points).sort((a, b) => b - a)).toEqual([
-      500, 285, 195, 120, 60, 0,
-    ]);
+    const pointsIn = (weekStart: number) =>
+      rows.filter((row) => row.weekStart === weekStart).map((row) => row.points).sort((a, b) => b - a);
+    expect(pointsIn(weekStartOf(NOW))).toEqual([500, 285, 195, 120, 60, 0]);
+    // A finished week of the seeded season is the final scores kept on its matchups.
+    expect(pointsIn(weekStartOf(NOW) - 7 * DAY_MS)).toEqual([431, 395, 280, 275, 245, 160]);
   });
 
   test("a verified proof refreshes the player's stored week", async () => {
@@ -293,13 +367,15 @@ describe("keeping the stored rows current", () => {
         .unique();
       // A row for a week the league no longer has.
       const { _id, _creationTime, ...row } = maya!;
-      await ctx.db.insert("scores", { ...row, weekStart: weekStartOf(NOW) - 7 * DAY_MS });
+      await ctx.db.insert("scores", { ...row, weekStart: weekStartOf(NOW) - 70 * DAY_MS });
     });
     await t.mutation(internal.leaderboards.rebuild, { leagueId });
 
     const rows = await t.run((ctx) => ctx.db.query("scores").collect());
     expect(rows.some((row) => row.userId === idOf("Ava"))).toBe(false);
-    expect(rows.filter((row) => row.userId === idOf("Maya")).map((row) => row.points)).toEqual([500, 500]);
+    expect(rows.some((row) => row.weekStart === weekStartOf(NOW) - 70 * DAY_MS)).toBe(false);
+    // Maya's all-time row is the season's five weeks again, without the removed one.
+    expect(rows.find((row) => row.userId === idOf("Maya") && row.weekStart === 0)?.points).toBe(2099);
   });
 });
 
