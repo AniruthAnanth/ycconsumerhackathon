@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Artwork } from "@/components/art";
 import { ShareChallenge } from "@/components/invite";
 import { Button, Divider } from "@/components/ui";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, spacing, type } from "@/theme";
 
 import { FadeIn } from "./FadeIn";
 import { PointsCounter } from "./PointsCounter";
@@ -51,25 +51,27 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
   const { verdict } = phase;
   return (
     <View style={[styles.panel, { paddingBottom: bottom }]}>
-      <FadeIn delay={REASON_DELAY_MS}>
+      {verdict.pass ? (
+        <FadeIn delay={REASON_DELAY_MS}>
+          <View style={styles.pointsRow}>
+            <View style={styles.pointsValue}>
+              <PointsCounter points={verdict.points} delay={REASON_DELAY_MS} />
+              <Text style={styles.pointsUnit}>PTS</Text>
+            </View>
+            {verdict.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : null}
+          </View>
+          <Divider />
+        </FadeIn>
+      ) : null}
+      <FadeIn delay={POINTS_DELAY_MS}>
         {verdict.pass ? <Artwork name="sunny" size={104} style={styles.celebration} /> : null}
-        <Text style={styles.reason}>{verdict.reason}</Text>
+        <Text style={[styles.reason, verdict.pass && styles.reasonPass]}>{verdict.reason}</Text>
         {verdict.pass && verdict.caption ? (
           <Text style={styles.caption} numberOfLines={1}>
             {verdict.caption}
           </Text>
         ) : null}
       </FadeIn>
-      {verdict.pass ? (
-        <FadeIn delay={POINTS_DELAY_MS}>
-          <Divider />
-          <View style={styles.pointsRow}>
-            {verdict.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : <View />}
-            <PointsCounter points={verdict.points} delay={POINTS_DELAY_MS} />
-          </View>
-          <Divider />
-        </FadeIn>
-      ) : null}
       <View style={styles.spacer} />
       <FadeIn delay={ACTIONS_DELAY_MS}>
         {verdict.pass ? (
@@ -93,12 +95,10 @@ const styles = StyleSheet.create({
   reason: { color: colors.text, fontSize: 24, fontFamily: fontFamily.semiBold, lineHeight: 31, marginBottom: spacing.xl },
   celebration: { alignSelf: "center", marginBottom: spacing.md },
   caption: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, marginTop: -spacing.lg, marginBottom: spacing.xl },
-  pointsRow: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+  reasonPass: { ...type.body, color: colors.textMuted, marginBottom: spacing.lg },
+  pointsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
+  pointsValue: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  pointsUnit: { ...type.label, color: colors.textMuted, letterSpacing: 1.2 },
   closeCall: {
     color: colors.textMuted,
     borderColor: colors.divider,

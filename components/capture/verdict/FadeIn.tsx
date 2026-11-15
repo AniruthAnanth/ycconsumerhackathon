@@ -1,15 +1,16 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { Animated } from "react-native";
+import type { ReactNode } from "react";
+import Animated, { FadeInDown } from "react-native-reanimated";
+
+import { useReduceMotion } from "@/components/motion";
+import { SPRING } from "@/lib/native/motion";
 
 type Props = { delay: number; children: ReactNode };
 
+/** Entrance with a beat of the verdict timeline as its delay: rises on the shared spring, instant with Reduce Motion. */
 export function FadeIn({ delay, children }: Props) {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(progress, { toValue: 1, duration: 280, delay, useNativeDriver: true }).start();
-  }, [delay, progress]);
-
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
-  return <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>;
+  const reduceMotion = useReduceMotion();
+  const entering = reduceMotion
+    ? undefined
+    : FadeInDown.delay(delay).springify().damping(SPRING.damping).stiffness(SPRING.stiffness).mass(SPRING.mass);
+  return <Animated.View entering={entering}>{children}</Animated.View>;
 }

@@ -1,4 +1,5 @@
 import { useMutation } from "convex/react";
+import { PressScale } from "@/components/motion";
 import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -127,9 +128,9 @@ export function ProofPost({
         <View style={styles.actions}>
           <ReactionBar proofId={item.proofId} reactions={item.reactions} />
           {challengeable ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Challenge" hitSlop={8} onPress={confirmChallenge}>
+            <PressScale accessibilityRole="button" accessibilityLabel="Challenge" hitSlop={8} onPress={confirmChallenge}>
               <Text style={styles.challenge}>Challenge</Text>
-            </Pressable>
+            </PressScale>
           ) : null}
         </View>
       </View>
