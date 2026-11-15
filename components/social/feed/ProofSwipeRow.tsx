@@ -54,11 +54,11 @@ export function ProofSwipeRow({
           ? () => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Challenge"
+                accessibilityLabel="Veto"
                 onPress={() => run(onChallenge)}
                 style={[styles.action, styles.challenge]}
               >
-                <Text style={styles.label}>Challenge</Text>
+                <Text style={styles.label}>Veto</Text>
               </Pressable>
             )
           : undefined

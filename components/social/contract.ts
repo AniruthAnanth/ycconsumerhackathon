@@ -49,6 +49,8 @@ export type FeedChallenge = {
   /** Whether I may vote: false for the proof's owner and the challenger, and once the vote has settled. */
   canVote: boolean;
   closesAt: number;
+  /** true when the referee was unsure (under 0.6 confidence) and sent the proof to the league itself. */
+  byReferee?: boolean;
 };
 
 export type FeedItem = {
@@ -68,6 +70,27 @@ export type FeedItem = {
   closeCall: boolean;
   reactions: FeedReaction[];
   challenge?: FeedChallenge;
+};
+
+export type TaskVeto = {
+  taskId: Id<"tasks">;
+  ownerId: Id<"users">;
+  ownerName: string;
+  title: string;
+  slot: Slot;
+  points: number;
+  /** Vetoes cast so far. */
+  votes: number;
+  /** Vetoes that strike it. */
+  needed: number;
+  /** I have vetoed it. */
+  mine: boolean;
+  /** false for the owner, after closesAt, and once struck. */
+  canVote: boolean;
+  /** The league struck it; the owner must swap it. */
+  struck: boolean;
+  /** ms; voting ends. */
+  closesAt: number;
 };
 
 export type Profile = {
@@ -118,6 +141,14 @@ export const socialApi = {
   challenges: {
     open: mutation<{ proofId: Id<"proofs">; leagueId: Id<"leagues"> }, Id<"challenges">>("challenges:open"),
     vote: mutation<{ challengeId: Id<"challenges">; legit: boolean }, null>("challenges:vote"),
+  },
+  vetoes: {
+    /** The current week's vetoable or struck tasks in the league. */
+    board: query<{ leagueId: Id<"leagues"> }, TaskVeto[]>("vetoes:board"),
+    /** Toggles my veto on or off while the vote is open. */
+    cast: mutation<{ taskId: Id<"tasks">; leagueId: Id<"leagues"> }, null>("vetoes:cast"),
+    /** The owner replaces a struck task with a new title. */
+    swap: mutation<{ taskId: Id<"tasks">; title: string }, null>("vetoes:swap"),
   },
   profile: {
     get: query<{ userId: Id<"users"> }, Profile>("profile:get"),
