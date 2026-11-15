@@ -10,6 +10,7 @@ export const CORE_SLOTS = ["body", "mind", "recharge", "chores", "people"] as co
 export type CoreSlot = (typeof CORE_SLOTS)[number];
 export type Slot = CoreSlot | "flex";
 export type TaskStatus = "open" | "verified" | "held" | "failed";
+/** "mystery" is the source of tasks stored before the daily mystery task was removed. */
 export type TaskSource = "draft" | "flex" | "drop" | "mystery" | "group";
 
 export const TASK_POINTS_MIN = 10;
@@ -20,17 +21,15 @@ export const STREAK_BONUS_PER_DAY = 5;
 export const STREAK_BONUS_DAILY_CAP = 25;
 export const MATCHUP_WIN_BONUS = 50;
 export const FIRST_FINISHER_BONUS = 10;
-export const MYSTERY_FAIL_PENALTY = 20;
-export const WAGER_MAX = 50;
 export const GROUP_BONUS_PER_ATTENDEE = 5;
 export const GROUP_BONUS_CAP = 25;
 
 /**
  * Everything the rules need to know about one task.
  *
- * `points` is final. For the three bonus sources, convex/drops.ts writes the result of
- * quickTimeScore, mysteryScore or groupSessionScore into it at the moment the bonus is earned,
- * so reading a score never has to look a drop up, and no bonus can be counted twice.
+ * `points` is final. For the two bonus sources, convex/drops.ts writes the result of
+ * quickTimeScore or groupSessionScore into it at the moment the bonus is earned, so reading a
+ * score never has to look a drop up, and no bonus can be counted twice.
  */
 export type ScorableTask = {
   slot: Slot;
@@ -45,24 +44,9 @@ export function clampTaskPoints(points: number): number {
   return Math.min(TASK_POINTS_MAX, Math.max(TASK_POINTS_MIN, Math.round(points)));
 }
 
-/** A wager is a whole number of the player's own points, at most 50 and never more than they have. */
-export function clampWager(wager: number, ownPoints: number): number {
-  if (!Number.isFinite(wager)) return 0;
-  return Math.max(0, Math.min(WAGER_MAX, Math.floor(ownPoints), Math.floor(wager)));
-}
-
 /** A quick-time drop pays its own points, plus 10 to whoever finished first. */
 export function quickTimeScore(points: number, firstFinisher: boolean): number {
   return points + (firstFinisher ? FIRST_FINISHER_BONUS : 0);
-}
-
-/**
- * A mystery task pays double when completed and costs 20 when accepted and failed. The wager
- * comes back doubled on success, a net gain of the wager, and is lost on failure. Passing on a
- * mystery never creates a task, so it never reaches this function.
- */
-export function mysteryScore(points: number, wager: number, completed: boolean): number {
-  return completed ? 2 * points + wager : -(MYSTERY_FAIL_PENALTY + wager);
 }
 
 /** A group session pays the task's points plus 5 for each other attendee, capped at +25. */
@@ -73,9 +57,10 @@ export function groupSessionScore(points: number, otherAttendees: number): numbe
 /**
  * The points a task contributes right now, or null while it contributes nothing.
  *
- * A verified task pays its points. A failed mystery task carries its penalty as negative points
- * and costs exactly that. Everything else counts for nothing: an open task, a failed proof that
- * can still be retried, and a held task whose proof is under challenge until the vote closes.
+ * A verified task pays its points. A failed task stored with negative points costs exactly
+ * that: nothing writes one any more, but the penalties of the removed mystery task are still in
+ * the table and still count. Everything else counts for nothing: an open task, a failed proof
+ * that can still be retried, and a held task whose proof is under challenge until the vote closes.
  */
 export function taskScore(task: ScorableTask): number | null {
   if (task.status === "verified") return task.points;
@@ -141,7 +126,7 @@ export function longestStreak(proofDays: readonly number[]): number {
 }
 
 export type WeekScore = {
-  /** Sum of every task's own score, mystery penalties included. */
+  /** Sum of every task's own score, stored penalties included. */
   taskPoints: number;
   slotsCleared: number;
   slotBonus: number;

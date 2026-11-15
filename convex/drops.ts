@@ -9,7 +9,7 @@
  *
  * Both transitions are scheduled functions (ctx.scheduler), so a drop opens and closes on time
  * with no client involved, and no query has to read the clock to know whether a drop is live.
- * A mystery envelope is delivered already open; a group session opens when check-in does.
+ * A group session opens when its check-in does, 30 minutes before the start.
  *
  * Points live on the task row: standings sum tasks.points, so a bonus is written there the
  * moment it is earned and is never added again at read time. The scoring formulas are in
@@ -32,7 +32,6 @@ import {
 import { askJson } from "./ai";
 import { requireUser } from "./lib/auth";
 import {
-  clampMysteryPoints,
   firstFinisher,
   GROUP_CHECK_IN_WINDOW_MS,
   GROUP_REMINDER_LEAD_MS,
@@ -42,45 +41,43 @@ import {
   groupWrapUpText,
   HEADCOUNT_INSTRUCTIONS,
   HEADCOUNT_SCHEMA,
-  MYSTERY_INSTRUCTIONS,
-  MYSTERY_MEMORY_QUERY,
-  MYSTERY_SCHEMA,
-  MYSTERY_WINDOW_MS,
-  mysteryPrompt,
-  mysteryText,
   othersPresent,
-  parseMystery,
-  pickFallbackMystery,
   pickQuickTime,
   SHOWCASE_QUICK_TIME,
   QUICK_TIME_WINDOW_MS,
   quickTimeText,
 } from "./lib/dropRules";
-import { currentWeek } from "./leagues";
 import { dropOpened } from "./lib/notificationContent";
-import { clampWager, groupSessionScore, mysteryScore, quickTimeScore } from "./lib/scoring";
+import { groupSessionScore, quickTimeScore } from "./lib/scoring";
 import { weekStartOf } from "./lib/week";
-import { searchMemories } from "./memory";
 import { place, slot } from "./schema";
-import { pointsInLeague } from "./standings";
 
 /** leagues.maxMembers keeps every list here far below this; it only bounds the reads. */
 const MAX_ROWS = 500;
 
+/**
+ * The two kinds of drop. The schema still lists a third, "mystery": the daily mystery task was
+ * removed, and drops stored while it existed keep their rows. Nothing here reads them, because
+ * every lookup goes through liveDrop or dropsIn, which leave them out.
+ */
+type LiveDrop = Doc<"drops"> & { kind: "quicktime" | "group" };
+
+function isLive(drop: Doc<"drops">): drop is LiveDrop {
+  return drop.kind !== "mystery";
+}
+
 /** How tasks.source names a task that came from each kind of drop. */
-const TASK_SOURCE = { quicktime: "drop", mystery: "mystery", group: "group" } as const;
+const TASK_SOURCE = { quicktime: "drop", group: "group" } as const;
 
 // ─── Roster banner ───────────────────────────────────────────────────────────────────────────
 
 const activeDrop = v.object({
   dropId: v.id("drops"),
-  kind: v.union(v.literal("quicktime"), v.literal("mystery"), v.literal("group")),
+  kind: v.union(v.literal("quicktime"), v.literal("group")),
   title: v.string(),
   slot,
   points: v.number(),
   gesture: v.optional(v.string()),
-  sealed: v.boolean(),
-  wager: v.optional(v.number()),
   place: v.optional(place),
   opensAt: v.number(),
   closesAt: v.number(),
@@ -112,11 +109,8 @@ export const active = query({
   },
 });
 
-/** What a sealed envelope is called: its real title stays hidden until it is opened. */
-const SEALED_TITLE = "Mystery task";
-
 /** One drop as one player sees it, or null when there is nothing in it for them to do. */
-async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Promise<ActiveDrop | null> {
+async function bannerFor(ctx: QueryCtx, drop: LiveDrop, me: Id<"users">): Promise<ActiveDrop | null> {
   const banner = {
     dropId: drop._id,
     kind: drop.kind,
@@ -124,17 +118,10 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
     slot: drop.slot,
     points: drop.points,
     gesture: drop.gesture,
-    sealed: drop.sealed ?? false,
-    wager: drop.wager,
     place: drop.place,
     opensAt: drop.opensAt,
     closesAt: drop.closesAt,
   };
-  if (drop.kind === "mystery") {
-    if (drop.userId !== me) return null;
-    // Sealed, an envelope shows its slot and what it pays, and nothing about the task.
-    if (drop.sealed) return { ...banner, title: SEALED_TITLE, points: mysteryScore(drop.points, 0, true) };
-  }
   const myTask = (await tasksOf(ctx, drop._id)).find((task) => task.userId === me);
   if (drop.kind === "group") {
     // Shown to the whole league until it closes: it is how members find the session to RSVP
@@ -154,8 +141,7 @@ async function bannerFor(ctx: QueryCtx, drop: Doc<"drops">, me: Id<"users">): Pr
   // A banner asks for one action. Once my task is verified, or I never had one because I
   // joined after the drop opened, there is nothing left for me to do.
   if (myTask?.status !== "open") return null;
-  // The task's points, not the drop's: an opened envelope is worth double plus the wager.
-  return { ...banner, points: myTask.points, taskId: myTask._id };
+  return { ...banner, taskId: myTask._id };
 }
 
 // ─── Quick-time drops ────────────────────────────────────────────────────────────────────────
@@ -191,7 +177,6 @@ export const triggerQuickTime = mutation({
       slot: idea.slot,
       points: idea.points,
       gesture: idea.gesture,
-      sealed: false,
       opensAt: now,
       closesAt: now + QUICK_TIME_WINDOW_MS,
       status: "scheduled",
@@ -201,213 +186,6 @@ export const triggerQuickTime = mutation({
     return dropId;
   },
 });
-
-// ─── Mystery task ────────────────────────────────────────────────────────────────────────────
-//
-// Each morning every player gets one sealed envelope in each of their leagues. Opening it
-// (optionally with a wager) creates the task at double points. Passing costs nothing. Opening
-// it and not finishing before it closes costs 20 points and the wager.
-
-/** How many leagues one run of the morning job hands on before it schedules itself for the rest. */
-const LEAGUES_PER_RUN = 100;
-
-/**
- * Cron target (crons.ts): starts an envelope for every member of every league. Nothing bounds
- * the number of leagues, so it walks them a page at a time and gives each league its own
- * mutation; no single run then reads or schedules more than Convex allows one mutation.
- */
-export const dailyMystery = internalMutation({
-  args: { cursor: v.optional(v.string()) },
-  returns: v.null(),
-  handler: async (ctx, { cursor }) => {
-    const leagues = await ctx.db.query("leagues").paginate({ cursor: cursor ?? null, numItems: LEAGUES_PER_RUN });
-    for (const league of leagues.page) {
-      await ctx.scheduler.runAfter(0, internal.drops.mysteryForLeague, { leagueId: league._id });
-    }
-    if (!leagues.isDone) {
-      await ctx.scheduler.runAfter(0, internal.drops.dailyMystery, { cursor: leagues.continueCursor });
-    }
-    return null;
-  },
-});
-
-/** One league's share of the morning job: an envelope for every member who holds none. */
-export const mysteryForLeague = internalMutation({
-  args: { leagueId: v.id("leagues") },
-  returns: v.null(),
-  handler: async (ctx, { leagueId }) => {
-    // Running the job twice in a day must not hand anyone a second envelope, and that includes
-    // a player who already passed, finished or lost today's. An envelope's window is its day,
-    // so "today's" is any envelope whose window has not run out, whatever its status. Closed
-    // drops are read newest first: the old ones are the ones that can be left out.
-    const now = Date.now();
-    const closed = await ctx.db
-      .query("drops")
-      .withIndex("by_league_status", (q) => q.eq("leagueId", leagueId).eq("status", "closed"))
-      .order("desc")
-      .take(MAX_ROWS);
-    const todays = [...(await dropsIn(ctx, leagueId, "open")), ...closed].filter(
-      (drop) => drop.kind === "mystery" && drop.closesAt > now,
-    );
-    for (const member of await membersOf(ctx, leagueId)) {
-      if (todays.some((drop) => drop.userId === member.userId)) continue;
-      await ctx.scheduler.runAfter(0, internal.drops.writeMystery, { leagueId, userId: member.userId });
-    }
-    return null;
-  },
-});
-
-/**
- * Demo control: seals an envelope for the caller now instead of at 8 AM. Like the quick-time
- * button it replaces what is live, so every press shows a fresh sealed envelope. The one it
- * replaces closes by the ordinary rule: opened and unfinished costs 20 and the wager, anything
- * else costs nothing. The envelope appears a few seconds later, once the task has been chosen.
- */
-export const triggerMystery = mutation({
-  args: { leagueId: v.id("leagues") },
-  returns: v.null(),
-  handler: async (ctx, { leagueId }) => {
-    const me = await requireUser(ctx);
-    if ((await membership(ctx, leagueId, me._id)) === null) {
-      throw new ConvexError("Only a member of the league can start a mystery task");
-    }
-    for (const drop of await dropsIn(ctx, leagueId, "open")) {
-      if (drop.kind === "mystery" && drop.userId === me._id) await close(ctx, drop);
-    }
-    await ctx.scheduler.runAfter(0, internal.drops.writeMystery, { leagueId, userId: me._id });
-    return null;
-  },
-});
-
-/**
- * Chooses one player's mystery task, then seals it. Supermemory is searched before the model is
- * asked, so the task reflects the player's past weeks ("you skipped Body twice, so here's an
- * easy one").
- */
-export const writeMystery = internalAction({
-  args: { leagueId: v.id("leagues"), userId: v.id("users") },
-  returns: v.null(),
-  handler: async (ctx, { leagueId, userId }) => {
-    let idea = pickFallbackMystery();
-    try {
-      const memories = await searchMemories(userId, MYSTERY_MEMORY_QUERY);
-      const answer = await askJson<unknown>({
-        name: "mystery_task",
-        instructions: MYSTERY_INSTRUCTIONS,
-        text: mysteryPrompt(memories),
-        schema: MYSTERY_SCHEMA,
-      });
-      idea = parseMystery(answer) ?? idea;
-    } catch (error) {
-      // A morning without an envelope is worse than a generic one, so the fixed list stands in.
-      console.warn(`Mystery task came from the fixed list: ${error instanceof Error ? error.message : "unknown error"}`);
-    }
-    await ctx.runMutation(internal.drops.sealMystery, { leagueId, userId, ...idea });
-    return null;
-  },
-});
-
-/** Stores the envelope, sealed and already open for the day, and texts the player. */
-export const sealMystery = internalMutation({
-  args: { leagueId: v.id("leagues"), userId: v.id("users"), title: v.string(), slot, points: v.number() },
-  returns: v.null(),
-  handler: async (ctx, { leagueId, userId, title, slot, points }) => {
-    // Checked again here because two runs of the cron can both reach this point.
-    const open = await dropsIn(ctx, leagueId, "open");
-    if (open.some((drop) => drop.kind === "mystery" && drop.userId === userId)) return null;
-
-    const now = Date.now();
-    const dropId = await ctx.db.insert("drops", {
-      leagueId,
-      kind: "mystery",
-      userId,
-      title,
-      slot,
-      points: clampMysteryPoints(points),
-      sealed: true,
-      opensAt: now,
-      closesAt: now + MYSTERY_WINDOW_MS,
-      status: "open",
-    });
-    await ctx.scheduler.runAt(now + MYSTERY_WINDOW_MS, internal.drops.closeDrop, { dropId });
-    await sendText(ctx, { userId }, mysteryText(slot));
-    return null;
-  },
-});
-
-export const acceptMystery = mutation({
-  args: { dropId: v.id("drops"), wager: v.optional(v.number()) },
-  returns: v.null(),
-  handler: async (ctx, { dropId, wager }) => {
-    const me = await requireUser(ctx);
-    await openEnvelope(ctx, me._id, dropId, wager);
-    return null;
-  },
-});
-
-export const passMystery = mutation({
-  args: { dropId: v.id("drops") },
-  returns: v.null(),
-  handler: async (ctx, { dropId }) => {
-    const me = await requireUser(ctx);
-    await passEnvelope(ctx, me._id, dropId);
-    return null;
-  },
-});
-
-/** OPEN and "OPEN 30" by text: Keiki has matched the sender's phone to this user already. */
-export const acceptMysteryFor = internalMutation({
-  args: { userId: v.id("users"), dropId: v.id("drops"), wager: v.optional(v.number()) },
-  returns: v.null(),
-  handler: async (ctx, { userId, dropId, wager }) => {
-    await openEnvelope(ctx, userId, dropId, wager);
-    return null;
-  },
-});
-
-/** PASS by text. */
-export const passMysteryFor = internalMutation({
-  args: { userId: v.id("users"), dropId: v.id("drops") },
-  returns: v.null(),
-  handler: async (ctx, { userId, dropId }) => {
-    await passEnvelope(ctx, userId, dropId);
-    return null;
-  },
-});
-
-async function openEnvelope(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  dropId: Id<"drops">,
-  requestedWager: number | undefined,
-): Promise<void> {
-  const drop = await sealedEnvelope(ctx, userId, dropId);
-  // A wager is "of their own points", so it is capped at what the player has in this league.
-  // An over-sized one is cut down rather than refused, so "OPEN 80" by text still opens.
-  // A league that has not started its first week has no table to read, and nobody in it has points.
-  const banked = (await currentWeek(ctx, drop.leagueId)) === null ? 0 : await pointsInLeague(ctx, drop.leagueId, userId);
-  const wager = clampWager(requestedWager ?? 0, banked);
-  await ctx.db.patch("drops", dropId, { sealed: false, wager });
-  // Priced for success now. If the envelope closes unfinished, close() turns this negative.
-  await giveTask(ctx, drop, userId, weekStartOf(Date.now()), mysteryScore(drop.points, wager, true));
-}
-
-/** A passed envelope is closed still sealed: no task was ever created, so nothing is scored. */
-async function passEnvelope(ctx: MutationCtx, userId: Id<"users">, dropId: Id<"drops">): Promise<void> {
-  await sealedEnvelope(ctx, userId, dropId);
-  await ctx.db.patch("drops", dropId, { status: "closed" });
-}
-
-async function sealedEnvelope(ctx: QueryCtx, userId: Id<"users">, dropId: Id<"drops">): Promise<Doc<"drops">> {
-  const drop = await ctx.db.get("drops", dropId);
-  if (drop === null || drop.kind !== "mystery" || drop.userId !== userId) {
-    throw new ConvexError("That mystery task is not yours");
-  }
-  if (drop.status !== "open" || !drop.sealed) {
-    throw new ConvexError("That mystery task was already opened, passed or has expired");
-  }
-  return drop;
-}
 
 // ─── Group sessions ──────────────────────────────────────────────────────────────────────────
 //
@@ -483,7 +261,6 @@ async function startGroupSession(
     // One slot fits the row; standings count a verified group task toward Body and People.
     slot: "body",
     points: GROUP_SESSION_POINTS,
-    sealed: false,
     place: session.place,
     opensAt: startsAt,
     closesAt: startsAt + GROUP_CHECK_IN_WINDOW_MS,
@@ -509,7 +286,7 @@ async function startGroupSession(
 }
 
 async function joinGroupSession(ctx: MutationCtx, userId: Id<"users">, dropId: Id<"drops">): Promise<void> {
-  const drop = await ctx.db.get("drops", dropId);
+  const drop = await liveDrop(ctx, dropId);
   if (drop === null || drop.kind !== "group") throw new ConvexError("That group session doesn't exist");
   if (drop.status === "closed") throw new ConvexError("That group session is over");
   if ((await membership(ctx, drop.leagueId, userId)) === null) {
@@ -569,7 +346,7 @@ export const recordHeadcount = internalMutation({
   args: { dropId: v.id("drops"), storageId: v.id("_storage"), people: v.number() },
   returns: v.null(),
   handler: async (ctx, { dropId, storageId, people }) => {
-    const drop = await ctx.db.get("drops", dropId);
+    const drop = await liveDrop(ctx, dropId);
     const headcount = Math.max(0, Math.floor(people));
     if (drop === null || headcount <= (drop.headcount ?? 0)) return null;
     await ctx.db.patch("drops", dropId, { headcount, groupPhotoId: storageId });
@@ -589,7 +366,7 @@ export const openDrop = internalMutation({
   args: { dropId: v.id("drops") },
   returns: v.null(),
   handler: async (ctx, { dropId }) => {
-    const drop = await ctx.db.get("drops", dropId);
+    const drop = await liveDrop(ctx, dropId);
     // Already open, or closed before it opened because a newer drop replaced it.
     if (drop === null || drop.status !== "scheduled") return null;
     await ctx.db.patch("drops", dropId, { status: "open" });
@@ -643,7 +420,7 @@ export const closeDrop = internalMutation({
   args: { dropId: v.id("drops") },
   returns: v.null(),
   handler: async (ctx, { dropId }) => {
-    const drop = await ctx.db.get("drops", dropId);
+    const drop = await liveDrop(ctx, dropId);
     if (drop === null || drop.status === "closed") return null;
     await close(ctx, drop);
     return null;
@@ -660,7 +437,7 @@ export const onTaskVerified = internalMutation({
   handler: async (ctx, { taskId }) => {
     const task = await ctx.db.get("tasks", taskId);
     if (task === null || task.dropId === undefined) return null;
-    const drop = await ctx.db.get("drops", task.dropId);
+    const drop = await liveDrop(ctx, task.dropId);
     if (drop === null) return null;
     await reprice(ctx, drop);
     await pointsChanged(ctx, drop.leagueId);
@@ -683,7 +460,7 @@ export const afterRuling = internalMutation({
   handler: async (ctx, { taskId }) => {
     const task = await ctx.db.get("tasks", taskId);
     if (task === null || task.dropId === undefined) return null;
-    const drop = await ctx.db.get("drops", task.dropId);
+    const drop = await liveDrop(ctx, task.dropId);
     if (drop === null) return null;
     await reprice(ctx, drop);
     if (drop.status === "closed") await failUnproven(ctx, drop);
@@ -692,12 +469,12 @@ export const afterRuling = internalMutation({
   },
 });
 
-async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
+async function close(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
   // Price one last time: the backstop for a verification that never reached onTaskVerified.
   await reprice(ctx, drop);
   await ctx.db.patch("drops", drop._id, { status: "closed" });
   await failUnproven(ctx, drop);
-  // The last pricing and any mystery penalty are in.
+  // The last pricing is in.
   await pointsChanged(ctx, drop.leagueId);
 
   if (drop.kind !== "group") return;
@@ -717,13 +494,12 @@ async function close(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
 }
 
 /** Ends the tasks nobody proved before the window shut: they can no longer be submitted. */
-async function failUnproven(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
+async function failUnproven(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
   for (const task of await tasksOf(ctx, drop._id)) {
     if (task.status !== "open") continue;
-    // A missed quick-time drop or check-in simply scores nothing. An envelope that was opened
-    // and not finished costs points, and standings count the negative points of a failed task.
-    const points = drop.kind === "mystery" ? mysteryScore(drop.points, drop.wager ?? 0, false) : drop.points;
-    await ctx.db.patch("tasks", task._id, { status: "failed", points });
+    // A missed drop or check-in scores nothing: standings count a failed task only when its
+    // points are negative. The points go back to what the drop offered, without any bonus.
+    await ctx.db.patch("tasks", task._id, { status: "failed", points: drop.points });
   }
 }
 
@@ -733,10 +509,7 @@ async function failUnproven(ctx: MutationCtx, drop: Doc<"drops">): Promise<void>
  * anyone twice, and it corrects itself if a challenge later overturns the first finisher.
  * Every caller follows it with pointsChanged.
  */
-async function reprice(ctx: MutationCtx, drop: Doc<"drops">): Promise<void> {
-  // An envelope is priced once, when it is opened, and the wager is fixed from then on.
-  if (drop.kind === "mystery") return;
-
+async function reprice(ctx: MutationCtx, drop: LiveDrop): Promise<void> {
   if (drop.kind === "group") {
     // A check-in is a verified task. Everyone present is worth the same, and that number
     // rises for all of them each time another attendee checks in or a fuller photo is counted.
@@ -791,11 +564,17 @@ async function dropsIn(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
   status: Doc<"drops">["status"],
-): Promise<Doc<"drops">[]> {
-  return await ctx.db
+): Promise<LiveDrop[]> {
+  const drops = await ctx.db
     .query("drops")
     .withIndex("by_league_status", (q) => q.eq("leagueId", leagueId).eq("status", status))
     .take(MAX_ROWS);
+  return drops.filter(isLive);
+}
+
+async function liveDrop(ctx: QueryCtx, dropId: Id<"drops">): Promise<LiveDrop | null> {
+  const drop = await ctx.db.get("drops", dropId);
+  return drop !== null && isLive(drop) ? drop : null;
 }
 
 /**
@@ -804,7 +583,7 @@ async function dropsIn(
  */
 async function giveTask(
   ctx: MutationCtx,
-  drop: Doc<"drops">,
+  drop: LiveDrop,
   userId: Id<"users">,
   weekStart: number,
   points = drop.points,

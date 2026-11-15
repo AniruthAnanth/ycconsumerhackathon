@@ -116,7 +116,7 @@ export type Pot = {
 
 export type Drop = {
   dropId: Id<"drops">;
-  kind: "quicktime" | "mystery" | "group";
+  kind: "quicktime" | "group";
   title: string;
   slot: Slot;
   points: number;

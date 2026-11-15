@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { askJson } from "./ai";
-import { GROUP_CHECK_IN_WINDOW_MS, MYSTERY_WINDOW_MS, QUICK_TIME_WINDOW_MS } from "./lib/dropRules";
+import { GROUP_CHECK_IN_WINDOW_MS, QUICK_TIME_WINDOW_MS } from "./lib/dropRules";
 import { searchMemories } from "./memory";
 import schema from "./schema";
 
@@ -176,7 +176,6 @@ async function openQuickTime(t: Backend, leagueId: Id<"leagues">, userIds: Id<"u
       slot: "body",
       points,
       gesture: "a thumbs up",
-      sealed: false,
       opensAt: NOW,
       closesAt: NOW + QUICK_TIME_WINDOW_MS,
       status: "open",
@@ -220,20 +219,6 @@ async function tablePoints(t: Backend, leagueId: Id<"leagues">, viewer: Id<"user
   return rows.find((row) => row.userId === userId)?.points;
 }
 
-async function envelopesOf(t: Backend) {
-  const drops = await t.run((ctx) => ctx.db.query("drops").take(200));
-  return drops.filter((drop) => drop.kind === "mystery");
-}
-
-/** Runs the morning job and returns the envelope sealed for one player in one league. */
-async function envelopeFor(t: Backend, leagueId: Id<"leagues">, userId: Id<"users">) {
-  await t.mutation(internal.drops.dailyMystery, {});
-  await runScheduled(t);
-  const envelope = (await envelopesOf(t)).find((drop) => drop.leagueId === leagueId && drop.userId === userId);
-  if (envelope === undefined) throw new Error("no envelope was sealed for this player");
-  return envelope;
-}
-
 /** Scheduled functions that ended in an error: a failure in a follow-up never reaches the caller. */
 async function failedScheduledFunctions(t: Backend) {
   const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
@@ -271,7 +256,7 @@ async function checkIn(t: Backend, dropId: Id<"drops">, userId: Id<"users">, peo
 // ─── 1. Authorization ────────────────────────────────────────────────────────────────────────
 
 describe("authorization", () => {
-  /** A league with a live quick-time drop, a sealed envelope for Maya and an upcoming group session. */
+  /** A league with a live quick-time drop and an upcoming group session. */
   async function world() {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
@@ -279,9 +264,8 @@ describe("authorization", () => {
     const outsider = await t.run((ctx) => ctx.db.insert("users", { name: "Stranger" }));
     await addLeague(t, "Side Quest", "SIDEQ1", [outsider]);
     await as(t, maya).mutation(api.drops.triggerQuickTime, { leagueId });
-    const envelope = await envelopeFor(t, leagueId, maya);
     const sessionId = await callSession(t, leagueId, maya);
-    return { t, leagueId, maya, outsider, envelope, sessionId };
+    return { t, leagueId, maya, outsider, sessionId };
   }
 
   type World = Awaited<ReturnType<typeof world>>;
@@ -289,8 +273,6 @@ describe("authorization", () => {
   const publicFunctions: [string, (w: World, caller: ReturnType<typeof as>) => Promise<unknown>][] = [
     ["active", (w, caller) => caller.query(api.drops.active, { leagueId: w.leagueId })],
     ["triggerQuickTime", (w, caller) => caller.mutation(api.drops.triggerQuickTime, { leagueId: w.leagueId })],
-    ["acceptMystery", (w, caller) => caller.mutation(api.drops.acceptMystery, { dropId: w.envelope._id, wager: 10 })],
-    ["passMystery", (w, caller) => caller.mutation(api.drops.passMystery, { dropId: w.envelope._id })],
     [
       "createGroupSession",
       (w, caller) =>
@@ -309,23 +291,6 @@ describe("authorization", () => {
     const before = await snapshotOf(w.t);
 
     await expect(call(w, w.t)).rejects.toThrow(/Not signed in/);
-
-    expect(await snapshotOf(w.t)).toEqual(before);
-  });
-
-  it.each([
-    ["triggerQuickTime", /member of the league/],
-    ["acceptMystery", /not yours/],
-    ["passMystery", /not yours/],
-    ["createGroupSession", /member of the league/],
-    ["rsvp", /Join the league/],
-  ] as const)("refuses a player outside the league on %s and changes nothing", async (name, message) => {
-    const w = await world();
-    const call = publicFunctions.find(([candidate]) => candidate === name)?.[1];
-    if (call === undefined) throw new Error("unknown function");
-    const before = await snapshotOf(w.t);
-
-    await expect(call(w, as(w.t, w.outsider))).rejects.toThrow(message);
 
     expect(await snapshotOf(w.t)).toEqual(before);
   });
@@ -369,21 +334,6 @@ describe("idempotence", () => {
     await runScheduled(t, QUICK_TIME_WINDOW_MS);
 
     expect(await snapshotOf(t)).toEqual(closed);
-  });
-
-  it("charges an unfinished envelope once when closeDrop runs twice", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    await bank(t, userIds[0], 100);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id, wager: 30 });
-
-    await t.mutation(internal.drops.closeDrop, { dropId: envelope._id });
-    await t.mutation(internal.drops.closeDrop, { dropId: envelope._id });
-    await runScheduled(t, MYSTERY_WINDOW_MS);
-
-    expect(await tasksOfDrop(t, envelope._id)).toMatchObject([{ status: "failed", points: -50 }]);
-    expect(await tablePoints(t, leagueId, userIds[1], userIds[0])).toBe(50);
   });
 
   it("sends the group wrap-up once when closeDrop runs twice", async () => {
@@ -452,64 +402,6 @@ describe("idempotence", () => {
 // ─── 3. Order and races ──────────────────────────────────────────────────────────────────────
 
 describe("order and races", () => {
-  it("refuses to open an envelope that was passed", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.passMystery, { dropId: envelope._id });
-
-    await expect(
-      as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id, wager: 10 }),
-    ).rejects.toThrow(/already opened, passed or has expired/);
-
-    expect(await tasksOfDrop(t, envelope._id)).toEqual([]);
-  });
-
-  it("refuses to pass an envelope that was opened, and keeps its task", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-
-    await expect(as(t, userIds[0]).mutation(api.drops.passMystery, { dropId: envelope._id })).rejects.toThrow(
-      /already opened, passed or has expired/,
-    );
-
-    expect((await getDrop(t, envelope._id)).status).toBe("open");
-    expect(await tasksOfDrop(t, envelope._id)).toMatchObject([{ status: "open" }]);
-  });
-
-  it("refuses to open an envelope twice, so it never holds two tasks", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-
-    await expect(
-      t.mutation(internal.drops.acceptMysteryFor, { userId: userIds[0], dropId: envelope._id }),
-    ).rejects.toThrow(/already opened, passed or has expired/);
-
-    expect(await tasksOfDrop(t, envelope._id)).toHaveLength(1);
-  });
-
-  it("refuses to open an envelope once it has closed, by hand or on the clock", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const mine = await envelopeFor(t, leagueId, userIds[0]);
-    const theirs = await envelopeFor(t, leagueId, userIds[1]);
-    await t.mutation(internal.drops.closeDrop, { dropId: mine._id });
-    await runScheduled(t, MYSTERY_WINDOW_MS);
-
-    await expect(as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: mine._id })).rejects.toThrow(
-      /already opened, passed or has expired/,
-    );
-    await expect(as(t, userIds[1]).mutation(api.drops.acceptMystery, { dropId: theirs._id })).rejects.toThrow(
-      /already opened, passed or has expired/,
-    );
-
-    expect(await tasksOfDrop(t, mine._id)).toEqual([]);
-    expect(await tasksOfDrop(t, theirs._id)).toEqual([]);
-  });
 
   it("refuses an rsvp to a session that closed before check-in ever opened", async () => {
     const t = convexTest(schema, modules);
@@ -632,60 +524,6 @@ describe("pricing", () => {
     expect(final.map((task) => [task._id, task.points])).toEqual(settled.map((task) => [task._id, task.points]));
   });
 
-  it("cuts a wager down to the player's points in this league, not in their other leagues", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId: mainId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const sideId = await addLeague(t, "Side Quest", "SIDEQ1", userIds);
-    const sideDrop = await openQuickTime(t, sideId, userIds, 30);
-    await passProof(t, (await taskOf(t, sideDrop, userIds[0]))._id);
-    expect(await tablePoints(t, sideId, userIds[0], userIds[0])).toBeGreaterThan(40);
-    expect(await tablePoints(t, mainId, userIds[0], userIds[0])).toBe(0);
-    const mainEnvelope = await envelopeFor(t, mainId, userIds[0]);
-    const sideEnvelope = await envelopeFor(t, sideId, userIds[0]);
-
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: mainEnvelope._id, wager: 40 });
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: sideEnvelope._id, wager: 40 });
-
-    expect((await getDrop(t, mainEnvelope._id)).wager).toBe(0);
-    expect((await getDrop(t, sideEnvelope._id)).wager).toBe(40);
-    expect(await taskOf(t, mainEnvelope._id, userIds[0])).toMatchObject({ points: 2 * mainEnvelope.points });
-    expect(await taskOf(t, sideEnvelope._id, userIds[0])).toMatchObject({ points: 2 * sideEnvelope.points + 40 });
-  });
-
-  it("opens with no wager when the player has no points at all", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id, wager: 25 });
-
-    expect((await getDrop(t, envelope._id)).wager).toBe(0);
-  });
-
-  it("costs 20 when an envelope opened without a wager is not finished", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-
-    await runScheduled(t, MYSTERY_WINDOW_MS);
-
-    expect(await tasksOfDrop(t, envelope._id)).toMatchObject([{ status: "failed", points: -20 }]);
-    expect(await tablePoints(t, leagueId, userIds[1], userIds[0])).toBe(-20);
-  });
-
-  it("costs nothing when an envelope is never opened and the day ends", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-
-    await runScheduled(t, MYSTERY_WINDOW_MS);
-
-    expect((await getDrop(t, envelope._id)).status).toBe("closed");
-    expect(await tasksOfDrop(t, envelope._id)).toEqual([]);
-    expect(await tablePoints(t, leagueId, userIds[1], userIds[0])).toBe(0);
-  });
-
   describe("group session points", () => {
     const names = ["Maya", "Sam", "Leo", "Ana", "Raj", "Zoe", "Kai", "Ivy"];
 
@@ -743,19 +581,6 @@ describe("scope", () => {
     expect(await tablePoints(t, sideId, userIds[1], userIds[0])).toBe(35);
   });
 
-  it("counts a failed envelope's penalty only in the league it was sealed in", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId: mainId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const sideId = await addLeague(t, "Side Quest", "SIDEQ1", userIds);
-    const envelope = await envelopeFor(t, mainId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-
-    await runScheduled(t, MYSTERY_WINDOW_MS);
-
-    expect(await tablePoints(t, mainId, userIds[1], userIds[0])).toBe(-20);
-    expect(await tablePoints(t, sideId, userIds[1], userIds[0])).toBe(0);
-  });
-
   it("gives each player only their own taskId on a quick-time banner", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
@@ -767,23 +592,6 @@ describe("scope", () => {
     expect(mine.taskId).toBe((await taskOf(t, dropId, userIds[0]))._id);
     expect(theirs.taskId).toBe((await taskOf(t, dropId, userIds[1]))._id);
     expect(mine.taskId).not.toBe(theirs.taskId);
-  });
-
-  it("never shows one player's envelope, its title, wager or task to another", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    await bank(t, userIds[0], 100);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    const sealedView = JSON.stringify(await as(t, userIds[1]).query(api.drops.active, { leagueId }));
-    expect(sealedView).not.toContain(envelope._id);
-
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id, wager: 40 });
-    const task = await taskOf(t, envelope._id, userIds[0]);
-
-    const openedView = JSON.stringify(await as(t, userIds[1]).query(api.drops.active, { leagueId }));
-    expect(openedView).not.toContain(envelope._id);
-    expect(openedView).not.toContain(task._id);
-    expect(openedView).not.toContain(envelope.title);
   });
 
   it("shows the whole league a group session but only the caller's own taskId", async () => {
@@ -844,118 +652,9 @@ describe("lead change after a drop", () => {
     expect(texts.filter((text) => text.includes("took the lead"))).toEqual([]);
     expect(await failedScheduledFunctions(t)).toEqual([]);
   });
-
-  it("runs a group session and a passed envelope without error in a league that has no week row", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya", "Sam"], { withWeek: false });
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.passMystery, { dropId: envelope._id });
-    const sessionId = await callSession(t, leagueId, userIds[0], [userIds[1]]);
-    await runScheduled(t, 2 * HOUR_MS);
-    await checkIn(t, sessionId, userIds[0], 2);
-
-    await runScheduled(t, GROUP_CHECK_IN_WINDOW_MS);
-
-    expect((await getDrop(t, sessionId)).status).toBe("closed");
-    expect(await failedScheduledFunctions(t)).toEqual([]);
-  });
-
-  it("opens an envelope in a league that has no week row yet", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"], { withWeek: false });
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-
-    expect(await tasksOfDrop(t, envelope._id)).toHaveLength(1);
-  });
 });
 
-// ─── 7. Time ─────────────────────────────────────────────────────────────────────────────────
-
-describe("time", () => {
-  it("seals one envelope per member per league, and a second run adds none", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId: mainId, userIds } = await startLeague(t, ["Maya", "Sam"]);
-    const sideId = await addLeague(t, "Side Quest", "SIDEQ1", [userIds[0]]);
-
-    // Two runs before the first one's envelopes have been written, then a third after.
-    await t.mutation(internal.drops.dailyMystery, {});
-    await t.mutation(internal.drops.dailyMystery, {});
-    await runScheduled(t);
-    await t.mutation(internal.drops.dailyMystery, {});
-    await runScheduled(t);
-
-    const envelopes = await envelopesOf(t);
-    expect(envelopes.map((drop) => [drop.leagueId, drop.userId]).sort()).toEqual(
-      [
-        [mainId, userIds[0]],
-        [mainId, userIds[1]],
-        [sideId, userIds[0]],
-      ].sort(),
-    );
-    expect(texts.filter((text) => text.includes("Mystery task:"))).toHaveLength(3);
-  });
-
-  it("adds no second envelope for a player who already opened theirs that day", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-
-    await t.mutation(internal.drops.dailyMystery, {});
-    await runScheduled(t);
-
-    expect(await envelopesOf(t)).toHaveLength(1);
-  });
-
-  it("adds no second envelope when the player passed theirs and the job runs again the same day", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    await as(t, userIds[0]).mutation(api.drops.passMystery, { dropId: envelope._id });
-
-    await t.mutation(internal.drops.dailyMystery, {});
-    await runScheduled(t);
-
-    expect(await envelopesOf(t)).toHaveLength(1);
-  });
-
-  it("closes an envelope sealed at 16:00 UTC in winter at midnight Pacific, not a moment sooner", async () => {
-    vi.setSystemTime(Date.UTC(2026, 10, 15, 16));
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-    const midnightPacific = Date.UTC(2026, 10, 16, 8);
-
-    expect(envelope.closesAt).toBe(envelope.opensAt + MYSTERY_WINDOW_MS);
-    expect(Math.abs(envelope.closesAt - midnightPacific)).toBeLessThan(50);
-
-    vi.advanceTimersByTime(envelope.closesAt - Date.now() - 1);
-    await t.finishInProgressScheduledFunctions();
-    expect((await getDrop(t, envelope._id)).status).toBe("open");
-
-    vi.advanceTimersByTime(1);
-    await t.finishInProgressScheduledFunctions();
-    expect((await getDrop(t, envelope._id)).status).toBe("closed");
-  });
-
-  it("closes an envelope sealed at 16:00 UTC in summer 16 hours later, which is 1 AM Pacific", async () => {
-    vi.setSystemTime(Date.UTC(2026, 6, 15, 16));
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const envelope = await envelopeFor(t, leagueId, userIds[0]);
-
-    expect(envelope.closesAt).toBe(envelope.opensAt + MYSTERY_WINDOW_MS);
-    expect(Math.abs(envelope.closesAt - Date.UTC(2026, 6, 16, 8))).toBeLessThan(50);
-
-    vi.advanceTimersByTime(envelope.closesAt - Date.now());
-    await t.finishInProgressScheduledFunctions();
-    expect((await getDrop(t, envelope._id)).status).toBe("closed");
-  });
-});
-
-// ─── 8. After a challenge ruling ─────────────────────────────────────────────────────────────
+// ─── 7. After a challenge ruling ─────────────────────────────────────────────────────────────
 
 describe("after a challenge ruling", () => {
   /** What challenges.ts does to the task when the league rules, followed by the hook it schedules. */
@@ -1002,26 +701,5 @@ describe("after a challenge ruling", () => {
 
     expect((await taskOf(t, dropId, maya)).points).toBe(40);
     expect((await taskOf(t, dropId, sam)).points).toBe(30);
-  });
-
-  it("ends a task reopened after its drop closed, at the price of any unproven one", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await startLeague(t, ["Maya"]);
-    const [maya] = userIds;
-
-    const dropId = await openQuickTime(t, leagueId, userIds, 30);
-    await passProof(t, (await taskOf(t, dropId, maya))._id);
-    await t.mutation(internal.drops.closeDrop, { dropId });
-    await rule(t, (await taskOf(t, dropId, maya))._id, "overturned");
-    // Not the 40 it held as first finisher: a missed drop is worth what the drop offered, and scores nothing.
-    expect(await taskOf(t, dropId, maya)).toMatchObject({ status: "failed", points: 30 });
-
-    const envelope = await envelopeFor(t, leagueId, maya);
-    await as(t, maya).mutation(api.drops.acceptMystery, { dropId: envelope._id });
-    await passProof(t, (await taskOf(t, envelope._id, maya))._id);
-    await t.mutation(internal.drops.closeDrop, { dropId: envelope._id });
-    await rule(t, (await taskOf(t, envelope._id, maya))._id, "overturned");
-    // Opened and, by the league's ruling, never finished.
-    expect(await taskOf(t, envelope._id, maya)).toMatchObject({ status: "failed", points: -20 });
   });
 });

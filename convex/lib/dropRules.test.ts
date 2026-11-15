@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  clampMysteryPoints,
   firstFinisher,
   GESTURES,
   groupAnnouncementText,
   groupReminderText,
   groupWrapUpText,
-  mysteryPrompt,
-  mysteryText,
   othersPresent,
-  parseMystery,
   pickQuickTime,
   QUICK_TIME_IDEAS,
   QUICK_TIME_WINDOW_MS,
@@ -47,38 +43,6 @@ describe("quick-time drops", () => {
     expect(spokenDuration(30 * 60 * 1000)).toBe("30 minutes");
     expect(spokenDuration(90 * 60 * 1000)).toBe("90 minutes");
     expect(spokenDuration(10 * 1000)).toBe("1 minute");
-  });
-});
-
-describe("mystery task", () => {
-  it("keeps the model's points inside the advertised 30 to 60 range", () => {
-    expect(clampMysteryPoints(5)).toBe(15);
-    expect(clampMysteryPoints(22.4)).toBe(22);
-    expect(clampMysteryPoints(90)).toBe(30);
-    expect(clampMysteryPoints(Number.NaN)).toBe(15);
-  });
-
-  it("accepts a usable answer from the model and rejects anything else", () => {
-    expect(parseMystery({ title: " Ten-minute jog ", slot: "body", points: 44 })).toEqual({
-      title: "Ten-minute jog",
-      slot: "body",
-      points: 30,
-    });
-    expect(parseMystery({ title: "", slot: "body", points: 20 })).toBeNull();
-    expect(parseMystery({ title: "Anything", slot: "flex", points: 20 })).toBeNull();
-    expect(parseMystery({ title: "Anything", slot: "body", points: "20" })).toBeNull();
-    expect(parseMystery(null)).toBeNull();
-  });
-
-  it("puts the player's memories in front of the model", () => {
-    expect(mysteryPrompt(["Skipped Body twice", "Cleared Chores early"])).toBe(
-      "What we remember about this player's past weeks:\n- Skipped Body twice\n- Cleared Chores early",
-    );
-    expect(mysteryPrompt([])).toMatch(/no history yet/);
-  });
-
-  it("writes the morning text exactly as SPEC.md section 7 has it", () => {
-    expect(mysteryText("body")).toBe("Mystery task: Body, 30 to 60 points. Reply OPEN or PASS.");
   });
 });
 

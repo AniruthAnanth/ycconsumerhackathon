@@ -63,7 +63,7 @@ describe("dropView", () => {
   });
 
   it("shows nothing for a drop of a kind the app no longer has", () => {
-    expect(dropView(drop({ kind: "mystery" }), NOW)).toEqual({ type: "hidden" });
+    expect(dropView(drop({ kind: "something new" as never }), NOW)).toEqual({ type: "hidden" });
   });
 
   it("counts a group session down to its start, then to its end", () => {
