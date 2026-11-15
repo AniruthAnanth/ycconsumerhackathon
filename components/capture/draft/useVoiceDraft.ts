@@ -5,6 +5,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { haptics } from "@/lib/native/haptics";
+import { announceLineupLocked } from "@/lib/notifications/lineupLock";
 
 import { capture } from "../backend";
 import { errorMessage } from "../errorMessage";
@@ -84,6 +85,8 @@ export function useVoiceDraft() {
     dispatch({ type: "lockRequested" });
     try {
       await lock({ tasks: tasksToLock(state.tasks), transcript: state.transcript });
+      // The player's own lock is when the notifications host may ask for permission.
+      announceLineupLocked();
       haptics.success();
       router.replace("/(tabs)");
     } catch (error) {
