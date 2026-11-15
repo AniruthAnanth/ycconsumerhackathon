@@ -11,7 +11,7 @@ import { Button, OutlinedPillButton } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Versus } from "./api";
 import { outcomeLine, potLine } from "./versusText";
@@ -120,12 +120,13 @@ export function VersusPot({ versus }: { versus: Versus }) {
 const styles = StyleSheet.create({
   panel: {
     gap: spacing.sm,
-    padding: spacing.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: SCREEN_MARGIN,
     alignItems: "flex-start",
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  pot: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
-  outcome: { fontSize: font.total, fontFamily: fontFamily.bold, color: colors.text },
+  pot: { fontSize: font.title, fontFamily: fontFamily.extraBold, color: colors.text },
+  outcome: { fontSize: font.total, fontFamily: fontFamily.extraBold, color: colors.text },
   detail: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
 });

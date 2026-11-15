@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { formatScore } from "@/components/ui";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, radius, spacing } from "@/theme";
 
 import type { Bracket, BracketMatch, BracketRound, BracketSide } from "./types";
 
@@ -228,7 +228,9 @@ const styles = StyleSheet.create({
     height: MATCH_HEIGHT,
     borderWidth: hairline,
     borderColor: colors.divider,
-    backgroundColor: colors.background,
+    borderRadius: radius.control,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
   },
   matchDivider: { height: hairline, backgroundColor: colors.divider },
   line28: {

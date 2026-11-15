@@ -68,7 +68,7 @@ function TableRow({ row, isMe, onPress }: { row: SeasonTableRow; isMe: boolean; 
 
 const styles = StyleSheet.create({
   header: {
-    height: 28,
+    height: 36,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.md,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   points: { width: POINTS_WIDTH, alignItems: "flex-end" },
   pointsHeader: { width: POINTS_WIDTH, textAlign: "right" },
   record: { width: RECORD_WIDTH, textAlign: "right", marginRight: spacing.md },
-  rankValue: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.textMuted },
+  rankValue: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted },
   name: { flex: 1, fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
   me: { color: colors.accent },
   recordValue: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.text, fontVariant: ["tabular-nums"] },
