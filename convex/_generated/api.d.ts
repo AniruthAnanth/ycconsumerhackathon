@@ -30,6 +30,7 @@ import type * as lineup from "../lineup.js";
 import type * as memory from "../memory.js";
 import type * as profile from "../profile.js";
 import type * as proofs from "../proofs.js";
+import type * as seasons from "../seasons.js";
 import type * as whop from "../whop.js";
 import type * as wrapped from "../wrapped.js";
 
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   memory: typeof memory;
   profile: typeof profile;
   proofs: typeof proofs;
+  seasons: typeof seasons;
   whop: typeof whop;
   wrapped: typeof wrapped;
 }>;
