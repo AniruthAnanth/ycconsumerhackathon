@@ -1,4 +1,4 @@
-import type { ArtworkName } from "./artwork";
+import type { ArtworkName } from "./artworkCatalog";
 
 type Slot = "body" | "mind" | "recharge" | "chores" | "people" | "flex";
 

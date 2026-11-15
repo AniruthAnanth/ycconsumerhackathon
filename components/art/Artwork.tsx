@@ -1,7 +1,7 @@
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { SvgXml } from "react-native-svg";
 
-import { ARTWORK, type ArtworkName } from "./artwork";
+import { ARTWORK, type ArtworkName } from "./artworkCatalog";
 
 type Props = {
   name: ArtworkName;
