@@ -1,13 +1,15 @@
+import { CORE_SLOTS, SWEEP_BONUS } from "./scoring";
+
 /**
  * Market-style odds for a league week, as pure functions: the chance to win a matchup, a
- * projected final score with a range, and each member's chance to top the week.
+ * projected final score with a range, and each member's chance to win the pot.
  *
  * The model is deliberately small enough to explain on one screen. Each open task finishes
  * independently with a chance that comes from the player's own history and the time left in the
  * week; a player's final score is then confirmed points plus a sum of those coin flips, which we
- * treat as normal. Two normals give a matchup chance in closed form, and the chance to top the
- * whole league is one integral done on a fixed grid. No sampling, so a query returns the same
- * numbers every time it runs.
+ * treat as normal. Two normals give a matchup chance in closed form, and the chance to win the
+ * pot comes from a seeded simulation of the rest of the week, so a query returns the same numbers every
+ * time it runs.
  */
 
 /** A new player's completion rate before they have any history: most drafted tasks get done. */
@@ -18,7 +20,6 @@ export const PRIOR_WEIGHT_TASKS = 5;
 const RANGE_Z = 1.2816;
 /** A score with no open tasks still gets this much spread, so two finished players tie at 50/50 rather than dividing by zero. */
 const MIN_SPREAD_POINTS = 0.5;
-const GRID_STEPS = 400;
 
 /** The share of a player's past tasks they verified, pulled toward the prior while the record is short. */
 export function completionRate(verified: number, total: number): number {
@@ -82,33 +83,95 @@ export function winChance(mine: ScoreProjection, theirs: ScoreProjection): numbe
   return normalCdf((mine.mean - theirs.mean) / spread);
 }
 
+/** Draws in the pot simulation: enough that a chance moves by well under a point between runs of a different seed. */
+export const POT_DRAWS = 2000;
+
+export type PotEntrant = {
+  /** False for a member who hasn't paid in: they still score but can't take the pot. */
+  inPot: boolean;
+  confirmed: number;
+  /** Core slots already cleared. */
+  clearedSlots: number;
+  /** Each open task's value, and the core slot it would clear for the first time, if any. */
+  open: readonly { value: number; clearsSlot?: string }[];
+  /** The chance each open task still lands (remainingChance). */
+  chance: number;
+};
+
+export type PotOdds = {
+  /** Each entrant's chance to win the pot: to finish the week as the top-scoring player who cleared all five slots. */
+  pot: number[];
+  /** The chance nobody in the pot clears all five, so every stake goes back. pot plus nobody sums to exactly 1. */
+  nobody: number;
+  /** Each entrant's chance of the week's top score, finished or not; sums to 1. Free leagues rank by this. */
+  top: number[];
+  /** Each entrant's chance to clear all five slots. */
+  finish: number[];
+};
+
 /**
- * Each player's chance of the top score: P(i is highest) = integral of i's density times every
- * rival's CDF, summed on a fixed grid and normalised so the field adds up to exactly 1.
+ * The week played out POT_DRAWS times. In each draw every open task lands or doesn't with its
+ * chance, which settles who clears all five slots and what everyone scores; the pot goes to the
+ * top-scoring finisher (ties split). Finishing and scoring come from the same draw, so a player who
+ * needs every task to finish also scores more when they do. A fixed seed keeps the query
+ * deterministic, which Convex requires and which keeps the numbers from flickering.
  */
-export function topChances(players: readonly ScoreProjection[]): number[] {
-  if (players.length === 0) return [];
-  if (players.length === 1) return [1];
-  const sds = players.map((player) => Math.max(player.sd, MIN_SPREAD_POINTS));
-  const from = Math.min(...players.map((player, i) => player.mean - 6 * sds[i]));
-  const to = Math.max(...players.map((player, i) => player.mean + 6 * sds[i]));
-  const step = (to - from) / GRID_STEPS;
-  const sums = players.map(() => 0);
-  for (let k = 0; k <= GRID_STEPS; k++) {
-    const x = from + k * step;
-    const cdfs = players.map((player, i) => normalCdf((x - player.mean) / sds[i]));
-    players.forEach((player, i) => {
-      const z = (x - player.mean) / sds[i];
-      const density = Math.exp(-0.5 * z * z) / (sds[i] * Math.sqrt(2 * Math.PI));
-      let others = 1;
-      cdfs.forEach((cdf, j) => {
-        if (j !== i) others *= cdf;
-      });
-      sums[i] += density * others * step;
+export function simulatePot(entrants: readonly PotEntrant[], draws = POT_DRAWS, seed = 0x5eed): PotOdds {
+  const random = mulberry32(seed);
+  const pot = entrants.map(() => 0);
+  const top = entrants.map(() => 0);
+  const finish = entrants.map(() => 0);
+  let nobody = 0;
+  const scores = entrants.map(() => 0);
+  const finished = entrants.map(() => false);
+  for (let draw = 0; draw < draws; draw++) {
+    entrants.forEach((entrant, i) => {
+      const slots = new Set<string>();
+      let score = entrant.confirmed;
+      for (const task of entrant.open) {
+        if (random() >= entrant.chance) continue;
+        score += task.value;
+        if (task.clearsSlot !== undefined) slots.add(task.clearsSlot);
+      }
+      const done = entrant.clearedSlots + slots.size >= CORE_SLOTS.length;
+      // The sweep bonus lands with the fifth slot; a player who had already swept has it in confirmed.
+      scores[i] = score + (done && entrant.clearedSlots < CORE_SLOTS.length ? SWEEP_BONUS : 0);
+      finished[i] = done;
+      if (done) finish[i] += 1;
     });
+    shareTop(scores, () => true, top);
+    if (!shareTop(scores, (i) => finished[i] && entrants[i].inPot, pot)) nobody += 1;
   }
-  const total = sums.reduce((sum, value) => sum + value, 0);
-  return total === 0 ? players.map(() => 1 / players.length) : sums.map((value) => value / total);
+  const share = (counts: number[]) => counts.map((count) => count / draws);
+  return { pot: share(pot), nobody: nobody / draws, top: share(top), finish: share(finish) };
+}
+
+/** Adds one draw's win to the highest score among `eligible` entrants, split on a tie. False when nobody was eligible. */
+function shareTop(scores: readonly number[], eligible: (i: number) => boolean, into: number[]): boolean {
+  let best = -Infinity;
+  const leaders: number[] = [];
+  scores.forEach((score, i) => {
+    if (!eligible(i)) return;
+    if (score > best) {
+      best = score;
+      leaders.length = 0;
+    }
+    if (score === best) leaders.push(i);
+  });
+  for (const i of leaders) into[i] += 1 / leaders.length;
+  return leaders.length > 0;
+}
+
+/** A small seeded PRNG (mulberry32): the same seed always gives the same stream. */
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 export type HistoryPoint = { at: number; chance: number };

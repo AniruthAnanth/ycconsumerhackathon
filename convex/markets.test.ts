@@ -92,8 +92,10 @@ describe("markets.week", () => {
     expect(market.me.low).toBeGreaterThanOrEqual(125);
     // Two open slots for Ada: 30 points and a 25-point slot bonus each.
     expect(market.me.high).toBeLessThanOrEqual(125 + 2 * 55);
-    expect(market.odds.map((row) => row.name)).toEqual(["Ada", "Bo"]);
-    expect(market.odds[0].weekChance + market.odds[1].weekChance).toBeCloseTo(1);
+    // A free league has no pot, so its odds are the chance of the week's top score.
+    expect(market.odds.kind).toBe("week");
+    expect(market.odds.rows.map((row) => row.name)).toEqual(["Ada", "Bo"]);
+    expect(market.odds.rows[0].chance + market.odds.rows[1].chance).toBeCloseTo(1, 9);
 
     // standings.matchup reports the same number, so the hero and the chart agree.
     const standing = await as(t, ada).query(api.standings.matchup, { leagueId });
@@ -156,7 +158,11 @@ describe("markets.week", () => {
     await task(t, staked.bo, "body", 30);
     const market = await as(t, staked.ada).query(api.markets.week, { leagueId: staked.leagueId });
     expect(market?.payout.eligible).toBe(true);
-    expect(market?.payout.finishChance).toBe(1);
+    // Ada has swept and Bo can't, so she takes the pot outright and the column still sums to 1.
+    expect(market?.payout.potChance).toBe(1);
+    expect(market?.odds.kind).toBe("pot");
+    expect(market?.odds.rows.map((row) => [row.name, row.chance])).toEqual([["Ada", 1], ["Bo", 0]]);
+    expect(market?.odds.nobody).toBe(0);
     // Ada has finished and Bo hasn't started, so she expects to win some of Bo's stake.
     expect(market?.payout.expectedNetUsd).toBeGreaterThan(0);
     expect(market?.payout.lowNetUsd).toBeLessThanOrEqual(market?.payout.expectedNetUsd ?? 0);
