@@ -1,7 +1,6 @@
-import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 
-import { canSend, chatReducer, errorMessage, initialChatState, type ChatState } from "./chatLogic";
+import { canSend, chatReducer, initialChatState, type ChatState } from "./chatLogic";
 
 const sent: ChatState = chatReducer(initialChatState, { type: "send", id: "1", text: "Standings" });
 
@@ -37,16 +36,5 @@ describe("canSend", () => {
     expect(canSend("hi", false)).toBe(true);
     expect(canSend("   ", false)).toBe(false);
     expect(canSend("hi", true)).toBe(false);
-  });
-});
-
-describe("errorMessage", () => {
-  it("uses a string ConvexError's data", () => {
-    expect(errorMessage(new ConvexError("League not found"))).toBe("League not found");
-  });
-
-  it("falls back for anything else", () => {
-    expect(errorMessage(new ConvexError({ code: 1 }))).toBe("The league agent didn't answer.");
-    expect(errorMessage(new Error("boom"))).toBe("The league agent didn't answer.");
   });
 });

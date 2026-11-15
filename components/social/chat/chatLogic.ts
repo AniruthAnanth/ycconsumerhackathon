@@ -1,5 +1,3 @@
-import { ConvexError } from "convex/values";
-
 export type ChatMessage = {
   id: string;
   role: "user" | "agent";
@@ -19,8 +17,6 @@ export type ChatAction =
 export const initialChatState: ChatState = { messages: [], pending: false };
 
 export const SUGGESTIONS = ["Standings", "What's left this week?", "Who am I playing?"];
-
-const FALLBACK_ERROR = "The league agent didn't answer.";
 
 /**
  * One request is in flight at a time, so `pending` is a single flag: a reply or
@@ -53,10 +49,4 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
 export function canSend(text: string, pending: boolean): boolean {
   return !pending && text.trim().length > 0;
-}
-
-/** The server's own message when it threw a ConvexError with a string, else a generic line. */
-export function errorMessage(error: unknown): string {
-  if (error instanceof ConvexError && typeof error.data === "string") return error.data;
-  return FALLBACK_ERROR;
 }
