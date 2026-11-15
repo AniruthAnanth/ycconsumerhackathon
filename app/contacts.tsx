@@ -7,7 +7,7 @@ import { BackHandler, Pressable, ScrollView, Share, StyleSheet, Text, View } fro
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { PersonRow } from "@/components/join/PersonRow";
 import { useContactMatch } from "@/components/join/useContactMatch";
-import { TextLineupBanner } from "@/components/shell/TextLineupBanner";
+import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
 import { Button, Header, Screen, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
@@ -78,7 +78,7 @@ export default function ContactsScreen() {
           ) : undefined
         }
       />
-      <TextLineupBanner />
+      <PlayByTextRow />
       <ScrollView style={styles.list}>
         {nothingToAdd ? <Text style={styles.empty}>No contacts to add</Text> : null}
         {state.status === "error" ? (
