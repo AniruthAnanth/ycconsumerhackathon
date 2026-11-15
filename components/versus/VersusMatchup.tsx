@@ -3,10 +3,8 @@ import { useRouter } from "expo-router";
 import { ScrollView } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
-import { SlotRow } from "@/components/social/matchup/SlotRow";
-import { TeamHeaders } from "@/components/social/matchup/TeamHeaders";
-import { WinProbabilityBar } from "@/components/social/matchup/WinProbabilityBar";
-import { Button, SectionLabel } from "@/components/ui";
+import { MatchupBody } from "@/components/social/matchup/MatchupBody";
+import { Button } from "@/components/ui";
 import { spacing } from "@/theme";
 
 import type { Versus } from "./api";
@@ -18,36 +16,17 @@ import { VersusPot } from "./VersusPot";
  * (code and Share) is the whole screen.
  */
 export function VersusMatchup({ versus }: { versus: Versus }) {
-  const matchup = useQuery(socialApi.standings.matchup, {
-    leagueId: versus.leagueId,
-  });
+  const matchup = useQuery(socialApi.standings.matchup, { leagueId: versus.leagueId });
   const router = useRouter();
   // A friend who just accepted has no lineup yet; drafting is the one thing left to do.
-  const needsDraft =
-    matchup !== undefined &&
-    matchup !== null &&
-    matchup.rows.every((row) => row.mine === undefined);
+  const needsDraft = matchup?.rows.every((row) => row.mine === undefined) ?? false;
   return (
     <ScrollView>
       <VersusPot versus={versus} />
       {matchup ? (
         <>
-          {needsDraft ? (
-            <Button
-              label="Draft your lineup"
-              style={{ margin: spacing.md }}
-              onPress={() => router.push("/draft")}
-            />
-          ) : null}
-          <TeamHeaders me={matchup.me} opponent={matchup.opponent} />
-          <WinProbabilityBar
-            mine={matchup.me.winProbability}
-            theirs={matchup.opponent.winProbability}
-          />
-          <SectionLabel left="Matchup" />
-          {matchup.rows.map((row, index) => (
-            <SlotRow key={`${row.slot}-${index}`} row={row} />
-          ))}
+          {needsDraft ? <Button label="Draft your lineup" style={{ margin: spacing.md }} onPress={() => router.push("/draft")} /> : null}
+          <MatchupBody matchup={matchup} />
         </>
       ) : null}
     </ScrollView>

@@ -1,24 +1,21 @@
 import { useQuery } from "convex/react";
 import { ScrollView } from "react-native";
 
-import { SectionLabel } from "@/components/ui";
-import { versusApi } from "@/components/versus/api";
 import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
+import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
-import { SlotRow } from "./SlotRow";
-import { TeamHeaders } from "./TeamHeaders";
-import { WinProbabilityBar } from "./WinProbabilityBar";
+import { MatchupBody } from "./MatchupBody";
 
 export default function MatchupScreen() {
   const { leagueId, league, weekStart } = useCurrentLeague();
   // standings.matchup takes no week, so it only ever answers for the current one; weekStart is set once the header steps away from it.
   const otherWeek = weekStart !== undefined;
   const matchup = useQuery(socialApi.standings.matchup, leagueId && !otherWeek ? { leagueId } : "skip");
-  const versus = useQuery(versusApi.get, leagueId ? { leagueId } : "skip");
+  const versus = useQuery(api.versus.get, leagueId ? { leagueId } : "skip");
 
   if (otherWeek) return <ScreenState message={`Matchups are only shown for the current week (Week ${league?.week.number}).`} />;
   // A versus has its own matchup view: the pot on top, and something to show before the friend accepts.
@@ -28,13 +25,7 @@ export default function MatchupScreen() {
 
   return (
     <ScrollView>
-      <TeamHeaders me={matchup.me} opponent={matchup.opponent} />
-      <WinProbabilityBar mine={matchup.me.winProbability} theirs={matchup.opponent.winProbability} />
-      <SectionLabel left="Matchup" />
-      {/* A player can have several flex rows, so the slot alone is not a unique key. */}
-      {matchup.rows.map((row, index) => (
-        <SlotRow key={`${row.slot}-${index}`} row={row} />
-      ))}
+      <MatchupBody matchup={matchup} />
       <ChallengeButton />
     </ScrollView>
   );

@@ -18,9 +18,11 @@ export function potLine({ stakeUsd, potUsd }: Pick<Versus, "stakeUsd" | "potUsd"
  * already has the 10% fee taken off and the stake refunded to a loser who
  * filled all five slots, so the app never redoes that arithmetic.
  */
-export function outcomeLine(versus: Pick<Versus, "me" | "stakeUsd" | "result">): { title: string; detail?: string } | null {
-  const { result, me, stakeUsd } = versus;
-  if (!result) return null;
+export function outcomeLine(versus: Versus): { title: string; detail?: string } | null {
+  if (versus.status !== "settled") return null;
+  const { result, me, opponent, stakeUsd } = versus;
+  // An invite nobody took settles with no game played, so every stake is returned.
+  if (opponent === null) return { title: "Nobody accepted", detail: stakeUsd > 0 ? "Your stake came back" : undefined };
   const mine = result.payouts.find((payout) => payout.userId === me.userId)?.amountUsd ?? 0;
   if (result.winnerId === null) {
     return { title: "It's a tie", detail: mine > 0 ? `${formatUsd(mine)} back to you` : undefined };

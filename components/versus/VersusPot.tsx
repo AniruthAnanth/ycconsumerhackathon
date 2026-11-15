@@ -1,19 +1,18 @@
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
-import { Banner, Button, OutlinedPillButton } from "@/components/ui";
+import { PayBanner } from "@/components/roster/PayBanner";
+import { Button, OutlinedPillButton } from "@/components/ui";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, hairline, spacing } from "@/theme";
 
 import type { Versus } from "./api";
-import { versusApi } from "./api";
 import { shareInvite } from "./shareInvite";
 import { outcomeLine, potLine } from "./versusText";
 
@@ -24,8 +23,8 @@ import { outcomeLine, potLine } from "./versusText";
 export function VersusPot({ versus }: { versus: Versus }) {
   const router = useRouter();
   const { setLeagueId } = useCurrentLeague();
-  const rematch = useMutation(versusApi.rematch);
-  const toLeague = useMutation(versusApi.toLeague);
+  const rematch = useMutation(api.versus.rematch);
+  const toLeague = useMutation(api.versus.toLeague);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -51,8 +50,9 @@ export function VersusPot({ versus }: { versus: Versus }) {
   const opponentName = versus.opponent?.name ?? "your friend";
   return (
     <View>
-      {versus.stakeUsd > 0 && !versus.me.paid && versus.status !== "settled" ? (
-        <PayStrip leagueId={versus.leagueId} stakeUsd={versus.stakeUsd} />
+      {/* Only once both are in: a stake paid while waiting would sit in a week that may never be played. */}
+      {versus.status === "live" && versus.stakeUsd > 0 && !versus.me.paid ? (
+        <PayBanner leagueId={versus.leagueId} stakeUsd={versus.stakeUsd} />
       ) : null}
       <View style={styles.panel}>
         <Text style={styles.pot}>{potLine(versus)}</Text>
@@ -71,11 +71,13 @@ export function VersusPot({ versus }: { versus: Versus }) {
           <>
             <Text style={styles.outcome}>{outcome.title}</Text>
             {outcome.detail ? <Text style={styles.detail}>{outcome.detail}</Text> : null}
-            <Button
-              label="Rematch"
-              loading={busy}
-              onPress={() => run(async () => switchTo((await rematch({ leagueId: versus.leagueId })).leagueId))}
-            />
+            {versus.opponent ? (
+              <Button
+                label="Rematch"
+                loading={busy}
+                onPress={() => run(async () => switchTo((await rematch({ leagueId: versus.leagueId })).leagueId))}
+              />
+            ) : null}
           </>
         ) : null}
         <OutlinedPillButton
@@ -95,38 +97,6 @@ export function VersusPot({ versus }: { versus: Versus }) {
     </View>
   );
 }
-
-/** PayBanner's checkout flow; the strip goes once Whop's webhook marks the stake paid. */
-function PayStrip({ leagueId, stakeUsd }: { leagueId: Id<"leagues">; stakeUsd: number }) {
-  const createCheckout = useAction(backend.whop.createCheckout);
-  const [state, setState] = useState<"idle" | "opening" | "failed">("idle");
-
-  async function pay() {
-    setState("opening");
-    try {
-      const { purchaseUrl } = await createCheckout({ leagueId });
-      await WebBrowser.openBrowserAsync(purchaseUrl);
-      setState("idle");
-    } catch {
-      setState("failed");
-    }
-  }
-
-  return (
-    <Banner
-      icon="card-outline"
-      title={`Pay your $${stakeUsd} stake`}
-      subtitle={PAY_SUBTITLE[state]}
-      onPress={state === "opening" ? undefined : pay}
-    />
-  );
-}
-
-const PAY_SUBTITLE = {
-  idle: "An unpaid player can't win the pot",
-  opening: "Opening checkout...",
-  failed: "Checkout didn't open. Tap to try again.",
-} as const;
 
 const styles = StyleSheet.create({
   panel: {

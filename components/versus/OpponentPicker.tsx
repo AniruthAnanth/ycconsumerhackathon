@@ -6,17 +6,17 @@ import { StyleSheet, View } from "react-native";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { PersonRow } from "@/components/join/PersonRow";
 import { OutlinedPillButton, SectionLabel } from "@/components/ui";
+import { api } from "@/convex/_generated/api";
 import { toE164 } from "@/lib/phone";
 import { spacing } from "@/theme";
 
-import { versusApi } from "./api";
 import type { Opponent } from "./useChallenge";
 
 type Props = { value: Opponent; onChange: (opponent: Opponent) => void };
 
 /** One opponent, three sources: a Lineup friend, someone from the address book, or whoever opens the link. */
 export function OpponentPicker({ value, onChange }: Props) {
-  const friends = useQuery(versusApi.friends) ?? [];
+  const friends = useQuery(api.versus.friends) ?? [];
   const [contactFailure, setContactFailure] = useState<string | null>(null);
 
   // The system picker needs no address-book permission and only the chosen
