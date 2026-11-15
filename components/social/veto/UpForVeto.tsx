@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Banner, PositionPill, SectionLabel } from "@/components/ui";
+import { Banner, PositionPill, RowDivider, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   colors,
@@ -12,6 +13,9 @@ import {
   spacing,
   tabular,
 } from "@/theme";
+
+// A veto row has the pill but no thumbnail, so its text (and its divider) start one column in.
+const TEXT_INSET = SCREEN_MARGIN + layout.pillColumn + layout.columnGap;
 
 import type { TaskVeto } from "../contract";
 import { myStruck, struckBanner, upForVeto } from "./vetoLogic";
@@ -30,7 +34,11 @@ export function UpForVeto({
   now: number;
 }) {
   const router = useRouter();
+  const [expanded, setExpanded] = useState(false);
   const open = upForVeto(board, myUserId, now);
+  // A locked league has dozens of open tasks, so the feed shows a few until asked and the
+  // proofs stay near the top.
+  const shown = expanded ? open : open.slice(0, FEED_VETO_ROWS);
   const struck = myStruck(board, myUserId)[0];
   if (!struck && open.length === 0) return null;
 
@@ -44,7 +52,7 @@ export function UpForVeto({
         />
       ) : null}
       {open.length > 0 ? <SectionLabel left="Up for veto" /> : null}
-      {open.map((veto) => (
+      {shown.map((veto) => (
         <View key={veto.taskId} style={styles.row}>
           <PositionPill slot={veto.slot} />
           <View style={styles.text}>
@@ -57,11 +65,19 @@ export function UpForVeto({
             <VetoChip veto={veto} leagueId={leagueId} />
           </View>
           <Text style={styles.points}>{veto.points}</Text>
+          <RowDivider inset={TEXT_INSET} />
         </View>
       ))}
+      {open.length > shown.length ? (
+        <Pressable accessibilityRole="button" onPress={() => setExpanded(true)} style={styles.more}>
+          <Text style={styles.moreText}>{`Show ${open.length - shown.length} more`}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
+
+const FEED_VETO_ROWS = 3;
 
 const styles = StyleSheet.create({
   row: {
@@ -73,9 +89,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   text: { flex: 1, gap: spacing.xs },
+  more: { minHeight: layout.rowMin, justifyContent: "center", paddingLeft: TEXT_INSET, paddingRight: SCREEN_MARGIN },
+  moreText: { color: colors.accent, fontSize: font.meta, fontFamily: fontFamily.bold },
   title: {
     color: colors.text,
-    fontSize: font.body,
+    fontSize: font.title,
     fontFamily: fontFamily.bold,
   },
   owner: {
@@ -88,7 +106,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: colors.text,
     fontSize: font.score,
-    fontFamily: fontFamily.extraBold,
+    fontFamily: fontFamily.bold,
     ...tabular,
   },
 });

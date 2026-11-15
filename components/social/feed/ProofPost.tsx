@@ -50,8 +50,10 @@ export function ProofPost({
       title: "Veto this proof?",
       message: "The league votes. If the vote goes against you, you lose 10 points.",
       confirmLabel: "Veto",
-      onConfirm: () =>
-        openChallenge({ proofId: item.proofId, leagueId }).catch((error) => notify(errorMessage(error))),
+      onConfirm: () => {
+        haptics.veto();
+        openChallenge({ proofId: item.proofId, leagueId }).catch((error) => notify(errorMessage(error)));
+      },
     });
 
   return (

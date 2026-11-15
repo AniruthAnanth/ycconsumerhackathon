@@ -1,10 +1,13 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { CountUp, Entrance, PressScale, ReorderRow } from "@/components/motion";
+import { LiveRow } from "@/components/live/LiveRow";
+import { rankChanges, ranksOf } from "@/components/live/rankChanges";
+import { CountUp, Entrance, PressScale } from "@/components/motion";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
+import { haptics } from "@/lib/native/haptics";
 import { colors, font, fontFamily, hairline, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { slotsText } from "./emptyState";
@@ -39,6 +42,16 @@ function recordText(record: SeasonRecord | undefined): string {
 export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props) {
   const baseline = useRef<Record<string, number>>({});
   baseline.current = withBaseline(baseline.current, rows);
+  // Each rows result is compared once, so a re-render with the same data never re-flashes a row.
+  const live = useRef<{ rows?: Standing[]; ranks?: Record<string, number>; flash: Record<string, number>; moved: number }>({ flash: {}, moved: 0 });
+  if (live.current.rows !== rows) {
+    const moved = rankChanges(live.current.ranks, rows);
+    for (const userId of moved) live.current.flash[userId] = (live.current.flash[userId] ?? 0) + 1;
+    live.current = { rows, ranks: ranksOf(rows), flash: live.current.flash, moved: moved.size };
+  }
+  useEffect(() => {
+    if (live.current.moved > 0) haptics.tap();
+  }, [rows]);
 
   return (
     <View>
@@ -53,7 +66,7 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
         const moved = rankMovement(baseline.current, row);
         return (
           // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
-          <ReorderRow key={row.userId}>
+          <LiveRow key={row.userId} flash={live.current.flash[row.userId] ?? 0}>
             <Entrance index={index}>
               <PressScale
                 style={[styles.row, row.userId === viewerId && styles.viewer]}
@@ -89,7 +102,7 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
               </PressScale>
               <Divider inset={NAME_INSET} />
             </Entrance>
-          </ReorderRow>
+          </LiveRow>
         );
       })}
     </View>
