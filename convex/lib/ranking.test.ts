@@ -106,7 +106,7 @@ describe("rankBoard", () => {
   it("formats money to the cent", () => {
     const { rows } = rankBoard([entry("Maya", 12.4), entry("Lee", -5)], FORMATS.money, "lee");
     expect(rows.map((row) => [row.valueLabel, row.gapLabel])).toEqual([
-      ["$12.40", "$17.40 ahead of Lee"],
+      ["+$12.40", "$17.40 ahead of Lee"],
       ["-$5.00", "$17.40 behind Maya"],
     ]);
   });

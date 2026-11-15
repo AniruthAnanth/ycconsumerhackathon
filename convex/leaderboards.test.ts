@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { sameStats, winnings } from "./leaderboards";
+import { netMoney, sameStats, winnings } from "./leaderboards";
 import { DAY_MS, weekStartOf } from "./lib/week";
 import { NO_STATS } from "./lib/weekTally";
 import schema from "./schema";
@@ -120,9 +120,10 @@ describe("leaderboards.board", () => {
     const global = await viewer.query(api.leaderboards.board, { leagueId, board: "global" });
     expect(global.rows.map((row) => row.value)).toEqual([550, 285, 245, 170, 60, 0]);
 
-    // Maya was the only finisher: the other five stakes, less the 10% fee.
-    const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money" });
-    expect(money.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "$90.00", isMe: true });
+    // Maya was the only finisher: the other five stakes, less the 10% fee. The rest are down their stake.
+    const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money", at: NOW });
+    expect(money.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "+$90.00", detail: "Won $90.00", isMe: true });
+    expect(money.rows.slice(1).map((row) => row.valueLabel)).toEqual(Array(5).fill("-$20.00"));
     // With the week over there is nothing left to project: every case is the payout itself.
     const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
     expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Projected: +$90.00" });
@@ -407,12 +408,19 @@ describe("leaderboards.projection", () => {
     expect(await as("Maya").query(api.leaderboards.projection, { leagueId, at: NOW })).toBeNull();
   });
 
-  test("the money board lists winnings and breaks ties with the projection", async () => {
+  test("the money board is net money, with a stake in play counted at its projection", async () => {
     const { t, leagueId, as, idOf } = await seededLeague();
     const viewer = as("Sam");
-    const before = await viewer.query(api.leaderboards.board, { leagueId, board: "money" });
-    expect(before.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "$0.00" });
-    expect(before.rows[0].detail).toMatch(/^Projected: \+\$/);
+    const before = await viewer.query(api.leaderboards.board, { leagueId, board: "money", at: NOW });
+    // Nothing has been paid out yet, so every row is that player's "Projected" line.
+    for (const firstName of ["Maya", "Sam", "Priya", "Jordan", "Ava", "Leo"]) {
+      const projection = await as(firstName).query(api.leaderboards.projection, { leagueId, at: NOW });
+      const row = before.rows.find((candidate) => candidate.userId === idOf(firstName))!;
+      expect(row.value).toBeCloseTo(projection!.expectedUsd - projection!.stakeUsd, 2);
+      expect(row.detail).toBe(projection!.label);
+    }
+    expect(before.rows[0]).toMatchObject({ name: "Maya Chen", detail: `Projected: ${before.rows[0].valueLabel}` });
+    expect(before.rows.map((row) => row.value)).toEqual([...before.rows.map((row) => row.value)].sort((a, b) => b - a));
 
     await t.run(async (ctx) => {
       const [week] = await ctx.db
@@ -424,13 +432,37 @@ describe("leaderboards.projection", () => {
         weekId: week._id,
         userId: idOf("Sam"),
         kind: "winnings",
-        amountUsd: 12.4,
+        amountUsd: 200,
         idempotencyKey: "test:winnings",
         createdAt: Date.now(),
       });
     });
-    const after = await viewer.query(api.leaderboards.board, { leagueId, board: "money" });
-    expect(after.rows[0]).toMatchObject({ name: "Sam Patel", valueLabel: "$12.40", isMe: true, movement: 1 });
+    const after = await viewer.query(api.leaderboards.board, { leagueId, board: "money", at: NOW });
+    const sam = before.rows.find((row) => row.isMe)!;
+    expect(after.rows[0]).toMatchObject({ name: "Sam Patel", isMe: true, movement: sam.rank - 1 });
+    expect(after.rows[0].value).toBeCloseTo(sam.value + 200, 2);
+    expect(after.rows[0].detail).toBe(`Won $200.00 · ${sam.detail}`);
+  });
+});
+
+describe("netMoney", () => {
+  test("counts winnings and refunds in and stakes out, and never the fee", () => {
+    const row = (userId: string | undefined, kind: "buy_in" | "refund" | "winnings" | "fee", amountUsd: number, createdAt = 1) => ({
+      userId: userId as Id<"users"> | undefined,
+      kind,
+      amountUsd,
+      createdAt,
+    });
+    const ledger = [
+      row("maya", "buy_in", 20),
+      row("leo", "buy_in", 20),
+      row("maya", "refund", 20, 5),
+      row("maya", "winnings", 18, 5),
+      row(undefined, "fee", 2, 5),
+    ];
+    expect(netMoney(ledger)).toEqual(new Map([["maya", 18], ["leo", -20]]));
+    // Before the payout both were down their stake.
+    expect(netMoney(ledger, 5)).toEqual(new Map([["maya", -20], ["leo", -20]]));
   });
 });
 
