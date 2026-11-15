@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Artwork, artworkForTask } from "@/components/art";
-import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
+import { Button, EmptyState, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
@@ -54,7 +54,8 @@ export function TaskSheet({ taskId }: { taskId: string }) {
           ) : null}
         </>
       ) : null}
-      {roster && !task ? <Text style={styles.missing}>That task isn't on your lineup.</Text> : null}
+      {roster === undefined ? <EmptyState loading /> : null}
+      {roster && !task ? <EmptyState message="That task isn't on your lineup." /> : null}
     </Screen>
   );
 }
@@ -64,5 +65,4 @@ const styles = StyleSheet.create({
   action: { padding: SCREEN_MARGIN },
   // Starts at the task title's edge, so it reads as part of the row above.
   howTo: { paddingLeft: TASK_TEXT_INSET, paddingRight: SCREEN_MARGIN, paddingTop: spacing.md, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
-  missing: { padding: SCREEN_MARGIN, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
 });
