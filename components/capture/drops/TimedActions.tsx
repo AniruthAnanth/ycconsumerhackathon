@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/ui";
 import { haptics } from "@/lib/native/haptics";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, spacing } from "@/theme";
 
 import { proofCameraHref } from "../proofRoute";
 import type { DropView } from "./dropView";
@@ -40,7 +40,7 @@ export function TimedActions({ view }: { view: TimedView }) {
 
 const styles = StyleSheet.create({
   row: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
-  info: { flexShrink: 1, alignItems: "flex-end", gap: 2 },
+  info: { flexShrink: 1, alignItems: "flex-end", gap: spacing.xs },
   countdown: {
     color: colors.onAccent,
     fontSize: font.total,
@@ -48,5 +48,5 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   details: { color: colors.divider, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
-  submit: { height: 36, paddingHorizontal: spacing.lg },
+  submit: { height: layout.rowMin, paddingHorizontal: spacing.lg },
 });

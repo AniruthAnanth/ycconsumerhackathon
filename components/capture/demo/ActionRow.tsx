@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { errorMessage } from "@/lib/errorMessage";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { RowDivider } from "@/components/ui";
+import { colors, font, fontFamily, layout, SCREEN_MARGIN, spacing } from "@/theme";
 
 type Phase = { kind: "idle" } | { kind: "running" } | { kind: "done" } | { kind: "failed"; message: string };
 
@@ -64,25 +65,24 @@ export function ActionRow({ label, run, tag, disabled }: Props) {
       {phase.kind === "running" ? <ActivityIndicator color={colors.textMuted} /> : null}
       {phase.kind === "done" ? <Text style={styles.done}>DONE</Text> : null}
       {phase.kind === "idle" && tag ? <Text style={styles.tag}>{tag}</Text> : null}
+      <RowDivider inset={SCREEN_MARGIN} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 52,
+    minHeight: layout.rowMin,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   pressed: { opacity: 0.5 },
   disabled: { opacity: 0.35 },
   text: { flex: 1 },
   label: { color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
-  error: { color: colors.danger, fontFamily: fontFamily.regular, fontSize: font.meta, marginTop: 2 },
+  error: { color: colors.danger, fontFamily: fontFamily.regular, fontSize: font.meta, marginTop: spacing.xs },
   done: { color: colors.tabActive, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   tag: { color: colors.accent, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
 });

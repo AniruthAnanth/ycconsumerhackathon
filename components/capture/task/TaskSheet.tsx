@@ -7,7 +7,7 @@ import { Button, Header, Icon, Screen, TaskRow } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { canSubmitProof, findTask, submitProofHref } from "./taskSheetRules";
 
@@ -55,6 +55,6 @@ export function TaskSheet({ taskId }: { taskId: string }) {
 
 const styles = StyleSheet.create({
   hero: { alignItems: "center", paddingTop: spacing.lg, paddingBottom: spacing.md },
-  action: { padding: spacing.lg },
-  missing: { padding: spacing.lg, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
+  action: { padding: SCREEN_MARGIN },
+  missing: { padding: SCREEN_MARGIN, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body },
 });

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Avatar, PositionPill, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
-import { colors, font, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { Avatar, PositionPill, RowDivider, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
+import { colors, font, fontFamily, layout, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET, type } from "@/theme";
 
 import { canRemoveTask } from "./lineupEdit";
 import type { DraftTask } from "../backend";
@@ -58,6 +58,7 @@ export function DraftRow({ task, editable, suggested, onRename, onRemove }: Prop
           </Pressable>
         ) : null}
       </View>
+      <RowDivider inset={TASK_TEXT_INSET} />
     </View>
   );
 }
@@ -67,17 +68,15 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: layout.columnGap,
     paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
     backgroundColor: colors.background,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
-  text: { flex: 1, gap: 1 },
+  text: { flex: 1 },
   title: { ...type.subheading, minHeight: 28, color: colors.text, padding: 0, textAlignVertical: "top" },
   meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  trailing: { width: 64, flexShrink: 0, alignItems: "flex-end", justifyContent: "center", gap: spacing.xs },
+  trailing: { width: layout.numericColumn, flexShrink: 0, alignItems: "flex-end", justifyContent: "center", gap: spacing.xs },
   removeTarget: { minHeight: MIN_TARGET, minWidth: MIN_TARGET, alignItems: "flex-end", justifyContent: "center" },
   remove: { fontFamily: fontFamily.semiBold, fontSize: font.meta, color: colors.textMuted },
 });
