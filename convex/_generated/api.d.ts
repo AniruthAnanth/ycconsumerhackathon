@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as canvas from "../canvas.js";
 import type * as crons from "../crons.js";
 import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
@@ -29,6 +30,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  canvas: typeof canvas;
   crons: typeof crons;
   drops: typeof drops;
   feed: typeof feed;
