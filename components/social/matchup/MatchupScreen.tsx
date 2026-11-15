@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { ScrollView } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { InviteButton } from "@/components/invite";
 import { useTabBarInset } from "@/components/ui";
@@ -8,7 +8,7 @@ import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
@@ -32,7 +32,9 @@ export default function MatchupScreen() {
     return (
       <>
         <ScreenState message="No matchup this week" />
-        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+        <View style={styles.invite}>
+          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+        </View>
       </>
     );
 
@@ -44,7 +46,14 @@ export default function MatchupScreen() {
         vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined}
       />
       <ChallengeButton />
-      <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+      <View style={styles.invite}>
+          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+        </View>
     </ScrollView>
   );
 }
+
+// The same inset as Challenge a friend above it, so the two secondary buttons share one width.
+const styles = StyleSheet.create({
+  invite: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md },
+});

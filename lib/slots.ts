@@ -5,16 +5,6 @@ export type ProofType = "photo" | "photo_location" | "canvas" | "before_after" |
 /** Roster order: the five slots a player must clear, then flex. */
 export const SLOT_ORDER: readonly Slot[] = ["body", "mind", "recharge", "chores", "people", "flex"];
 
-/** Three-letter position codes, as ESPN shows QB, RB, WR. */
-export const SLOT_LABEL: Record<Slot, string> = {
-  body: "BOD",
-  mind: "MND",
-  recharge: "RCH",
-  chores: "CHR",
-  people: "PPL",
-  flex: "FLX",
-};
-
 export const SLOT_NAME: Record<Slot, string> = {
   body: "Body",
   mind: "Mind",
@@ -23,6 +13,9 @@ export const SLOT_NAME: Record<Slot, string> = {
   people: "People",
   flex: "Flex",
 };
+
+/** The word on a position pill: the full slot name, never a code, so nobody has to learn BOD or RCH. */
+export const SLOT_LABEL: Record<Slot, string> = SLOT_NAME;
 
 export const PROOF_LABEL: Record<ProofType, string> = {
   photo: "Photo",
