@@ -26,13 +26,18 @@ import {
 import { requireSignedInUser } from "./lib/auth";
 import { scheduleFor } from "./lib/schedule";
 import { quickTimeScore, type Slot } from "./lib/scoring";
-import { SEED_PHOTOS, type SeedPhotoKey } from "./lib/seedPhotos";
+import { SEED_AVATARS, SEED_PHOTOS, type SeedPhotoKey } from "./lib/seedPhotos";
 import { HOUR_MS, pacificDay, startOfPacificDay, weekEndOf, weekStartOf } from "./lib/week";
 
 const MINUTE_MS = 60 * 1000;
 /** More rows than a demo league ever holds under one parent. It keeps every read bounded. */
 const SWEEP_LIMIT = 500;
-const PHOTO_KEYS = Object.keys(SEED_PHOTOS) as SeedPhotoKey[];
+/**
+ * Everything the seed keeps in file storage, by the name the seed looks it up under: a proof
+ * photo by its key, a player's avatar by that player's phone number.
+ */
+const SEED_FILES: Record<string, { sha256: string; jpegBase64: string }> = { ...SEED_PHOTOS, ...SEED_AVATARS };
+const FILE_NAMES = Object.keys(SEED_FILES);
 
 // Public with a $20 stake, so Quick Match at $20 also lands a new player in this full league.
 // It plays an 8-week double round robin and pays out every week.
@@ -169,7 +174,7 @@ const PLAYERS: SeedPlayer[] = [
           photo: "dinner",
           confidence: 0.97,
           highlight: 9,
-          reason: "Three friends at a restaurant table with plates of pasta, matches dinner with friends.",
+          reason: "Two friends across a restaurant table with plates of pasta, matches dinner with friends.",
           caption: "Pasta night with the crew.",
           cheers: ["🔥", "😂", "👏"],
         },
@@ -205,7 +210,7 @@ const PLAYERS: SeedPlayer[] = [
           photo: "run",
           confidence: 0.93,
           highlight: 7,
-          reason: "Running shoes on a park trail and a watch mid-run, checked in at Dolores Park.",
+          reason: "A running watch showing a finished 5K on a park path, checked in at Dolores Park.",
           caption: "Up before the sun.",
           cheers: ["💪"],
         },
@@ -292,7 +297,7 @@ const PLAYERS: SeedPlayer[] = [
           pass: false,
           confidence: 0.12,
           highlight: 2,
-          reason: "A couch, a TV and a bag of crisps. No gym in sight.",
+          reason: "A cat asleep on a sofa beside the TV remote. No gym in sight.",
           caption: "Rest day, apparently.",
         },
       },
@@ -420,15 +425,15 @@ function momentAt(now: number, [daysAgo, clock]: When): number {
 }
 
 /**
- * The seed photos already in file storage, found by content hash. Photos are never deleted on
- * reset, so after the first upload every later reset reuses the same files.
+ * The seed photos and avatars already in file storage, found by content hash. They are never
+ * deleted on reset, so after the first upload every later reset reuses the same files.
  */
-async function storedPhotos(ctx: QueryCtx): Promise<Partial<Record<SeedPhotoKey, Id<"_storage">>>> {
-  const keyBySha256 = new Map(PHOTO_KEYS.map((key) => [SEED_PHOTOS[key].sha256, key]));
-  const stored: Partial<Record<SeedPhotoKey, Id<"_storage">>> = {};
+async function storedPhotos(ctx: QueryCtx): Promise<Partial<Record<string, Id<"_storage">>>> {
+  const nameBySha256 = new Map(FILE_NAMES.map((name) => [SEED_FILES[name].sha256, name]));
+  const stored: Partial<Record<string, Id<"_storage">>> = {};
   for await (const file of ctx.db.system.query("_storage")) {
-    const key = keyBySha256.get(file.sha256);
-    if (key !== undefined) stored[key] = file._id;
+    const name = nameBySha256.get(file.sha256);
+    if (name !== undefined) stored[name] = file._id;
   }
   return stored;
 }
@@ -442,15 +447,25 @@ async function seededPlayer(ctx: QueryCtx, phone: string): Promise<Doc<"users"> 
   return rows.find((row) => row.isSeed) ?? null;
 }
 
-async function upsertPlayers(ctx: MutationCtx, now: number): Promise<Id<"users">[]> {
+/**
+ * Each player gets their avatar once it is in file storage. On a deployment that doesn't hold
+ * the photos yet, that is the rebuild that follows the upload.
+ */
+async function upsertPlayers(
+  ctx: MutationCtx,
+  now: number,
+  photos: Partial<Record<string, Id<"_storage">>>,
+): Promise<Id<"users">[]> {
   const ids: Id<"users">[] = [];
   for (const player of PLAYERS) {
+    const avatarStorageId = photos[player.phone];
+    const profile = { name: player.name, ...(avatarStorageId && { avatarStorageId }) };
     const existing = await seededPlayer(ctx, player.phone);
     if (existing !== null) {
-      await ctx.db.patch("users", existing._id, { name: player.name });
+      await ctx.db.patch("users", existing._id, profile);
       ids.push(existing._id);
     } else {
-      ids.push(await ctx.db.insert("users", { name: player.name, phone: player.phone, isSeed: true, createdAt: now }));
+      ids.push(await ctx.db.insert("users", { ...profile, phone: player.phone, isSeed: true, createdAt: now }));
     }
   }
   return ids;
@@ -590,7 +605,7 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   const weekStart = weekStartOf(now);
   const photos = await storedPhotos(ctx);
 
-  const playerIds = await upsertPlayers(ctx, now);
+  const playerIds = await upsertPlayers(ctx, now, photos);
   const leagueId = await upsertLeague(ctx, playerIds[0]);
   await clearLeague(ctx, leagueId);
   for (const playerId of playerIds) await clearPlayer(ctx, playerId);
@@ -716,7 +731,7 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   // The leaderboards keep stored rows per player and week; rebuild them for the fresh league.
   await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
 
-  return { photosMissing: PHOTO_KEYS.some((key) => photos[key] === undefined) };
+  return { photosMissing: FILE_NAMES.some((name) => photos[name] === undefined) };
 }
 
 /**
@@ -760,9 +775,9 @@ export const uploadMissingPhotos = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     const stored: string[] = await ctx.runQuery(internal.seed.storedPhotoKeys, {});
-    for (const key of PHOTO_KEYS) {
-      if (stored.includes(key)) continue;
-      const bytes = Uint8Array.from(atob(SEED_PHOTOS[key].jpegBase64), (char) => char.charCodeAt(0));
+    for (const name of FILE_NAMES) {
+      if (stored.includes(name)) continue;
+      const bytes = Uint8Array.from(atob(SEED_FILES[name].jpegBase64), (char) => char.charCodeAt(0));
       await ctx.storage.store(new Blob([bytes], { type: "image/jpeg" }));
     }
     await ctx.runMutation(internal.seed.restore, {});
