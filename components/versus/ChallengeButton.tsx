@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
 import { OutlinedPillButton } from "@/components/ui";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 /** The way into a new versus, placed under Matchup and on the join screen. */
 export function ChallengeButton() {
@@ -15,5 +15,5 @@ export function ChallengeButton() {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md },
 });

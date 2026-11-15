@@ -1,11 +1,11 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { ScrollView } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
 import { MatchupBody } from "@/components/social/matchup/MatchupBody";
 import { Button } from "@/components/ui";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Versus } from "./api";
 import { VersusPot } from "./VersusPot";
@@ -32,7 +32,7 @@ export function VersusMatchup({ versus }: { versus: Versus }) {
           {needsDraft ? (
             <Button
               label="Draft your lineup"
-              style={{ margin: spacing.md }}
+              style={styles.draft}
               onPress={() => router.push("/draft")}
             />
           ) : null}
@@ -42,3 +42,7 @@ export function VersusMatchup({ versus }: { versus: Versus }) {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  draft: { marginHorizontal: SCREEN_MARGIN, marginVertical: spacing.md },
+});

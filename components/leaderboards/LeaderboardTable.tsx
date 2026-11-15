@@ -2,10 +2,10 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Divider } from "@/components/ui";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { tiedRanks } from "./format";
-import { LeaderboardRow, MOVEMENT_WIDTH, RANK_WIDTH } from "./LeaderboardRow";
+import { LeaderboardRow, MOVEMENT_WIDTH, RANK_WIDTH, ROW_TEXT_INSET, VALUE_WIDTH } from "./LeaderboardRow";
 import type { BoardRow } from "./types";
 
 type Props = {
@@ -24,12 +24,12 @@ export function LeaderboardTable({ valueHeader, rows }: Props) {
       <View style={styles.header}>
         <Text style={[styles.label, styles.rank]}>RK</Text>
         <Text style={[styles.label, styles.player]}>PLAYER</Text>
-        <Text style={styles.label}>{valueHeader.toUpperCase()}</Text>
+        <Text style={[styles.label, styles.value]}>{valueHeader.toUpperCase()}</Text>
       </View>
       {rows?.length === 0 ? <Text style={styles.empty}>No results yet</Text> : null}
       {rows?.map((row, index) => (
         <View key={row.userId}>
-          {index > 0 ? <Divider inset={spacing.md} /> : null}
+          {index > 0 ? <Divider inset={ROW_TEXT_INSET} /> : null}
           <LeaderboardRow row={row} tied={tied.has(row.rank)} onPress={() => router.push(`/profile/${row.userId}`)} />
         </View>
       ))}
@@ -39,17 +39,19 @@ export function LeaderboardTable({ valueHeader, rows }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 36,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
+    gap: layout.columnGap,
     backgroundColor: colors.strip,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   // Rank and movement are separate columns in a row but one header cell here, so PLAYER lines up with the avatar.
-  rank: { width: RANK_WIDTH + MOVEMENT_WIDTH + spacing.sm },
+  rank: { width: RANK_WIDTH + MOVEMENT_WIDTH + layout.columnGap },
   player: { flex: 1 },
+  value: { width: VALUE_WIDTH, textAlign: "right" },
   empty: { paddingVertical: spacing.xl, textAlign: "center", fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
 });

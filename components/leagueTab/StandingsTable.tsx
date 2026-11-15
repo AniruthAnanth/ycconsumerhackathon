@@ -5,12 +5,14 @@ import { CountUp, Entrance, PressScale, ReorderRow } from "@/components/motion";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { rankMovement, withBaseline } from "./rankMovement";
 
 // Fixed widths keep every number in a column lined up whatever the names are.
-const COL = { rank: 24, record: 44, points: 100, streak: 44 } as const;
+const COL = { rank: layout.avatarCompact, record: layout.numericColumn, points: layout.numericColumn, streak: layout.numericColumn } as const;
+// Where the player name starts: the divider starts there too.
+const NAME_INSET = SCREEN_MARGIN + COL.rank + layout.avatarCompact + spacing.sm;
 
 /** Win-loss-tie from the season table, keyed by player. */
 export type SeasonRecord = { wins: number; losses: number; ties: number };
@@ -68,7 +70,9 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
                 </View>
                 <View style={styles.playerCol}>
                   <View style={styles.player}>
-                    <Avatar uri={row.avatarUrl} name={row.name} size={32} />
+                    <View style={[styles.avatarRing, row.userId === viewerId && styles.avatarRingViewer]}>
+                      <Avatar uri={row.avatarUrl} name={row.name} size={layout.avatarCompact} />
+                    </View>
                     <View style={styles.nameBlock}>
                       <Text style={styles.name} numberOfLines={1}>{row.name}</Text>
                       <Text style={styles.sub}>{row.paid ? `${row.slotsCleared}/5 slots` : "Unpaid"}</Text>
@@ -82,7 +86,7 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
                   <Icon name="flame" size={14} color={row.streak > 0 ? colors.text : colors.textFaint} />
                 </View>
               </PressScale>
-              <Divider />
+              <Divider inset={NAME_INSET} />
             </Entrance>
           </ReorderRow>
         );
@@ -94,7 +98,7 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
 const styles = StyleSheet.create({
   // Same look as SectionLabel, which only has room for two labels.
   header: {
-    height: 36,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SCREEN_MARGIN,
@@ -104,19 +108,21 @@ const styles = StyleSheet.create({
   },
   heading: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   right: { textAlign: "right" },
-  row: { height: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: SCREEN_MARGIN },
+  row: { minHeight: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: SCREEN_MARGIN },
   viewer: { backgroundColor: colors.accentTint },
   playerCol: { flex: 1 },
   rankCell: { alignItems: "flex-start" },
-  rank: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted, fontVariant: ["tabular-nums"] },
-  move: { fontSize: font.meta, fontFamily: fontFamily.bold, fontVariant: ["tabular-nums"] },
+  rank: { fontSize: font.body, fontFamily: fontFamily.extraBold, color: colors.textMuted, ...tabular },
+  move: { fontSize: font.meta, fontFamily: fontFamily.bold, ...tabular },
   player: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   nameBlock: { flex: 1 },
   name: { fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
+  avatarRing: { width: layout.avatarCompact, height: layout.avatarCompact, borderRadius: layout.avatarCompact / 2, borderWidth: hairline, borderColor: colors.divider, overflow: "hidden" },
+  avatarRingViewer: { borderColor: colors.accent },
   sub: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  record: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted, textAlign: "right", fontVariant: ["tabular-nums"] },
-  points: { ...type.title, color: colors.text, textAlign: "right", fontVariant: ["tabular-nums"] },
-  streak: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2 },
-  streakText: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.text, fontVariant: ["tabular-nums"] },
+  record: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted, textAlign: "right", ...tabular },
+  points: { ...type.label, color: colors.text, textAlign: "right", ...tabular },
+  streak: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.xs },
+  streakText: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.text, ...tabular },
   faint: { color: colors.textFaint },
 });

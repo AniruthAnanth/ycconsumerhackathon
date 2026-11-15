@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing, tabUnderlineHeight } from "@/theme";
+import { colors, font, fontFamily, hairline, MIN_TARGET, spacing, tabUnderlineHeight } from "@/theme";
 
 import { BOARDS } from "./boards";
 import type { BoardKey } from "./types";
@@ -25,7 +25,7 @@ export function BoardPicker({ active, onChange }: Props) {
 
   return (
     <View style={styles.bar}>
-      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist">
+      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
         {BOARDS.map((board) => {
           const selected = board.key === active;
           return (
@@ -53,12 +53,13 @@ export function BoardPicker({ active, onChange }: Props) {
 
 const styles = StyleSheet.create({
   bar: {
-    height: 40,
+    height: MIN_TARGET,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  tab: { height: 40, paddingHorizontal: spacing.lg, alignItems: "center", justifyContent: "center" },
+  tabs: { paddingHorizontal: spacing.xs },
+  tab: { height: MIN_TARGET, paddingHorizontal: spacing.lg, alignItems: "center", justifyContent: "center" },
   label: { fontSize: font.meta, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.5 },
   labelActive: { color: colors.text },
   underline: { position: "absolute", left: 0, right: 0, bottom: 0, height: tabUnderlineHeight, backgroundColor: "transparent" },

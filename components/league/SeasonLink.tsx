@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { seasonProgress, settingsSummary } from "./settings";
 
@@ -61,17 +61,17 @@ class HideOnError extends Component<{ children: ReactNode }, { failed: boolean }
 
 const styles = StyleSheet.create({
   row: {
-    height: 56,
+    minHeight: layout.rowMin,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
     backgroundColor: colors.background,
   },
   pressed: { backgroundColor: colors.accentTint },
-  text: { flex: 1, gap: 2 },
+  text: { flex: 1, gap: spacing.xs },
   title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   detail: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

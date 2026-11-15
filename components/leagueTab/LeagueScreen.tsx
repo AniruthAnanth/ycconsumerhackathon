@@ -17,7 +17,7 @@ import { OutlinedPillButton, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend, type Pot } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 type Props = {
   /** Replaces the pot card. Mount point for <EscrowFlow/> (YCCO-7); defaults to PotSummary. */
@@ -71,5 +71,5 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
 }
 
 const styles = StyleSheet.create({
-  actions: { padding: spacing.lg },
+  actions: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
 });

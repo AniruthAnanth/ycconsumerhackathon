@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, MIN_TARGET, SCREEN_MARGIN } from "@/theme";
 
 import { isProjectedGain } from "./format";
 import { useProjection } from "./useProjection";
@@ -25,7 +25,7 @@ export function ProjectionLine({ leagueId }: { leagueId: Id<"leagues"> | null })
       accessibilityRole="button"
       accessibilityLabel={`${projection.label}, open the money board`}
     >
-      <Text style={[styles.label, isProjectedGain(projection) && styles.gain]} numberOfLines={1}>
+      <Text style={[styles.label, isProjectedGain(projection) && styles.gain]}>
         {projection.label}
       </Text>
     </Pressable>
@@ -33,7 +33,7 @@ export function ProjectionLine({ leagueId }: { leagueId: Id<"leagues"> | null })
 }
 
 const styles = StyleSheet.create({
-  line: { height: 32, justifyContent: "center", alignItems: "flex-end", paddingHorizontal: spacing.md },
+  line: { minHeight: MIN_TARGET, justifyContent: "center", alignItems: "flex-end", paddingHorizontal: SCREEN_MARGIN },
   label: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
   gain: { color: colors.tabActive },
 });

@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/theme";
 
 /** The one-line callout above the table: "Maya is 15 ahead of you". Renders nothing without a rival. */
 export function RivalLine({ label }: { label: string | undefined }) {
   if (!label) return null;
   return (
     <View style={styles.line}>
-      <Text style={styles.text} numberOfLines={1}>
+      <Text style={styles.text}>
         {label}
       </Text>
     </View>
@@ -16,9 +16,8 @@ export function RivalLine({ label }: { label: string | undefined }) {
 
 const styles = StyleSheet.create({
   line: {
-    height: 32,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: SCREEN_MARGIN,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,

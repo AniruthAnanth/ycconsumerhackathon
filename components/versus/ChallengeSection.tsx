@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
 import { OutlinedPillButton, SectionLabel } from "@/components/ui";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 /** First on the join screen: a versus needs one friend, so it is the way in for someone with no league to find. */
 export function ChallengeSection({ disabled }: { disabled?: boolean }) {
@@ -18,5 +18,5 @@ export function ChallengeSection({ disabled }: { disabled?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.md },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md },
 });
