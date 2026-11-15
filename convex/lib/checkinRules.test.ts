@@ -295,6 +295,12 @@ describe("passedBy", () => {
     expect(passedBy({ prover: { before: 110, after: 110 }, others })).toEqual([]);
   });
 
+  it("does not count a member with nothing on the board, so a week's first proof texts nobody", () => {
+    expect(passedBy({ prover: { before: 0, after: 70 }, others: [still("sam", 0), still("jo", 30)] })).toEqual([
+      { userId: "jo", gap: 40 },
+    ]);
+  });
+
   it("does not count someone the prover was already ahead of, whose points then dropped", () => {
     const others = [{ userId: "sam", before: 80, after: 60 }];
     expect(passedBy({ prover: { before: 90, after: 110 }, others })).toEqual([]);

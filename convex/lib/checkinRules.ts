@@ -265,7 +265,8 @@ export function pickRival<UserId>(
 
 /**
  * Members the prover has just gone past: level or ahead the last time anyone looked, behind now.
- * gap is how far ahead the prover is now.
+ * gap is how far ahead the prover is now. A member with nothing on the board has not been passed
+ * by anyone; without that, the first proof of a week would text the whole league.
  */
 export function passedBy<UserId>(input: {
   prover: { before: number; after: number };
@@ -273,7 +274,7 @@ export function passedBy<UserId>(input: {
 }): { userId: UserId; gap: number }[] {
   const { prover } = input;
   return input.others
-    .filter((other) => other.before >= prover.before && other.after < prover.after)
+    .filter((other) => other.before > 0 && other.before >= prover.before && other.after < prover.after)
     .map((other) => ({ userId: other.userId, gap: prover.after - other.after }));
 }
 

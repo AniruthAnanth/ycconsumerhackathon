@@ -125,7 +125,7 @@ describe("checkins.prompt", () => {
     expect(prompt?.line).toBe("Sam's up 115. Leg day cuts it to 45.");
   });
 
-  it("puts a live quick-time drop first, with its countdown and the gesture for the camera", async () => {
+  it("leaves a live quick-time drop to Roster's own banner and asks for the next check-in", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await startLeague(t, ["Me"]);
     const [me] = userIds;
@@ -144,15 +144,10 @@ describe("checkins.prompt", () => {
         status: "open",
       }),
     );
-    const pushUps = await addTask(t, me, { title: "20 push-ups", source: "drop", dropId });
+    await addTask(t, me, { title: "20 push-ups", source: "drop", dropId });
 
-    expect(await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON })).toEqual({
-      kind: "drop",
-      taskId: pushUps,
-      label: "LIVE 47M",
-      line: "20 push-ups, +40.",
-      task: { title: "20 push-ups", points: 40, proofType: "photo", gesture: "three fingers up" },
-    });
+    const prompt = await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON });
+    expect(prompt).toMatchObject({ kind: "at_risk", label: "12H LEFT", task: { title: "Leg day" } });
   });
 
   it("asks for the check-in when the player arrives at a pinned place, but not from down the street", async () => {
@@ -319,6 +314,41 @@ describe("checkins.recordArrival at a gym", () => {
     await as(t, me).mutation(api.checkins.recordArrival, { taskId: pinned, ...AT_THE_GYM, placeName: "Somewhere Else" });
     expect(await textsTo(t, me)).toEqual(["You're at Fitness SF. Reply with a photo to check in."]);
   });
+
+  it("ignores an open task left over from a week that has ended", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    const lastWeek = await addTask(t, me, { weekStart: WEEK_START - 7 * DAY_MS, proofType: "photo_location", place: GYM });
+
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: lastWeek, ...AT_THE_GYM });
+    expect(await textsTo(t, me)).toEqual([]);
+    expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: lastWeek })).toBeNull();
+  });
+
+  it("ignores a quick-time drop's task once the drop has closed, even before its closing job runs", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me"]);
+    const [me] = userIds;
+    const dropId = await t.run((ctx) =>
+      ctx.db.insert("drops", {
+        leagueId,
+        kind: "quicktime",
+        title: "Leg day",
+        slot: "body",
+        points: 40,
+        sealed: false,
+        opensAt: NOON - 2 * HOUR_MS,
+        closesAt: NOON - HOUR_MS,
+        status: "open",
+      }),
+    );
+    const drop = await addTask(t, me, { source: "drop", dropId, proofType: "photo_location", place: GYM });
+
+    await as(t, me).mutation(api.checkins.recordArrival, { taskId: drop, ...AT_THE_GYM });
+    expect(await textsTo(t, me)).toEqual([]);
+    expect(await t.query(internal.checkins.recentArrival, { userId: me, taskId: drop })).toBeNull();
+  });
 });
 
 describe("checkins.nudge", () => {
@@ -413,5 +443,54 @@ describe("checkins.afterProof", () => {
     const second = await addTask(t, maya, { slot: "chores", title: "Laundry", points: 10, status: "verified" });
     await t.mutation(internal.checkins.afterProof, { taskId: second });
     expect(await textsTo(t, me)).toHaveLength(1);
+  });
+
+  it("counts the bonuses a first proof earned when it works out who was passed", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me", "Maya"]);
+    const [me, maya] = userIds;
+    // I have 20 (a flex task earns no slot bonus). Maya had nothing and proves a drafted Body task:
+    // 45 for the task and 25 for the slot is 70. Taking only the 45 off would put her "before" at
+    // 25, already ahead of me, and the pass would go unsaid.
+    await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 20, status: "verified" });
+    const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
+
+    await t.mutation(internal.checkins.afterProof, { taskId: run });
+    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 50."]);
+  });
+
+  it("still reports a pass when another member's proof landed in the same moment and its hook ran first", async () => {
+    const t = convexTest(schema, modules);
+    const { userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
+    const [me, maya, sam] = userIds;
+    await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 30, status: "verified" });
+    const mayas = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" }); // 70: past me
+    const sams = await addTask(t, sam, { slot: "flex", source: "flex", title: "Stretch", points: 10, status: "verified" });
+
+    // Both tasks are verified before either hook runs, so Sam's hook already sees Maya's points.
+    await t.mutation(internal.checkins.afterProof, { taskId: sams });
+    await t.mutation(internal.checkins.afterProof, { taskId: mayas });
+    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 40."]);
+  });
+
+  it("starts every week from zero: last week's marks neither hide a pass nor invent one", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await startLeague(t, ["Me", "Maya", "Sam"]);
+    const [me, maya, sam] = userIds;
+    // Last week ended Sam 200, Maya 150, me 40. This week only I have scored, 30.
+    await t.run(async (ctx) => {
+      for (const [userId, points] of [[sam, 200], [maya, 150], [me, 40]] as const) {
+        await ctx.db.insert("checkinMarks", { leagueId, userId, points, weekStart: WEEK_START - 7 * DAY_MS });
+      }
+    });
+    await addTask(t, me, { slot: "flex", source: "flex", title: "Sunset walk", points: 30, status: "verified" });
+    const run = await addTask(t, maya, { title: "5k run", points: 45, status: "verified" });
+
+    await t.mutation(internal.checkins.afterProof, { taskId: run });
+    // Maya went from nothing to 70 this week: past me, and not past Sam, who has nothing yet.
+    expect(await textsTo(t, me)).toEqual(["Maya just passed you in YC Hackathon, up 40."]);
+    expect(await textsTo(t, sam)).toEqual([]);
+    // Her row moved to this week; no fourth row was added.
+    expect(await t.run((ctx) => ctx.db.query("checkinMarks").collect())).toHaveLength(3);
   });
 });
