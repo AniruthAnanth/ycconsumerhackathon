@@ -62,7 +62,7 @@ The Convex Auth tables (`authSessions`, `authAccounts` and the rest) come from `
 
 ## Drops
 
-**`drops`**: a bonus task offered to a league during the week: a `quicktime` drop or a `group` session (place, headcount and group photo). `opensAt`, `closesAt` and `status` are moved by scheduled functions in `convex/drops.ts`. Rows of kind `mystery` remain from a feature that was removed.
+**`drops`**: a bonus task offered to a league during the week: a `quicktime` drop or a `group` session (place, headcount and group photo). `opensAt`, `closesAt` and `status` are moved by scheduled functions in `convex/drops.ts`.
 - `by_league_status`: the league's live or scheduled drops.
 
 **`rsvps`**: who joined a group session and whether they checked in.

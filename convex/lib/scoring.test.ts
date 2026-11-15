@@ -38,10 +38,6 @@ describe("task points", () => {
     expect(taskScore(task({ status: "held" }))).toBeNull();
     expect(taskScore(task({ status: "failed" }))).toBeNull();
   });
-
-  test("a failed task stored with negative points still costs them", () => {
-    expect(taskScore(task({ source: "mystery", status: "failed", points: -50 }))).toBe(-50);
-  });
 });
 
 describe("bonus formulas", () => {
@@ -66,7 +62,6 @@ describe("slots", () => {
   test("bonus tasks never clear a slot, because slots decide the stake", () => {
     const tasks = [
       task({ slot: "body", source: "drop" }),
-      task({ slot: "mind", source: "mystery" }),
       task({ slot: "flex", source: "flex" }),
       task({ slot: "flex", source: "draft" }),
     ];
@@ -115,14 +110,14 @@ describe("scoreWeek", () => {
       task({ slot: "mind", points: 45 }),
       task({ slot: "recharge", points: 20, status: "open" }),
       task({ slot: "body", points: 50, source: "drop" }),
-      task({ slot: "body", points: -20, source: "mystery", status: "failed" }),
+      task({ slot: "body", points: 40, source: "drop", status: "failed" }),
     ];
     expect(scoreWeek(tasks, [3, 4])).toEqual({
-      taskPoints: 115,
+      taskPoints: 135,
       slotsCleared: 2,
       slotBonus: 50,
       streakBonus: 15,
-      total: 180,
+      total: 200,
       finisher: false,
     });
   });

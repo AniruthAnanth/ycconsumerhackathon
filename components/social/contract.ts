@@ -32,7 +32,7 @@ export type TaskRow = {
   proofType: "photo" | "photo_location" | "canvas";
   place?: Place;
   status: "open" | "verified" | "held" | "failed";
-  source: "draft" | "flex" | "drop" | "mystery" | "group";
+  source: "draft" | "flex" | "drop" | "group";
   /** Points earned so far; null until a proof is verified. */
   score: number | null;
   verifiedAt?: number;

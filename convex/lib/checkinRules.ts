@@ -112,8 +112,8 @@ export type CheckInTask<TaskId> = {
   points: number;
   status: "open" | "verified" | "held" | "failed";
   proofType: "photo" | "photo_location" | "canvas";
-  /** "drop" is the task a quick-time drop gave this player; "mystery" is only on tasks stored before that daily task was removed. */
-  source: "draft" | "flex" | "drop" | "mystery" | "group";
+  /** "drop" is the task a quick-time drop gave this player. */
+  source: "draft" | "flex" | "drop" | "group";
   place?: LatLng & { name: string };
   /** The gesture a quick-time drop demands in the photo, which the camera shows over the viewfinder. */
   gesture?: string;
