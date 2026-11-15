@@ -1,4 +1,3 @@
-import { getThumbnailAsync } from "expo-video-thumbnails";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
@@ -8,6 +7,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { errorMessage } from "../errorMessage";
 import { uploadToConvex } from "../uploadToConvex";
 import type { Capture, ProofTarget } from "../proofRoute";
+import { captureStill } from "./captureStill";
 import { submitProof, type ProofBackend } from "./submitProof";
 import { initialPhase, nextPhase } from "./verdictPhase";
 
@@ -31,7 +31,7 @@ export function useSubmitProof(target: ProofTarget, capture: Capture, beforeVeri
     const backend: ProofBackend = {
       generateUploadUrl: () => requestUploadUrl({}),
       uploadMedia: uploadToConvex,
-      captureStill: async (videoUri, time) => (await getThumbnailAsync(videoUri, { time, quality: 0.6 })).uri,
+      captureStill,
       verifyMedia: async ({ taskId, storageId, frameStorageIds, ...rest }) => {
         await beforeVerify?.();
         return verifyMedia({
