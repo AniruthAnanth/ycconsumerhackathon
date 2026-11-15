@@ -10,6 +10,7 @@ import { colors } from "@/theme";
 import type { ProofTarget } from "../proofRoute";
 import { CameraOverlay } from "./CameraOverlay";
 import { CameraPermissionPrompt } from "./CameraPermissionPrompt";
+import { cameraScreen } from "./cameraScreen";
 import { requestLocationFor } from "./deviceLocation";
 import { SampleTray } from "./SampleTray";
 import { ShutterBar } from "./ShutterBar";
@@ -28,21 +29,20 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
     requestLocationFor(target.proofType);
   }, [target.proofType]);
 
-  const cameraUsable = permission?.granted === true && !capture.cameraFailed;
-  const showTray = sampleMedia || !cameraUsable;
+  const screen = cameraScreen({ sampleMedia, permission, cameraFailed: capture.cameraFailed });
   const shutter = mode === "photo" ? capture.takePhoto : capture.recording ? capture.stopRecording : capture.startRecording;
 
   return (
     <View style={styles.screen}>
-      {cameraUsable ? (
+      {screen.live ? (
         <CameraView ref={capture.camera} style={StyleSheet.absoluteFill} facing={facing} mode={mode === "photo" ? "picture" : "video"} mute onMountError={capture.markCameraFailed} />
       ) : null}
-      {permission && !permission.granted ? (
+      {permission && screen.askPermission ? (
         <CameraPermissionPrompt canAskAgain={permission.canAskAgain} onRequest={requestPermission} />
       ) : null}
       <CameraOverlay target={target} onClose={() => router.back()} />
-      <View style={[styles.bottom, { paddingBottom: showTray ? 0 : insets.bottom }]} pointerEvents="box-none">
-        {cameraUsable ? (
+      <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
+        {screen.live ? (
           <ShutterBar
             mode={mode}
             recording={capture.recording}
@@ -53,7 +53,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
             onFlip={() => setFacing(facing === "back" ? "front" : "back")}
           />
         ) : null}
-        {showTray ? <SampleTray disabled={capture.busy} onPick={capture.submitSample} bottomInset={insets.bottom} /> : null}
+        {screen.samples ? <SampleTray disabled={capture.busy} onPick={capture.submitSample} bottomInset={insets.bottom} /> : null}
       </View>
     </View>
   );
