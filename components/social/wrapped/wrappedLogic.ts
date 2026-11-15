@@ -36,13 +36,13 @@ export function previousIndex(current: number): number {
   return Math.max(current - 1, 0);
 }
 
-const isForwardTap = (tapX: number, pageWidth: number) => tapX > (pageWidth * 2) / 3;
+// Everything but the left third goes forward, as in other story viewers: a thumb lands in the
+// middle, and a middle that did nothing read as the story being stuck.
+const isForwardTap = (tapX: number, pageWidth: number) => tapX >= pageWidth / 3;
 
-/** Story taps: the right third advances, the left third goes back, the middle does nothing. */
+/** Story taps: the left third goes back, the rest of the card advances. */
 export function indexAfterTap(tapX: number, pageWidth: number, current: number, pageCount: number): number {
-  if (isForwardTap(tapX, pageWidth)) return nextIndex(current, pageCount);
-  if (tapX < pageWidth / 3) return previousIndex(current);
-  return current;
+  return isForwardTap(tapX, pageWidth) ? nextIndex(current, pageCount) : previousIndex(current);
 }
 
 /** A forward tap on the last card has no card to go to, so it ends the story like the close button. */
