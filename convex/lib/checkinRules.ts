@@ -424,7 +424,7 @@ function dollars(usd: number): string {
 
 // ─── When the agent may text ─────────────────────────────────────────────────────────────────
 
-export type NudgeKind = "evening" | "last_day" | "rival_passed" | "arrival";
+export type NudgeKind = "evening" | "last_day" | "final_hours" | "pace" | "rival_passed" | "arrival";
 
 /** More than this in a day and the agent is a nag the player mutes. */
 export const DAILY_TEXT_CAP = 3;
