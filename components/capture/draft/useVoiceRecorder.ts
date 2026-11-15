@@ -1,7 +1,9 @@
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from "expo-audio";
 import { useCallback } from "react";
+import { Platform } from "react-native";
 
 import { meterLevel } from "./recordingMeter";
+import { recordingContentType } from "./recordingType";
 
 const RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
 
@@ -17,10 +19,14 @@ export function useVoiceRecorder() {
     recorder.record();
   }, [recorder]);
 
-  /** Resolves to the recorded file's uri, or null when nothing was captured. */
+  /** Resolves to the recorded file's uri and upload content type, or null when nothing was captured. */
   const stop = useCallback(async () => {
     await recorder.stop();
-    return recorder.uri;
+    const uri = recorder.uri;
+    if (!uri) return null;
+    // Only a browser's recording says what it is; a phone's file is read as the preset's .m4a.
+    const blobType = Platform.OS === "web" ? (await (await fetch(uri)).blob()).type : "";
+    return { uri, contentType: recordingContentType(blobType) };
   }, [recorder]);
 
   return { durationMillis: state.durationMillis, level: meterLevel(state.metering), start, stop };
