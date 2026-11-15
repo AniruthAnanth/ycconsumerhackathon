@@ -8,7 +8,9 @@
  *   afterProof     scheduled when a proof passes: texts whoever the prover just went past
  *
  * Texts go only to players who opted in to playing by text, never between 10 PM and 8 AM Pacific,
- * and at most three a day each.
+ * and at most three a day each. A player who has not opted in gets the scheduled texts and the
+ * rival text as a push instead, when a phone of theirs can be pushed (push.ts), under the same
+ * limits.
  *
  * This module loads rows and sends. Which check-in to ask for, when a text is allowed and every
  * word of copy are pure functions in lib/checkinRules.ts.
@@ -49,7 +51,9 @@ import {
   slotsAtStake,
 } from "./lib/checkinRules";
 import { isValidLatLng } from "./lib/geo";
+import { type LineupNotification, eveningNudge, rivalPassed, settlingSoon } from "./lib/notificationContent";
 import { pacificDay } from "./lib/week";
+import { reachableByPush } from "./push";
 import { leagueStandings } from "./standings";
 
 /** leagues.maxMembers and a week's handful of tasks keep every list far below this; it only bounds the reads. */
@@ -156,7 +160,8 @@ export const recordArrival = mutation({
     // task per day is an invitation; more is a nag.
     const sentToday = await sentOn(ctx, me._id, pacificClock(now).day);
     if (!sentToday.some((sent) => sent.kind === "arrival" && sent.taskId === taskId)) {
-      await sendText(ctx, me._id, "arrival", arrivalText(arrivedAt), taskId);
+      // No push beside this one: the app that reported the arrival is open and says so itself.
+      await sendText(ctx, me._id, "arrival", arrivalText(arrivedAt), { taskId });
     }
     return null;
   },
@@ -227,7 +232,8 @@ export const sweep = internalMutation({
 
     const page = await ctx.db.query("users").paginate({ numItems: SWEEP_PAGE, cursor: cursor ?? null });
     for (const user of page.page) {
-      if (user.keikiOptIn !== true) continue; // sendText would refuse; skip the work too
+      // sendText would refuse a player it can neither text nor push; skip the work too.
+      if (user.keikiOptIn !== true && !(await reachableByPush(ctx, user._id))) continue;
       await ctx.scheduler.runAfter(0, internal.checkins.nudge, { userId: user._id });
     }
     if (!page.isDone) {
@@ -266,10 +272,19 @@ export const nudge = internalMutation({
 
     const rival = await rivalOf(ctx, home.week, userId, await standingsOf(ctx, home.week));
     let text: string;
-    if (kind === "last_day") text = lastDayText({ slots, stakeUsd: home.stakeUsd, rival });
-    else if (checkIn !== null) text = eveningText(checkIn.task, rival);
-    else return null;
-    return (await sendText(ctx, userId, kind, text)) ? text : null;
+    // The notification the app raises for the same moment, for a player who is pushed instead.
+    let push: LineupNotification;
+    if (kind === "last_day") {
+      text = lastDayText({ slots, stakeUsd: home.stakeUsd, rival });
+      const { leagueId, endsAt } = home.week;
+      const leagueName = (await ctx.db.get("leagues", leagueId))?.name ?? "Your league";
+      push = settlingSoon({ leagueId, leagueName, settlesAt: endsAt, msLeft: endsAt - now });
+    } else if (checkIn !== null) {
+      text = eveningText(checkIn.task, rival);
+      const openTasks = tasks.filter((task) => task.status === "open").length;
+      push = eveningNudge({ day: clock.day, openTasks, upNext: checkIn.task });
+    } else return null;
+    return (await sendText(ctx, userId, kind, text, { push })) ? text : null;
   },
 });
 
@@ -341,6 +356,7 @@ export const afterProof = internalMutation({
           userId,
           "rival_passed",
           passedText({ rivalName: prover.name, gap, leagueName: league.name, wayBack }),
+          { push: rivalPassed({ leagueId, rivalId: prover.userId, rivalName: prover.name, gap }) },
         );
       }
 
@@ -379,23 +395,31 @@ async function pointsAddedBy(ctx: QueryCtx, task: Doc<"tasks">, week: Doc<"weeks
  * to a player who opted in to playing by text, nothing between 10 PM and 8 AM Pacific, and at
  * most three a day. The log row is written in the same transaction that counts the day's rows,
  * so two triggers racing for a player's third text cannot both send it.
+ *
+ * `push` is the same nudge as a notification. It goes to a phone that can be pushed, which is
+ * how a player who has not opted in to texts still hears it, under the same limits and with the
+ * same log row. push.send never pushes a phone that is texted, so nobody hears a nudge twice.
  */
 async function sendText(
   ctx: MutationCtx,
   userId: Id<"users">,
   kind: NudgeKind,
   text: string,
-  taskId?: Id<"tasks">,
+  also: { taskId?: Id<"tasks">; push?: LineupNotification } = {},
 ): Promise<boolean> {
   const now = Date.now();
   const clock = pacificClock(now);
-  // keiki.send drops a text to anyone who has not opted in. Checking here as well keeps a text
-  // that was never delivered from using up the player's three for the day.
-  if ((await ctx.db.get("users", userId))?.keikiOptIn !== true) return false;
+  // keiki.send drops a text to anyone who has not opted in, and push.send has no one to push
+  // without a token. Checking here as well keeps a nudge that was never delivered from using
+  // up the player's three for the day.
+  const texted = (await ctx.db.get("users", userId))?.keikiOptIn === true;
+  const push = also.push !== undefined && (await reachableByPush(ctx, userId)) ? also.push : undefined;
+  if (!texted && push === undefined) return false;
   if (!mayText(clock.hour, (await sentOn(ctx, userId, clock.day)).length)) return false;
-  await ctx.db.insert("checkinNudges", { userId, kind, day: clock.day, text, sentAt: now, taskId });
+  await ctx.db.insert("checkinNudges", { userId, kind, day: clock.day, text, sentAt: now, taskId: also.taskId });
   // Scheduled, never awaited: a slow or failing send must not undo the mutation that decided it.
-  await ctx.scheduler.runAfter(0, internal.keiki.send, { userId, text });
+  if (texted) await ctx.scheduler.runAfter(0, internal.keiki.send, { userId, text });
+  if (push !== undefined) await ctx.scheduler.runAfter(0, internal.push.send, { userId, notification: push });
   return true;
 }
 
