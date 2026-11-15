@@ -120,6 +120,18 @@ describe("afterProof", () => {
     expect(texts.join("\n")).toContain("Maya took the lead in YC Hackathon: 45 points, 15 ahead of Sam.");
   });
 
+  it("records a lead change in the quiet hours without texting anyone", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, maya, sam } = await startLeague(t);
+    await score(t, sam, 30);
+
+    vi.setSystemTime(Date.UTC(2026, 10, 16, 7)); // 11 PM that Sunday in Los Angeles
+    await score(t, maya, 45);
+
+    expect(await leaderOf(t, leagueId)).toBe(maya);
+    expect(texts).toEqual([]);
+  });
+
   it("says nothing while the leader stays in front, or when the top two are level", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, maya, sam } = await startLeague(t);
