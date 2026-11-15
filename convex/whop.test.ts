@@ -441,7 +441,7 @@ describe("closeWeek", () => {
     expect(await settlementRows(t)).toEqual(once);
   });
 
-  test("schedules remembering the week's outcomes once, when the week closes", async () => {
+  test("schedules remembering the week's outcomes and closing its drops once, when the week closes", async () => {
     const t = convexTest(schema, modules);
     const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
 
@@ -451,6 +451,7 @@ describe("closeWeek", () => {
     const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
     expect(scheduled.map(({ name, args }) => ({ name, args }))).toEqual([
       { name: "lineup:rememberOutcomes", args: [{ leagueId, weekStart: 0 }] },
+      { name: "drops:closeForWeek", args: [{ leagueId, weekStart: 0 }] },
     ]);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(addMemory).toHaveBeenCalled();
