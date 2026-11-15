@@ -7,6 +7,11 @@
  */
 import { cronJobs } from "convex/server";
 
+import { internal } from "./_generated/api";
+
 const crons = cronJobs();
+
+// 16:00 UTC is 8 AM Pacific in winter and 9 AM in summer: "each morning" either way.
+crons.cron("daily mystery task", "0 16 * * *", internal.drops.dailyMystery, {});
 
 export default crons;
