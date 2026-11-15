@@ -21,6 +21,8 @@ import type * as keikiMedia from "../keikiMedia.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_dropRules from "../lib/dropRules.js";
 import type * as lib_geo from "../lib/geo.js";
+import type * as lib_keikiProtocol from "../lib/keikiProtocol.js";
+import type * as lib_keikiText from "../lib/keikiText.js";
 import type * as lib_lineupRules from "../lib/lineupRules.js";
 import type * as lib_mediaType from "../lib/mediaType.js";
 import type * as lib_schedule from "../lib/schedule.js";
@@ -53,6 +55,8 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/dropRules": typeof lib_dropRules;
   "lib/geo": typeof lib_geo;
+  "lib/keikiProtocol": typeof lib_keikiProtocol;
+  "lib/keikiText": typeof lib_keikiText;
   "lib/lineupRules": typeof lib_lineupRules;
   "lib/mediaType": typeof lib_mediaType;
   "lib/schedule": typeof lib_schedule;
