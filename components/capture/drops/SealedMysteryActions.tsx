@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button, PositionPill } from "@/components/ui";
 import { colors, font, spacing } from "@/theme";
 
+import { errorMessage } from "../errorMessage";
 import type { DropView } from "./dropView";
 import { acceptMystery, passMystery } from "./dropsApi";
 import { Envelope } from "./Envelope";
@@ -26,8 +27,8 @@ export function SealedMysteryActions({ view }: { view: SealedView }) {
     setError(null);
     try {
       await call();
-    } catch {
-      setError(action === "open" ? "Couldn't open the envelope. Try again." : "Couldn't pass. Try again.");
+    } catch (caught) {
+      setError(errorMessage(caught, action === "open" ? "Couldn't open the envelope. Try again." : "Couldn't pass. Try again."));
     } finally {
       setPending(null);
     }
