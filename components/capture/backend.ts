@@ -81,4 +81,8 @@ export const capture = {
     players: query<NoArgs, SeedPlayer[]>("seed:players"),
     actAs: mutation<{ userId: Id<"users"> | null }, null>("seed:actAs"),
   },
+  demo: {
+    /** Pins the player's open location check-in to these coordinates, adding one if they have none. */
+    pinCheckIn: mutation<{ lat: number; lng: number }, Id<"tasks">>("demo:pinCheckIn"),
+  },
 } as const;
