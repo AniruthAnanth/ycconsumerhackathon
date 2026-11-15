@@ -317,6 +317,8 @@ export const rematch = mutation({
         other._creationTime <= league._creationTime
       )
         continue;
+      // Only a game still in play; a later rematch that has already finished is history.
+      if ((await currentWeek(ctx, otherId))?.status === "settled") continue;
       const seats = await membersInJoinOrder(ctx, otherId);
       if (seats.some((seat) => seat.userId === opponent._id))
         return { leagueId: otherId };
@@ -339,15 +341,13 @@ export const toLeague = mutation({
     const { league, members } = await requireVersusMember(ctx, leagueId);
     // Growing changes the payout rule, so it can't happen with stakes riding on the head-to-head.
     const week = await currentWeek(ctx, leagueId);
+    const paid = week === null ? null : await paidInto(ctx, league, week);
+    // paidInto answers yes for everyone in a free game, so a free game is never staked.
     const staked =
-      week !== null &&
-      week.status === "open" &&
-      (
-        await ctx.db
-          .query("ledger")
-          .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-          .take(LEDGER_ROWS)
-      ).some((row) => row.weekId === week._id && row.kind === "buy_in");
+      league.stakeUsd > 0 &&
+      week?.status === "open" &&
+      paid !== null &&
+      members.some(({ userId }) => paid(userId));
     if (staked)
       throw new ConvexError(
         "Stakes are in for this week. Add friends once it settles",
@@ -457,8 +457,25 @@ async function deleteGame(
     .take(LEDGER_ROWS)) {
     await ctx.db.delete("ledger", row._id);
   }
-  for (const member of await membersInJoinOrder(ctx, leagueId))
+  for (const member of await membersInJoinOrder(ctx, leagueId)) {
+    // Invite links and referrals point at the game; they have no league index, so go by member.
+    for (const link of await ctx.db
+      .query("inviteLinks")
+      .withIndex("by_inviter_league", (q) =>
+        q.eq("inviterId", member.userId).eq("leagueId", leagueId),
+      )
+      .take(LEDGER_ROWS)) {
+      await ctx.db.delete("inviteLinks", link._id);
+    }
+    for (const referral of await ctx.db
+      .query("referrals")
+      .withIndex("by_invitee", (q) => q.eq("inviteeId", member.userId))
+      .take(LEDGER_ROWS)) {
+      if (referral.leagueId === leagueId)
+        await ctx.db.delete("referrals", referral._id);
+    }
     await ctx.db.delete("memberships", member._id);
+  }
   await ctx.db.delete("leagues", leagueId);
 }
 
