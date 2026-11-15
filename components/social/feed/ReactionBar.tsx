@@ -1,9 +1,10 @@
 import { useMutation } from "convex/react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedReaction, socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { notify } from "@/components/social/notify";
 import { colors } from "@/theme";
 
 import { reactionButtons } from "./feedLogic";
@@ -20,7 +21,7 @@ export function ReactionBar({ proofId, reactions }: { proofId: Id<"proofs">; rea
           accessibilityLabel={`React ${emoji}`}
           accessibilityState={{ selected: mine }}
           hitSlop={4}
-          onPress={() => react({ proofId, emoji }).catch((error) => Alert.alert(errorMessage(error)))}
+          onPress={() => react({ proofId, emoji }).catch((error) => notify(errorMessage(error)))}
           style={[styles.reaction, mine && styles.reactionMine]}
         >
           <Text style={styles.emoji}>{emoji}</Text>

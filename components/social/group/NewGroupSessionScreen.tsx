@@ -2,10 +2,11 @@ import { useMutation } from "convex/react";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { notify } from "@/components/social/notify";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { spacing } from "@/theme";
@@ -51,12 +52,12 @@ export function NewGroupSessionScreen() {
     try {
       const [match] = await Location.geocodeAsync(placeName.trim());
       if (!match) {
-        Alert.alert("Place not found");
+        notify("Place not found");
         return;
       }
       movePin({ lat: match.latitude, lng: match.longitude });
     } catch {
-      Alert.alert("Couldn't look up that place");
+      notify("Couldn't look up that place");
     } finally {
       setFinding(false);
     }
@@ -74,7 +75,7 @@ export function NewGroupSessionScreen() {
       });
       router.replace(`/group/${dropId}`);
     } catch (error) {
-      Alert.alert(errorMessage(error, "Couldn't start the session. Try again."));
+      notify(errorMessage(error, "Couldn't start the session. Try again."));
       setSaving(false);
     }
   };

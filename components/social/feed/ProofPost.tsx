@@ -1,10 +1,11 @@
 import { useMutation } from "convex/react";
 import { useRouter } from "expo-router";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedItem, socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { confirmAction, notify } from "@/components/social/notify";
 import { Avatar, PositionPill, Score } from "@/components/ui";
 import { colors } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
@@ -34,15 +35,13 @@ export function ProofPost({
 
   // A failed challenge costs the challenger points, so it takes a second tap.
   const confirmChallenge = () =>
-    Alert.alert("Challenge this proof?", "The league votes. If it stands, you lose 10 points.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Challenge",
-        style: "destructive",
-        onPress: () =>
-          openChallenge({ proofId: item.proofId, leagueId }).catch((error) => Alert.alert(errorMessage(error))),
-      },
-    ]);
+    confirmAction({
+      title: "Challenge this proof?",
+      message: "The league votes. If it stands, you lose 10 points.",
+      confirmLabel: "Challenge",
+      onConfirm: () =>
+        openChallenge({ proofId: item.proofId, leagueId }).catch((error) => notify(errorMessage(error))),
+    });
 
   return (
     <View>

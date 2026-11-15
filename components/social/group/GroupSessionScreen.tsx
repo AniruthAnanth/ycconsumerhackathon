@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { socialApi } from "@/components/social/contract";
 import { errorMessage } from "@/components/social/errorMessage";
+import { notify } from "@/components/social/notify";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 import { Button, Header, Score, Screen, SectionLabel } from "@/components/ui";
@@ -62,7 +63,7 @@ export function GroupSessionScreen() {
     try {
       await rsvp({ dropId: drop.dropId });
     } catch (error) {
-      Alert.alert(errorMessage(error, "Couldn't join. Try again."));
+      notify(errorMessage(error, "Couldn't join. Try again."));
     } finally {
       setJoining(false);
     }
