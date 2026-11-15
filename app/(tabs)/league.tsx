@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { StyleSheet, View } from "react-native";
 
 import { SeasonLink } from "@/components/league/SeasonLink";
+import { LeaderboardsStrip } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
@@ -32,6 +33,7 @@ export default function LeagueScreen() {
   return (
     <Screen edges={["bottom"]} scroll>
       <PotSummary pot={pot} now={now} />
+      <LeaderboardsStrip leagueId={leagueId} />
       <StandingsTable
         rows={table}
         viewerId={me.actingAs?._id ?? me._id}
