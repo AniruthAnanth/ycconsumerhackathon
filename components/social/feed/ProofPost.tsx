@@ -7,7 +7,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedItem, socialApi } from "@/components/social/contract";
 import { confirmAction, notify } from "@/components/social/notify";
 import { Avatar, PositionPill, Score } from "@/components/ui";
-import { colors, fontFamily, SCREEN_MARGIN } from "@/theme";
+import { colors, font, fontFamily, layout, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
@@ -73,7 +73,7 @@ export function ProofPost({
               accessibilityLabel={`${item.user.name}'s profile`}
               style={styles.byline}
             >
-              <Avatar uri={item.user.avatarUrl} name={item.user.name} size={40} />
+              <Avatar uri={item.user.avatarUrl} name={item.user.name} size={layout.avatar} />
               <View style={styles.who}>
                 <Text style={styles.name} numberOfLines={1}>
                   {item.user.name}
@@ -128,7 +128,7 @@ export function ProofPost({
         <View style={styles.actions}>
           <ReactionBar proofId={item.proofId} reactions={item.reactions} />
           {challengeable ? (
-            <PressScale accessibilityRole="button" accessibilityLabel="Challenge" hitSlop={8} onPress={confirmChallenge}>
+            <PressScale accessibilityRole="button" accessibilityLabel="Challenge" style={styles.challengeHit} onPress={confirmChallenge}>
               <Text style={styles.challenge}>Challenge</Text>
             </PressScale>
           ) : null}
@@ -141,20 +141,21 @@ export function ProofPost({
 }
 
 const styles = StyleSheet.create({
-  byline: { height: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: SCREEN_MARGIN },
-  who: { flex: 1, gap: 6 },
-  name: { color: colors.text, fontSize: 15, fontFamily: fontFamily.bold },
-  age: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily.regular },
-  task: { flexDirection: "row", alignItems: "center", gap: 8 },
-  taskTitle: { flex: 1, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 13 },
+  byline: { minHeight: ROW_HEIGHT, flexDirection: "row", alignItems: "center", gap: layout.columnGap, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  who: { flex: 1, gap: spacing.xs },
+  name: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.bold },
+  age: { color: colors.textMuted, fontSize: font.meta, fontFamily: fontFamily.regular },
+  task: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  taskTitle: { flex: 1, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta },
   media: { width: "100%", aspectRatio: 4 / 3 },
-  body: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, gap: 8 },
-  flags: { flexDirection: "row", gap: 12 },
-  kind: { color: colors.accent, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
-  closeCall: { color: colors.danger, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
-  caption: { color: colors.text, fontSize: 15, fontFamily: fontFamily.semiBold },
-  reason: { color: colors.text, fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
-  referee: { color: colors.textMuted, fontSize: 11, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
-  actions: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 },
-  challenge: { color: colors.accent, fontSize: 14, fontFamily: fontFamily.semiBold },
+  body: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.sm },
+  flags: { flexDirection: "row", gap: spacing.md },
+  kind: { color: colors.accent, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  closeCall: { color: colors.danger, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  caption: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.semiBold },
+  reason: { color: colors.text, fontFamily: fontFamily.regular, fontSize: font.body, lineHeight: type.label.lineHeight },
+  referee: { color: colors.textMuted, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
+  actions: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
+  challengeHit: { minHeight: MIN_TARGET, justifyContent: "center" },
+  challenge: { color: colors.accent, fontSize: font.body, fontFamily: fontFamily.semiBold },
 });

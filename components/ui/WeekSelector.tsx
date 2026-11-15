@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, spacing } from "@/theme";
 
 import { Icon } from "./Icon";
 
@@ -48,7 +48,7 @@ export function WeekSelector({ label, onPrev, onNext, onLongPress, arrows = true
 
 const styles = StyleSheet.create({
   bar: {
-    height: 40,
+    height: layout.bar,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

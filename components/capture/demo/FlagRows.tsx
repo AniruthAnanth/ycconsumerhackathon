@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
 import type { DevFlags } from "@/lib/devFlags";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { RowDivider } from "@/components/ui";
+import { colors, font, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 /** A development flag with its switch. */
 export function FlagRow({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
@@ -9,6 +10,7 @@ export function FlagRow({ label, value, onChange }: { label: string; value: bool
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent }} />
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
@@ -36,29 +38,28 @@ export function OverrideSpotRow({ value, onChange }: { value: DevFlags["override
           </Pressable>
         );
       })}
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 52,
+    minHeight: layout.rowMin,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   label: { flex: 1, color: colors.text, fontSize: font.title, fontFamily: fontFamily.bold },
   spot: {
     flex: 1,
     alignItems: "center",
     paddingVertical: spacing.sm,
-    borderWidth: 1,
+    borderWidth: hairline,
     borderColor: colors.accent,
-    borderRadius: 999,
+    borderRadius: radius.pill,
   },
   spotSelected: { backgroundColor: colors.accent },
   spotLabel: { color: colors.accent, fontSize: font.body, fontFamily: fontFamily.bold },

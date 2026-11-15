@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily, spacing } from "@/theme";
 
 /**
  * What a social screen shows in place of its content: a spinner while its query
@@ -15,6 +15,6 @@ export function ScreenState({ loading, message }: { loading?: boolean; message?:
 }
 
 const styles = StyleSheet.create({
-  state: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, backgroundColor: colors.background },
-  text: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 15, textAlign: "center" },
+  state: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, backgroundColor: colors.background },
+  text: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center" },
 });

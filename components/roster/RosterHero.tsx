@@ -11,7 +11,7 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { formatCountdown } from "@/lib/leagueText";
 import { useNow } from "@/lib/useNow";
 import { planProgress, planProgressLabel } from "@/lib/weeklyPlan";
-import { colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
  * The top of Roster, laid out like a fantasy app's matchup card: the head-to-head score is the
@@ -42,7 +42,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
     weekStart === undefined && league.week.status === "open" ? ` · ends in ${formatCountdown(league.week.endsAt - now)}` : "";
   const chance = matchup ? Math.round(matchup.me.winProbability * 100) : null;
   const scoreboard = matchup
-    ? `${matchup.me.name} ${formatScore(matchup.me.total)}, ${matchup.opponent.name} ${formatScore(matchup.opponent.total)}, ${chance}% to win`
+    ? `${matchup.me.name} ${formatScore(matchup.me.total)}, ${matchup.opponent.name} ${formatScore(matchup.opponent.total)}, ${chance}% to win this matchup`
     : `${formatScore(roster.total)} points this week`;
 
   return (
@@ -96,7 +96,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
             <Text style={styles.planLabel} numberOfLines={1}>
               Your weekly plan · {plan.confirmed} / {plan.possible} pts
             </Text>
-            {chance !== null ? <Text style={styles.chance}>{chance}% to win</Text> : null}
+            {chance !== null ? <Text style={styles.chance}>Win this matchup · {chance}%</Text> : null}
           </View>
           <ProgressFill ratio={plan.ratio} />
           {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}
@@ -121,10 +121,10 @@ const styles = StyleSheet.create({
   },
   loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
   // Sunny stays small here: the card shares the first screen with the starters.
-  head: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: -spacing.sm },
+  head: { flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   headText: { flex: 1 },
   meta: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
-  scores: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
+  scores: { flexDirection: "row", alignItems: "baseline", gap: layout.columnGap },
   side: { flex: 1 },
   sideEnd: { alignItems: "flex-end" },
   // The one number that matters most is the biggest type on the screen; the opponent's is a step down.

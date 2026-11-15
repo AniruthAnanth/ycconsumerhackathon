@@ -2,12 +2,12 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Icon } from "@/components/ui";
+import { Icon, RowDivider } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { stakeLine } from "@/lib/leagueText";
 import { haptics } from "@/lib/native/haptics";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing } from "@/theme";
 
 /**
  * The sheet the header's league name opens (app/league-switcher.tsx, a native form sheet sized
@@ -43,17 +43,19 @@ export function LeagueSwitcher() {
           accessibilityState={{ selected: league._id === leagueId }}
         >
           <View style={styles.text}>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text style={styles.name}>
               {league.name}
             </Text>
             <Text style={styles.meta}>{stakeLine(league)}</Text>
           </View>
           {league._id === leagueId ? <Icon name="checkmark" color={colors.tabActive} /> : null}
+          <RowDivider inset={SCREEN_MARGIN} />
         </Pressable>
       ))}
       <Pressable style={styles.row} onPress={join} accessibilityRole="button" accessibilityLabel="Join or create a league">
         <Icon name="add" color={colors.accent} />
         <Text style={styles.join}>Join or create a league</Text>
+        <RowDivider inset={SCREEN_MARGIN} />
       </Pressable>
     </View>
   );
@@ -63,15 +65,13 @@ const styles = StyleSheet.create({
   // Room above the first row for the sheet's grabber.
   list: { backgroundColor: colors.background, paddingTop: spacing.lg },
   row: {
-    minHeight: 56,
+    minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
   },
-  text: { flex: 1, gap: 1 },
+  text: { flex: 1 },
   name: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   join: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.accent },

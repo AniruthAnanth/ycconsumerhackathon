@@ -7,7 +7,7 @@ import { type FeedReaction, socialApi } from "@/components/social/contract";
 import { notify } from "@/components/social/notify";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
-import { colors, fontFamily, MIN_TARGET, radius } from "@/theme";
+import { colors, font, fontFamily, MIN_TARGET, radius, spacing, tabular } from "@/theme";
 
 import { reactionButtons } from "./feedLogic";
 
@@ -38,19 +38,19 @@ export function ReactionBar({ proofId, reactions }: { proofId: Id<"proofs">; rea
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: "row", flexWrap: "wrap", gap: 8, flex: 1 },
+  bar: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, flex: 1 },
   reaction: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: spacing.xs,
     minHeight: MIN_TARGET,
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.divider,
   },
   reactionMine: { borderColor: colors.accent },
-  emoji: { fontFamily: fontFamily.regular, fontSize: 15 },
-  count: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily.semiBold, fontVariant: ["tabular-nums"] },
+  emoji: { fontFamily: fontFamily.regular, fontSize: font.body },
+  count: { color: colors.textMuted, fontSize: font.meta, fontFamily: fontFamily.semiBold, ...tabular },
   countMine: { color: colors.accent },
 });

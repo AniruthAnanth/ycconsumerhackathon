@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Artwork } from "@/components/art";
 import { ShareChallenge } from "@/components/invite";
 import { Button, Divider } from "@/components/ui";
-import { colors, font, fontFamily, spacing, type } from "@/theme";
+import { colors, font, fontFamily, hairline, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { FadeIn } from "./FadeIn";
 import { PointsCounter } from "./PointsCounter";
@@ -67,7 +67,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
         {verdict.pass ? <Artwork name="sunny" size={104} style={styles.celebration} /> : null}
         <Text style={[styles.reason, verdict.pass && styles.reasonPass]}>{verdict.reason}</Text>
         {verdict.pass && verdict.caption ? (
-          <Text style={styles.caption} numberOfLines={1}>
+          <Text style={styles.caption}>
             {verdict.caption}
           </Text>
         ) : null}
@@ -91,7 +91,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
 }
 
 const styles = StyleSheet.create({
-  panel: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
+  panel: { flex: 1, backgroundColor: colors.background, paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.xl },
   reason: { color: colors.text, fontSize: 24, fontFamily: fontFamily.semiBold, lineHeight: 31, marginBottom: spacing.xl },
   celebration: { alignSelf: "center", marginBottom: spacing.md },
   caption: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, marginTop: -spacing.lg, marginBottom: spacing.xl },
@@ -102,15 +102,15 @@ const styles = StyleSheet.create({
   closeCall: {
     color: colors.textMuted,
     borderColor: colors.divider,
-    borderWidth: 1,
+    borderWidth: hairline,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    fontSize: 11,
+    fontSize: font.label,
     fontFamily: fontFamily.bold,
     letterSpacing: 1.2,
   },
   spacer: { flex: 1 },
   actions: { gap: spacing.sm },
-  close: { alignItems: "center", paddingVertical: spacing.md },
-  closeLabel: { color: colors.textMuted, fontSize: 15, fontFamily: fontFamily.semiBold },
+  close: { alignItems: "center", justifyContent: "center", minHeight: MIN_TARGET },
+  closeLabel: { color: colors.textMuted, fontSize: font.body, fontFamily: fontFamily.semiBold },
 });

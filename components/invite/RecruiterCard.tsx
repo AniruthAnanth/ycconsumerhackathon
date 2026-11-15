@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Divider, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { REFERRAL_POINTS } from "@/convex/lib/referralRules";
-import { colors, font, fontFamily, hairline, ROW_HEIGHT_COMPACT, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import { friendStatusLine } from "./inviteRoute";
 
@@ -23,6 +23,7 @@ export function RecruiterCard() {
         <Total label="Invited" value={String(mine.invited)} />
         <Total label="Locked" value={String(mine.locked)} />
       </View>
+      <Divider />
       <Text style={styles.rule}>{`A friend who locks a first lineup earns you ${REFERRAL_POINTS} Recruiter points.`}</Text>
       <SectionLabel left="Friends" />
       {mine.friends.length === 0 ? <Text style={styles.empty}>No friends invited yet</Text> : null}
@@ -32,7 +33,7 @@ export function RecruiterCard() {
             <Text style={styles.name}>{friend.name}</Text>
             <Text style={[styles.status, friend.status === "locked" && styles.locked]}>{friendStatusLine(friend)}</Text>
           </View>
-          <Divider />
+          <Divider inset={SCREEN_MARGIN} />
         </View>
       ))}
     </View>
@@ -49,14 +50,14 @@ function Total({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  totals: { flexDirection: "row", paddingVertical: spacing.lg, borderBottomWidth: hairline, borderBottomColor: colors.divider },
+  totals: { flexDirection: "row", paddingVertical: spacing.lg, paddingHorizontal: SCREEN_MARGIN },
   total: { flex: 1, alignItems: "center", gap: spacing.xs },
-  totalValue: { fontSize: font.total, fontFamily: fontFamily.bold, color: colors.text, fontVariant: ["tabular-nums"] },
+  totalValue: { fontSize: font.total, fontFamily: fontFamily.bold, color: colors.text, ...tabular },
   totalLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted },
-  rule: { padding: spacing.md, fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  empty: { padding: spacing.lg, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
-  row: { height: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  name: { fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
+  rule: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  empty: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
+  row: { minHeight: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: layout.columnGap, paddingVertical: spacing.sm, paddingHorizontal: SCREEN_MARGIN },
+  name: { flex: 1, fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
   status: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   locked: { color: colors.tabActive, fontFamily: fontFamily.bold },
 });

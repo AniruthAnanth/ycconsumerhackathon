@@ -1,7 +1,7 @@
 import { Linking, StyleSheet, View } from "react-native";
 
 import { Button } from "@/components/ui";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN } from "@/theme";
 
 type Props = { canAskAgain: boolean; onRequest: () => void };
 
@@ -17,5 +17,5 @@ export function CameraPermissionPrompt({ canAskAgain, onRequest }: Props) {
 }
 
 const styles = StyleSheet.create({
-  center: { ...StyleSheet.absoluteFill, alignItems: "stretch", justifyContent: "center", paddingHorizontal: spacing.xl },
+  center: { ...StyleSheet.absoluteFill, alignItems: "stretch", justifyContent: "center", paddingHorizontal: SCREEN_MARGIN },
 });

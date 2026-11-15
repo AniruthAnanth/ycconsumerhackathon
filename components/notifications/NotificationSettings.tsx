@@ -2,11 +2,11 @@ import { useMutation, useQuery } from "convex/react";
 import { Linking, StyleSheet, Switch, Text, View } from "react-native";
 
 import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
-import { SectionLabel } from "@/components/ui";
+import { RowDivider, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { isAvailable, requestPermission } from "@/lib/notifications/native";
 import { usePermission } from "@/lib/notifications/usePermission";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { pushCopy } from "./pushCopy";
 import { SilentBoundary } from "./SilentBoundary";
@@ -67,22 +67,21 @@ function PushRow() {
         trackColor={{ true: colors.accent }}
         accessibilityLabel="Push notifications"
       />
+      <RowDivider inset={SCREEN_MARGIN} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 64,
+    minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
-  text: { flex: 1, gap: 2 },
+  text: { flex: 1, gap: spacing.xs },
   title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   copy: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
 });

@@ -41,6 +41,6 @@ function Failure({ error, retry }: ErrorBoundaryProps) {
 }
 
 const styles = StyleSheet.create({
-  failure: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xl },
+  failure: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xlm },
   message: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.title, textAlign: "center" },
 });

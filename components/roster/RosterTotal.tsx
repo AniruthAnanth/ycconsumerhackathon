@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { Score } from "@/components/ui";
-import { colors, font, fontFamily, hairline, spacing } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN } from "@/theme";
 
 type Props = {
   total: number | null;
@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
     height: 36,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
@@ -52,8 +52,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    gap: layout.columnGap,
+    paddingHorizontal: SCREEN_MARGIN,
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
 });

@@ -1,6 +1,6 @@
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fontFamily, spacing } from "@/theme";
+import { colors, fontFamily, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 import type { CaptureMode } from "./useProofCapture";
 
@@ -59,8 +59,8 @@ export function ShutterBar({ mode, recording, secondsRemaining, busy, onModeChan
 
 const styles = StyleSheet.create({
   bar: { alignItems: "center", gap: spacing.md, paddingVertical: spacing.lg },
-  counter: { color: colors.onAccent, fontSize: 20, fontFamily: fontFamily.bold, fontVariant: ["tabular-nums"] },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", alignSelf: "stretch", paddingHorizontal: spacing.xl },
+  counter: { color: colors.onAccent, fontSize: 20, fontFamily: fontFamily.bold, ...tabular },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", alignSelf: "stretch", paddingHorizontal: SCREEN_MARGIN },
   side: { width: 80, gap: spacing.md, alignItems: "center" },
   mode: { color: colors.onAccent, fontSize: 13, fontFamily: fontFamily.bold, letterSpacing: 1, opacity: 0.6 },
   modeActive: { opacity: 1 },

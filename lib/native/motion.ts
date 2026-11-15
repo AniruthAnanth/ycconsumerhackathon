@@ -34,6 +34,27 @@ export function staggerDelay(index: number): number {
   return Math.min(Math.max(index, 0), STAGGER_MAX_ROWS) * STAGGER_MS;
 }
 
+/**
+ * The escrow flow on the pot card: dollars travel from each paid member into the pot, then a line
+ * drops to the payout box. Every step keeps to MAX_MOTION_MS; only the sequence runs longer,
+ * because it is the one place the app tells a story instead of answering a tap.
+ */
+/** The beat before the first dollar leaves, so the diagram is seen at rest first. */
+export const ESCROW_LEAD_MS = 150;
+/** One dollar's trip along its curve from a member to the pot. */
+export const ESCROW_TRAVEL_MS = 400;
+/** The gap between the dollars one member sends, so they read as a stream and not a blob. */
+export const ESCROW_TRAIL_MS = 110;
+/** Members start this far apart at most... */
+export const ESCROW_STAGGER_MS = 120;
+/** ...and every start fits in this window, so twelve members take no longer than six. */
+export const ESCROW_STAGGER_WINDOW_MS = 600;
+/** The pot swelling and relaxing as a member's money lands. */
+export const ESCROW_PULSE_MS = 240;
+/** The line drawing down from the pot, then the payout box settling in under it. */
+export const ESCROW_DROP_MS = 240;
+export const ESCROW_SETTLE_MS = 260;
+
 /** Ease-out cubic: fast start, gentle landing, the way a scoreboard digit settles. */
 export function easeOutCubic(t: number): number {
   const clamped = Math.min(1, Math.max(0, t));

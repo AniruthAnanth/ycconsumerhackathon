@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { canSend } from "./chatLogic";
 
@@ -46,33 +46,34 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: spacing.sm,
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
     backgroundColor: colors.background,
   },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: layout.rowMin,
     maxHeight: MAX_INPUT_HEIGHT,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderRadius: radius.control,
     backgroundColor: colors.strip,
     color: colors.text,
-    fontFamily: fontFamily.regular, fontSize: 16,
+    fontFamily: fontFamily.regular,
+    fontSize: font.title,
   },
   send: {
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    minHeight: layout.rowMin,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.control,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
   sendDisabled: { opacity: 0.4 },
-  sendText: { color: colors.onAccent, fontSize: 15, fontFamily: fontFamily.bold },
+  sendText: { color: colors.onAccent, fontSize: font.body, fontFamily: fontFamily.bold },
 });

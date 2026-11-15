@@ -8,11 +8,13 @@ import { Divider, OutlinedPillButton, Screen } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { useNow } from "@/lib/useNow";
-import { colors, fontFamily } from "@/theme";
+import { colors, font, fontFamily, hairline, SCREEN_MARGIN, spacing } from "@/theme";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
 import { ProofPost } from "./ProofPost";
+
+const PostDivider = () => <Divider inset={SCREEN_MARGIN} />;
 
 /**
  * FEED tab: the league's verified proofs, newest first. It is also where the
@@ -39,7 +41,7 @@ export function FeedScreen() {
             <ProofPost item={item} leagueId={leagueId} memberCount={memberCount} myUserId={myUserId} now={now} />
           </Entrance>
         )}
-        ItemSeparatorComponent={Divider}
+        ItemSeparatorComponent={PostDivider}
         ListHeaderComponent={
           <View style={styles.shortcuts}>
             <View style={styles.shortcutRow}>
@@ -63,13 +65,13 @@ export function FeedScreen() {
 
 const styles = StyleSheet.create({
   shortcuts: {
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.md,
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.md,
+    borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  shortcutRow: { flexDirection: "row", gap: 12 },
+  shortcutRow: { flexDirection: "row", gap: spacing.md },
   shortcut: { flex: 1 },
-  empty: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: 15, textAlign: "center", paddingVertical: 48 },
+  empty: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center", paddingVertical: spacing.xxl },
 });

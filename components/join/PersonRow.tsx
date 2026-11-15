@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Avatar, Icon } from "@/components/ui";
-import { colors, hairline, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { Avatar, Icon, RowDivider } from "@/components/ui";
+import { colors, layout, PERSON_TEXT_INSET, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, type } from "@/theme";
 
 type Props = {
   name: string;
@@ -17,7 +17,7 @@ type Props = {
 export function PersonRow({ name, detail, selected, onToggle }: Props) {
   const content = (
     <View style={styles.row}>
-      <Avatar name={name} size={40} />
+      <Avatar name={name} size={layout.avatarCompact} />
       <View style={styles.text}>
         <Text style={styles.name} numberOfLines={1}>
           {name}
@@ -31,6 +31,7 @@ export function PersonRow({ name, detail, selected, onToggle }: Props) {
       {onToggle ? (
         <Icon name={selected ? "checkmark-circle" : "ellipse-outline"} size={24} color={selected ? colors.accent : colors.textFaint} />
       ) : null}
+      <RowDivider inset={PERSON_TEXT_INSET} />
     </View>
   );
   if (!onToggle) return content;
@@ -51,12 +52,10 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT_COMPACT,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: layout.columnGap,
     paddingHorizontal: SCREEN_MARGIN,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
-  text: { flex: 1, gap: 1 },
+  text: { flex: 1 },
   name: { ...type.subheading, color: colors.text },
   detail: { ...type.small, color: colors.textMuted },
 });

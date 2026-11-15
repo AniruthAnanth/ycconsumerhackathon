@@ -7,6 +7,7 @@ import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { spacing } from "@/theme";
 
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
@@ -32,7 +33,7 @@ export default function MatchupScreen() {
     );
 
   return (
-    <ScrollView>
+    <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
       <MatchupBody matchup={matchup} belowHero={<MatchupMarkets />} />
       <ChallengeButton />
       <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />

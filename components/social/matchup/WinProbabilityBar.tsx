@@ -11,7 +11,7 @@ export function WinProbabilityBar({ mine, theirs }: { mine: number; theirs: numb
     <View style={styles.wrap}>
       <View style={styles.labels}>
         <Text style={styles.percent}>{minePercent}%</Text>
-        <Text style={styles.caption}>Win probability</Text>
+        <Text style={styles.caption}>Win this matchup</Text>
         <Text style={styles.percent}>{theirsPercent}%</Text>
       </View>
       <ProgressFill ratio={mineShare} />
