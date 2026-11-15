@@ -1,0 +1,450 @@
+/**
+ * A league's season: its settings, the schedule with results, the table and
+ * the playoff bracket.
+ *
+ * Nothing here is stored. Weeks that have been opened are read from the weeks
+ * and matchups rows, so a pairing never changes after the fact; weeks still
+ * to come are projected from the current members with lib/schedule.ts.
+ * buildSeason does that assembly as a pure function over ids, and the query
+ * only loads rows for it and adds names.
+ */
+import { ConvexError, v } from "convex/values";
+
+import type { Doc, Id } from "./_generated/dataModel";
+import { query, type QueryCtx } from "./_generated/server";
+import { requireUser } from "./lib/auth";
+import {
+  bracketFor,
+  MAX_SEASON_WEEKS,
+  resolveSettings,
+  scheduleFor,
+  seasonOf,
+  seasonTable,
+  winnerOf,
+  type Bracket,
+  type LeagueSettings,
+  type Pairing,
+  type Result,
+  type TableRow,
+} from "./lib/schedule";
+import { leagueFormat, payout } from "./schema";
+
+type UserId = Id<"users">;
+
+// ---- Assembly (pure) --------------------------------------------------------
+
+export type SeasonInput<Id> = {
+  settings: LeagueSettings;
+  members: { id: Id; joinedAt: number }[];
+  // The weeks rows that exist, by league week number. live is the week being
+  // played now.
+  openedWeeks: { number: number; endsAt: number; live: boolean }[];
+  // Every matchup of those weeks with each side's points.
+  results: Result<Id>[];
+};
+
+export type SeasonWeek<Id> = {
+  number: number; // week of the season, starting at 1
+  status: "final" | "live" | "upcoming";
+  round?: string; // playoff weeks only
+  matchups: {
+    a: Id;
+    b: Id;
+    scoreA: number | null;
+    scoreB: number | null;
+    winnerId: Id | null;
+  }[];
+  byes: Id[];
+};
+
+export type SeasonView<Id> = {
+  season: number;
+  currentWeek: number; // week of the season
+  weeks: SeasonWeek<Id>[];
+  table: (TableRow<Id> & { rank: number })[];
+  bracket: Pick<Bracket<Id>, "projected" | "rounds" | "champion"> | null;
+};
+
+/**
+ * The season the league is in now, week by week.
+ *
+ * Week numbers in the result count from the start of the season, because
+ * "week 2 of 8" is what a player reads; the rows and lib/schedule.ts count
+ * from the league's first week.
+ */
+export function buildSeason<Id extends string>({
+  settings,
+  members,
+  openedWeeks,
+  results,
+}: SeasonInput<Id>): SeasonView<Id> {
+  const memberIds = members.map((member) => member.id);
+  const newest = Math.max(0, ...openedWeeks.map((week) => week.number));
+  const currentWeek = Math.max(newest, 1); // a league with no week yet is about to play week 1
+  const season = seasonOf(currentWeek, settings.seasonWeeks);
+  const weekOfSeason = (leagueWeek: number) => leagueWeek - season.firstWeek + 1;
+  const played = results.filter(
+    (result) => result.week >= season.firstWeek && result.week <= season.lastWeek,
+  );
+  const bracket =
+    settings.format === "bracket"
+      ? bracketFor(memberIds, currentWeek, played, settings.seasonWeeks)
+      : null;
+  const currentIsLive = openedWeeks.some(
+    (week) => week.number === newest && week.live,
+  );
+
+  const weeks: SeasonWeek<Id>[] = [];
+  for (let number = season.firstWeek; number <= season.lastWeek; number++) {
+    const round = bracket?.rounds.find((r) => r.week === number)?.name;
+    const label = {
+      number: weekOfSeason(number),
+      ...(round === undefined ? {} : { round }),
+    };
+    const opened = openedWeeks.find((week) => week.number === number);
+
+    if (opened !== undefined) {
+      const matchups = played.filter((result) => result.week === number);
+      const playing = new Set(matchups.flatMap((result) => [result.a, result.b]));
+      weeks.push({
+        ...label,
+        status: opened.live ? "live" : "final",
+        matchups: matchups.map((result) => ({
+          a: result.a,
+          b: result.b,
+          scoreA: result.scoreA,
+          scoreB: result.scoreB,
+          winnerId: winnerOf(result),
+        })),
+        // Someone who joined after the week ended did not have that week off.
+        byes: members
+          .filter((member) => member.joinedAt < opened.endsAt && !playing.has(member.id))
+          .map((member) => member.id),
+      });
+      continue;
+    }
+
+    // A playoff round's pairings exist only once the week before it is over.
+    // Until then the schedule shows the round with nobody in it, and the
+    // bracket shows who is on course for it.
+    const undecided =
+      round !== undefined && (currentIsLive || number !== newest + 1);
+    const pairings = undecided
+      ? []
+      : scheduleFor(settings.format, memberIds, number, played, settings.seasonWeeks);
+    const playing = new Set(pairings.flatMap((pairing) => [pairing.a, pairing.b]));
+    weeks.push({
+      ...label,
+      status: "upcoming",
+      matchups: pairings.map((pairing) => ({
+        ...pairing,
+        scoreA: null,
+        scoreB: null,
+        winnerId: null,
+      })),
+      byes: undecided ? [] : memberIds.filter((id) => !playing.has(id)),
+    });
+  }
+
+  // Playoff games decide the bracket, not the table the bracket was seeded from.
+  const counted =
+    bracket === null
+      ? played
+      : played.filter((result) => result.week < bracket.firstWeek);
+
+  return {
+    season: season.number,
+    currentWeek: weekOfSeason(currentWeek),
+    weeks,
+    table: seasonTable(memberIds, counted).map((row, index) => ({
+      ...row,
+      rank: index + 1,
+    })),
+    bracket:
+      bracket === null
+        ? null
+        : {
+            projected: bracket.projected,
+            champion: bracket.champion,
+            rounds: bracket.rounds.map((r) => ({ ...r, week: weekOfSeason(r.week) })),
+          },
+  };
+}
+
+// ---- Loading ----------------------------------------------------------------
+
+/** Bounds, not page sizes: a league is a group of friends. */
+const MAX_MEMBERS = 200;
+const MAX_TASKS_PER_WEEK = 100;
+
+async function loadMembers(
+  ctx: QueryCtx,
+  leagueId: Id<"leagues">,
+): Promise<{ id: UserId; joinedAt: number }[]> {
+  const memberships = await ctx.db
+    .query("memberships")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .take(MAX_MEMBERS);
+  return memberships.map((m) => ({ id: m.userId, joinedAt: m.joinedAt }));
+}
+
+/**
+ * A member's points for one league week: what their verified tasks earned,
+ * less any penalty a failed task carries (a failed mystery task has negative
+ * points). A drop's task scores only in the league the drop belongs to.
+ */
+async function weekPoints(
+  ctx: QueryCtx,
+  leagueId: Id<"leagues">,
+  weekStart: number,
+  userId: UserId,
+): Promise<number> {
+  const tasks = await ctx.db
+    .query("tasks")
+    .withIndex("by_user_week", (q) => q.eq("userId", userId).eq("weekStart", weekStart))
+    .take(MAX_TASKS_PER_WEEK);
+  let total = 0;
+  for (const task of tasks) {
+    const counts =
+      task.status === "verified" || (task.status === "failed" && task.points < 0);
+    if (!counts) continue;
+    if (task.dropId !== undefined) {
+      const drop = await ctx.db.get("drops", task.dropId);
+      if (drop?.leagueId !== leagueId) continue;
+    }
+    total += task.points;
+  }
+  return total;
+}
+
+async function loadSeason(
+  ctx: QueryCtx,
+  league: Doc<"leagues">,
+): Promise<SeasonInput<UserId>> {
+  const settings = resolveSettings(league);
+  const weekRows = await ctx.db
+    .query("weeks")
+    .withIndex("by_league", (q) => q.eq("leagueId", league._id))
+    .order("desc")
+    .take(MAX_SEASON_WEEKS);
+  const newest = Math.max(0, ...weekRows.map((week) => week.number));
+  const season = seasonOf(Math.max(newest, 1), settings.seasonWeeks);
+  const seasonRows = weekRows.filter((week) => week.number >= season.firstWeek);
+  const isLive = (week: Doc<"weeks">) =>
+    week.number === newest && week.status === "open";
+
+  const results: Result<UserId>[] = [];
+  for (const week of seasonRows) {
+    const matchups = await ctx.db
+      .query("matchups")
+      .withIndex("by_week", (q) => q.eq("weekId", week._id))
+      .take(MAX_MEMBERS);
+    for (const matchup of matchups) {
+      // Scores frozen on the row win; otherwise the week is scored from its tasks.
+      const [scoreA, scoreB] = await Promise.all([
+        matchup.scoreA ?? weekPoints(ctx, league._id, week.startsAt, matchup.userA),
+        matchup.scoreB ?? weekPoints(ctx, league._id, week.startsAt, matchup.userB),
+      ]);
+      results.push({
+        week: week.number,
+        a: matchup.userA,
+        b: matchup.userB,
+        scoreA,
+        scoreB,
+        ...(isLive(week) ? { live: true } : {}),
+      });
+    }
+  }
+
+  return {
+    settings,
+    members: await loadMembers(ctx, league._id),
+    openedWeeks: seasonRows.map((week) => ({
+      number: week.number,
+      endsAt: week.endsAt,
+      live: isLive(week),
+    })),
+    results,
+  };
+}
+
+/**
+ * The pairings for a league week, for whoever opens that week: the league's
+ * format applied to its current members. Only the bracket needs the earlier
+ * results, so the round-robin formats don't pay for loading them.
+ */
+export async function pairingsForWeek(
+  ctx: QueryCtx,
+  league: Doc<"leagues">,
+  weekNumber: number,
+): Promise<Pairing<UserId>[]> {
+  const settings = resolveSettings(league);
+  if (settings.format !== "bracket") {
+    const members = await loadMembers(ctx, league._id);
+    return scheduleFor(
+      settings.format,
+      members.map((member) => member.id),
+      weekNumber,
+      [],
+      settings.seasonWeeks,
+    );
+  }
+  const { members, results } = await loadSeason(ctx, league);
+  // Opening a week means the ones before it are over, even if the newest of
+  // them has not been marked settled yet.
+  const earlier = results
+    .filter((result) => result.week < weekNumber)
+    .map((result) => ({ ...result, live: false }));
+  return scheduleFor(
+    settings.format,
+    members.map((member) => member.id),
+    weekNumber,
+    earlier,
+    settings.seasonWeeks,
+  );
+}
+
+// ---- Query ------------------------------------------------------------------
+
+const player = {
+  userId: v.id("users"),
+  name: v.string(),
+  avatarUrl: v.optional(v.string()),
+};
+const seededPlayer = v.union(v.object({ ...player, seed: v.number() }), v.null());
+const score = v.union(v.number(), v.null());
+const userOrNull = v.union(v.id("users"), v.null());
+
+export const overview = query({
+  args: { leagueId: v.id("leagues") },
+  returns: v.object({
+    settings: v.object({ payout, seasonWeeks: v.number(), format: leagueFormat }),
+    season: v.number(), // 1 for the league's first season
+    currentWeek: v.number(), // week of the season, starting at 1
+    meId: v.id("users"),
+    weeks: v.array(
+      v.object({
+        number: v.number(),
+        status: v.union(v.literal("final"), v.literal("live"), v.literal("upcoming")),
+        round: v.optional(v.string()),
+        matchups: v.array(
+          v.object({
+            a: v.object(player),
+            b: v.object(player),
+            scoreA: score,
+            scoreB: score,
+            winnerId: userOrNull,
+          }),
+        ),
+        byes: v.array(v.object(player)),
+      }),
+    ),
+    table: v.array(
+      v.object({
+        ...player,
+        rank: v.number(),
+        wins: v.number(),
+        losses: v.number(),
+        ties: v.number(),
+        pointsFor: v.number(),
+      }),
+    ),
+    bracket: v.union(
+      v.null(),
+      v.object({
+        projected: v.boolean(),
+        rounds: v.array(
+          v.object({
+            week: v.number(),
+            name: v.string(),
+            matches: v.array(
+              v.object({
+                a: seededPlayer,
+                b: seededPlayer,
+                scoreA: score,
+                scoreB: score,
+                winnerId: userOrNull,
+                bye: v.boolean(),
+              }),
+            ),
+          }),
+        ),
+        championId: userOrNull,
+      }),
+    ),
+  }),
+  handler: async (ctx, { leagueId }) => {
+    const me = await requireUser(ctx);
+    const league = await ctx.db.get("leagues", leagueId);
+    if (league === null) throw new ConvexError("That league doesn't exist.");
+
+    const input = await loadSeason(ctx, league);
+    const view = buildSeason(input);
+
+    // Names for everyone the season mentions, including a player who has
+    // left the league but still appears in an old result.
+    const players = new Map<UserId, { userId: UserId; name: string; avatarUrl?: string }>();
+    const mentioned = new Set([
+      ...input.members.map((member) => member.id),
+      ...input.results.flatMap((result) => [result.a, result.b]),
+    ]);
+    for (const userId of mentioned) {
+      const user = await ctx.db.get("users", userId);
+      const avatarUrl = user?.avatarStorageId
+        ? await ctx.storage.getUrl(user.avatarStorageId)
+        : user?.image;
+      players.set(userId, {
+        userId,
+        name: user?.name ?? "Player",
+        ...(avatarUrl ? { avatarUrl } : {}),
+      });
+    }
+    const playerOf = (userId: UserId) =>
+      players.get(userId) ?? { userId, name: "Player" };
+    const seeded = (userId: UserId | null, seed: number | null) =>
+      userId === null ? null : { ...playerOf(userId), seed: seed ?? 0 };
+
+    return {
+      settings: input.settings,
+      season: view.season,
+      currentWeek: view.currentWeek,
+      meId: me._id,
+      weeks: view.weeks.map((week) => ({
+        ...week,
+        matchups: week.matchups.map((matchup) => ({
+          ...matchup,
+          a: playerOf(matchup.a),
+          b: playerOf(matchup.b),
+        })),
+        byes: week.byes.map(playerOf),
+      })),
+      table: view.table.map((row) => ({
+        ...playerOf(row.id),
+        rank: row.rank,
+        wins: row.wins,
+        losses: row.losses,
+        ties: row.ties,
+        pointsFor: row.pointsFor,
+      })),
+      bracket:
+        view.bracket === null
+          ? null
+          : {
+              projected: view.bracket.projected,
+              championId: view.bracket.champion,
+              rounds: view.bracket.rounds.map((round) => ({
+                week: round.week,
+                name: round.name,
+                matches: round.matches.map((match) => ({
+                  a: seeded(match.a, match.seedA),
+                  b: seeded(match.b, match.seedB),
+                  scoreA: match.scoreA,
+                  scoreB: match.scoreB,
+                  winnerId: match.winner,
+                  bye: match.bye,
+                })),
+              })),
+            },
+    };
+  },
+});
