@@ -35,6 +35,12 @@ describe("presentationFor", () => {
     expect(presentationFor({ kind: "verdict" }, onRoster)).toBe("alert");
   });
 
+  it("raises no banner over Demo controls, where it would cover Back", () => {
+    const onDemo = { ...onRoster, pathname: "/demo" };
+    expect(presentationFor({ id: "arrival:1", kind: "arrival" }, onDemo)).toBe("quiet");
+    expect(presentationFor({ id: "drop:1", kind: "drop" }, onDemo)).toBe("quiet");
+  });
+
   it.each(["drop", "challenge", "rival", "nudge"])("keeps a texted %s quiet when texts are on", (kind) => {
     expect(presentationFor({ kind }, { ...onRoster, textsOn: true })).toBe("quiet");
   });
