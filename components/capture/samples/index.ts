@@ -2,15 +2,16 @@
  * Bundled stand-ins for the camera, offered by the proof screen while the sample-media
  * development flag is on. A cloud simulator has no camera, so these are how the real upload
  * and verify path gets exercised there: three photos that should pass a matching task, one
- * that should fail any task, and one short clip for the video path.
+ * that should fail any task, three for moments a demo wants to finish live (a call with mom,
+ * a quick-time gesture, a group session) and one short clip for the video path.
  *
- * The photos are public-domain and CC0 images from Wikimedia Commons; the clip is a slow push
- * in on the gym photo.
+ * The files are generated images, kept with the rest of the demo media in assets/demo, where
+ * manifest.json says what each one shows. The clip is a slow push in on the gym photo.
  */
 import { Asset } from "expo-asset";
 
 export type SampleMedia = {
-  key: "gym" | "desk" | "clean_room" | "wrong" | "video";
+  key: "gym" | "desk" | "clean_room" | "wrong" | "call_mom" | "pushups" | "group" | "video";
   label: string;
   mediaType: "photo" | "video";
   /** The bundled asset, as returned by require(). */
@@ -20,11 +21,32 @@ export type SampleMedia = {
 };
 
 export const SAMPLE_MEDIA: SampleMedia[] = [
-  { key: "gym", label: "Gym", mediaType: "photo", source: require("./gym.jpg") },
-  { key: "desk", label: "Desk", mediaType: "photo", source: require("./desk.jpg") },
-  { key: "clean_room", label: "Clean room", mediaType: "photo", source: require("./clean_room.jpg") },
-  { key: "wrong", label: "Wrong photo", mediaType: "photo", source: require("./wrong.jpg") },
-  { key: "video", label: "Video", mediaType: "video", source: require("./gym_clip.mp4"), durationMs: 4000 },
+  { key: "gym", label: "Gym", mediaType: "photo", source: require("../../../assets/demo/samples/gym.jpg") },
+  { key: "desk", label: "Desk", mediaType: "photo", source: require("../../../assets/demo/samples/desk.jpg") },
+  {
+    key: "clean_room",
+    label: "Clean room",
+    mediaType: "photo",
+    source: require("../../../assets/demo/samples/clean_room.jpg"),
+  },
+  { key: "wrong", label: "Wrong photo", mediaType: "photo", source: require("../../../assets/demo/samples/wrong.jpg") },
+  { key: "call_mom", label: "Call mom", mediaType: "photo", source: require("../../../assets/demo/proofs/call-mom.jpg") },
+  // Three fingers up, so it passes only a push-up drop that asks for that gesture.
+  {
+    key: "pushups",
+    label: "Push-ups",
+    mediaType: "photo",
+    source: require("../../../assets/demo/drops/pushups-maya.jpg"),
+  },
+  // Four people, for a group session's head count.
+  { key: "group", label: "Group", mediaType: "photo", source: require("../../../assets/demo/drops/group-session.jpg") },
+  {
+    key: "video",
+    label: "Video",
+    mediaType: "video",
+    source: require("../../../assets/demo/samples/gym_clip.mp4"),
+    durationMs: 4000,
+  },
 ];
 
 /** Copies a bundled sample to a local file, so it uploads exactly like a camera capture. */
