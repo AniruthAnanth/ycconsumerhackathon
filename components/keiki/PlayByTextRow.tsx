@@ -17,8 +17,15 @@ export function PlayByTextRow() {
   if (!line) return null;
 
   async function onValueChange(optIn: boolean) {
-    await setOptIn({ optIn });
-    if (optIn) await Linking.openURL(line!.smsUrl);
+    try {
+      await setOptIn({ optIn });
+    } catch {
+      return;
+    }
+    if (!optIn) return;
+    try {
+      await Linking.openURL(line!.smsUrl);
+    } catch {}
   }
 
   return (
