@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Banner, PositionPill, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -30,7 +31,11 @@ export function UpForVeto({
   now: number;
 }) {
   const router = useRouter();
+  const [expanded, setExpanded] = useState(false);
   const open = upForVeto(board, myUserId, now);
+  // A locked league has dozens of open tasks, so the feed shows a few until asked and the
+  // proofs stay near the top.
+  const shown = expanded ? open : open.slice(0, FEED_VETO_ROWS);
   const struck = myStruck(board, myUserId)[0];
   if (!struck && open.length === 0) return null;
 
@@ -44,7 +49,7 @@ export function UpForVeto({
         />
       ) : null}
       {open.length > 0 ? <SectionLabel left="Up for veto" /> : null}
-      {open.map((veto) => (
+      {shown.map((veto) => (
         <View key={veto.taskId} style={styles.row}>
           <PositionPill slot={veto.slot} />
           <View style={styles.text}>
@@ -59,9 +64,16 @@ export function UpForVeto({
           <Text style={styles.points}>{veto.points}</Text>
         </View>
       ))}
+      {open.length > shown.length ? (
+        <Pressable accessibilityRole="button" onPress={() => setExpanded(true)} style={styles.more}>
+          <Text style={styles.moreText}>{`Show ${open.length - shown.length} more`}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
+
+const FEED_VETO_ROWS = 3;
 
 const styles = StyleSheet.create({
   row: {
@@ -73,6 +85,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   text: { flex: 1, gap: spacing.xs },
+  more: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  moreText: { color: colors.accent, fontSize: font.meta, fontFamily: fontFamily.bold },
   title: {
     color: colors.text,
     fontSize: font.body,
