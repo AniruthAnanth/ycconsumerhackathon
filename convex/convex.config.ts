@@ -13,6 +13,14 @@ const app = defineApp({
     WHOP_ENVIRONMENT: v.optional(v.string()),
     WHOP_WEBHOOK_SECRET: v.optional(v.string()),
     KEIKI_API_KEY: v.optional(v.string()),
+    // The league agent on Keiki: its id (also its model name on the API
+    // gateway) and the secret Keiki signs every turn with.
+    KEIKI_AGENT_ID: v.optional(v.string()),
+    KEIKI_SIGNING_SECRET: v.optional(v.string()),
+    // The shared iMessage number players text, and the code that connects a
+    // new texter to our agent on it. Public: the app shows both.
+    KEIKI_LINE_NUMBER: v.optional(v.string()),
+    KEIKI_JOIN_CODE: v.optional(v.string()),
   },
 });
 
