@@ -12,6 +12,11 @@
  *   ["points", "global", weekStart] one entry per stored row in every league:
  *                                  the Global boards (weekStart 0 is all-time).
  *
+ * The boards themselves read `scores` by index today: for a league of friends
+ * and a Global board of about fifty players one index range read beat a tree
+ * read (measured on the dev deployment, see reports/YCCO-15.md). The trees are
+ * kept current so a board can switch to them once it holds thousands of rows.
+ *
  * The trees mirror the `scores` table and nothing else writes them: every
  * write to `scores` goes through leaderboards.ts's `store` and `removeRow`,
  * which call `syncRanks` in the same transaction. `backfill` rebuilds the
