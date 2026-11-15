@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { Button, Header, Screen } from "@/components/ui";
+import { Button, Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { Artwork } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
@@ -12,6 +12,7 @@ import { DraftLineup } from "./DraftLineup";
 import { RecordButton } from "./RecordButton";
 import { TranscriptView } from "./TranscriptView";
 import { TypedDraft } from "./TypedDraft";
+import { useSpeakingPrompt } from "./useSpeakingPrompt";
 import { useVoiceDraft } from "./useVoiceDraft";
 
 export function VoiceDraftScreen() {
@@ -20,6 +21,7 @@ export function VoiceDraftScreen() {
   const draft = useVoiceDraft();
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
+  const prompt = useSpeakingPrompt(state.phase === "idle");
 
   // The lineup is on screen the moment the draft returns: the transcript types itself out above
   // it for a second at most, and the tasks never wait for that.
@@ -48,8 +50,12 @@ export function VoiceDraftScreen() {
             <Artwork name="sunny" size={80} />
           </View>
           {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
+          {state.manual ? <Text style={styles.weekNote}>Pick one task for each slot. Tap a title to change it.</Text> : null}
           {showsLineup ? null : (
             <View style={styles.recorder}>
+              <Text style={styles.prompt} testID="draft-prompt">
+                Try: “{prompt}”
+              </Text>
               <RecordButton
                 recording={state.phase === "recording"}
                 disabled={state.phase === "drafting" || state.phase === "revealing"}
@@ -57,6 +63,12 @@ export function VoiceDraftScreen() {
                 level={draft.level}
                 onPress={draft.toggleRecording}
               />
+              {/* Talking is the quick way in, not the only one: the same lineup can be picked by hand. */}
+              {state.phase === "idle" ? (
+                <View style={styles.skip} testID="draft-skip">
+                  <OutlinedPillButton label="Skip — I'll pick my own" onPress={draft.pickOwn} />
+                </View>
+              ) : null}
             </View>
           )}
           <View style={styles.transcript}>
@@ -72,6 +84,7 @@ export function VoiceDraftScreen() {
               <DraftLineup
                 tasks={state.tasks}
                 editable={state.phase === "review"}
+                suggested={state.manual}
                 onRename={draft.renameTask}
                 onRemove={draft.removeTask}
               />
@@ -98,6 +111,16 @@ const styles = StyleSheet.create({
   sunny: { alignItems: "center", paddingBottom: spacing.md },
   weekNote: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, textAlign: "center", ...type.small, color: colors.textMuted },
   recorder: { alignItems: "center" },
+  // Room for three lines, so the microphone does not move when the example changes.
+  prompt: {
+    minHeight: type.body.lineHeight * 3,
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingBottom: spacing.md,
+    textAlign: "center",
+    ...type.body,
+    color: colors.textMuted,
+  },
+  skip: { paddingTop: spacing.lg },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
   footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },

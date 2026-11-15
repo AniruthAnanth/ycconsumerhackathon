@@ -9,15 +9,16 @@ import type { DraftTask } from "../backend";
 type Props = {
   task: DraftTask;
   editable: boolean;
+  suggested: boolean;
   onRename: (title: string) => void;
   onRemove: () => void;
 };
 
 /** Laid out like the shared TaskRow, whose title is static text: here the title edits in place and points are read-only. */
-export function DraftRow({ task, editable, onRename, onRemove }: Props) {
+export function DraftRow({ task, editable, suggested, onRename, onRemove }: Props) {
   const place = taskPlaceLine(task);
   return (
-    <View style={styles.row}>
+    <View style={styles.row} testID={`draft-row-${task.slot}`}>
       <PositionPill slot={task.slot} />
       <Avatar slot={task.slot} />
       <View style={styles.text}>
@@ -26,6 +27,9 @@ export function DraftRow({ task, editable, onRename, onRemove }: Props) {
           value={task.title}
           onChangeText={onRename}
           editable={editable}
+          // A suggestion is there to be replaced, so the first tap selects all of it.
+          selectTextOnFocus={suggested}
+          testID={`draft-title-${task.slot}`}
           placeholder="Task"
           placeholderTextColor={colors.textFaint}
           accessibilityLabel="Task title"
