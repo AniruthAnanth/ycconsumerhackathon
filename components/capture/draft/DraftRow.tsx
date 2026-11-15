@@ -29,6 +29,8 @@ export function DraftRow({ task, editable, onRename, onRemove }: Props) {
           placeholder="Task"
           placeholderTextColor={colors.textFaint}
           accessibilityLabel="Task title"
+          multiline
+          scrollEnabled={false}
           returnKeyType="done"
           submitBehavior="blurAndSubmit"
         />
@@ -69,9 +71,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   text: { flex: 1, gap: 1 },
-  title: { ...type.subheading, minHeight: 28, color: colors.text, padding: 0 },
+  title: { ...type.subheading, minHeight: 28, color: colors.text, padding: 0, textAlignVertical: "top" },
   meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  trailing: { alignItems: "flex-end", gap: spacing.xs },
+  trailing: { width: 64, flexShrink: 0, alignItems: "flex-end", justifyContent: "center", gap: spacing.xs },
   removeTarget: { minHeight: MIN_TARGET, minWidth: MIN_TARGET, alignItems: "flex-end", justifyContent: "center" },
   remove: { fontFamily: fontFamily.semiBold, fontSize: font.meta, color: colors.textMuted },
 });

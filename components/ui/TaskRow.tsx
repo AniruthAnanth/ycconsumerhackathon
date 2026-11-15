@@ -18,13 +18,15 @@ type Props = {
   onPress?: () => void;
   /** Replaces the score column, for example with Submit Proof on the Up Next row. */
   right?: ReactNode;
+  /** Lines the title may use; defaults to 2 when highlighted, else 1. */
+  titleLines?: number;
 };
 
 /**
  * One task as an ESPN player row: position pill, thumbnail, three lines of
  * text and the score. Roster and the task sheet both draw tasks with it.
  */
-export function TaskRow({ task, highlighted = false, onPress, right }: Props) {
+export function TaskRow({ task, highlighted = false, onPress, right, titleLines }: Props) {
   const place = taskPlaceLine(task);
   const label = taskRowLabel(task, highlighted);
   const lead = (
@@ -35,7 +37,7 @@ export function TaskRow({ task, highlighted = false, onPress, right }: Props) {
         {/* Up Next shares its row with a button, so its tag sits above the title and the title may wrap: beside the title, the two left a narrow phone one letter of it. */}
         {highlighted ? <Text style={[styles.tag, styles.tagUpNext]}>UP NEXT</Text> : null}
         <View style={styles.titleLine}>
-          <Text style={styles.title} numberOfLines={highlighted ? 2 : 1}>
+          <Text style={styles.title} numberOfLines={titleLines ?? (highlighted ? 2 : 1)}>
             {task.title}
           </Text>
           {highlighted ? null : <Text style={styles.tag}>{SLOT_NAME[task.slot]}</Text>}

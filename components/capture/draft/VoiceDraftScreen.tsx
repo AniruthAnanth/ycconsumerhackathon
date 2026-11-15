@@ -6,7 +6,7 @@ import { Button, Header, Screen } from "@/components/ui";
 import { Artwork } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { RecordButton } from "./RecordButton";
@@ -94,7 +94,7 @@ export function VoiceDraftScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: spacing.lg, paddingBottom: spacing.xl },
+  content: { paddingTop: spacing.lg, paddingBottom: ROW_HEIGHT + spacing.xxl },
   sunny: { alignItems: "center", paddingBottom: spacing.md },
   weekNote: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, textAlign: "center", ...type.small, color: colors.textMuted },
   recorder: { alignItems: "center" },
