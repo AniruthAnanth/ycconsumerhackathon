@@ -1,7 +1,4 @@
-import { router } from "expo-router";
+import { leaveScreen as leave } from "@/lib/leaveScreen";
 
-/**
- * Back for a screen's header or close button. A reload or deep link opens a screen with no
- * history, where router.back() throws "GO_BACK was not handled", so that case goes to the tabs.
- */
-export const leaveScreen = () => (router.canGoBack() ? router.back() : router.replace("/"));
+/** leaveScreen as a press handler: it takes no arguments, so the press event never becomes the fallback. */
+export const leaveScreen = () => leave();
