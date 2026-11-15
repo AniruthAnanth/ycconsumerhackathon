@@ -35,7 +35,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { currentWeek as latestWeek, ensureCurrentWeek, paidInto } from "./leagues";
+import { currentWeek as latestWeek, ensureCurrentWeek, membersInJoinOrder, membershipOf, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { isFinalWeek, resolveSettings, seasonOf } from "./lib/schedule";
 import { weekStartOf } from "./lib/week";
@@ -573,10 +573,7 @@ export async function entrantsOver(
       weeks.map((week) => leagueStandings(ctx, leagueId, week._id, { atSettlement: true })),
     )
   ).flat();
-  const memberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-    .take(MAX_MEMBERS);
+  const memberships = await membersInJoinOrder(ctx, leagueId);
 
   return memberships.map(({ userId }) => {
     const mine = standings.filter((standing) => standing.userId === userId);
@@ -659,20 +656,8 @@ async function unpaidOnWhop(
 
 // ---- Shared reads -------------------------------------------------------------------------------
 
-async function membershipOf(
-  ctx: QueryCtx,
-  leagueId: Id<"leagues">,
-  userId: Id<"users">,
-): Promise<Doc<"memberships"> | null> {
-  return await ctx.db
-    .query("memberships")
-    .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
-    .first();
-}
-
 // Bounds on reads. Each is far above what a league of friends produces; they exist so that no
 // query here is unbounded.
-const MAX_MEMBERS = 200;
 /** One weeks row per calendar week: ten years of them. */
 const MAX_WEEKS = 520;
 /** A week adds at most a buy-in, a refund and a winnings row per member, and one fee row. */

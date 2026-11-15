@@ -7,6 +7,7 @@ import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { leagueStandings } from "./standings";
 
@@ -207,7 +208,6 @@ export function buildCards(input: {
 // ---- Query ------------------------------------------------------------------------------------
 
 /** Bounds on reads, far above what one league-week holds. */
-const MAX_MEMBERS = 100;
 const MAX_WEEKS = 200;
 const MAX_WEEK_TASKS = 50;
 const MAX_WEEK_PROOFS = 300;
@@ -235,7 +235,7 @@ export const get = query({
   handler: async (ctx, { leagueId, weekNumber }) => {
     const viewer = await requireUser(ctx);
     const [memberships, weeks] = await Promise.all([
-      ctx.db.query("memberships").withIndex("by_league", (q) => q.eq("leagueId", leagueId)).take(MAX_MEMBERS),
+      membersInJoinOrder(ctx, leagueId),
       ctx.db.query("weeks").withIndex("by_league", (q) => q.eq("leagueId", leagueId)).take(MAX_WEEKS),
     ]);
     const week = pickWeek(weeks, weekNumber);

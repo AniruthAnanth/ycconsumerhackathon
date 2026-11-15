@@ -38,7 +38,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { askJson } from "./ai";
-import { currentWeek } from "./leagues";
+import { currentWeek, membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
 import {
   parseKeikiEvent,
@@ -606,10 +606,7 @@ export const chatCaller = internalQuery({
   returns: v.id("users"),
   handler: async (ctx, { leagueId }) => {
     const me = await requireUser(ctx);
-    const membership = await ctx.db
-      .query("memberships")
-      .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", me._id))
-      .first();
+    const membership = await membershipOf(ctx, leagueId, me._id);
     if (membership === null) throw new ConvexError("You are not in this league");
     return me._id;
   },
@@ -767,10 +764,7 @@ async function leagueInPlay(ctx: QueryCtx, userId: Id<"users">, leagueTag: strin
   const membership =
     tagged === null
       ? await ctx.db.query("memberships").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").first()
-      : await ctx.db
-          .query("memberships")
-          .withIndex("by_league_user", (q) => q.eq("leagueId", tagged).eq("userId", userId))
-          .first();
+      : await membershipOf(ctx, tagged, userId);
   if (membership === null) return null;
   const league = await ctx.db.get("leagues", membership.leagueId);
   return league === null ? null : { leagueId: league._id, name: league.name };
@@ -887,10 +881,7 @@ export const phonesOf = internalQuery({
     const players = new Set<Id<"users">>();
     if (userId !== undefined) players.add(userId);
     if (leagueId !== undefined) {
-      const members = await ctx.db
-        .query("memberships")
-        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-        .take(MAX_ROWS);
+      const members = await membersInJoinOrder(ctx, leagueId);
       for (const member of members) players.add(member.userId);
     }
 

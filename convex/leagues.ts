@@ -62,13 +62,25 @@ export async function currentWeek(
 
 /** Memberships in the order players joined, which is how matchups are paired. */
 export async function membersInJoinOrder(
-  ctx: QueryCtx | MutationCtx,
+  ctx: Pick<QueryCtx, "db">,
   leagueId: Id<"leagues">,
 ): Promise<Doc<"memberships">[]> {
   return await ctx.db
     .query("memberships")
     .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
     .take(MAX_MEMBERS);
+}
+
+/** One player's membership of a league, or null when they are not in it. */
+export async function membershipOf(
+  ctx: QueryCtx | MutationCtx,
+  leagueId: Id<"leagues">,
+  userId: Id<"users">,
+): Promise<Doc<"memberships"> | null> {
+  return await ctx.db
+    .query("memberships")
+    .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
+    .first();
 }
 
 /**

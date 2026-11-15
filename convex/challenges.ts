@@ -28,6 +28,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { proofChallenged } from "./lib/notificationContent";
 
@@ -382,10 +383,7 @@ async function leagueMemberIds(
   ctx: Pick<QueryCtx, "db">,
   leagueId: Id<"leagues">,
 ): Promise<Id<"users">[]> {
-  const memberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-    .collect();
+  const memberships = await membersInJoinOrder(ctx, leagueId);
   return memberships.map((membership) => membership.userId);
 }
 

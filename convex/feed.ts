@@ -6,6 +6,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
+import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { CLOSE_CALL_CONFIDENCE } from "./lib/verdict";
 import { slot } from "./schema";
@@ -123,10 +124,7 @@ export const list = query({
   returns: v.array(feedItem),
   handler: async (ctx, { leagueId }) => {
     const viewer = await requireUser(ctx);
-    const memberships = await ctx.db
-      .query("memberships")
-      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
-      .take(MAX_MEMBERS);
+    const memberships = await membersInJoinOrder(ctx, leagueId);
     // An empty feed, not an error: the screen may still be mounted for a league the player just left.
     if (!memberships.some((m) => m.userId === viewer._id)) return [];
 
