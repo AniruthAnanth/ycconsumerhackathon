@@ -68,7 +68,7 @@ export const afterProof = internalMutation({
 
 /**
  * Scheduled by drops.ts whenever it has changed what a drop's tasks are worth, so a
- * first-finisher +10 or a mystery penalty that decides the lead is announced too. Scheduled,
+ * first-finisher +10 or a fuller group photo that decides the lead is announced too. Scheduled,
  * not called, so nothing that goes wrong here can roll the bonus back.
  */
 export const check = internalMutation({
@@ -89,10 +89,9 @@ async function announceLeadChange(ctx: MutationCtx, leagueId: Id<"leagues">): Pr
   await ctx.db.patch("leagues", leagueId, { leaderId: lead.leader.userId });
   // The first leader of a league is recorded quietly: nobody was overtaken, so there is no news.
   if (league.leaderId === undefined) return;
-  // Nor is it news worth waking a league for. A morning envelope left unfinished closes at
-  // midnight and can cost its owner first place, and a proof can land at any hour; the new
-  // leader is stored either way, so the change is simply not announced. The 0 is the day's
-  // nudge count, which does not apply here: only the quiet hours do.
+  // Nor is it news worth waking a league for. A proof can land at any hour and a drop can
+  // close in the night; the new leader is stored either way, so the change is simply not
+  // announced. The 0 is the day's nudge count, which does not apply here: only the quiet hours do.
   if (!mayText(pacificClock(Date.now()).hour, 0)) return;
   await ctx.scheduler.runAfter(0, internal.keiki.send, {
     leagueId,
