@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { ScrollView } from "react-native";
 
+import { InviteButton } from "@/components/invite";
 import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
@@ -21,12 +22,19 @@ export default function MatchupScreen() {
   // A versus has its own matchup view: the pot on top, and something to show before the friend accepts.
   if (versus) return <VersusMatchup versus={versus} />;
   if (matchup === undefined || versus === undefined) return <ScreenState loading />;
-  if (matchup === null) return <ScreenState message="No matchup this week" />;
+  if (matchup === null)
+    return (
+      <>
+        <ScreenState message="No matchup this week" />
+        <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />
+      </>
+    );
 
   return (
     <ScrollView>
       <MatchupBody matchup={matchup} />
       <ChallengeButton />
+      <InviteButton leagueId={leagueId} label="Invite a friend" variant="compact" />
     </ScrollView>
   );
 }
