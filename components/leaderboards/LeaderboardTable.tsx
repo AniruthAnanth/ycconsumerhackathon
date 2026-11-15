@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Divider } from "@/components/ui";
 import { colors, font, hairline, spacing } from "@/theme";
 
+import { tiedRanks } from "./format";
 import { LeaderboardRow, MOVEMENT_WIDTH, RANK_WIDTH } from "./LeaderboardRow";
 import type { BoardRow } from "./types";
 
@@ -17,6 +18,7 @@ type Props = {
 /** The ESPN standings table. It does not scroll itself; the screen's ScrollView does. */
 export function LeaderboardTable({ valueHeader, rows }: Props) {
   const router = useRouter();
+  const tied = tiedRanks(rows ?? []);
   return (
     <View>
       <View style={styles.header}>
@@ -28,7 +30,7 @@ export function LeaderboardTable({ valueHeader, rows }: Props) {
       {rows?.map((row, index) => (
         <View key={row.userId}>
           {index > 0 ? <Divider inset={spacing.md} /> : null}
-          <LeaderboardRow row={row} onPress={() => router.push(`/profile/${row.userId}`)} />
+          <LeaderboardRow row={row} tied={tied.has(row.rank)} onPress={() => router.push(`/profile/${row.userId}`)} />
         </View>
       ))}
     </View>

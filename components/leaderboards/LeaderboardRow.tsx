@@ -7,18 +7,20 @@ import { movementMark, rowSubtitle } from "./format";
 import type { BoardRow } from "./types";
 
 /** Rank, movement and avatar share this width so the names line up down the table. */
-export const RANK_WIDTH = 24;
+export const RANK_WIDTH = 30;
 export const MOVEMENT_WIDTH = 30;
 
 const MOVEMENT_COLOR = { up: colors.tabActive, down: colors.danger, flat: colors.textFaint } as const;
 
 type Props = {
   row: BoardRow;
+  /** Another row holds the same rank. */
+  tied: boolean;
   onPress: () => void;
 };
 
-/** One standings line, about 60 px: rank, movement, avatar, name over context, and the score on the right. */
-export function LeaderboardRow({ row, onPress }: Props) {
+/** One standings line, at least 60 px: rank, movement, avatar, name over context, and the score on the right. */
+export function LeaderboardRow({ row, tied, onPress }: Props) {
   const movement = movementMark(row.movement);
   const subtitle = rowSubtitle(row);
   return (
@@ -28,7 +30,7 @@ export function LeaderboardRow({ row, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`${row.rank}. ${row.name}, ${row.valueLabel}`}
     >
-      <Text style={styles.rank}>{row.rank}</Text>
+      <Text style={styles.rank}>{tied ? `T${row.rank}` : row.rank}</Text>
       <Text style={[styles.movement, { color: MOVEMENT_COLOR[movement.tone] }]}>{movement.text}</Text>
       <Avatar uri={row.avatarUrl} name={row.name} size={36} />
       <View style={styles.who}>
@@ -40,7 +42,7 @@ export function LeaderboardRow({ row, onPress }: Props) {
           {row.isRival ? <Tag label="RIVAL" color={colors.danger} /> : null}
         </View>
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text style={styles.subtitle} numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
@@ -59,7 +61,7 @@ function Tag({ label, color }: { label: string; color: string }) {
 }
 
 const styles = StyleSheet.create({
-  row: { height: 60, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md },
+  row: { minHeight: 60, paddingVertical: spacing.xs, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md },
   // The caller finds themselves at a glance.
   me: { backgroundColor: colors.accentTint },
   rank: { width: RANK_WIDTH, fontSize: font.score, fontWeight: "800", color: colors.text, fontVariant: ["tabular-nums"] },
@@ -68,7 +70,7 @@ const styles = StyleSheet.create({
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { flexShrink: 1, fontSize: font.title, fontWeight: "700", color: colors.text },
   subtitle: { fontSize: font.meta, color: colors.textMuted },
-  value: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"], textAlign: "right" },
+  value: { fontSize: font.score, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"], textAlign: "right", minWidth: 56 },
   tag: { borderWidth: 1, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
   tagText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
 });
