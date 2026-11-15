@@ -20,7 +20,8 @@ import { currentWeek, membersInJoinOrder, paidInto } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { UNNAMED_PLAYER } from "./lib/names";
 import { withoutStandIns } from "./lib/schedule";
-import { CORE_SLOTS, currentStreak, matchupBonus, scoreWeek, winProbability, type Slot } from "./lib/scoring";
+import { CORE_SLOTS, currentStreak, matchupBonus, scoreWeek, type Slot } from "./lib/scoring";
+import { loadMarket, matchupChanceAt } from "./markets";
 import { pacificDay } from "./lib/week";
 
 type ReadCtx = QueryCtx | MutationCtx;
@@ -98,7 +99,7 @@ export async function opponentInWeek(
  * A player's tasks for the week that count in this league: all of them, except tasks from
  * another league's drop. `dropLeagues` remembers each drop's league across players.
  */
-async function tasksCountingIn(
+export async function tasksCountingIn(
   ctx: ReadCtx,
   leagueId: Id<"leagues">,
   userId: Id<"users">,
@@ -337,10 +338,9 @@ export const matchup = query({
     const myRoster = await rosterOf(caller._id);
     const theirRoster = await rosterOf(opponentId);
 
-    const myChance = winProbability(
-      { total: mine.points, openPoints: mine.openPoints },
-      { total: theirs.points, openPoints: theirs.openPoints },
-    );
+    // The same forecast the Matchup tab charts (convex/markets.ts), so every win chance in the app agrees.
+    const { replays, asOf } = await loadMarket(ctx, args.leagueId, week, [mine, theirs]);
+    const myChance = matchupChanceAt(replays[0], replays[1], asOf, week);
     return {
       me: { userId: mine.userId, name: mine.name, total: mine.points, winProbability: myChance, slotsCleared: mine.slotsCleared },
       // Derived from mine, so the two sides always add up to exactly 1.
