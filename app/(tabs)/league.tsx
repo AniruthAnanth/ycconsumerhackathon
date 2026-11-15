@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useQuery } from "convex/react";
 import { StyleSheet, View } from "react-native";
 
+import { SeasonLink } from "@/components/league/SeasonLink";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
@@ -36,6 +37,7 @@ export default function LeagueScreen() {
         viewerId={me.actingAs?._id ?? me._id}
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
+      <SeasonLink leagueId={leagueId} />
       {pot.payouts ? <PayoutRows payouts={pot.payouts} /> : null}
       <TextLineupBanner />
       <LeagueDetails league={league} pot={pot} now={now} />
