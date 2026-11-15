@@ -31,8 +31,12 @@ export function AssignmentRow({
         <Text style={styles.title} numberOfLines={1}>
           {assignment.title}
         </Text>
+        {/* The deadline gets its own line: after a long course name it was the part cut off. */}
         <Text style={styles.detail} numberOfLines={1}>
-          {assignment.courseName} · {dueLabel(assignment.dueAt)}
+          {dueLabel(assignment.dueAt)}
+        </Text>
+        <Text style={styles.detail} numberOfLines={1}>
+          {assignment.courseName}
         </Text>
       </View>
       <OutlinedPillButton label={added ? "Added" : "Add"} disabled={added || adding} onPress={add} />
