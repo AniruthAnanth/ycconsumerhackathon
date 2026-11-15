@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Button, colors, OutlinedPillButton, TextField } from "../kit";
+import { Button, OutlinedPillButton, TextField } from "@/components/ui";
+import { colors, font, spacing } from "@/theme";
+
 import { normalizeBaseUrl } from "./canvasLogic";
 
 export function ConnectForm({
@@ -18,7 +20,7 @@ export function ConnectForm({
   const filled = baseUrl.trim() !== "" && token.trim() !== "";
 
   return (
-    <View>
+    <View style={styles.form}>
       <TextField
         label="Base URL"
         placeholder="school.instructure.com"
@@ -51,6 +53,7 @@ export function ConnectForm({
 }
 
 const styles = StyleSheet.create({
-  error: { color: colors.red, fontSize: 14, paddingHorizontal: 16, paddingTop: 8 },
-  actions: { padding: 16, gap: 12, alignItems: "stretch" },
+  form: { padding: spacing.lg, gap: spacing.md },
+  error: { color: colors.danger, fontSize: font.body },
+  actions: { gap: spacing.md },
 });

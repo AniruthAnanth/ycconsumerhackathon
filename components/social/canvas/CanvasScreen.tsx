@@ -3,8 +3,10 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
+import { Header, Screen, SectionLabel } from "@/components/ui";
+import { colors, font, spacing } from "@/theme";
+
 import { type CanvasAssignment, socialApi } from "../contract";
-import { Header, Screen, SectionLabel, colors } from "../kit";
 import { ScreenState } from "../ScreenState";
 import { AssignmentRow } from "./AssignmentRow";
 import { errorMessage } from "./canvasLogic";
@@ -100,6 +102,6 @@ export function CanvasScreen() {
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1 },
-  change: { alignSelf: "center", padding: 16 },
-  changeText: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+  change: { alignSelf: "center", padding: spacing.lg },
+  changeText: { color: colors.accent, fontSize: font.body, fontWeight: "700" },
 });
