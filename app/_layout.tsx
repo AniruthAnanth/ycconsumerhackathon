@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthGate } from "@/components/AuthGate";
 import { NotificationsHost } from "@/components/notifications/NotificationsHost";
+import { sheetOptions } from "@/components/ui/Sheet";
 import { convex } from "@/lib/convex";
 import { CurrentLeagueProvider } from "@/lib/currentLeague";
 import { tokenStorage } from "@/lib/tokenStorage";
@@ -35,14 +36,15 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="task/[taskId]" options={{ presentation: "formSheet", sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, sheetCornerRadius: 16 }} />
+              {/* Every sheet shares one presentation (components/ui/Sheet), so the task sheet, switcher and group sheet look and move alike. */}
+              <Stack.Screen name="task/[taskId]" options={sheetOptions([0.45, 1])} />
               {/* The camera and the verdict photo fill the top of the screen, so their status bar is light, as on Wrapped. */}
               <Stack.Screen name="proof/[taskId]" options={{ presentation: "fullScreenModal", statusBarStyle: "light" }} />
               <Stack.Screen name="proof/verdict" options={{ statusBarStyle: "light" }} />
               {/* Wrapped draws full-bleed photos and dark cards, so its status bar is light; the native modal owns that, not expo-status-bar. */}
               <Stack.Screen name="wrapped/index" options={{ presentation: "fullScreenModal", statusBarStyle: "light" }} />
-              <Stack.Screen name="league-switcher" options={{ presentation: "formSheet", sheetAllowedDetents: "fitToContents", sheetGrabberVisible: true }} />
-              <Stack.Screen name="group/new" options={{ presentation: "formSheet", sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true }} />
+              <Stack.Screen name="league-switcher" options={sheetOptions("fitToContents")} />
+              <Stack.Screen name="group/new" options={sheetOptions([0.75, 1])} />
             </Stack>
           </CurrentLeagueProvider>
         </AuthGate>

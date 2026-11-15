@@ -16,6 +16,7 @@ export { PositionPill } from "./PositionPill";
 export { Score } from "./Score";
 export { Screen } from "./Screen";
 export { SectionLabel } from "./SectionLabel";
+export { SheetGrabber, sheetOptions, sheetSurface } from "./Sheet";
 export { TaskRow } from "./TaskRow";
 export { TextField } from "./TextField";
 export { TopTabs } from "./TopTabs";
