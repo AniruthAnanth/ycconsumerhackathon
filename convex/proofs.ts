@@ -166,7 +166,11 @@ async function rejectionBeforeJudging(
   }
   if (imageTypes.length === 0) {
     // A video that arrived without stills, which is every texted video.
-    return rejectWithoutJudging("Videos can't be checked from a text yet. Send a photo instead.");
+    return rejectWithoutJudging(
+      submission.via === "keiki"
+        ? "Videos can't be checked from a text yet. Send a photo instead."
+        : "That video couldn't be read. Record it again, or send a photo instead.",
+    );
   }
   if (imageTypes.some((type) => type === null)) {
     return rejectWithoutJudging("That upload didn't arrive. Take the shot again.");
