@@ -1,18 +1,287 @@
-import { env, httpAction } from "./_generated/server";
+/**
+ * Whop carries every dollar a league plays for. Sandbox only today.
+ *
+ * The model, as the Whop team advised:
+ *
+ *   - Each league is its own Whop company: a subaccount of our platform account, opened the
+ *     first time a member pays. Stakes land in the league's balance, never in ours.
+ *   - A buy-in is a hosted Whop checkout on the league's company. The league and the player
+ *     ride along as metadata, and come back on the payment.
+ *   - Whop confirms a payment by calling POST /whop. That call, once its signature is verified,
+ *     is the only thing that marks a member paid; the browser closing proves nothing.
+ *   - The same call names the payer's Whop user and their member record inside the league's
+ *     company. Both are attached to the player, so nobody signs in to Whop separately.
+ *
+ * Every Whop request is made from an action in this file. The app never sees a key.
+ */
+import { WhopClient, WhopEnvironment } from "@whop/sdk";
+import { unwrapWebhook } from "@whop/sdk/helpers";
+import { ConvexError, v } from "convex/values";
+
+import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  action,
+  env,
+  httpAction,
+  internalMutation,
+  internalQuery,
+  type ActionCtx,
+  type QueryCtx,
+} from "./_generated/server";
+import { requireUser } from "./lib/auth";
+
+// ---- The Whop client ----------------------------------------------------------------------------
 
 /**
- * POST /whop: Whop payment webhooks.
- *
- * An event is only ever processed after its signature is verified against
- * WHOP_WEBHOOK_SECRET. Until that secret is set the endpoint answers 503, and
- * until verification is implemented it rejects every request, so an unverified
- * event can never mark a buy-in as paid.
+ * Sandbox and production keys look identical, so the environment is never inferred from the
+ * key. Anything but an explicit WHOP_ENVIRONMENT=sandbox refuses to run rather than risk a
+ * request that moves real money.
  */
-export const whopWebhook = httpAction(async () => {
-  if (!env.WHOP_WEBHOOK_SECRET) {
-    return new Response("WHOP_WEBHOOK_SECRET is not set", { status: 503 });
+function whopClient(): WhopClient {
+  if (!env.WHOP_API_KEY) throw new ConvexError("WHOP_API_KEY is not set");
+  if (env.WHOP_ENVIRONMENT !== "sandbox") {
+    throw new ConvexError("Whop runs in the sandbox only: set WHOP_ENVIRONMENT=sandbox");
   }
-  return new Response("Whop signature verification is not implemented", {
-    status: 501,
-  });
+  return new WhopClient({ token: env.WHOP_API_KEY, environment: WhopEnvironment.Sandbox });
+}
+
+// ---- Buy-in: checkout ---------------------------------------------------------------------------
+
+/**
+ * Starts a member's buy-in and returns the hosted checkout to open in the in-app browser.
+ * Paying it is confirmed later by the webhook below; this call changes nothing about who has paid.
+ */
+export const createCheckout = action({
+  args: { leagueId: v.id("leagues") },
+  returns: v.object({ purchaseUrl: v.string() }),
+  handler: async (ctx, { leagueId }) => {
+    const buyIn: BuyIn = await ctx.runQuery(internal.whop.buyInFor, { leagueId });
+    const whop = whopClient();
+    const whopCompanyId =
+      buyIn.whopCompanyId ?? (await openLeagueCompany(ctx, whop, leagueId, buyIn.leagueName));
+
+    const checkout = await whop.checkoutConfigurations.create({
+      account_id: whopCompanyId,
+      variant: {
+        title: `${buyIn.leagueName} buy-in`,
+        billing_type: "one_time",
+        initial_price: buyIn.stakeUsd,
+        currency: "usd",
+      },
+      // Copied by Whop onto the payment, which is how the webhook knows whose buy-in it is.
+      metadata: { userId: buyIn.userId, leagueId },
+    });
+    if (!checkout.purchase_url) throw new ConvexError("Whop returned no checkout link");
+    return { purchaseUrl: checkout.purchase_url };
+  },
 });
+
+type BuyIn = {
+  userId: Id<"users">;
+  leagueName: string;
+  stakeUsd: number;
+  whopCompanyId: string | null;
+};
+
+/** Who is paying, and what they owe. Refuses anyone with nothing to pay. */
+export const buyInFor = internalQuery({
+  args: { leagueId: v.id("leagues") },
+  returns: v.object({
+    userId: v.id("users"),
+    leagueName: v.string(),
+    stakeUsd: v.number(),
+    whopCompanyId: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, { leagueId }) => {
+    const user = await requireUser(ctx);
+    const league = await ctx.db.get("leagues", leagueId);
+    if (league === null) throw new ConvexError("League not found");
+    const membership = await membershipOf(ctx, leagueId, user._id);
+    if (membership === null) throw new ConvexError("Join this league before paying its buy-in");
+    if (league.stakeUsd <= 0) throw new ConvexError("This league is free: there is no buy-in");
+    if (membership.paid) throw new ConvexError("You have already paid this league's buy-in");
+    return {
+      userId: user._id,
+      leagueName: league.name,
+      stakeUsd: league.stakeUsd,
+      whopCompanyId: league.whopCompanyId ?? null,
+    };
+  },
+});
+
+/**
+ * Opens the league's Whop company. Whop wants an owner email for a subaccount; leagues are run
+ * by the platform, so they share ours. The external id keeps it to one company per league and
+ * makes the call safe to repeat: two members paying at the same moment get the same company.
+ */
+async function openLeagueCompany(
+  ctx: ActionCtx,
+  whop: WhopClient,
+  leagueId: Id<"leagues">,
+  leagueName: string,
+): Promise<string> {
+  const platform = await whop.accounts.me();
+  if (!platform.email) throw new ConvexError("The Whop platform account has no email");
+  const company = await whop.accounts.create({
+    email: platform.email,
+    title: `Lineup · ${leagueName}`,
+    external_id: `league:${leagueId}`,
+    metadata: { leagueId },
+  });
+  await ctx.runMutation(internal.whop.saveLeagueCompany, {
+    leagueId,
+    whopCompanyId: company.id,
+  });
+  return company.id;
+}
+
+export const saveLeagueCompany = internalMutation({
+  args: { leagueId: v.id("leagues"), whopCompanyId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { leagueId, whopCompanyId }) => {
+    await ctx.db.patch("leagues", leagueId, { whopCompanyId });
+    return null;
+  },
+});
+
+// ---- Buy-in: confirmation (POST /whop) ----------------------------------------------------------
+
+/**
+ * Whop's webhook. Answers 503 until WHOP_WEBHOOK_SECRET is set and 401 to anything whose
+ * signature does not verify, so an unverified event can never mark a buy-in as paid.
+ *
+ * The webhook must be created with child_resource_events on: payments belong to the league's
+ * company, and a webhook on the platform account alone never hears about them.
+ */
+export const whopWebhook = httpAction(async (ctx, request) => {
+  const secret = env.WHOP_WEBHOOK_SECRET;
+  if (!secret) return new Response("WHOP_WEBHOOK_SECRET is not set", { status: 503 });
+
+  // The signature covers the exact bytes Whop sent, so verify the raw text before parsing.
+  const body = await request.text();
+  let event: unknown;
+  try {
+    event = unwrapWebhook(body, { headers: Object.fromEntries(request.headers), key: secret });
+  } catch {
+    return new Response("Signature verification failed", { status: 401 });
+  }
+
+  const payment = paidBuyIn(event);
+  // Anything else Whop sends is acknowledged, or it would be retried for days.
+  if (payment === null) return new Response("Ignored", { status: 200 });
+  await ctx.runMutation(internal.whop.recordBuyIn, payment);
+  return new Response("OK", { status: 200 });
+});
+
+export type PaidBuyIn = {
+  whopPaymentId: string;
+  /** Our ids as we wrote them into the checkout's metadata; still plain strings here. */
+  userId: string;
+  leagueId: string;
+  whopUserId?: string;
+  whopMemberId?: string;
+};
+
+/**
+ * Reads a buy-in out of a verified webhook event, or returns null when the event is not one:
+ * another event type, or a payment that did not come from a Lineup checkout.
+ */
+export function paidBuyIn(event: unknown): PaidBuyIn | null {
+  if (!isRecord(event) || event.type !== "payment.succeeded" || !isRecord(event.data)) return null;
+  const { id, metadata, user, member } = event.data;
+  if (typeof id !== "string" || !isRecord(metadata)) return null;
+  if (typeof metadata.userId !== "string" || typeof metadata.leagueId !== "string") return null;
+  return {
+    whopPaymentId: id,
+    userId: metadata.userId,
+    leagueId: metadata.leagueId,
+    ...(isRecord(user) && typeof user.id === "string" ? { whopUserId: user.id } : {}),
+    ...(isRecord(member) && typeof member.id === "string" ? { whopMemberId: member.id } : {}),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * Marks the member paid, attaches their Whop identity and writes the buy_in ledger row, all in
+ * one transaction. Whop delivers an event at least once, so a payment already in the ledger
+ * changes nothing the second time.
+ */
+export const recordBuyIn = internalMutation({
+  args: {
+    whopPaymentId: v.string(),
+    userId: v.string(),
+    leagueId: v.string(),
+    whopUserId: v.optional(v.string()),
+    whopMemberId: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, payment) => {
+    const idempotencyKey = `buy_in:${payment.whopPaymentId}`;
+    const recorded = await ctx.db
+      .query("ledger")
+      .withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", idempotencyKey))
+      .first();
+    if (recorded !== null) return null;
+
+    // A payment whose metadata names nobody here was made against another deployment sharing
+    // this Whop account. There is nobody to mark paid, and retrying will not change that.
+    const userId = ctx.db.normalizeId("users", payment.userId);
+    const leagueId = ctx.db.normalizeId("leagues", payment.leagueId);
+    if (userId === null || leagueId === null) return null;
+    const league = await ctx.db.get("leagues", leagueId);
+    const membership = await membershipOf(ctx, leagueId, userId);
+    if (league === null || membership === null) return null;
+
+    await ctx.db.patch("memberships", membership._id, {
+      paid: true,
+      whopPaymentId: payment.whopPaymentId,
+      // The member's record inside the league's company: their sub-account there.
+      ...(payment.whopMemberId ? { whopAccountId: payment.whopMemberId } : {}),
+    });
+    if (payment.whopUserId) {
+      await ctx.db.patch("users", userId, { whopUserId: payment.whopUserId });
+    }
+    const week = await currentWeek(ctx, leagueId);
+    await ctx.db.insert("ledger", {
+      leagueId,
+      weekId: week._id,
+      userId,
+      kind: "buy_in",
+      amountUsd: league.stakeUsd,
+      whopId: payment.whopPaymentId,
+      idempotencyKey,
+      createdAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+// ---- Shared reads -------------------------------------------------------------------------------
+
+async function membershipOf(
+  ctx: QueryCtx,
+  leagueId: Id<"leagues">,
+  userId: Id<"users">,
+): Promise<Doc<"memberships"> | null> {
+  return await ctx.db
+    .query("memberships")
+    .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", userId))
+    .first();
+}
+
+/** A league has one weeks row per calendar week; far fewer than this even after years. */
+const MAX_WEEKS = 520;
+
+/** The week the league is playing now: its latest. Every league has one from the day it is created. */
+async function currentWeek(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<Doc<"weeks">> {
+  const weeks = await ctx.db
+    .query("weeks")
+    .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+    .take(MAX_WEEKS);
+  if (weeks.length === 0) throw new ConvexError("This league has no week to play in yet");
+  return weeks.reduce((latest, week) => (week.startsAt > latest.startsAt ? week : latest));
+}
