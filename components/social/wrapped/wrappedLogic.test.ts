@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cardShareText,
   indexAfterTap,
   KIND_BACKGROUND,
   KIND_LABEL,
@@ -89,5 +90,13 @@ describe("tapClosesStory", () => {
     expect(tapClosesStory(180, 360, 4, 5)).toBe(false);
     expect(indexAfterTap(40, 360, 4, 5)).toBe(3);
     expect(indexAfterTap(180, 360, 4, 5)).toBe(4);
+  });
+});
+
+describe("cardShareText", () => {
+  it("says what the card says", () => {
+    expect(
+      cardShareText({ kind: "champion", stat: "142.5", title: "Maya won the week", subtitle: "By 12 points" }),
+    ).toBe("LEAGUE CHAMPION: 142.5. Maya won the week. By 12 points (Lineup Wrapped)");
   });
 });
