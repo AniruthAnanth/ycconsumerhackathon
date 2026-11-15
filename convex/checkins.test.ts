@@ -122,7 +122,7 @@ describe("checkins.prompt", () => {
 
     const prompt = await as(t, me).query(api.checkins.prompt, { leagueId, now: NOON });
     // Sam: 90 + 25 for the slot. Leg day is worth 70 with its slot and streak bonuses.
-    expect(prompt?.line).toBe("Sam's up 115. Leg day cuts it to 45.");
+    expect(prompt?.line).toBe("Sam's up 115. Leg day.");
   });
 
   it("leaves a live quick-time drop to Roster's own banner and asks for the next check-in", async () => {

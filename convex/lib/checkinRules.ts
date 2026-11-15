@@ -290,11 +290,24 @@ export function rivalLine(rival: RivalGap): string {
 
 /** What proving the task does to the gap: "Leg day flips it." worth comes from pointsIfProven. */
 function swingLine(title: string, worth: number, gap: number): string {
-  if (gap === 0) return `${title} breaks the tie.`;
+  if (gap === 0) return `${title} breaks it.`;
   if (gap < 0) return `${title} makes it ${worth - gap}.`;
   if (worth > gap) return `${title} flips it.`;
   if (worth === gap) return `${title} ties it.`;
   return `${title} cuts it to ${gap - worth}.`;
+}
+
+/**
+ * The characters that fit on the prompt's one line, beside its tag and its button, on a 393 pt
+ * phone. The row cuts off anything longer, and what it cut was the number that made the line
+ * worth reading ("Read two papers cut…"). So each line is written fullest first and the first
+ * version that fits is used. The last version ends with the task's title or the place: if even
+ * that is too long, the part cut off is the one a reader can finish for themselves.
+ */
+const LINE_FITS = 34;
+
+function firstThatFits(...lines: string[]): string {
+  return lines.find((line) => line.length <= LINE_FITS) ?? lines[lines.length - 1];
 }
 
 /**
@@ -315,15 +328,20 @@ export function promptCopy(
   switch (checkIn.kind) {
     case "drop":
       return { label: `LIVE ${left}`, line: rival ? `${value} ${rivalLine(rival)}` : value };
-    case "nearby":
+    case "nearby": {
       // Arriving is the whole message, so this one line leaves the rival out.
-      return { label: "HERE", line: `You're at ${checkIn.placeName ?? task.place?.name ?? "the spot"}. Check in?` };
+      const here = `You're at ${checkIn.placeName ?? task.place?.name ?? "the spot"}.`;
+      return { label: "HERE", line: firstThatFits(`${here} Check in?`, here) };
+    }
     case "at_risk":
       return {
         label: `${left} LEFT`,
         line: rival
-          ? `${rivalLine(rival)} ${swingLine(task.title, worth, rival.gap)}`
-          : `${task.title} is open. +${task.points}.`,
+          ? firstThatFits(
+              `${rivalLine(rival)} ${swingLine(task.title, worth, rival.gap)}`,
+              `${rivalLine(rival)} ${task.title}.`,
+            )
+          : firstThatFits(`${task.title} is open. +${task.points}.`, `+${task.points} for ${task.title}.`),
       };
   }
 }
