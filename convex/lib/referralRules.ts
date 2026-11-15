@@ -52,19 +52,22 @@ export function isToken(value: string): boolean {
 
 /**
  * The inviter's app link, which the page at /i/<token> opens. The app sends the prefix
- * (Linking.createURL("/invite")) and the token goes on the end. Only app schemes and the web
- * build are accepted, so a stored link can't point the page at an arbitrary site.
+ * (Linking.createURL("/invite")) and the token goes on the end. The page redirects at once, so
+ * only app schemes and a web build on this machine or the local network are accepted: anything
+ * else would let a player turn our short link into a redirect to a site of their choosing.
  */
+const APP_LINK = /^(lineup|exps?):\/\/|^https?:\/\/(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?\//;
+
 export function appLink(prefix: string | undefined, token: string): string {
   const fallback = `lineup://invite/${token}`;
   if (prefix === undefined) return fallback;
   const trimmed = prefix.replace(/\/+$/, "");
-  return /^(lineup|exp|exps|https?):\/\//.test(trimmed) ? `${trimmed}/${token}` : fallback;
+  return APP_LINK.test(`${trimmed}/`) ? `${trimmed}/${token}` : fallback;
 }
 
 export function sanitizedAppPrefix(prefix: string | undefined): string | undefined {
   if (prefix === undefined || prefix.length > 300) return undefined;
-  return /^(lineup|exp|exps|https?):\/\//.test(prefix) ? prefix : undefined;
+  return APP_LINK.test(`${prefix.replace(/\/+$/, "")}/`) ? prefix : undefined;
 }
 
 export function inviteMessage(input: { inviterName: string; leagueName: string; versus: boolean; inviteCode: string; url: string }): string {
