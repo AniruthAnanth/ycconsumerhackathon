@@ -5,7 +5,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, St
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useReduceMotion } from "@/components/motion";
+import { ease, useReduceMotion } from "@/components/motion";
 import { Icon, SheetGrabber, sheetSurface } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseCheckoutMessage } from "@/convex/lib/checkoutPage";
@@ -75,13 +75,16 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
     return () => clearTimeout(timer);
   }, [stage, attempt, onClose, openInBrowser]);
 
+  // An RN Modal rather than a native form sheet: a form sheet needs its own route, and checkout
+  // opens over the screen that asked for it. The scrim fades while the sheet rises with the
+  // shared sheet chrome (components/ui/Sheet) and the emphasized easing.
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.scrim} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close checkout" />
         <Animated.View
           testID="checkout-sheet"
-          entering={reduceMotion ? undefined : SlideInDown.duration(SHEET_MS)}
+          entering={reduceMotion ? undefined : SlideInDown.duration(SHEET_MS).easing(ease.emphasized)}
           style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
           accessibilityViewIsModal
         >

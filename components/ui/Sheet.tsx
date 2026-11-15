@@ -2,17 +2,18 @@ import { StyleSheet, View } from "react-native";
 
 import { colors, radius, spacing } from "@/theme";
 
-type Detents = number[] | "fitToContents";
+/** Half height to start, drag to full: one set of stops for every sheet, so none opens at its own height. */
+const SHEET_DETENTS = [0.5, 1];
 
 /**
  * The one sheet presentation: every modal route slides up as a native form sheet
  * with the same grabber and corner radius, so task row → task sheet → capture
  * reads as one flow. app/_layout.tsx passes this to each sheet route.
  */
-export function sheetOptions(detents: Detents = [0.5, 1]) {
+export function sheetOptions() {
   return {
     presentation: "formSheet" as const,
-    sheetAllowedDetents: detents,
+    sheetAllowedDetents: SHEET_DETENTS,
     sheetGrabberVisible: true,
     sheetCornerRadius: radius.card,
   };

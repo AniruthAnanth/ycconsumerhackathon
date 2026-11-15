@@ -37,14 +37,15 @@ export default function RootLayout() {
             >
               <Stack.Screen name="(tabs)" />
               {/* Every sheet shares one presentation (components/ui/Sheet), so the task sheet, switcher and group sheet look and move alike. */}
-              <Stack.Screen name="task/[taskId]" options={sheetOptions([0.45, 1])} />
+              <Stack.Screen name="task/[taskId]" options={sheetOptions()} />
               {/* The camera and the verdict photo fill the top of the screen, so their status bar is light, as on Wrapped. */}
-              <Stack.Screen name="proof/[taskId]" options={{ presentation: "fullScreenModal", statusBarStyle: "light" }} />
+              {/* Full screen for the camera, but it rises from the bottom like the task sheet it replaces, so the step reads as one motion. */}
+              <Stack.Screen name="proof/[taskId]" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", statusBarStyle: "light" }} />
               <Stack.Screen name="proof/verdict" options={{ statusBarStyle: "light" }} />
               {/* Wrapped draws full-bleed photos and dark cards, so its status bar is light; the native modal owns that, not expo-status-bar. */}
-              <Stack.Screen name="wrapped/index" options={{ presentation: "fullScreenModal", statusBarStyle: "light" }} />
-              <Stack.Screen name="league-switcher" options={sheetOptions("fitToContents")} />
-              <Stack.Screen name="group/new" options={sheetOptions([0.75, 1])} />
+              <Stack.Screen name="wrapped/index" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", statusBarStyle: "light" }} />
+              <Stack.Screen name="league-switcher" options={sheetOptions()} />
+              <Stack.Screen name="group/new" options={sheetOptions()} />
             </Stack>
           </CurrentLeagueProvider>
         </AuthGate>
