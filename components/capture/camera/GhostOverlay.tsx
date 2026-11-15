@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, radius, spacing } from "@/theme";
 
 type Props = { beforeUri: string | null };
 
@@ -27,8 +27,10 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontSize: font.label,
     letterSpacing: 1,
+    lineHeight: layout.pillHeight,
     backgroundColor: "rgba(0,0,0,0.6)",
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    overflow: "hidden",
   },
 });
