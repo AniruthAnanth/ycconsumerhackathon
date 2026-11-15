@@ -4,11 +4,13 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
-import { socialApi } from "../contract";
+import { socialApi } from "@/components/social/contract";
+import { errorMessage } from "@/components/social/errorMessage";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { spacing } from "@/theme";
-import { canStartSession, errorMessage, startTimeOptions, type StartOption } from "./groupLogic";
+
+import { canStartSession, startTimeOptions, type StartOption } from "./groupLogic";
 import { PlaceMap } from "./PlaceMap";
 import type { Coordinate } from "./PlaceMap.types";
 import { StartTimePills } from "./StartTimePills";
@@ -72,7 +74,7 @@ export function NewGroupSessionScreen() {
       });
       router.replace(`/group/${dropId}`);
     } catch (error) {
-      Alert.alert("Couldn't start the session", errorMessage(error));
+      Alert.alert(errorMessage(error, "Couldn't start the session. Try again."));
       setSaving(false);
     }
   };
