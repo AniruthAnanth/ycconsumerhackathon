@@ -682,7 +682,8 @@ export const recordOptIn = internalMutation({
 /**
  * A text carrying a link code arrived from this number. As in onboarding (users.createUser),
  * the number moves to the code's account and any other account gives it up, so by_phone keeps
- * naming one device. Sending the text is also the opt-in. False when the code is not ours.
+ * naming one account. Sending the text is also the opt-in. False when the code is not ours, or
+ * when a seeded demo player holds the number, which onboarding refuses too.
  */
 export const linkPhone = internalMutation({
   args: { phone: v.string(), code: v.string(), createdMs: v.number() },
@@ -705,9 +706,10 @@ export const linkPhone = internalMutation({
       .query("users")
       .withIndex("by_phone", (q) => q.eq("phone", phone))
       .take(10);
+    // A seeded demo player keeps its number: Reset Seed finds it by that.
+    if (owners.some((owner) => owner.isSeed)) return false;
     for (const owner of owners) {
-      // A seeded demo player keeps its number: Reset Seed finds it by that.
-      if (owner._id !== account._id && !owner.isSeed) await ctx.db.patch("users", owner._id, { phone: undefined });
+      if (owner._id !== account._id) await ctx.db.patch("users", owner._id, { phone: undefined });
     }
     await ctx.db.patch("users", account._id, { phone, keikiOptIn: true });
     return true;
