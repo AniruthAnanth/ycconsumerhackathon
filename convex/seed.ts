@@ -9,6 +9,10 @@
  * - The league row and the six player rows are patched in place and never recreated, so a phone
  *   that is looking at the league, or is switched to a seeded player, keeps working across a
  *   reset. Everything hanging off them is deleted and rebuilt.
+ *
+ * The two public leagues Quick Match lands in are made by the first reset and then left alone:
+ * real players join them, and a reset of the demo league must not put them out. Rebuilding
+ * those two is asked for by name, with `{ openLeagues: true }`.
  */
 import { ConvexError, v } from "convex/values";
 
@@ -504,26 +508,33 @@ async function upsertLeague(ctx: MutationCtx, createdBy: Id<"users">): Promise<I
 }
 
 /**
- * Rebuilds one public league for Quick Match: its seeded members and this week, paired as any
- * league of its size is. Anyone who quick-matched in before the reset is gone again. Nobody has
- * bought in, so the first stake on its table is the one paid on stage.
+ * Makes one public league for Quick Match: its seeded members and this week, paired as any
+ * league of its size is. Nobody has bought in, so the first stake on its table is the one paid
+ * on stage.
+ *
+ * A league that is already there is left exactly as it is unless `rebuild` is set, because the
+ * people in it joined a real league and did not ask for the demo to be reset. With `rebuild`,
+ * anyone who quick-matched in is gone again.
  */
 async function restoreOpenLeague(
   ctx: MutationCtx,
   { members, ...fields }: (typeof OPEN_LEAGUES)[number],
   playerIds: Id<"users">[],
   weekStart: number,
+  rebuild: boolean,
 ): Promise<void> {
+  const existing = await ctx.db
+    .query("leagues")
+    .withIndex("by_inviteCode", (q) => q.eq("inviteCode", fields.inviteCode))
+    .first();
+  if (existing !== null && !rebuild) return;
+
   const row = {
     ...fields,
     visibility: "public" as const,
     maxMembers: LEAGUE.maxMembers,
     createdBy: playerIds[members[0]],
   };
-  const existing = await ctx.db
-    .query("leagues")
-    .withIndex("by_inviteCode", (q) => q.eq("inviteCode", fields.inviteCode))
-    .first();
   if (existing !== null) {
     await ctx.db.patch("leagues", existing._id, row);
     await clearLeague(ctx, existing._id);
@@ -687,8 +698,11 @@ async function clearPlayer(ctx: MutationCtx, userId: Id<"users">): Promise<void>
   for (const connection of connections) await ctx.db.delete("canvasConnections", connection._id);
 }
 
-/** Rebuilds the league. Reports whether any photo is not in file storage yet. */
-async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }> {
+/**
+ * Rebuilds the league, and with `rebuildOpenLeagues` the two Quick Match leagues as well.
+ * Reports whether any photo is not in file storage yet.
+ */
+async function restoreSeed(ctx: MutationCtx, rebuildOpenLeagues: boolean): Promise<{ photosMissing: boolean }> {
   const now = Date.now();
   const weekStart = weekStartOf(now);
   const photos = await storedPhotos(ctx);
@@ -822,7 +836,7 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
   }
 
   // After the demo league, so it stays the first league each seeded player is listed in.
-  for (const open of OPEN_LEAGUES) await restoreOpenLeague(ctx, open, playerIds, weekStart);
+  for (const open of OPEN_LEAGUES) await restoreOpenLeague(ctx, open, playerIds, weekStart, rebuildOpenLeagues);
 
   // The leaderboards keep stored rows per player and week; rebuild them for the fresh league.
   await ctx.scheduler.runAfter(0, internal.leaderboards.rebuild, { leagueId });
@@ -837,12 +851,15 @@ async function restoreSeed(ctx: MutationCtx): Promise<{ photosMissing: boolean }
  * A mutation can't write to file storage. On a deployment that doesn't hold the photos yet, the
  * league is rebuilt at once without them and an action uploads them and rebuilds it again a
  * moment later; every reset after that finds them and is a single transaction.
+ *
+ * Reset Seed in the app passes nothing, so it never touches the Quick Match leagues once they
+ * exist. `openLeagues: true` empties them of everyone who joined, for a clean start off stage.
  */
 export const reset = mutation({
-  args: {},
+  args: { openLeagues: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx) => {
-    const { photosMissing } = await restoreSeed(ctx);
+  handler: async (ctx, { openLeagues }) => {
+    const { photosMissing } = await restoreSeed(ctx, openLeagues === true);
     if (photosMissing) {
       await ctx.scheduler.runAfter(0, internal.seed.uploadMissingPhotos, {});
     }
@@ -855,7 +872,7 @@ export const restore = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    await restoreSeed(ctx);
+    await restoreSeed(ctx, false);
     return null;
   },
 });

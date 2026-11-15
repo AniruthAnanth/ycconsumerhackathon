@@ -295,16 +295,56 @@ describe("seed.reset", () => {
     ]);
     expect(await guest.query(api.standings.matchup, { leagueId: twenty.leagueId })).not.toBeNull();
 
-    // The invite code still gets a player into the demo league, and a reset empties the open
-    // leagues of guests like it does the demo league.
+    // The invite code still gets a player into the demo league, and a reset asked to rebuild the
+    // open leagues empties them of guests like it does the demo league.
     await guest.mutation(api.leagues.joinByCode, { inviteCode: "YCHACK" });
     expect(await membersOf(demo._id)).toHaveLength(7);
-    await reset(t);
+    await t.mutation(api.seed.reset, { openLeagues: true });
     expect(await membersOf(demo._id)).toHaveLength(6);
     expect(await membersOf(twenty.leagueId)).toHaveLength(3);
     expect(await membersOf(five.leagueId)).toHaveLength(3);
     const me = await guest.query(api.users.me, {});
     expect(me?.leagues).toEqual([]);
+  });
+
+  test("leaves the Quick Match leagues alone, so a player who joined Five Dollar League is still in it", async () => {
+    const t = convexTest(schema, modules);
+    await reset(t);
+    const guestId = await t.run((ctx) => ctx.db.insert("users", { name: "Guest", phone: "+14155550199" }));
+    const guest = await signedInAs(t, guestId);
+    const { leagueId } = await guest.mutation(api.leagues.quickMatch, { stakeUsd: 5 });
+    await guest.mutation(api.leagues.joinByCode, { inviteCode: "YCHACK" });
+    const fiveDollarLeague = () =>
+      t.run(async (ctx) => {
+        const weeks = await ctx.db
+          .query("weeks")
+          .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+          .collect();
+        const weekIds = new Set(weeks.map((week) => week._id));
+        return {
+          league: await ctx.db.get("leagues", leagueId),
+          memberships: await ctx.db
+            .query("memberships")
+            .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+            .collect(),
+          weeks,
+          matchups: (await ctx.db.query("matchups").collect()).filter((matchup) => weekIds.has(matchup.weekId)),
+        };
+      });
+    const before = await fiveDollarLeague();
+    expect(before.league?.name).toBe("Five Dollar League");
+    expect(before.memberships.map((membership) => membership.userId)).toContain(guestId);
+
+    // What the Reset Seed button sends, and `npx convex run seed:reset`.
+    await reset(t);
+
+    // Out of the demo league, and everything about the league they quick-matched into is the
+    // same rows as before: their membership, the week and who they face.
+    expect(await fiveDollarLeague()).toEqual(before);
+    const me = await guest.query(api.users.me, {});
+    expect(me?.phone).toBe("+14155550199");
+    expect(me?.leagues.map((league) => league.name)).toEqual(["Five Dollar League"]);
+    expect(await guest.query(api.standings.matchup, { leagueId })).not.toBeNull();
   });
 
   test("puts a player who joined back out, without touching their own tasks", async () => {
