@@ -1,9 +1,10 @@
 /**
- * The first-run tours: each step points at one element on a screen, by the id its CoachTarget
+ * The first-run tours, one per screen, each shown once per player: each step points at one element on a screen, by the id its CoachTarget
  * carries, with one short sentence. A step whose element is not on screen is skipped.
  */
 export const TOURS = {
   roster: [
+    { target: "switcher", text: "Tap here to switch leagues or join another." },
     { target: "score", text: "Your points this week, against your opponent's." },
     { target: "tasks", text: "These are your five tasks for the week." },
     { target: "task", text: "Tap a task to prove you did it." },
@@ -14,9 +15,8 @@ export const TOURS = {
     { target: "veto", text: "Veto one of their tasks if it looks too easy." },
   ],
   league: [
-    { target: "pot", text: "The pot: every player's buy-in for the week." },
-    { target: "standings", text: "Standings: everyone's points this season." },
-    { target: "odds", text: "Live odds on who wins the pot." },
+    { target: "pot", text: "The pot: everyone's buy-in, held in escrow." },
+    { target: "standings", text: "Clear the most of your week to share the pot." },
   ],
   proof: [
     // One step on the line that is always there: before camera access the shutter is not.
