@@ -13,6 +13,7 @@ import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, typ
 import { DraftLineup } from "./DraftLineup";
 import { hasUnsavedDraft } from "./draftState";
 import { RecordButton } from "./RecordButton";
+import { RefineField } from "./RefineField";
 import { TranscriptView } from "./TranscriptView";
 import { TypedDraft } from "./TypedDraft";
 import { useSpeakingPrompt } from "./useSpeakingPrompt";
@@ -124,7 +125,15 @@ export function VoiceDraftScreen() {
                 suggested={state.manual}
                 onRename={draft.renameTask}
                 onRemove={draft.removeTask}
+                refining={state.refining}
+                onTitleDone={(_, title) => void draft.rerate(title)}
               />
+              {/* Only before Lock: a locked lineup is fixed for the week. */}
+              {state.phase === "review" ? (
+                <View style={styles.refine}>
+                  <RefineField busy={state.refining} onSend={draft.refine} onFocus={revealTypedWeek} />
+                </View>
+              ) : null}
             </View>
           ) : null}
         </Animated.ScrollView>
@@ -179,6 +188,7 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
+  refine: { paddingHorizontal: SCREEN_MARGIN },
   footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },

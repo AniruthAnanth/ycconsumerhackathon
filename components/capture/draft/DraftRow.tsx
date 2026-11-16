@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { PositionPill, RowDivider, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
@@ -12,10 +13,13 @@ type Props = {
   suggested: boolean;
   onRename: (title: string) => void;
   onRemove: () => void;
+  onTitleDone?: (title: string) => void;
 };
 
 /** Laid out like the shared TaskRow, whose title is static text: here the title edits in place and points are read-only. */
-export function DraftRow({ task, editable, suggested, onRename, onRemove }: Props) {
+export function DraftRow({ task, editable, suggested, onRename, onRemove, onTitleDone }: Props) {
+  // Remembered on focus, so leaving the field re-rates only a title that actually changed.
+  const titleOnFocus = useRef(task.title);
   const place = taskPlaceLine(task);
   return (
     <View style={styles.row} testID={`draft-row-${task.slot}`}>
@@ -38,6 +42,12 @@ export function DraftRow({ task, editable, suggested, onRename, onRemove }: Prop
           scrollEnabled={false}
           returnKeyType="done"
           submitBehavior="blurAndSubmit"
+          onFocus={() => {
+            titleOnFocus.current = task.title;
+          }}
+          onEndEditing={() => {
+            if (task.title.trim() !== titleOnFocus.current.trim() && task.title.trim() !== "") onTitleDone?.(task.title);
+          }}
         />
         {/* Nearly every task is a plain photo, so the proof type is worth a line only when it asks for more. */}
         {task.proofType === "photo" ? null : (
