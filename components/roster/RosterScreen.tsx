@@ -19,6 +19,7 @@ import {
   Screen,
   SectionLabel,
   TaskRow,
+  usePinnedTabBarInset,
   useTabBarInset,
 } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
@@ -35,6 +36,7 @@ export function RosterScreen() {
   const router = useRouter();
   const { leagueId, membership, league, weekStart } = useCurrentLeague();
   const bottomInset = useTabBarInset();
+  const pinnedInset = usePinnedTabBarInset();
   // One lineup scores in every league, so the roster is the same whichever
   // league is selected; the league only decides which drop tasks count.
   const roster = useQuery(
@@ -159,7 +161,7 @@ export function RosterScreen() {
         {undrafted ? (
           <Button
             label="Draft your week"
-            style={[styles.draft, { marginBottom: bottomInset }]}
+            style={[styles.draft, { marginBottom: pinnedInset }]}
             onPress={() => router.push("/draft")}
           />
         ) : null}

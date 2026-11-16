@@ -41,6 +41,16 @@ export function useTabBarInset() {
 }
 
 /**
+ * How far content pinned to a tab's bottom edge (outside any scroll view, so iOS doesn't inset it)
+ * must sit to clear the tab bar: the full system bar over the home indicator in the iOS build.
+ */
+export function usePinnedTabBarInset() {
+  const scrollInset = useTabBarInset();
+  const safeBottom = useSafeAreaInsets().bottom;
+  return systemTabBar ? safeBottom + layout.systemTabBar : scrollInset;
+}
+
+/**
  * The floating, rounded tab bar over the bottom of the tabs, drawn in liquid glass where iOS has it.
  * Content scrolls underneath; a green-tinted pill slides to the selected tab.
  */
