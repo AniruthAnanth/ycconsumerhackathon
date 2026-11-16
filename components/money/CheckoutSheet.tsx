@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Keyboard, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated, { SlideInDown, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
@@ -28,8 +28,12 @@ type Props = {
   onClose: () => void;
 };
 
-/** How long the embedded form gets to draw itself before Whop's hosted page takes over. */
-const EMBED_TIMEOUT_MS = 15_000;
+/**
+ * How long the embedded form gets to draw itself before Whop's hosted page takes over. On a phone
+ * Whop's form has taken about 14 s to arrive, so a tighter limit would throw players out of a
+ * checkout that was about to appear.
+ */
+const EMBED_TIMEOUT_MS = 30_000;
 /** How long "You're in" stays up before the sheet closes itself. */
 const PAID_HOLD_MS = 1_800;
 
@@ -53,6 +57,16 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
   const [stage, setStage] = useState<"loading" | "ready" | "paid">("loading");
   // Bumped to mount a fresh checkout after one came back from the bank without a payment.
   const [attempt, setAttempt] = useState(0);
+  // The footer gives its room to the form while the keyboard is up, so the card fields stay in view.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const shown = Keyboard.addListener("keyboardDidShow", () => setTyping(true));
+    const hidden = Keyboard.addListener("keyboardDidHide", () => setTyping(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
 
   const openInBrowser = useCallback(() => {
     onClose();
@@ -119,7 +133,10 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
   // shared sheet chrome (components/ui/Sheet) and the emphasized easing.
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.scrim} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* No KeyboardAvoidingView: the web view moves its own focused field above the keyboard, and
+          shrinking the sheet under it as well left the form half a screen tall and sent taps on the
+          card fields to the wrong field while it resized. */}
+      <View style={styles.scrim}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close checkout" />
         <Animated.View
           testID="checkout-sheet"
@@ -170,7 +187,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
             </View>
           )}
 
-          {stage === "paid" ? null : (
+          {stage === "paid" || typing ? null : (
             <View style={styles.footer}>
               <Text style={styles.caption}>Payments by Whop. Sandbox: no real money moves.</Text>
               <Pressable style={styles.link} onPress={openInBrowser} accessibilityRole="link">
@@ -179,7 +196,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
             </View>
           )}
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
