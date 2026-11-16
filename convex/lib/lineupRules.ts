@@ -89,7 +89,7 @@ const FALLBACK_TASKS: Record<CoreSlot, DraftTask> = {
  * could never be verified.
  */
 /** The length a task's timelapse runs when it has none. The app assumes the same. */
-export const DEFAULT_TARGET_MINUTES = 10;
+export const DEFAULT_TARGET_MINUTES = 5;
 
 export function tidyTask(task: DraftTask): DraftTask {
   const minutes = Math.round(task.targetMinutes ?? DEFAULT_TARGET_MINUTES);
@@ -97,14 +97,16 @@ export function tidyTask(task: DraftTask): DraftTask {
     slot: task.slot,
     title: task.title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE_LENGTH),
     points: clampTaskPoints(task.points),
-    // Every proof is a survey video or a timelapse (the owner's call). A Canvas task keeps its
-    // type so canvas.ts can still verify it from the grade.
-    proofType: task.proofType === "canvas" || task.proofType === "survey_video" ? task.proofType : "timelapse",
+    proofType: task.proofType,
   };
-  // A timelapse runs 5 minutes to an hour; one with no length gets the app's default of 10.
-  if (tidy.proofType !== "survey_video") {
-    tidy.targetMinutes = Math.min(60, Math.max(5, Number.isFinite(minutes) ? minutes : DEFAULT_TARGET_MINUTES));
+  // Proving a task should take minutes at most (the owner's call): a timelapse runs 1 to 10
+  // minutes, 5 when none was given.
+  if (task.proofType === "timelapse") {
+    tidy.targetMinutes = Math.min(10, Math.max(1, Number.isFinite(minutes) ? minutes : DEFAULT_TARGET_MINUTES));
   }
+  // Only a check-in keeps a place. One drafted without coordinates ("the gym") is pinned by the
+  // player later (lineup.pinPlace).
+  if (task.proofType !== "photo_location") return tidy;
   const place = task.place;
   if (!place || place.name.trim() === "" || !isValidLatLng(place)) return tidy;
   return {
