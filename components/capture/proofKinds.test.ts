@@ -28,6 +28,7 @@ describe("timelapse sampling", () => {
 
   it("spaces interval photos so eight span the target, never closer than 5 s", () => {
     expect(intervalMs(30)).toBe(225_000);
+    expect(intervalMs(10)).toBe(75_000);
     expect(intervalMs(0.1)).toBe(5_000);
   });
 
@@ -46,18 +47,8 @@ describe("formatElapsed", () => {
 });
 
 describe("howToProve", () => {
-  it("names the target for a timelapse, defaulting to 30 min", () => {
-    expect(howToProve({ proofType: "timelapse", title: "Read", targetMinutes: 45 })).toBe("Record a timelapse of yourself doing it, at least 45 min.");
-    expect(howToProve({ proofType: "timelapse", title: "Read" })).toContain("at least 30 min");
-  });
-
-  it("names the place for a location photo", () => {
-    expect(howToProve({ proofType: "photo_location", title: "Gym", place: { name: "Equinox" } })).toBe("Take a photo at Equinox. Your location is checked.");
-  });
-
-  it("has one line for every type", () => {
-    for (const proofType of ["photo", "canvas", "before_after", "screenshot"] as const) {
-      expect(howToProve({ proofType, title: "x" }).length).toBeGreaterThan(10);
-    }
+  it("asks every task for a timelapse of its target length, ten minutes by default", () => {
+    expect(howToProve({ targetMinutes: 45 })).toBe("Record a timelapse while you do it, at least 45 min.");
+    expect(howToProve({})).toBe("Record a timelapse while you do it, at least 10 min.");
   });
 });
