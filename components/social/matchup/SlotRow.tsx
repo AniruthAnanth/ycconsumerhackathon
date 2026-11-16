@@ -2,13 +2,13 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { PositionPill, RowDivider, Score } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
-import { BORDER, colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Matchup, TaskRow, TaskVeto } from "../contract";
 import { SwapEditor } from "../veto/SwapEditor";
 import { VetoChip } from "../veto/VetoChip";
 import { showsVeto } from "../veto/vetoLogic";
-import { slotLeader, statusDot, statusLine } from "./matchupLogic";
+import { slotLeader, statusLine } from "./matchupLogic";
 
 type Vetoes = { byTask: Map<Id<"tasks">, TaskVeto>; leagueId: Id<"leagues"> };
 
@@ -35,7 +35,8 @@ export function SlotRow({ row, vetoes }: { row: Matchup["rows"][number]; vetoes?
 
 /**
  * The title keeps the side's full width so task names don't wrap into a narrow column. The line under
- * it puts the points on the outer edge, then the status dot and status, reading in towards the pill.
+ * it puts the points on the outer edge, then the status word, reading in towards the pill. The word alone
+ * carries the status; a dot beside it said the same thing twice.
  */
 function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine" | "theirs"; leading: boolean; vetoes?: Vetoes }) {
   const mirrored = side === "theirs";
@@ -47,7 +48,6 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
       </View>
     );
   }
-  const dot = statusDot(task.status);
   return (
     <View style={[styles.stack, leading && styles.leading]}>
       <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
@@ -55,7 +55,6 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
       </Text>
       <View style={[styles.meta, mirrored && styles.sideMirrored]}>
         <Score value={task.score} />
-        <View style={[styles.dot, dot === "done" && styles.dotDone, dot === "pending" && styles.dotPending, dot === "open" && styles.dotOpen]} />
         <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
           {statusLine(task)}
         </Text>
@@ -68,8 +67,6 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
     </View>
   );
 }
-
-const DOT = spacing.sm;
 
 const styles = StyleSheet.create({
   row: {
@@ -85,10 +82,6 @@ const styles = StyleSheet.create({
   stack: { flex: 1, alignSelf: "stretch", justifyContent: "center", gap: spacing.xs, padding: spacing.xs, borderRadius: radius.sm },
   leading: { backgroundColor: colors.accentTint },
   meta: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  dot: { width: DOT, height: DOT, borderRadius: DOT / 2 },
-  dotDone: { backgroundColor: colors.accent },
-  dotPending: { backgroundColor: colors.textMuted },
-  dotOpen: { borderWidth: BORDER, borderColor: colors.textFaint },
   swap: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.sm },
   chipLeft: { alignItems: "flex-start" },
   chipRight: { alignItems: "flex-end" },

@@ -15,7 +15,8 @@ const AVATAR = 20;
 /**
  * Every pairing in the league this week, as seasons.overview schedules and scores it. Only the
  * caller's card is selectable: standings.matchup answers for the caller's own pairing and takes no
- * other, so the rest of the strip is a scoreboard to read, not a way in.
+ * other, so the rest of the strip is a scoreboard to read, not a way in. The caller's own card is
+ * only an outline around the two avatars: the hero right below already shows those names and scores.
  */
 export function MatchupTicker({ leagueId }: { leagueId: Id<"leagues"> }) {
   const season = useQuery(api.seasons.overview, { leagueId });
@@ -38,15 +39,19 @@ export function MatchupTicker({ leagueId }: { leagueId: Id<"leagues"> }) {
             {[
               { player: pairing.a, score: pairing.scoreA },
               { player: pairing.b, score: pairing.scoreB },
-            ].map(({ player, score }) => (
-              <View key={player.userId} style={styles.line}>
-                <Avatar uri={player.avatarUrl} name={player.name} size={AVATAR} />
-                <Text style={styles.name} numberOfLines={1}>
-                  {shortName(player.name)}
-                </Text>
-                <Text style={styles.score}>{score === null ? "\u2014" : formatScore(score)}</Text>
-              </View>
-            ))}
+            ].map(({ player, score }) =>
+              mine ? (
+                <Avatar key={player.userId} uri={player.avatarUrl} name={player.name} size={AVATAR} />
+              ) : (
+                <View key={player.userId} style={styles.line}>
+                  <Avatar uri={player.avatarUrl} name={player.name} size={AVATAR} />
+                  <Text style={styles.name} numberOfLines={1}>
+                    {shortName(player.name)}
+                  </Text>
+                  <Text style={styles.score}>{score === null ? "\u2014" : formatScore(score)}</Text>
+                </View>
+              ),
+            )}
           </PressScale>
         );
       })}
@@ -57,7 +62,7 @@ export function MatchupTicker({ leagueId }: { leagueId: Id<"leagues"> }) {
 const styles = StyleSheet.create({
   strip: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.md, gap: spacing.sm },
   card: { width: 132, gap: spacing.xs, padding: spacing.sm, borderRadius: radius.md, borderWidth: BORDER, borderColor: colors.divider },
-  cardMine: { borderColor: colors.accent, backgroundColor: colors.accentTint },
+  cardMine: { width: undefined, flexDirection: "row", alignItems: "center", borderColor: colors.accent },
   line: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { flex: 1, color: colors.text, fontFamily: fontFamily.semiBold, fontSize: type.caption.fontSize },
   score: { ...type.label, color: colors.text, ...tabular },
