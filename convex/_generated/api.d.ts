@@ -17,6 +17,7 @@ import type * as checkins from "../checkins.js";
 import type * as crons from "../crons.js";
 import type * as decree from "../decree.js";
 import type * as demo from "../demo.js";
+import type * as demoMatch from "../demoMatch.js";
 import type * as drops from "../drops.js";
 import type * as feed from "../feed.js";
 import type * as fixtures from "../fixtures.js";
@@ -88,6 +89,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   decree: typeof decree;
   demo: typeof demo;
+  demoMatch: typeof demoMatch;
   drops: typeof drops;
   feed: typeof feed;
   fixtures: typeof fixtures;
