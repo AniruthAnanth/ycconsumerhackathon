@@ -1,34 +1,27 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { InviteButton } from "@/components/invite";
+import { useShareInvite } from "@/components/invite/useShareInvite";
 import { Divider, Icon, SectionLabel } from "@/components/ui";
 import type { League, Pot } from "@/lib/backend";
-import { formatCountdown, inviteMessage, isSettled } from "@/lib/leagueText";
-import { shareText } from "@/lib/native/share";
+import { formatCountdown, isSettled } from "@/lib/leagueText";
 import { colors, font, fontFamily, layout, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
 type Props = { league: League; pot: Pot; now: number };
 
-/** Flat label and value rows about the league. The invite code row opens the share sheet. The buy-in is not repeated here: the pot card and the Pay banner carry it. */
+/** Flat label and value rows about the league. One Invite row shows the code and shares the invite link. The buy-in is not repeated here: the pot card and the Pay banner carry it. */
 export function LeagueDetails({ league, pot, now }: Props) {
-  // shareText swallows a missing share sheet (web): the code is on the row to read out, so the tap just does nothing.
-  const shareInvite = () => {
-    void shareText(inviteMessage(league));
-  };
+  const { share, notice } = useShareInvite(league._id);
 
   return (
     <View>
       <SectionLabel left="League" />
-      <Pressable style={styles.row} onPress={shareInvite} accessibilityRole="button" accessibilityLabel={`Share invite code ${league.inviteCode}`}>
-        <Text style={styles.label}>Invite code</Text>
+      <Pressable style={styles.row} onPress={share} accessibilityRole="button" accessibilityLabel={`Share invite code ${league.inviteCode}`}>
+        <Text style={styles.label}>{notice ?? "Invite friends"}</Text>
         <View style={styles.valueWithIcon}>
           <Text style={styles.value}>{league.inviteCode}</Text>
           <Icon name="share-outline" size={18} color={colors.accent} />
         </View>
       </Pressable>
-      <View style={styles.invite}>
-        <InviteButton leagueId={league._id} />
-      </View>
       <Divider inset={SCREEN_MARGIN} />
       <DetailRow label="Members" value={String(league.memberCount)} />
       <DetailRow label="Settles" value={isSettled(pot, now) ? "Settled" : formatCountdown(pot.settlesAt - now)} />
@@ -52,6 +45,5 @@ const styles = StyleSheet.create({
   row: { minHeight: layout.rowMin, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: SCREEN_MARGIN },
   label: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   value: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text, ...tabular },
-  invite: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md },
   valueWithIcon: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

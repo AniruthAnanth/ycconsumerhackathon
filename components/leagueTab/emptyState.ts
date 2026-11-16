@@ -4,12 +4,8 @@ export function potEmptyText(pot: { stakeUsd: number; potUsd: number }): string 
   return pot.potUsd === 0 ? "The pot fills as players pay in" : null;
 }
 
-/**
- * A standings row's second line. A bare "0/5 slots" for someone who has not drafted reads like a
- * bug, so a row with nothing cleared and no points asks for a lineup instead.
- */
-export function slotsText(row: { slotsCleared: number; points: number; paid: boolean }): string {
+/** A standings row's second line: short, so it stays on one line under the name. */
+export function slotsText(row: { slotsCleared: number; paid: boolean }): string {
   if (!row.paid) return "Unpaid";
-  if (row.slotsCleared === 0 && row.points === 0) return "Draft your lineup to fill your 5 slots";
-  return `${row.slotsCleared}/5 slots`;
+  return `${row.slotsCleared} of 5 slots`;
 }

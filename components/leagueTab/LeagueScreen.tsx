@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { useQuery } from "convex/react";
 import { useMemo, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
 
 import { SeasonLink } from "@/components/league/SeasonLink";
 import { LeaderboardsStrip } from "@/components/leaderboards";
@@ -15,11 +14,10 @@ import { NotificationSettings } from "@/components/notifications/NotificationSet
 import { Entrance } from "@/components/motion";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { useNow } from "@/lib/useNow";
-import { OutlinedPillButton, Screen, useTabBarInset } from "@/components/ui";
+import { Screen, useTabBarInset } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend, type Pot } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { SCREEN_MARGIN, spacing } from "@/theme";
 
 type Props = {
   /** Replaces the pot card. Mount point for <EscrowFlow/> (YCCO-7); defaults to PotSummary. */
@@ -63,14 +61,8 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
       {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
-      <LeagueInfo hint={league.inviteCode}>
+      <LeagueInfo>
         <LeagueDetails league={league} pot={pot} now={now} />
-        <View style={styles.actions}>
-          <OutlinedPillButton
-            label="Add friends from contacts"
-            onPress={() => router.push({ pathname: "/contacts", params: { leagueId } })}
-          />
-        </View>
         <SeasonLink leagueId={leagueId} />
         <NotificationSettings />
         {aboveStandings}
@@ -79,7 +71,3 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg },
-});
