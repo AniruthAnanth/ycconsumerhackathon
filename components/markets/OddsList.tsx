@@ -2,30 +2,31 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { ProgressFill, ReorderRow } from "@/components/motion";
 import { Avatar, cardStyle, RowDivider } from "@/components/ui";
+import { formatUsd } from "@/lib/leagueText";
 import { colors, layout, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance } from "./chartGeometry";
 import type { Market } from "./useMarket";
 
 /**
- * "Who wins the pot", laid out as one multi-outcome market: the pot at the top, then one row per
- * player with their chance as the biggest figure and a thin bar, favourite first. The pot goes to
- * the top scorer among players who clear all five slots, so the column adds up to 100% (with a
- * last row for nobody clearing, when that can happen). Rows slide when the order changes. A free
- * league has no pot, so it asks who tops the week instead.
+ * "Your share of the pot": each player's expected cut of this week's pot, which is split evenly
+ * among everyone tied for the most slots cleared. The cuts add up to the pot (less the chance it
+ * rolls over because no one cleared a slot). Rows slide when the order changes. A free league has no
+ * money, so it shows each player's chance of being a top performer instead.
  */
 export function OddsList({ odds }: { odds: Market["odds"] }) {
   // Before anyone has drafted, every row is the same coin flip over nothing.
   if (odds.rows.length < 2 || !odds.rows.some((row) => row.projected > 0)) return null;
   const pot = odds.kind === "pot";
+  // Guarded because a stale backend on the shared deployment may not send shareUsd yet.
+  const value = (row: Market["odds"]["rows"][number]) =>
+    pot && Number.isFinite(row.shareUsd) ? formatUsd(Math.round(row.shareUsd)) : formatChance(row.chance);
   return (
     <View style={styles.card} testID="odds-list">
-      <View style={styles.head}>
-        <Text style={styles.title}>{pot ? "Who wins the pot?" : "Who tops the week?"}</Text>
-      </View>
+      <Text style={styles.title}>{pot ? "Your share of the pot" : "Who tops the week?"}</Text>
       {odds.rows.map((row, index) => (
         <ReorderRow key={row.userId}>
-          <View style={styles.row} accessible accessibilityLabel={`${row.name}${row.isMe ? " (you)" : ""}: ${formatChance(row.chance)}`}>
+          <View style={styles.row} accessible accessibilityLabel={`${row.isMe ? "You" : row.name}: ${value(row)}`}>
             <Avatar name={row.name} size={32} />
             <View style={styles.who}>
               <Text style={styles.name} numberOfLines={1}>
@@ -33,21 +34,14 @@ export function OddsList({ odds }: { odds: Market["odds"] }) {
               </Text>
               <ProgressFill ratio={row.chance} height={4} color={row.isMe ? colors.green : colors.faint} />
             </View>
-            <Text style={styles.chance}>{formatChance(row.chance)}</Text>
+            <Text style={styles.chance}>{value(row)}</Text>
           </View>
-          {index < odds.rows.length - 1 || (pot && odds.nobody >= 0.005) ? <RowDivider inset={0} /> : null}
+          {index < odds.rows.length - 1 ? <RowDivider inset={0} /> : null}
         </ReorderRow>
       ))}
-      {pot && odds.nobody >= 0.005 ? (
-        <View style={styles.row} accessible accessibilityLabel={`${formatChance(odds.nobody)} that nobody clears all five and every stake goes back`}>
-          <View style={styles.who}>
-            <Text style={styles.name}>Nobody clears all 5</Text>
-            <Text style={styles.note}>Every stake goes back</Text>
-          </View>
-          <Text style={styles.chance}>{formatChance(odds.nobody)}</Text>
-        </View>
-      ) : null}
-      <Text style={styles.note}>{pot ? "The pot goes to the top scorer who clears all 5 slots." : "Chance of the week's highest score."}</Text>
+      <Text style={styles.note}>
+        {pot ? "Expected share. The pot splits evenly among everyone who clears the most slots." : "Chance of clearing the most slots this week."}
+      </Text>
     </View>
   );
 }
@@ -60,8 +54,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.xs,
   },
-  head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: spacing.xs },
-  title: { ...type.subheading, color: colors.text },
+  title: { ...type.subheading, color: colors.text, marginBottom: spacing.xs },
   row: { minHeight: layout.rowMin + 8, flexDirection: "row", alignItems: "center", gap: spacing.md },
   who: { flex: 1, gap: spacing.xs },
   name: { ...type.label, color: colors.text },
