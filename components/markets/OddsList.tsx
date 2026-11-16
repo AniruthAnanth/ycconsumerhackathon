@@ -2,7 +2,6 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { ProgressFill, ReorderRow } from "@/components/motion";
 import { Avatar, RowDivider } from "@/components/ui";
-import { formatUsd } from "@/lib/leagueText";
 import { BORDER, colors, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance } from "./chartGeometry";
@@ -23,8 +22,6 @@ export function OddsList({ odds }: { odds: Market["odds"] }) {
     <View style={styles.card} testID="odds-list">
       <View style={styles.head}>
         <Text style={styles.title}>{pot ? "Who wins the pot?" : "Who tops the week?"}</Text>
-        {/* Guarded because a thread deploying an older backend to the shared deployment drops the field; the list must still render. */}
-        {pot && Number.isFinite(odds.potUsd) ? <Text style={styles.volume}>{`${formatUsd(odds.potUsd)} pot`}</Text> : null}
       </View>
       {odds.rows.map((row, index) => (
         <ReorderRow key={row.userId}>
@@ -68,7 +65,6 @@ const styles = StyleSheet.create({
   },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: spacing.xs },
   title: { ...type.subheading, color: colors.text },
-  volume: { ...type.label, color: colors.textMuted, ...tabular },
   row: { minHeight: layout.rowMin + 8, flexDirection: "row", alignItems: "center", gap: spacing.md },
   who: { flex: 1, gap: spacing.xs },
   name: { ...type.label, color: colors.text },

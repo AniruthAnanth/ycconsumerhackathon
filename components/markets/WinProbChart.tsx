@@ -86,7 +86,7 @@ export function WinProbChart({ matchup }: { matchup: NonNullable<Market["matchup
         <Text style={styles.xText}>{range === "week" ? "Mon" : "Midnight"}</Text>
         <Text style={styles.xText}>Now</Text>
       </View>
-      <Text style={styles.caption}>Your chance to win, updated after every proof.</Text>
+      <Text style={styles.caption}>Updated after every proof.</Text>
     </View>
   );
 }

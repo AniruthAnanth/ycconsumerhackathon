@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Divider, SectionLabel } from "@/components/ui";
 import type { Payout } from "@/lib/backend";
 import { formatUsd, payoutLine } from "@/lib/leagueText";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, money, SCREEN_MARGIN, spacing } from "@/theme";
 
 /** What each player was paid when the week settled. Only rendered when there is at least one payout, so a free league shows no empty header. */
 export function PayoutRows({ payouts }: { payouts: Payout[] }) {
@@ -34,5 +34,5 @@ const styles = StyleSheet.create({
   who: { flex: 1 },
   name: { fontSize: font.title, fontFamily: fontFamily.semiBold, color: colors.text },
   kind: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  amount: { fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.tabActive, fontVariant: ["tabular-nums"] },
+  amount: { fontSize: font.score, fontFamily: fontFamily.extraBold, color: money.text, fontVariant: ["tabular-nums"] },
 });

@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Keyboard, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { GestureDetector, GestureHandlerRootView, usePanGesture } from "react-native-gesture-handler";
 import Animated, { SlideInDown, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,7 +16,7 @@ import { backend } from "@/lib/backend";
 import { formatUsd } from "@/lib/leagueText";
 import { SHEET_MS } from "@/lib/native/motion";
 import { shouldDismiss } from "@/lib/native/swipeDismiss";
-import { colors, duration, font, fontFamily, MIN_TARGET, radius, SCREEN_MARGIN, spacing, spring } from "@/theme";
+import { colors, duration, font, fontFamily, MIN_TARGET, money, radius, SCREEN_MARGIN, spacing, spring } from "@/theme";
 
 import { CheckoutFrame } from "./CheckoutFrame";
 
@@ -136,7 +136,9 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
       {/* No KeyboardAvoidingView: the web view moves its own focused field above the keyboard, and
           shrinking the sheet under it as well left the form half a screen tall and sent taps on the
           card fields to the wrong field while it resized. */}
-      <View style={styles.scrim}>
+      {/* A Modal draws outside the app's GestureHandlerRootView on iOS, so the swipe-down on the
+          grabber and header only works with a root of its own in here. */}
+      <GestureHandlerRootView style={styles.scrim}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close checkout" />
         <Animated.View
           testID="checkout-sheet"
@@ -210,7 +212,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
             </View>
           )}
         </Animated.View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -236,7 +238,7 @@ const styles = StyleSheet.create({
   label: { fontFamily: fontFamily.bold, fontSize: font.label, color: colors.textMuted, letterSpacing: 0.6 },
   leagueName: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text },
   muted: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  amount: { fontFamily: fontFamily.extraBold, fontSize: font.total, color: colors.text, fontVariant: ["tabular-nums"] },
+  amount: { fontFamily: fontFamily.extraBold, fontSize: font.total, color: money.text, fontVariant: ["tabular-nums"] },
   form: { flex: 1, marginTop: spacing.md },
   loading: {
     position: "absolute",

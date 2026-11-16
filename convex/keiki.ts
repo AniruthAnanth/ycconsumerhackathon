@@ -60,6 +60,7 @@ import {
   SCORING_RULES,
   splitLeagueTag,
   unwrapOutbound,
+  withoutActionTag,
   weekFacts,
   withLeagueTag,
   wrapOutbound,
@@ -236,12 +237,11 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
   if (written.length === 0) return outbound;
 
   const said = splitLeagueTag(written.map((message) => captionOf(message.text)).join(" "));
-  const onPhone = !turn.conversationId.startsWith(GATEWAY_PREFIX);
 
   // The app's "Play by text" link writes a code for the account it was opened on. Sending it
   // ties this number to that account, which is how an account that signed up without this
   // number (or a reinstall, which is a new account) gets its texts.
-  const linkCode = onPhone ? linkCodeIn(said.text) : null;
+  const linkCode = onPhone(turn) ? linkCodeIn(said.text) : null;
   const linked: boolean =
     linkCode !== null && (await ctx.runMutation(internal.keiki.linkPhone, { phone: turn.conversationId, ...linkCode }));
 
@@ -254,7 +254,7 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
   // Texting the number is the opt-in. The first text from a phone turns it on; after the
   // player has switched it off in the app, only sending the join code again turns it back on.
   const sentJoinCode = saysJoinCode(said.text);
-  if (onPhone && (player.optIn === null || (sentJoinCode && !player.optIn))) {
+  if (onPhone(turn) && (player.optIn === null || (sentJoinCode && !player.optIn))) {
     await ctx.runMutation(internal.keiki.recordOptIn, { accountId: player.accountId });
   }
 
@@ -262,6 +262,10 @@ async function repliesTo(ctx: ActionCtx, turn: KeikiTurn, bearer: string): Promi
   if (file) return [...outbound, await answerPhoto(ctx, turn, bearer, player, file.id, said.text)];
   if (sentJoinCode || linked) return [...outbound, reply.welcome];
   return [...outbound, await answerText(ctx, turn, bearer, player, said.text)];
+}
+
+function onPhone(turn: KeikiTurn): boolean {
+  return !turn.conversationId.startsWith(GATEWAY_PREFIX);
 }
 
 function saysJoinCode(text: string): boolean {
@@ -395,20 +399,23 @@ type Understood = {
 };
 
 const UNDERSTAND_INSTRUCTIONS = [
-  "You are the Lineup league agent: the referee and scorekeeper of a fantasy league for people's own lives.",
-  "A player sent you the message at the end. Do exactly one of two things.",
+  "You are Sunny, the capybara who is this league's commissioner: the referee and scorekeeper of a fantasy league for",
+  "people's own lives. Calm, warm, a little dry, never cute. A player sent you the message at the end. Do exactly one of two things.",
   "1. If it proposes a group session for the league (an activity with a place and a time, like 'run tomorrow 7am at",
   "Dolores Park'), set isSessionProposal to true and fill title (two to five words, like 'Morning run'), placeName, lat",
   "and lng (your best estimate of that place's coordinates; the league is in San Francisco unless the message says",
   "otherwise) and startsAt (ISO 8601 with the America/Los_Angeles offset, resolving 'tomorrow' and weekday names from",
   "the current time given). Leave reply empty. If the place or the time is missing, it is not a proposal yet.",
-  "2. Otherwise set isSessionProposal to false, set the session fields to null, and write reply: one or two short",
-  "lines (up to six when the player asks you to explain something, with an example from their own numbers if they",
-  "ask for one), sports-desk tone, no emojis, answered only from the league facts given. Answer with the names and numbers",
-  "the question is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I',",
-  "the task titles for 'what's left'. Speak to the player as 'you'. If the facts don't answer it, say",
-  "what you can do: judge a photo proof, STANDINGS, IN to join a group session.",
-  "When the facts do answer it, answer and stop: no sign-off, and no tip about a command to send next.",
+  "2. Otherwise set isSessionProposal to false, set the session fields to null, and write reply: one to three short,",
+  "punchy sentences (up to six when the player asks you to explain something, with an example from their own numbers if",
+  "they ask for one), no emojis, answered only from the league facts given. Cite the real names and numbers the question",
+  "is about: the opponent and both totals for 'who am I playing', the gap for 'how far behind am I', the task titles for",
+  "'what's left'. Speak to the player as 'you'. If the facts don't answer it, say what you can do: judge a photo proof,",
+  "STANDINGS, IN to join a group session. When the facts do answer it, answer and stop: no sign-off.",
+  "Only when the player is writing in the app's chat screen, and only when your reply recommends one of these actions,",
+  "end the reply with exactly one tag on its own line: [action:swap] to swap a task the league struck, [action:nudge:<name>]",
+  "to nudge a named league-mate (use their name as written in the table), or [action:veto] to veto a league-mate's task.",
+  "Otherwise add no tag. Never add a tag in a text message.",
 ].join(" ");
 
 const UNDERSTAND_SCHEMA = {
@@ -450,7 +457,11 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
     console.warn(`The league agent could not reach the model: ${String(error)}`);
     return reply.help;
   }
-  if (!understood.isSessionProposal) return understood.reply.trim() || reply.help;
+  if (!understood.isSessionProposal) {
+    // Action tags are buttons in the app's chat; a phone would show them as text.
+    const answer = onPhone(turn) ? withoutActionTag(understood.reply) : understood.reply;
+    return answer.trim() || reply.help;
+  }
 
   const { title, placeName, lat, lng } = understood;
   const startsAt = Date.parse(understood.startsAt ?? "");

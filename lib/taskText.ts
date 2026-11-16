@@ -16,6 +16,8 @@ export type TaskRowData = {
   verifiedAt?: number;
   thumbUrl?: string;
   dueLabel?: string;
+  /** A timelapse's target length, which the status line names. */
+  targetMinutes?: number;
 };
 
 /** Scores always show one decimal, like a fantasy box score; unscored shows a dash. */
@@ -36,7 +38,10 @@ export function formatClock(ms: number): string {
 
 /** Line 2 of a row: how the task is proved and where it stands. */
 export function taskStatusLine(task: TaskRowData): string {
-  const proof = PROOF_LABEL[task.proofType];
+  const proof =
+    task.proofType === "timelapse" && task.targetMinutes !== undefined
+      ? `${PROOF_LABEL.timelapse} · ${task.targetMinutes} min`
+      : PROOF_LABEL[task.proofType];
   switch (task.status) {
     case "verified":
       return task.verifiedAt == null ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
