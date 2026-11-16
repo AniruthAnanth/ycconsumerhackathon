@@ -40,6 +40,12 @@ export const capture = {
     draft: action<{ audioStorageId?: Id<"_storage">; transcript?: string }, Draft>("lineup:draft"),
     lock: mutation<{ tasks: DraftTask[]; transcript?: string }, { weekStart: number }>("lineup:lock"),
   },
+  liveTranscribe: {
+    /** One recorded segment's words while the player talks; "" when it can't be read. */
+    chunk: action<{ storageId: Id<"_storage"> }, string>("liveTranscribe:chunk"),
+    /** Every segment in recording order, transcribed at full quality into the draft's text. */
+    whole: action<{ storageIds: Id<"_storage">[] }, string>("liveTranscribe:whole"),
+  },
   proofs: {
     /** Also used for the Voice Draft recording: it is the app's one upload path. */
     generateUploadUrl: mutation<NoArgs, string>("proofs:generateUploadUrl"),
