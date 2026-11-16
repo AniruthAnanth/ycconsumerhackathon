@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { EscrowFlow } from "@/components/money";
-import { Divider } from "@/components/ui";
+import { cardStyle, Divider } from "@/components/ui";
 import type { Pot, Standing } from "@/lib/backend";
 import { escrowFlowData } from "@/lib/escrow";
 import { potEmptyText } from "./emptyState";
-import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 type Props = {
   pot: Pot;
@@ -44,13 +44,12 @@ export function PotSummary({ pot, standings = [], now }: Props) {
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     marginHorizontal: SCREEN_MARGIN,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
     padding: spacing.lg,
     gap: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
   },
   empty: { marginHorizontal: SCREEN_MARGIN, marginVertical: spacing.lg, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
 });

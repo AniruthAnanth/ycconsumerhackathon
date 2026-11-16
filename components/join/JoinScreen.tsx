@@ -4,7 +4,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
-import { Button, Icon, Screen, TextField } from "@/components/ui";
+import { Button, cardStyle, Icon, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   },
   selectorOpen: { borderColor: colors.accent },
   selectorLabel: { ...type.label, color: colors.text },
-  menu: { borderRadius: radius.card, borderWidth: 1, borderColor: colors.divider, backgroundColor: colors.surface, overflow: "hidden" },
+  menu: { ...cardStyle, overflow: "hidden" },
   option: { minHeight: layout.rowMin, flexDirection: "row", alignItems: "center", gap: layout.columnGap, padding: spacing.lg },
   optionDivider: { borderTopWidth: hairline, borderTopColor: colors.divider },
   optionOn: { backgroundColor: colors.accentTint },

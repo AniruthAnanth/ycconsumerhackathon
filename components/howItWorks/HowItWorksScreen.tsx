@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
 
 import { BackBar } from "@/components/join/BackBar";
-import { Button, Screen } from "@/components/ui";
+import { Button, cardStyle, Screen } from "@/components/ui";
 import { colors, layout, MIN_TARGET, radius, spacing, type } from "@/theme";
 
 import { CARDS, type CardKey, exitOf } from "./cards";
@@ -152,12 +152,9 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, color: colors.accent },
   page: { paddingHorizontal: layout.margin, paddingTop: spacing.lg },
   card: {
+    ...cardStyle,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
   },
   // The words follow the card directly, at the same distance on every page.
   words: { paddingTop: spacing.xl, gap: spacing.sm, paddingHorizontal: spacing.sm },
