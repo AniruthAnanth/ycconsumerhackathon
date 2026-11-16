@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
-import { canVoteOn, feedKind, isCloseCall, isReactionEmoji, summariseReactions, tallyVotes } from "./feed";
+import { canVoteOn, feedKind, isCloseCall, isReactionEmoji, isStockMedia, summariseReactions, tallyVotes } from "./feed";
+import { SEED_PHOTOS } from "./lib/seedPhotos";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -225,5 +226,77 @@ describe("feed.list and feed.react", () => {
       expect(item.challenge).toMatchObject({ canVote: false, notLegit: 1 });
       expect(item.challenge?.myVote).toBeUndefined();
     }
+  });
+});
+
+describe("isStockMedia", () => {
+  const seedHash = SEED_PHOTOS.gym.sha256;
+  it("is stock when the proof says so", () => {
+    expect(isStockMedia({ stockMedia: true }, {}, undefined)).toBe(true);
+  });
+  it("is stock when a seeded player's photo is a seed image", () => {
+    expect(isStockMedia({}, { isSeed: true }, seedHash)).toBe(true);
+  });
+  it("is the player's own otherwise", () => {
+    expect(isStockMedia({}, { isSeed: true }, "other-hash")).toBe(false);
+    expect(isStockMedia({}, {}, seedHash)).toBe(false);
+    expect(isStockMedia({}, { isSeed: true }, undefined)).toBe(false);
+  });
+});
+
+describe("feed.list media", () => {
+  const NOW = Date.UTC(2026, 10, 15, 20);
+  const WEEK = Date.UTC(2026, 10, 9, 8);
+  async function setup() {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      const [maya, sam] = await Promise.all([
+        ctx.db.insert("users", { name: "Maya", isSeed: true }),
+        ctx.db.insert("users", { name: "Sam" }),
+      ]);
+      const leagueId = await ctx.db.insert("leagues", {
+        name: "YC", inviteCode: "YC", stakeUsd: 5, visibility: "private", maxMembers: 8, createdBy: maya,
+      });
+      for (const userId of [maya, sam]) {
+        await ctx.db.insert("memberships", { leagueId, userId, paid: true, joinedAt: NOW });
+      }
+      const prove = async (
+        userId: Id<"users">,
+        title: string,
+        createdAt: number,
+        extra: { storageId?: Id<"_storage">; stockMedia?: boolean; frameStorageIds?: Id<"_storage">[] },
+      ) => {
+        const taskId = await ctx.db.insert("tasks", {
+          userId, weekStart: WEEK, slot: "body", title, points: 40, proofType: "photo", status: "verified", source: "draft",
+        });
+        await ctx.db.insert("proofs", {
+          taskId, userId, weekStart: WEEK, mediaType: "photo", reason: "Fine", pass: true, confidence: 0.9,
+          highlight: 6, caption: title, via: "app", createdAt, ...extra,
+        });
+      };
+      const seedBytes = Uint8Array.from(atob(SEED_PHOTOS.gym.jpegBase64), (char) => char.charCodeAt(0));
+      const seedFile = await ctx.storage.store(new Blob([seedBytes], { type: "image/jpeg" }));
+      const own = await ctx.storage.store(new Blob(["own photo"]));
+      const frames = await Promise.all(["a", "b", "c"].map((f) => ctx.storage.store(new Blob([f]))));
+      await prove(maya, "Seeded gym", NOW - 1_000, { storageId: seedFile });
+      await prove(sam, "Sample tray", NOW - 2_000, { storageId: own, stockMedia: true });
+      await prove(sam, "Own photo", NOW - 3_000, { storageId: own });
+      await prove(maya, "Own seeded-player photo", NOW - 4_000, { storageId: own });
+      await prove(sam, "Timelapse", NOW - 5_000, { storageId: frames[2], frameStorageIds: frames });
+      return { sam, leagueId };
+    });
+    return { t, ...ids };
+  }
+
+  it("leaves out stock media and keeps the player's own photos and timelapse stills", async () => {
+    const { t, sam, leagueId } = await setup();
+    const feed = await t.withIdentity({ subject: sam + "|test-session" }).query(api.feed.list, { leagueId });
+    const byTitle = Object.fromEntries(feed.map((item) => [item.taskTitle, item]));
+    expect(byTitle["Seeded gym"].mediaUrl).toBeUndefined();
+    expect(byTitle["Sample tray"].mediaUrl).toBeUndefined();
+    expect(byTitle["Own photo"].mediaUrl).toEqual(expect.any(String));
+    expect(byTitle["Own seeded-player photo"].mediaUrl).toEqual(expect.any(String));
+    expect(byTitle["Own photo"].frameUrls).toBeUndefined();
+    expect(byTitle["Timelapse"].frameUrls).toHaveLength(3);
   });
 });

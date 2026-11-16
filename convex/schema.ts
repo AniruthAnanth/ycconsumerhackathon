@@ -238,6 +238,10 @@ export default defineSchema({
     flags: v.optional(v.array(v.string())),
     // True while a low-confidence proof waits for the league's vote; the task is held meanwhile.
     needsVote: v.optional(v.boolean()),
+    // True when the media is a bundled sample or a seed photo, not the player's own shot. The feed hides it.
+    stockMedia: v.optional(v.boolean()),
+    // A timelapse's stills in time order, the last being storageId, so the feed can show a filmstrip.
+    frameStorageIds: v.optional(v.array(v.id("_storage"))),
   })
     .index("by_user_week", ["userId", "weekStart"])
     .index("by_task", ["taskId"]),

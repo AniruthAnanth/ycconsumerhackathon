@@ -70,6 +70,8 @@ export const capture = {
         capturedAt?: number;
         /** Epoch ms of each frame, in the order of frameStorageIds. */
         frameTimes?: number[];
+        /** A development sample stood in for the camera; the feed hides it. */
+        stockMedia?: boolean;
       },
       Verdict
     >("proofs:verify"),

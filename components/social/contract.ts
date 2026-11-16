@@ -63,7 +63,10 @@ export type FeedItem = {
   /** The referee's one-line justification. Always shown. */
   reason: string;
   caption: string;
+  /** Absent when there is nothing of the player's own to show (no photo, or a stock one). */
   mediaUrl?: string;
+  /** A timelapse's stills in time order, when it kept more than one. */
+  frameUrls?: string[];
   mediaType: "photo" | "video" | "canvas";
   createdAt: number;
   /** Confidence between 0.6 and 0.75: passed, but worth a second look. */
