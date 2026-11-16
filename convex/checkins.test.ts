@@ -380,6 +380,18 @@ describe("checkins.nudge", () => {
     expect(await textsTo(t, me)).toEqual([text]);
   });
 
+  it("sends nothing to a player who turned Nudges off in Settings", async () => {
+    const t = convexTest(schema, modules);
+    const weekStart = WEEK_START + 7 * DAY_MS;
+    vi.setSystemTime(weekStart + 2 * DAY_MS + 18 * HOUR_MS);
+    const { userIds } = await startLeague(t, ["Me", "Maya"], weekStart);
+    const [me] = userIds;
+    await addTask(t, me, { weekStart });
+    await t.run((ctx) => ctx.db.patch("users", me, { nudgesEnabled: false }));
+
+    expect(await t.mutation(internal.checkins.nudge, { userId: me })).toBeNull();
+  });
+
   it("sends the evening text when nothing was proven today, and not after a proof", async () => {
     const t = convexTest(schema, modules);
     // The following week, on its Wednesday at 6 PM: a day that is not the last one.

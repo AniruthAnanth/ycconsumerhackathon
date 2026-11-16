@@ -67,6 +67,17 @@ export function sunnyBrief(matchup: Matchup | null | undefined, week: Week | und
   return { line: lead + swingLine, chips };
 }
 
+/** Sunny's one line on a passed proof: what it earned and where that leaves my matchup. */
+export function verdictLine(points: number, matchup: Matchup | null | undefined): string {
+  const earned = `Clean proof. +${formatScore(points)}`;
+  if (!matchup) return `${earned}.`;
+  const opponent = firstName(matchup.opponent.name);
+  const gap = matchup.me.total - matchup.opponent.total;
+  if (gap > 0) return `${earned}, you're up ${formatScore(gap)} on ${opponent}.`;
+  if (gap < 0) return `${earned}, ${opponent}'s lead is down to ${formatScore(-gap)}.`;
+  return `${earned}, you're level with ${opponent}.`;
+}
+
 /** A tag Sunny may end a reply with to offer one action, rendered as a button under the reply. */
 export type SunnyAction = { kind: "swap" } | { kind: "veto" } | { kind: "nudge"; name: string };
 

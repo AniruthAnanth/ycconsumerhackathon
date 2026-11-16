@@ -2,8 +2,8 @@
 export const CARDS = [
   { key: "draft", title: "Draft your week", line: "Say what you want to get done, and Lineup turns it into five tasks for your week." },
   { key: "prove", title: "Prove it", line: "Snap a photo when you finish a task, and the AI checks it and gives you the points." },
-  { key: "beat", title: "Beat your friends", line: "Each week you face one friend, points decide the winner, and friends can veto a weak proof." },
-  { key: "pot", title: "Win the pot", line: "Everyone puts in the same buy-in, and the week's winner takes the whole pot." },
+  { key: "beat", title: "Beat your friends", line: "Each week you face one friend, and whoever scores more points wins." },
+  { key: "pot", title: "Win the pot", line: "Everyone puts in the same buy-in. The top scorer who clears all 5 slots takes the pot." },
 ] as const;
 
 export type CardKey = (typeof CARDS)[number]["key"];

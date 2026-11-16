@@ -11,7 +11,7 @@ export { Button } from "./Button";
 export { LARGE_TITLE_HEIGHT, LargeTitle, useCollapsingHeader } from "./CollapsingHeader";
 export { Divider, RowDivider } from "./Divider";
 export { EmptyState } from "./EmptyState";
-export { GlassTabBar, useTabBarInset } from "./GlassTabBar";
+export { GlassTabBar, usePinnedTabBarInset, useTabBarInset } from "./GlassTabBar";
 export { Header } from "./Header";
 export { Icon, type IconName } from "./Icon";
 export { OutlinedPillButton } from "./OutlinedPillButton";

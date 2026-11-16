@@ -4,30 +4,22 @@ import { StyleSheet, View } from "react-native";
 import { useReduceMotion } from "@/components/motion";
 import { EscrowFlow } from "@/components/money/EscrowFlow";
 import type { EscrowMember } from "@/lib/escrow";
-import { duration } from "@/theme";
 
 const STAKE_USD = 20;
 const NAMES = ["You", "Maya", "Dev", "Sam", "Priya", "Leo"];
 const POT_USD = STAKE_USD * NAMES.length;
+const MEMBERS: EscrowMember[] = NAMES.map((name) => ({ userId: name, name, paid: true }));
 
-const memberList = (paidCount: number): EscrowMember[] =>
-  NAMES.map((name, index) => ({ userId: name, name, paid: index < paidCount }));
-
-/** "Win the pot": six members pay in one after another and the pot counts up to the prize. */
+/**
+ * "Win the pot": six paid members send their buy-ins into the pot, then the line drops to the prize. Everyone is paid from the first frame, so the pot counts up to its total before
+ * the payout box appears and never reads $0 beside it.
+ */
 export function PotGraphic({ playing }: { playing: boolean }) {
   const reduceMotion = useReduceMotion();
-  const [paidCount, setPaidCount] = useState(NAMES.length);
   const [run, setRun] = useState(0);
 
   useEffect(() => {
-    if (!playing || reduceMotion) {
-      setPaidCount(NAMES.length);
-      return;
-    }
-    setRun((current) => current + 1);
-    setPaidCount(0);
-    const timers = NAMES.map((_, index) => setTimeout(() => setPaidCount(index + 1), duration.slow * 2 + duration.base * index * 2));
-    return () => timers.forEach(clearTimeout);
+    if (playing && !reduceMotion) setRun((current) => current + 1);
   }, [playing, reduceMotion]);
 
   return (
@@ -35,9 +27,9 @@ export function PotGraphic({ playing }: { playing: boolean }) {
       <EscrowFlow
         key={run}
         compact
-        members={memberList(paidCount)}
+        members={MEMBERS}
         stakeUsd={STAKE_USD}
-        potUsd={paidCount * STAKE_USD}
+        potUsd={POT_USD}
         payout={{ label: "Winner takes", amountUsd: POT_USD }}
       />
     </View>

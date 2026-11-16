@@ -21,6 +21,6 @@ describe("join modes", () => {
 
   it("explains the pot only for a paid match", () => {
     expect(stakeLine(0)).toBeNull();
-    expect(stakeLine(5)).toBe("Everyone pays in, winner takes the pot.");
+    expect(stakeLine(5)).toBe("The top scorer who clears all 5 slots takes the pot.");
   });
 });
