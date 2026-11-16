@@ -50,6 +50,21 @@ export function stepBefore(step: Step): Step | null {
   return index > 0 ? STEPS[index - 1] : null;
 }
 
+/**
+ * Whether leaving now would throw away answers the player gave: any field moved off what the
+ * walkthrough started with. Untouched defaults cost nothing to lose, so they leave without asking.
+ */
+export function hasUnsavedWork(draft: Draft, start: Draft): boolean {
+  return (
+    draft.name !== start.name ||
+    draft.kind !== start.kind ||
+    draft.stakeUsd !== start.stakeUsd ||
+    draft.settings.payout !== start.settings.payout ||
+    draft.settings.seasonWeeks !== start.settings.seasonWeeks ||
+    draft.settings.format !== start.settings.format
+  );
+}
+
 /** "Step 2 of 4" and how full the bar is. Review is past the last decision, so its bar is full. */
 export function progressOf(step: Step): { label: string; ratio: number } {
   if (step === "review") return { label: "Review", ratio: 1 };

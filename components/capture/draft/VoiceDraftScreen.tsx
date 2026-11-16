@@ -1,7 +1,8 @@
-import { useRouter } from "expo-router";
+import { useNavigation, usePreventRemove, useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { confirmAction } from "@/components/social/notify";
 import { Button, Header, Screen } from "@/components/ui";
 import { Artwork } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
@@ -9,6 +10,7 @@ import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
+import { hasUnsavedDraft } from "./draftState";
 import { RecordButton } from "./RecordButton";
 import { TranscriptView } from "./TranscriptView";
 import { TypedDraft } from "./TypedDraft";
@@ -22,6 +24,24 @@ export function VoiceDraftScreen() {
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
   const prompt = useSpeakingPrompt(state.phase === "idle");
+  const navigation = useNavigation();
+
+  // Close, Back from the first step, the hardware back button and the iOS swipe all remove the
+  // screen, so one guard asks before any of them throws away an unlocked lineup.
+  usePreventRemove(hasUnsavedDraft(state, typedWeek), ({ data }) =>
+    confirmAction({
+      title: "Discard this draft?",
+      message: "Your lineup isn't locked yet.",
+      confirmLabel: "Discard",
+      onConfirm: () => navigation.dispatch(data.action),
+    }),
+  );
+  const leave = () => leaveScreen("/(tabs)");
+  // Back on the review step goes back to recording rather than out of the screen.
+  const back = () =>
+    state.phase === "review"
+      ? confirmAction({ title: "Discard this lineup?", message: "You'll start the draft again.", confirmLabel: "Discard", onConfirm: draft.redo })
+      : leave();
 
   // The lineup is on screen the moment the draft returns: the transcript types itself out above
   // it for a second at most, and the tasks never wait for that.
@@ -35,14 +55,8 @@ export function VoiceDraftScreen() {
     <Screen>
       <Header
         title="Voice Draft"
-        onBack={() => leaveScreen("/(tabs)")}
-        right={
-          state.phase === "review" ? (
-            <Pressable accessibilityRole="button" onPress={draft.redo} style={styles.redoTarget}>
-              <Text style={styles.redo}>Redo</Text>
-            </Pressable>
-          ) : undefined
-        }
+        onBack={state.phase === "locking" ? undefined : back}
+        onClose={state.phase === "locking" ? undefined : leave}
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Dragging the page puts the keyboard away, and the content insets itself so the typed box and Draft from text can scroll above the keyboard. */}
@@ -107,6 +121,11 @@ export function VoiceDraftScreen() {
             {showsLineup ? (
               <Button label="Lock Lineup" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
             ) : null}
+            {state.phase === "review" ? (
+              <Pressable accessibilityRole="button" onPress={draft.redo} style={styles.leave} hitSlop={8}>
+                <Text style={styles.redo}>Redo</Text>
+              </Pressable>
+            ) : null}
             {lockRefused ? (
               <Pressable accessibilityRole="button" style={styles.leave} onPress={() => router.replace("/(tabs)")} hitSlop={8}>
                 <Text style={styles.redo}>Go to Roster</Text>
@@ -142,5 +161,4 @@ const styles = StyleSheet.create({
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
   redo: { ...type.label, color: colors.accent },
-  redoTarget: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, alignItems: "flex-end", justifyContent: "center" },
 });
