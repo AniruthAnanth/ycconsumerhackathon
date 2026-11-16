@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CheckInPrompt } from "@/components/checkin";
-import { ProjectionLine } from "@/components/leaderboards";
 import { HomeWidgetSync, LiveActivitySync } from "@/components/liveActivity";
 import { Entrance } from "@/components/motion";
 import { AddFlexTask } from "@/components/roster/AddFlexTask";
@@ -12,7 +11,7 @@ import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { RosterHero } from "@/components/roster/RosterHero";
-import { RosterTotal } from "@/components/roster/RosterTotal";
+import { RosterWeekDetails } from "@/components/roster/RosterWeekDetails";
 import { Button, EmptyState, OutlinedPillButton, Screen, SectionLabel, TaskRow, useTabBarInset } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -56,12 +55,14 @@ export function RosterScreen() {
       key={task.taskId}
       task={task}
       highlighted={upNext}
+      titleLines={upNext ? 1 : undefined}
       onPress={() => router.push(`/task/${task.taskId}`)}
       // Up Next skips the task sheet: its camera is one tap from here. A Canvas
       // task has no camera, so it keeps the score column and opens the sheet.
       right={
         upNext && task.proofType !== "canvas" ? (
-          <OutlinedPillButton label="Submit Proof" onPress={() => router.push(proofCameraHref(task))} />
+          // A short label keeps the row's text whole at 390 pt; the screen reader still hears the full action.
+          <OutlinedPillButton label="Proof" icon="camera" accessibilityLabel="Submit Proof" onPress={() => router.push(proofCameraHref(task))} />
         ) : undefined
       }
     />
@@ -70,13 +71,15 @@ export function RosterScreen() {
 
   return (
     <Screen edges={[]}>
-      {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
-      <CheckInPrompt leagueId={leagueId} />
       {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
       <LiveActivitySync />
       <HomeWidgetSync />
-      {leagueId ? <DropBanner leagueId={leagueId} /> : null}
-      {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
+      {/* One banner at a time, most urgent first: the unpaid buy-in, then a live drop, then the check-in nudge. */}
+      {leagueId && owesBuyIn ? (
+        <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} />
+      ) : leagueId ? (
+        <DropBanner leagueId={leagueId} fallback={<CheckInPrompt leagueId={leagueId} />} />
+      ) : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}
       {/* With the Draft button under the list, the button clears the tab bar and the list stops above it. */}
       <ScrollView
@@ -101,13 +104,8 @@ export function RosterScreen() {
             {extras.length > 0 || takesFlex ? <SectionLabel left="Flex and bonus" /> : null}
             {extras.map(listed)}
             {takesFlex ? <AddFlexTask /> : null}
-            {/* The hero already leads with the score, so the box-score total closes the sheet instead of pinning a footer over the starters. */}
-            {undrafted ? null : (
-              <>
-                {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
-                <RosterTotal total={roster?.total ?? null} bonusPoints={roster?.bonusPoints} bonusLabels={roster?.bonusLabels} />
-              </>
-            )}
+            {/* Odds, plan progress, projection and the box-score total wait behind one row: none of them is the next thing to do. */}
+            {undrafted || !roster ? null : <RosterWeekDetails roster={roster} />}
           </Entrance>
         )}
       </ScrollView>

@@ -3,22 +3,19 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Artwork } from "@/components/art";
-import { MatchupOdds } from "@/components/markets/MatchupOdds";
-import { CountUp, PressScale, ProgressFill } from "@/components/motion";
+import { CountUp, PressScale } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
 import { formatScore } from "@/components/ui";
 import type { Roster } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { formatCountdown } from "@/lib/leagueText";
 import { useNow } from "@/lib/useNow";
-import { planProgress, planProgressLabel } from "@/lib/weeklyPlan";
-import { BORDER, colors, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, status, type } from "@/theme";
+import { BORDER, colors, fontFamily, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
- * The top of Roster, laid out like a fantasy app's matchup card: the head-to-head score is the
- * biggest thing on the screen, the win chance sits under it, then how much of the locked plan is
- * confirmed, and the league and week in small type above. Every number comes from the league,
- * the matchup and the roster rows; until they load the card says so rather than showing a 0.
+ * The top of Roster: the head-to-head score, compact, with the league and week in small type above.
+ * The win chance and the plan progress sit behind Week details further down, so the hero answers
+ * one thing at a glance. Until the numbers load the card says so rather than showing a 0.
  * A tap opens the League tab.
  */
 export function RosterHero({ roster }: { roster: Roster | undefined }) {
@@ -36,7 +33,6 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
     );
   }
 
-  const plan = planProgress(roster.rows);
   const members = `${league.memberCount} ${league.memberCount === 1 ? "member" : "members"}`;
   const week = `Week ${weekNumber ?? league.week.number}`;
   const timing =
@@ -60,7 +56,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           {members} · {week}
           {timing}
         </Text>
-        <Artwork name="sunny" size={48} />
+        <Artwork name="sunny" size={40} />
       </View>
 
       {matchup ? (
@@ -85,25 +81,6 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           <Text style={styles.name}>points this week</Text>
         </View>
       )}
-      {/* The win chance gets its own two-colour bar, so it can't be read off the plan bar below. */}
-      {matchup ? (
-        <MatchupOdds compact me={{ name: matchup.me.name, chance: matchup.me.winProbability }} them={{ name: matchup.opponent.name, chance: matchup.opponent.winProbability }} />
-      ) : null}
-      {plan.possible > 0 ? (
-        <View
-          style={styles.plan}
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel={planProgressLabel(plan)}
-          accessibilityValue={{ min: 0, max: plan.possible, now: plan.confirmed }}
-        >
-          <Text style={styles.planLabel}>
-            Your weekly plan · {plan.confirmed} / {plan.possible} pts
-          </Text>
-          <ProgressFill ratio={plan.ratio} />
-          {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}
-        </View>
-      ) : null}
     </PressScale>
   );
 }
@@ -114,14 +91,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
     paddingHorizontal: SCREEN_MARGIN,
-    paddingVertical: spacing.lg,
-    gap: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
     borderWidth: BORDER,
     borderColor: colors.divider,
   },
-  loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
+  loading: { minHeight: 120, alignItems: "center", justifyContent: "center" },
   // Sunny stays small here: the card shares the first screen with the starters.
   head: { flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   headText: { flex: 1 },
@@ -135,8 +112,4 @@ const styles = StyleSheet.create({
   theirScore: { ...type.title, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   name: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
   vs: { ...type.caption, color: colors.textFaint, paddingBottom: spacing.lg },
-  plan: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
-  planLabel: { ...type.label, color: colors.text },
-  chance: { ...type.caption, color: colors.accent },
-  pending: { ...type.small, color: status.pendingText },
 });
