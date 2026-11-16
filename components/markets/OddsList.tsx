@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { ProgressFill, ReorderRow } from "@/components/motion";
-import { Avatar, RowDivider } from "@/components/ui";
-import { BORDER, colors, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { Avatar, cardStyle, RowDivider } from "@/components/ui";
+import { colors, layout, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance } from "./chartGeometry";
 import type { Market } from "./useMarket";
@@ -54,14 +54,11 @@ export function OddsList({ odds }: { odds: Market["odds"] }) {
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     marginHorizontal: SCREEN_MARGIN,
     marginVertical: spacing.lg,
     padding: spacing.lg,
     gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
   },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: spacing.xs },
   title: { ...type.subheading, color: colors.text },
