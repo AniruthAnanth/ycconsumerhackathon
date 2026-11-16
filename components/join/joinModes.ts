@@ -1,3 +1,5 @@
+import { PAYOUT_RULE } from "@/lib/payoutRule";
+
 import type { Stake } from "./stakes";
 
 /** The four ways into a game, in the order the menu lists them. */
@@ -25,7 +27,7 @@ export function parseMode(value: string | undefined): JoinMode | null {
 /** What the Create walkthrough will ask, shown before it opens. */
 export const CREATE_PREVIEW = ["Name your league", "Who's playing", "Set the buy-in", "Pick your season"] as const;
 
-/** The line under the stake picker: the weekly split as the intro states it, or nothing for a free match. */
+/** The line under the stake picker: the payout rule, or nothing for a free match. */
 export function stakeLine(stakeUsd: Stake): string | null {
-  return stakeUsd > 0 ? "Whoever clears the most of their week splits the pot, held in escrow until cashout." : null;
+  return stakeUsd > 0 ? PAYOUT_RULE : null;
 }

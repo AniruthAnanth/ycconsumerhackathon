@@ -61,6 +61,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   if (!leagueId || !pot || !seasonTable || !league || !me)
     return <Screen edges={[]}>{null}</Screen>;
 
+  const potCard = escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />;
   // YOUR RANK reads the same rows as the table, so the two can never disagree.
   const mine = seasonTable.find((row) => row.userId === me._id);
   const place = mine ? placeText(mine.rank, tiedRanks(seasonTable).has(mine.rank)) : undefined;
@@ -71,13 +72,8 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
         <View style={styles.first}>
           <SectionLabel left="This week" />
           <Entrance>
-            <CoachTarget id="pot">
-              {escrow ? (
-                escrow(pot, now)
-              ) : (
-                <PotSummary pot={pot} standings={table} now={now} />
-              )}
-            </CoachTarget>
+            {/* A free league has no pot, so the tour's pot step finds no target and skips itself. */}
+            {pot.stakeUsd > 0 ? <CoachTarget id="pot">{potCard}</CoachTarget> : potCard}
           </Entrance>
         </View>
         <CoachTarget id="standings">

@@ -166,7 +166,8 @@ const BUY_IN_LABEL = "BUY-IN PER WEEK";
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: layout.margin, paddingTop: spacing.lg, gap: spacing.md },
-  question: { ...type.title, color: colors.text },
+  // Two points under the title size, so "How do you want to play?" stays on one line at 390 wide.
+  question: { ...type.title, fontSize: type.title.fontSize - 2, color: colors.text },
   selector: {
     minHeight: layout.control,
     flexDirection: "row",

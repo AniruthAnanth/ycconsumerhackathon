@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { PAYOUT_RULE } from "@/lib/payoutRule";
+
 import { DEFAULT_MODE, JOIN_MODES, modeOf, parseMode, stakeLine } from "./joinModes";
 
 describe("join modes", () => {
@@ -21,6 +23,6 @@ describe("join modes", () => {
 
   it("explains the pot only for a paid match", () => {
     expect(stakeLine(0)).toBeNull();
-    expect(stakeLine(5)).toBe("Whoever clears the most of their week splits the pot, held in escrow until cashout.");
+    expect(stakeLine(5)).toBe(PAYOUT_RULE);
   });
 });

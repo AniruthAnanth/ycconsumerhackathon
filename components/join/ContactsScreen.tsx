@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as SMS from "expo-sms";
 import { useEffect, useState } from "react";
-import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackHandler, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { InviteButton, useInviteMessage } from "@/components/invite";
 import { TextSunnyCard } from "@/components/keiki/TextSunnyCard";
@@ -132,6 +132,12 @@ export function ContactsScreen() {
         ) : null}
         {justJoined ? <TextSunnyCard /> : null}
         {nothingToAdd ? <Text style={styles.empty}>No contacts to add</Text> : null}
+        {state.status === "denied" ? (
+          <View style={styles.message}>
+            <Text style={styles.deniedLine}>Contacts access is off. Turn it on in Settings to invite from your contacts.</Text>
+            <OutlinedPillButton label="Open Settings" icon="settings-outline" onPress={() => Linking.openSettings()} />
+          </View>
+        ) : null}
         {state.status === "error" ? (
           <View style={styles.message}>
             <ErrorLine message={state.message} />
@@ -187,7 +193,8 @@ export function ContactsScreen() {
 const styles = StyleSheet.create({
   list: { flex: 1 },
   empty: { padding: SCREEN_MARGIN, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
-  message: { padding: SCREEN_MARGIN },
+  message: { padding: SCREEN_MARGIN, gap: spacing.md },
+  deniedLine: { ...type.body, color: colors.textMuted },
   footer: { padding: SCREEN_MARGIN, gap: spacing.sm },
   hero: { paddingHorizontal: layout.margin, paddingTop: spacing.xl, paddingBottom: spacing.lg, gap: spacing.sm },
   ready: { ...type.title, color: colors.text },

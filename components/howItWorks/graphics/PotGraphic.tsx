@@ -52,7 +52,7 @@ export function PotGraphic({ playing }: { playing: boolean }) {
 
   return (
     <View style={styles.root}>
-      <EscrowFlow key={run} compact members={MEMBERS} stakeUsd={STAKE_USD} potUsd={POT_USD} payout={{ label: `Split ${TOP.length} ways` }} />
+      <EscrowFlow key={run} compact members={MEMBERS} stakeUsd={STAKE_USD} potUsd={POT_USD} payout={{ label: "Top performers split the pot" }} />
       <View style={styles.shares}>
         {TOP.map((name, index) => (
           <Share key={name} playing={playing} index={index} name={name} />

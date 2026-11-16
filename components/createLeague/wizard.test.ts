@@ -8,7 +8,6 @@ import {
   isRecommended,
   parseStake,
   potExample,
-  potExplanation,
   progressOf,
   RECOMMENDED_SETTINGS,
   recommendedLines,
@@ -94,17 +93,7 @@ describe("stakes", () => {
   it("shows the pot six players would make", () => {
     expect(potExample(20)).toBe("6 players × $20 = $120 pot");
     expect(potExample(250)).toBe("6 players × $250 = $1,500 pot");
-    expect(potExample(0)).toBe("Free league: no pot, no payments.");
     expect(potExample(null)).toBe("Enter a buy-in to see the pot.");
-  });
-
-  it("says where the money goes, for either payout", () => {
-    expect(potExplanation("weekly")).toBe(
-      "Everyone pays in. Each week, whoever clears the most of their week splits the pot, held in escrow until cashout after each week.",
-    );
-    expect(potExplanation("season")).toBe(
-      "Everyone pays in. Each week, whoever clears the most of their week splits the pot, held in escrow until cashout at the end of the season.",
-    );
   });
 });
 
@@ -118,11 +107,7 @@ describe("season", () => {
   });
 
   it("says the recommendation in plain words", () => {
-    expect(recommendedLines()).toEqual([
-      "8 weeks. Long enough for a comeback.",
-      "Double round robin. You play everyone twice.",
-      "End of season payout. Winnings stay in escrow until the last week, then cash out.",
-    ]);
+    expect(recommendedLines()).toEqual(["8 weeks. Long enough for a comeback.", "Double round robin. You play everyone twice."]);
   });
 });
 
@@ -135,9 +120,12 @@ describe("reviewRows", () => {
       { label: "Buy-in", value: "$20" },
       { label: "Season", value: "12 weeks" },
       { label: "Format", value: "Bracket" },
-      { label: "Payout", value: "End of season" },
     ]);
     expect(reviewRows({ ...draft, stakeUsd: 0 })[2].value).toBe("Free");
+  });
+
+  it("starts every league on the end-of-season payout", () => {
+    expect(defaultDraft("Maya Chen").settings.payout).toBe("season");
   });
 });
 

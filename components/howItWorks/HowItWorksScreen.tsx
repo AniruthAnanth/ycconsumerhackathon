@@ -150,7 +150,8 @@ const styles = StyleSheet.create({
   // A 44 x 44 target, right-aligned so the word still sits on the margin edge.
   skip: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center", alignItems: "flex-end" },
   skipLabel: { ...type.label, color: colors.accent },
-  page: { paddingHorizontal: layout.margin, paddingTop: spacing.lg },
+  // The card and its copy sit centred in the space above the dots, with no dead band under the copy.
+  page: { paddingHorizontal: layout.margin, justifyContent: "center" },
   card: {
     ...cardStyle,
     alignItems: "center",

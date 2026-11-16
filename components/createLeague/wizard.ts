@@ -1,4 +1,4 @@
-import type { LeagueFormat, LeagueSettings, Payout } from "@/convex/lib/schedule";
+import type { LeagueFormat, LeagueSettings } from "@/convex/lib/schedule";
 
 /**
  * The model behind the Create a League walkthrough: its steps, what a new league
@@ -125,19 +125,9 @@ function usd(dollars: number): string {
 /** The fourth stake choice: it opens a field for any other amount. */
 export const CUSTOM_STAKE_CHOICE = { label: "Custom", explanation: `Any whole-dollar buy-in from $1 to ${usd(MAX_STAKE_USD)}.` };
 
-/**
- * Where the money goes, in one sentence. Each week the pot splits evenly among everyone tied for the
- * most slots cleared; winnings stay in league escrow and cash out on the payout the league picked.
- */
-export function potExplanation(payout: Payout): string {
-  const cashout = payout === "season" ? "at the end of the season" : "after each week";
-  return `Everyone pays in. Each week, whoever clears the most of their week splits the pot, held in escrow until cashout ${cashout}.`;
-}
-
 /** The live example under the stake choices: "6 players × $20 = $120 pot". */
 export function potExample(stakeUsd: number | null): string {
   if (stakeUsd === null) return "Enter a buy-in to see the pot.";
-  if (stakeUsd === 0) return "Free league: no pot, no payments.";
   return `${EXAMPLE_PLAYERS} players × ${usd(stakeUsd)} = ${usd(EXAMPLE_PLAYERS * stakeUsd)} pot`;
 }
 
@@ -163,16 +153,6 @@ export const FORMAT_CHOICES: readonly Choice<LeagueFormat>[] = [
   },
 ];
 
-export const PAYOUT_CHOICES: readonly Choice<Payout>[] = [
-  { value: "weekly", label: "Weekly", explanation: "Winnings cash out after each week.", example: "Split week 3's pot, cash out after week 3." },
-  {
-    value: "season",
-    label: "End of season",
-    explanation: "Winnings stay in escrow until the last week, then cash out.",
-    example: "Split three weekly pots, cash out all of it when the season ends.",
-  },
-];
-
 export function isRecommended(settings: LeagueSettings): boolean {
   return (
     settings.payout === RECOMMENDED_SETTINGS.payout &&
@@ -184,15 +164,14 @@ export function isRecommended(settings: LeagueSettings): boolean {
 const labelOf = <Value,>(choices: readonly Choice<Value>[], value: Value) =>
   choices.find((choice) => choice.value === value)?.label ?? String(value);
 
-/** The recommended season in plain words, one line per setting, for the summary card. */
+/** The recommended season in plain words, one line per setting. Payout is always end of season, so it is not a setting here. */
 export function recommendedLines(): string[] {
-  const { seasonWeeks, format, payout } = RECOMMENDED_SETTINGS;
+  const { seasonWeeks, format } = RECOMMENDED_SETTINGS;
   const explain = <Value,>(choices: readonly Choice<Value>[], value: Value) =>
     choices.find((choice) => choice.value === value)?.explanation ?? "";
   return [
     `${labelOf(SEASON_WEEKS_CHOICES, seasonWeeks)}. ${explain(SEASON_WEEKS_CHOICES, seasonWeeks)}`,
     `${labelOf(FORMAT_CHOICES, format)}. ${explain(FORMAT_CHOICES, format)}`,
-    `${labelOf(PAYOUT_CHOICES, payout)} payout. ${explain(PAYOUT_CHOICES, payout)}`,
   ];
 }
 
@@ -205,6 +184,5 @@ export function reviewRows(draft: Draft): { label: string; value: string }[] {
     { label: "Buy-in", value: stake },
     { label: "Season", value: labelOf(SEASON_WEEKS_CHOICES, draft.settings.seasonWeeks) },
     { label: "Format", value: labelOf(FORMAT_CHOICES, draft.settings.format) },
-    { label: "Payout", value: labelOf(PAYOUT_CHOICES, draft.settings.payout) },
   ];
 }

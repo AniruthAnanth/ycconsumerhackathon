@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
 import { cardStyle, Icon, OutlinedPillButton, TextField } from "@/components/ui";
+import { PAYOUT_RULE } from "@/lib/payoutRule";
 import { colors, hairline, layout, spacing, tabular, type } from "@/theme";
 
 import { ChoiceCard } from "./ChoiceCard";
@@ -14,9 +15,7 @@ import {
   KIND_CHOICES,
   MAX_NAME_LENGTH,
   parseStake,
-  PAYOUT_CHOICES,
   potExample,
-  potExplanation,
   recommendedLines,
   reviewRows,
   SEASON_WEEKS_CHOICES,
@@ -112,7 +111,7 @@ export function StakeStep({ draft, change, disabled }: StepProps) {
   const [customText, setCustomText] = useState(custom && draft.stakeUsd !== null ? String(draft.stakeUsd) : "");
   return (
     <View style={styles.step}>
-      <StepIntro title="Set the buy-in" line={potExplanation(draft.settings.payout)} />
+      <StepIntro title="Set the buy-in" line={PAYOUT_RULE} />
       <View style={styles.choices} accessibilityRole="radiogroup">
         {STAKE_CHOICES.map((choice) => (
           <ChoiceCard
@@ -155,12 +154,15 @@ export function StakeStep({ draft, change, disabled }: StepProps) {
           editable={!disabled}
         />
       ) : null}
-      <View style={styles.panel}>
-        <Text style={styles.groupTitle}>EXAMPLE</Text>
-        <Text style={[styles.figure, tabular]} accessibilityLiveRegion="polite">
-          {potExample(draft.stakeUsd)}
-        </Text>
-      </View>
+      {/* Free has no pot to show, and its subtitle already says so. */}
+      {draft.stakeUsd === 0 ? null : (
+        <View style={styles.panel}>
+          <Text style={styles.groupTitle}>EXAMPLE</Text>
+          <Text style={[styles.figure, tabular]} accessibilityLiveRegion="polite">
+            {potExample(draft.stakeUsd)}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -188,7 +190,7 @@ export function SeasonStep({ draft, change, disabled, onUseRecommended }: StepPr
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel="Advanced"
-        accessibilityHint="Shows the other season lengths, formats and payout timings"
+        accessibilityHint="Shows the other season lengths and formats"
         accessibilityState={{ expanded: advanced }}
       >
         <Text style={styles.expanderLabel}>Advanced</Text>
@@ -204,7 +206,6 @@ export function SeasonStep({ draft, change, disabled, onUseRecommended }: StepPr
             disabled={disabled}
           />
           <ChoiceGroup title="Format" choices={FORMAT_CHOICES} value={draft.settings.format} onChange={(format) => set({ format })} disabled={disabled} />
-          <ChoiceGroup title="Payout" choices={PAYOUT_CHOICES} value={draft.settings.payout} onChange={(payout) => set({ payout })} disabled={disabled} />
         </>
       ) : null}
     </View>
@@ -223,8 +224,7 @@ export function ReviewStep({ draft }: Pick<StepProps, "draft">) {
           </View>
         ))}
       </View>
-      {draft.stakeUsd ? <Text style={styles.note}>{potExplanation(draft.settings.payout)}</Text> : null}
-      <Text style={styles.note}>Next, you invite your friends with a link or from your contacts.</Text>
+            <Text style={styles.note}>Next, you invite your friends with a link or from your contacts.</Text>
     </View>
   );
 }

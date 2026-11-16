@@ -15,6 +15,7 @@ import { haptics } from "@/lib/native/haptics";
 import { formatPhoneInput, phoneHint, toE164 } from "@/lib/phone";
 import { colors, SCREEN_MARGIN, spacing, type } from "@/theme";
 
+import { signupDraft } from "./signupDraft";
 import { StepContext } from "./StepContext";
 
 /** The first screen of a new player: name and phone, then straight on to picking a league. */
@@ -25,8 +26,8 @@ export function OnboardingScreen() {
   // Demo controls' Replay onboarding shows this step on stage without changing the signed-in account.
   const replaying = replay === "1";
   const createUser = useMutation(backend.users.createUser);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(signupDraft.name);
+  const [phone, setPhone] = useState(signupDraft.phone);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,9 +36,10 @@ export function OnboardingScreen() {
   const hint = phoneHint(phone);
 
   async function submit() {
-    if (!trimmedName || !e164) return;
+    // Replay writes nothing, so it goes on whatever the fields hold.
     // Pushed, not replaced: Back on Join returns here with the name and phone still typed in.
     if (replaying) return router.push({ pathname: "/join", params: { replay: "1" } });
+    if (!trimmedName || !e164) return;
     setSaving(true);
     setError(null);
     try {
@@ -57,9 +59,9 @@ export function OnboardingScreen() {
       {/* Back to the intro's last card; a deep link with no history starts the intro over. */}
       <BackBar onBack={() => leaveScreen("/how-it-works")} />
       <StepContext step={1} />
-      <FormBody footer={<Button label="Join" onPress={submit} loading={saving} disabled={!trimmedName || !e164} />}>
+      <FormBody footer={<Button label="Continue" onPress={submit} loading={saving} disabled={!replaying && (!trimmedName || !e164)} />}>
         <Text style={styles.title} accessibilityRole="header">
-          What should we call you?
+          What's your name?
         </Text>
         <View style={styles.sunny}>
           <Artwork name="sunny" size={108} />
@@ -71,6 +73,7 @@ export function OnboardingScreen() {
             value={name}
             onChangeText={(text) => {
               setName(text);
+              signupDraft.name = text;
               setError(null);
             }}
             autoCapitalize="words"
@@ -84,7 +87,9 @@ export function OnboardingScreen() {
               label="Phone"
               value={phone}
               onChangeText={(text) => {
-                setPhone(formatPhoneInput(text, phone));
+                const formatted = formatPhoneInput(text, phone);
+                setPhone(formatted);
+                signupDraft.phone = formatted;
                 setError(null);
               }}
               prefix="+1"
@@ -98,7 +103,7 @@ export function OnboardingScreen() {
           </View>
           {hint ? <ErrorLine message={hint} /> : null}
           {error ? <ErrorLine message={error} /> : null}
-          {replaying ? <Text style={styles.note}>Replay: Join goes on to the next step without changing your account.</Text> : null}
+          {replaying ? <Text style={styles.note}>Replay: Continue goes on to the next step without changing your account.</Text> : null}
         </View>
       </FormBody>
     </Screen>
