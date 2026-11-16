@@ -94,8 +94,8 @@ export type ProofVisual = { kind: "none" } | { kind: "media"; uri: string } | { 
 
 /**
  * What a post shows above its words: a timelapse's stills when it kept several, else the
- * player's own photo or clip, else nothing. A Canvas proof has no picture, and the server
- * leaves out stock media, so both read as a photo-less card.
+ * proof's photo or clip, else nothing. A Canvas proof has no picture, so it reads as a
+ * photo-less card.
  */
 export function proofVisual(item: Pick<FeedItem, "mediaUrl" | "mediaType" | "frameUrls">): ProofVisual {
   if (item.mediaType === "canvas") return { kind: "none" };

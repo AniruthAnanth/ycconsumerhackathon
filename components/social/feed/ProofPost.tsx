@@ -21,9 +21,8 @@ import { ReactionBar } from "./ReactionBar";
 
 /**
  * One verified proof in the feed: who did what for how many points, the photo or
- * video, one short caption, and what the league makes of it. A proof with nothing of
- * the player's own to show puts its caption on a card instead, so it never borrows a
- * stock picture.
+ * video, one short caption, and what the league makes of it. A proof with no picture
+ * (a Canvas proof) puts its caption on a card instead.
  */
 export function ProofPost({
   item,
