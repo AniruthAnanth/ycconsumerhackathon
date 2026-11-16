@@ -30,7 +30,8 @@ describe("statusLine", () => {
   });
 
   it("shows the due label while open", () => {
-    expect(statusLine(task)).toBe("Due Thu");
+    // The section header carries the shared due day, so a row says nothing while open.
+    expect(statusLine(task)).toBeUndefined();
   });
 
   it("flags held and failed tasks", () => {
