@@ -24,7 +24,7 @@ export function MarketsStrip({ market }: { market: Market }) {
         contentContainerStyle={styles.track}
       >
         {questions.map((question) => (
-          <View key={question.key} style={styles.card} accessible accessibilityLabel={`${question.question} ${question.answer}, ${question.note}`}>
+          <View key={question.key} style={styles.card} accessible accessibilityLabel={`${question.question} ${question.answer}, ${formatChance(question.chance)}`}>
             <Text style={styles.question} numberOfLines={2}>
               {question.question}
             </Text>
@@ -35,7 +35,6 @@ export function MarketsStrip({ market }: { market: Market }) {
               <Text style={styles.chance}>{formatChance(question.chance)}</Text>
             </View>
             <ProgressFill ratio={question.chance} height={4} />
-            <Text style={styles.note}>{question.note}</Text>
           </View>
         ))}
       </ScrollView>
@@ -59,5 +58,4 @@ const styles = StyleSheet.create({
   answerRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   answer: { ...type.subheading, color: colors.text, flex: 1 },
   chance: { ...type.heading, color: colors.text, ...tabular },
-  note: { ...type.caption, color: colors.textMuted },
 });

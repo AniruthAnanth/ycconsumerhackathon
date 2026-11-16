@@ -1,33 +1,20 @@
-import { formatChance } from "./chartGeometry";
 import type { Market } from "./useMarket";
 
-export type MarketQuestion = { key: string; question: string; answer: string; chance: number; note: string };
+export type MarketQuestion = { key: string; question: string; answer: string; chance: number };
 
 /**
- * The League tab's question cards, all read off the same market: who takes the pot (or tops a free
- * week), whether you beat this week's opponent, and whether the most interesting chaser clears all
- * five. A pure function, so the wording is tested without a renderer. Up to three cards.
+ * The League tab's question cards, all read off the same market: whether you beat this week's
+ * opponent, and whether the most interesting chaser clears all five. Who wins the pot is the board
+ * right below, so it isn't asked twice. A pure function, so the wording is tested. Up to two cards.
  */
 export function marketQuestions(market: Market): MarketQuestion[] {
   const questions: MarketQuestion[] = [];
-  const pot = market.odds.kind === "pot";
-  const leader = market.odds.rows[0];
-  if (leader) {
-    questions.push({
-      key: "pot",
-      question: pot ? "Who wins the pot?" : "Who tops the week?",
-      answer: leader.isMe ? "You" : leader.name,
-      chance: leader.chance,
-      note: `${formatChance(leader.chance)} favourite`,
-    });
-  }
   if (market.matchup) {
     questions.push({
       key: "matchup",
       question: `Will you beat ${market.matchup.opponentName}?`,
       answer: "Yes",
       chance: market.matchup.chance,
-      note: `${formatChance(market.matchup.chance)} chance`,
     });
   }
   // The closest race to clearing all five: someone who hasn't yet and whose chance is nearest a coin flip.
@@ -40,7 +27,6 @@ export function marketQuestions(market: Market): MarketQuestion[] {
       question: `Will ${chaser.isMe ? "you" : chaser.name} clear all 5?`,
       answer: "Yes",
       chance: chaser.finishChance,
-      note: `${formatChance(chaser.finishChance)} chance`,
     });
   }
   return questions;

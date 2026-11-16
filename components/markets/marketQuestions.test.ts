@@ -14,18 +14,16 @@ const market = (overrides: Partial<Market> = {}) =>
   }) as unknown as Market;
 
 describe("marketQuestions", () => {
-  test("asks who wins the pot, whether you beat your opponent, and who is closest to clearing all 5", () => {
-    expect(marketQuestions(market()).map(({ question, answer, note }) => [question, answer, note])).toEqual([
-      ["Who wins the pot?", "Maya Chen", "90% favourite"],
-      ["Will you beat Ava Kim?", "Yes", "62% chance"],
-      ["Will you clear all 5?", "Yes", "55% chance"],
+  test("asks whether you beat your opponent and who is closest to clearing all 5, never the pot the board answers", () => {
+    expect(marketQuestions(market()).map(({ question, answer, chance }) => [question, answer, chance])).toEqual([
+      ["Will you beat Ava Kim?", "Yes", 0.62],
+      ["Will you clear all 5?", "Yes", 0.55],
     ]);
   });
 
-  test("a free league asks who tops the week, and no matchup drops that card", () => {
+  test("no matchup drops that card", () => {
     const free = market({ matchup: null, odds: { kind: "week", potUsd: 0, nobody: 0, rows: [row("Ada", 0.5, 0.2, true), row("Bo", 0.5, 0.1)] } } as Partial<Market>);
-    expect(marketQuestions(free).map((q) => q.question)).toEqual(["Who tops the week?", "Will you clear all 5?"]);
-    expect(marketQuestions(free)[0].answer).toBe("You");
+    expect(marketQuestions(free).map((q) => q.question)).toEqual(["Will you clear all 5?"]);
   });
 });
 

@@ -59,12 +59,11 @@ export function ProjectionCard({ market, slotsCleared }: { market: Market; slots
       </Pressable>
       {open ? (
         <View style={styles.details}>
-          <Row label="Your points by Sunday" value={`about ${me.projected}`} />
-          <Row label="Likely between" value={`${me.low} and ${me.high} pts`} />
+          <Row label="Your points by Sunday, likely" value={`${me.low} to ${me.high}`} />
           <Row label="Chance you clear all 5 slots" value={formatChance(finish)} />
           {payout.eligible ? (
             <>
-              <Row label="Money, worst to best case" value={`${formatNet(payout.lowNetUsd)} to ${formatNet(payout.highNetUsd)}`} />
+              <Row label="If it goes badly" value={formatNet(payout.lowNetUsd)} />
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>Money you're on track for, this week</Text>
                 <Svg width={SPARK.width} height={SPARK.height} accessible={false}>
