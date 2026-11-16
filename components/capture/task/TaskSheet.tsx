@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, EmptyState, Header, PositionPill } from "@/components/ui";
+import { Button, EmptyState, Header, PositionPill, sheetNeedsClose } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
@@ -37,7 +37,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
 
   return (
     <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-      <Header title="Task" onClose={close} />
+      {sheetNeedsClose ? <Header title="Task" onClose={close} /> : null}
       {task ? (
         <>
           <View style={styles.row} accessible accessibilityLabel={taskRowLabel(task, false)}>

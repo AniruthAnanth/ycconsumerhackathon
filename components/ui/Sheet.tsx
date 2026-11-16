@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 
 import { colors, radius, spacing } from "@/theme";
 
@@ -10,14 +10,20 @@ const SHEET_DETENTS = [0.5, 1];
  * with the same grabber and corner radius, so task row → task sheet → capture
  * reads as one flow. app/_layout.tsx passes this to each sheet route.
  */
-export function sheetOptions(detents: number[] | "fitToContents" = SHEET_DETENTS) {
+export function sheetOptions(detents: number[] | "fitToContents" = SHEET_DETENTS, { grabber = true }: { grabber?: boolean } = {}) {
   return {
     presentation: "formSheet" as const,
     sheetAllowedDetents: detents,
-    sheetGrabberVisible: true,
+    sheetGrabberVisible: grabber,
     sheetCornerRadius: radius.card,
   };
 }
+
+/**
+ * One control per job: a sheet that swipes away shows only its grabber, never an X as well. The
+ * web has no swipe, so there the X is the way out.
+ */
+export const sheetNeedsClose = Platform.OS === "web";
 
 /** The chrome of a sheet drawn in React Native (checkout): the native sheet's grabber and top corners. */
 export const sheetSurface = {

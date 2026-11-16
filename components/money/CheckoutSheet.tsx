@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ease, useReduceMotion } from "@/components/motion";
 import { confirmAction } from "@/components/social/notify";
-import { Header, Icon, SheetGrabber, sheetSurface } from "@/components/ui";
+import { Header, Icon, SheetGrabber, sheetNeedsClose, sheetSurface } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseCheckoutMessage } from "@/convex/lib/checkoutPage";
 import { backend } from "@/lib/backend";
@@ -152,7 +152,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
           <GestureDetector gesture={swipeDown}>
             <View>
               <SheetGrabber />
-              <Header title="Lineup" onClose={onClose} />
+              <Header title="Lineup" onClose={sheetNeedsClose ? onClose : undefined} />
 
               <View style={styles.summary}>
                 <View style={styles.league}>
