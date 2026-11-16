@@ -57,7 +57,10 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
       <GestureDetector gesture={swipe.gesture}>
         <Animated.View style={[styles.screen, swipe.style]}>
           <CameraOverlay target={target} onClose={close} />
-          <ScreenshotPicker busy={capture.busy} onPicked={(uri) => void capture.submitPicked(uri)} bottomInset={insets.bottom} />
+          <View style={styles.bottom} pointerEvents="box-none">
+            <ScreenshotPicker busy={capture.busy} onPicked={(uri) => void capture.submitPicked(uri)} bottomInset={sampleMedia ? 0 : insets.bottom} />
+            {sampleMedia ? <SampleTray disabled={capture.busy} onPick={(sample) => void capture.submitSample(sample)} bottomInset={insets.bottom} /> : null}
+          </View>
         </Animated.View>
       </GestureDetector>
     );
@@ -145,6 +148,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
             <SampleTray
               disabled={capture.busy}
               onPick={(sample) => {
+                if (sample.frames) return void capture.sampleTimelapse(sample);
                 if (sample.mediaType === "video") return void capture.sampleSurvey(sample);
                 if (target.proofType === "timelapse") return void capture.startSampleTimelapse(sample);
                 void capture.submitSample(sample);
@@ -161,8 +165,8 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
 const SAMPLE_HINT: Record<CaptureMode, string> = {
   photo: "Tap a sample to submit it",
   video: "Tap a sample to submit it",
-  timelapse: "Tap a photo for a sample timelapse",
-  interval: "Tap a photo for a sample timelapse",
+  timelapse: "Tap Reading timelapse for a sample that passes",
+  interval: "Tap Reading timelapse for a sample that passes",
   survey: "Tap the video for a sample 5-second video",
 };
 

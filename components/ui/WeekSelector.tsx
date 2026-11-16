@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, font, fontFamily, hairline, layout, radius, spacing } from "@/theme";
 
+import { haptics } from "@/lib/native/haptics";
+
 import { Icon } from "./Icon";
 
 type Props = {
@@ -24,7 +26,7 @@ export function WeekSelector({ label, onPrev, onNext, onLongPress, arrows = true
   return (
     <View style={compact ? styles.pill : styles.bar}>
       {arrows && (
-        <Pressable onPress={onPrev} disabled={!onPrev} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous week">
+        <Pressable onPress={onPrev && (() => (haptics.select(), onPrev()))} disabled={!onPrev} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous week">
           <Icon name="chevron-back" size={18} color={onPrev ? colors.text : colors.textFaint} />
         </Pressable>
       )}
@@ -40,7 +42,7 @@ export function WeekSelector({ label, onPrev, onNext, onLongPress, arrows = true
         <Text style={compact ? styles.pillLabel : styles.label}>{label}</Text>
       </Pressable>
       {arrows && (
-        <Pressable onPress={onNext} disabled={!onNext} hitSlop={12} accessibilityRole="button" accessibilityLabel="Next week">
+        <Pressable onPress={onNext && (() => (haptics.select(), onNext()))} disabled={!onNext} hitSlop={12} accessibilityRole="button" accessibilityLabel="Next week">
           <Icon name="chevron-forward" size={18} color={onNext ? colors.text : colors.textFaint} />
         </Pressable>
       )}

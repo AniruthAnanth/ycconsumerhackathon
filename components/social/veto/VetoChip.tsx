@@ -86,6 +86,7 @@ export function VetoChip({
       accessibilityState={{ selected: veto.mine, disabled: !veto.canVote }}
       disabled={!veto.canVote}
       onPress={onPress}
+      haptic="none"
       hitSlop={{ top: SLOP, bottom: SLOP, left: spacing.sm, right: spacing.sm }}
       style={style}
     >
