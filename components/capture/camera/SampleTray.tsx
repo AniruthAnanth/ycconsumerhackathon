@@ -5,14 +5,21 @@ import { colors, fontFamily, spacing } from "@/theme";
 
 import { SAMPLE_MEDIA, type SampleMedia } from "../samples";
 
-type Props = { disabled: boolean; onPick: (sample: SampleMedia) => void; bottomInset: number };
+type Props = {
+  disabled: boolean;
+  onPick: (sample: SampleMedia) => void;
+  bottomInset: number;
+  /** A timelapse task leads with the timelapse samples, so the one the hint names is on screen. */
+  timelapseFirst?: boolean;
+};
 
 /** Bundled stand-ins for the camera on devices that have none. */
-export function SampleTray({ disabled, onPick, bottomInset }: Props) {
+export function SampleTray({ disabled, onPick, bottomInset, timelapseFirst = false }: Props) {
+  const samples = timelapseFirst ? [...SAMPLE_MEDIA].sort((a, b) => Number(!a.frames) - Number(!b.frames)) : SAMPLE_MEDIA;
   return (
     <View style={[styles.tray, { paddingBottom: bottomInset + spacing.md }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {SAMPLE_MEDIA.map((sample) => (
+        {samples.map((sample) => (
           <Pressable
             key={sample.key}
             disabled={disabled}
