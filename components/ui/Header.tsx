@@ -13,6 +13,8 @@ type Props = {
   onBack?: () => void;
   /** Makes the title a button with a caret; the tabs use it to switch league. */
   onTitlePress?: () => void;
+  /** Shows the settings gear on the left, opposite the chat icon; the tabs use it. */
+  onSettingsPress?: () => void;
   /** Shows the chat icon that opens the league agent. */
   onChatPress?: () => void;
   /** Shows the close cross on the right, for a sheet or modal; a pushed screen uses onBack instead. */
@@ -28,15 +30,20 @@ type Props = {
 
 /**
  * The bar at the top of every screen and sheet: 44 pt tall, centred title, back
- * chevron on the left for a pushed screen, close cross on the right for a sheet.
+ * chevron on the left for a pushed screen (the tabs put the settings gear there), close cross
+ * on the right for a sheet.
  */
-export function Header({ title, onBack, onTitlePress, onChatPress, onClose, right, scrollY }: Props) {
+export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, scrollY }: Props) {
   const bar = (
     <View style={[styles.bar, scrollY && styles.barOverContent]}>
       <View style={styles.side}>
         {onBack ? (
           <Pressable onPress={onBack} style={styles.action} accessibilityRole="button" accessibilityLabel="Back">
             <Icon name="chevron-back" size={24} />
+          </Pressable>
+        ) : onSettingsPress ? (
+          <Pressable onPress={onSettingsPress} style={styles.action} accessibilityRole="button" accessibilityLabel="Settings" testID="header-settings">
+            <Icon name="settings-outline" size={22} />
           </Pressable>
         ) : null}
       </View>

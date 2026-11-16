@@ -64,6 +64,7 @@ export default function TabsLayout() {
         <Header
           title={membership?.name ?? "Lineup"}
           onTitlePress={() => router.push("/league-switcher")}
+          onSettingsPress={() => router.push("/settings")}
           right={<SunnyButton />}
         />
         {/* The Feed is not week-scoped, so it has no week bar. */}
