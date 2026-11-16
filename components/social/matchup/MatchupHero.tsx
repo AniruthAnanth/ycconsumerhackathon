@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import { MatchupOdds } from "@/components/markets/MatchupOdds";
 import { CountUp, PressScale } from "@/components/motion";
 import { Avatar } from "@/components/ui";
 import { formatScore } from "@/lib/taskText";
@@ -8,7 +9,6 @@ import { colors, fontFamily, layout, SCREEN_MARGIN, spacing, tabular, type } fro
 
 import type { Matchup, MatchupSide } from "../contract";
 import { possiblePoints } from "./matchupLogic";
-import { WinProbabilityBar } from "./WinProbabilityBar";
 
 /** Me against the opponent: the two scores are the biggest type on the screen, everything else sits under them. */
 export function MatchupHero({ matchup }: { matchup: Matchup }) {
@@ -19,7 +19,7 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
         <HeroSide side={me} possible={possiblePoints(rows, "mine", me.total)} align="flex-start" />
         <HeroSide side={opponent} possible={possiblePoints(rows, "theirs", opponent.total)} align="flex-end" />
       </View>
-      <WinProbabilityBar mine={me.winProbability} theirs={opponent.winProbability} />
+      <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} />
     </View>
   );
 }

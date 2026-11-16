@@ -1,51 +1,80 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg from "react-native-svg";
 
-import { CountUp } from "@/components/motion";
-import { BORDER, colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { Icon } from "@/components/ui";
+import { BORDER, colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance, formatNet, sparkPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
 import type { Market } from "./useMarket";
 
-const SPARK = { width: 96, height: 40, padding: 3 };
+const SPARK = { width: 96, height: 36, padding: 3 };
 
 /**
- * The week's two projections as a compact market card: the expected net payout (what settlement
- * would most likely hand back, minus the stake) with how it trended, then the projected final
- * score and its 80% range. A free league has no payout, so the score leads instead.
+ * Money first, the way a market quotes a payout: what you take home if you win the pot, and what
+ * you're on track for now. The ranges, the trend and the chance to clear all five sit behind
+ * Details, so a first-time player reads one line.
  */
 export function ProjectionCard({ market }: { market: Market }) {
+  const [open, setOpen] = useState(false);
   const { payout, me } = market;
-  const spark = payout.history.map(({ at, netUsd }) => ({ at, value: netUsd }));
-  const d = sparkPath(spark, SPARK);
-  const gaining = payout.expectedNetUsd >= 0;
+  const finish = market.odds.rows.find((row) => row.isMe)?.finishChance ?? 0;
+  const spark = sparkPath(payout.history.map(({ at, netUsd }) => ({ at, value: netUsd })), SPARK);
 
   return (
     <View style={styles.card} testID="projection-card">
       {payout.eligible ? (
-        <View style={styles.row} accessible accessibilityLabel={`Projected pot winnings ${formatNet(payout.expectedNetUsd)} this week, ${formatChance(payout.potChance)} to win the pot, between ${formatNet(payout.lowNetUsd)} and ${formatNet(payout.highNetUsd)}`}>
-          <View style={styles.grow}>
-            <Text style={styles.eyebrow}>PROJECTED WINNINGS (POT)</Text>
-            <CountUp style={[styles.figure, { color: gaining ? colors.green : colors.danger }]} value={Math.round(payout.expectedNetUsd)} format={formatNet} fromZero />
-            <Text style={styles.meta}>{`${formatNet(payout.lowNetUsd)} to ${formatNet(payout.highNetUsd)} · ${formatChance(payout.potChance)} to win the pot`}</Text>
+        <View style={styles.money} accessible accessibilityLabel={`If you win the pot: ${formatNet(payout.highNetUsd)}. On track for: ${formatNet(payout.expectedNetUsd)}`}>
+          <View style={styles.cell}>
+            <Text style={styles.label}>If you win the pot</Text>
+            <Text style={styles.figure}>{formatNet(payout.highNetUsd)}</Text>
           </View>
-          <Svg width={SPARK.width} height={SPARK.height} accessible={false}>
-            <DrawLine d={d} length={SPARK.width * 2} color={gaining ? colors.green : colors.danger} width={2} />
-          </Svg>
+          <View style={[styles.cell, styles.cellEnd]}>
+            <Text style={styles.label}>On track for</Text>
+            <Text style={[styles.figure, { color: payout.expectedNetUsd < 0 ? colors.textMuted : colors.green }]}>{formatNet(payout.expectedNetUsd)}</Text>
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.label}>Free league: no money on this one, just bragging rights.</Text>
+      )}
+      <Pressable
+        onPress={() => setOpen((value) => !value)}
+        style={styles.toggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        hitSlop={8}
+      >
+        <Text style={styles.toggleText}>Details</Text>
+        <Icon name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.green} />
+      </Pressable>
+      {open ? (
+        <View style={styles.details}>
+          <Row label="Your points by Sunday" value={`about ${me.projected}`} />
+          <Row label="Likely between" value={`${me.low} and ${me.high} pts`} />
+          <Row label="Chance you clear all 5 slots" value={formatChance(finish)} />
+          {payout.eligible ? (
+            <>
+              <Row label="Money, worst to best case" value={`${formatNet(payout.lowNetUsd)} to ${formatNet(payout.highNetUsd)}`} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Money you're on track for, this week</Text>
+                <Svg width={SPARK.width} height={SPARK.height} accessible={false}>
+                  <DrawLine d={spark} length={SPARK.width * 2} color={colors.green} width={2} />
+                </Svg>
+              </View>
+            </>
+          ) : null}
         </View>
       ) : null}
-      <View style={[styles.row, payout.eligible && styles.divided]} accessible accessibilityLabel={`Projected final score ${me.projected}, likely ${me.low} to ${me.high}`}>
-        <View style={styles.grow}>
-          <Text style={styles.eyebrow}>PROJECTED FINAL SCORE</Text>
-          <CountUp style={payout.eligible ? styles.secondFigure : styles.figure} value={me.projected} format={(value) => String(value)} fromZero />
-        </View>
-        <View style={styles.range}>
-          <Text style={styles.rangeText}>{`${me.low}–${me.high}`}</Text>
-          <Text style={styles.meta}>{`${me.confirmed} banked`}</Text>
-        </View>
-      </View>
-      {payout.eligible ? null : <Text style={styles.meta}>Free league: no pot to project.</Text>}
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
     </View>
   );
 }
@@ -53,7 +82,7 @@ export function ProjectionCard({ market }: { market: Market }) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: SCREEN_MARGIN,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
     padding: spacing.lg,
     gap: spacing.md,
     backgroundColor: colors.surface,
@@ -61,13 +90,15 @@ const styles = StyleSheet.create({
     borderWidth: BORDER,
     borderColor: colors.divider,
   },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  divided: { paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
-  grow: { flex: 1, gap: spacing.xs },
-  eyebrow: { ...type.caption, color: colors.textMuted, letterSpacing: 0.6 },
-  figure: { ...type.title, color: colors.text, fontVariant: ["tabular-nums"] },
-  secondFigure: { ...type.heading, color: colors.text, fontVariant: ["tabular-nums"] },
-  range: { alignItems: "flex-end", gap: spacing.xs },
-  rangeText: { fontFamily: fontFamily.extraBold, fontSize: type.label.fontSize, color: colors.text, fontVariant: ["tabular-nums"] },
-  meta: { ...type.small, color: colors.textMuted },
+  money: { flexDirection: "row", gap: spacing.lg },
+  cell: { flex: 1, gap: 2 },
+  cellEnd: { alignItems: "flex-end" },
+  label: { ...type.small, color: colors.textMuted },
+  figure: { ...type.title, color: colors.text, ...tabular },
+  toggle: { flexDirection: "row", alignItems: "center", gap: spacing.xs, alignSelf: "flex-start", minHeight: 32 },
+  toggleText: { ...type.label, color: colors.green },
+  details: { borderTopWidth: hairline, borderTopColor: colors.divider },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 40, borderBottomWidth: hairline, borderBottomColor: colors.divider },
+  rowLabel: { ...type.small, color: colors.textMuted, flex: 1 },
+  rowValue: { fontFamily: fontFamily.bold, fontSize: type.small.fontSize, color: colors.text, ...tabular },
 });
