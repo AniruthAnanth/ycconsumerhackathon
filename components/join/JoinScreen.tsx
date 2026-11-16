@@ -4,12 +4,13 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
-import { Button, Header, Icon, Screen, TextField } from "@/components/ui";
+import { Button, Icon, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, hairline, layout, radius, spacing, type } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, radius, spacing, type } from "@/theme";
 
+import { BackBar } from "./BackBar";
 import { ErrorLine } from "./ErrorLine";
 import { FormBody } from "./FormBody";
 import { CREATE_PREVIEW, DEFAULT_MODE, JOIN_MODES, type JoinMode, modeOf, parseMode, stakeLine } from "./joinModes";
@@ -63,11 +64,16 @@ export function JoinScreen() {
 
   return (
     <Screen>
-      <Header title="Join a League" onBack={() => leaveScreen()} />
-      {firstLeague ? <StepContext step={2} label="Join or start a league" /> : null}
-      <FormBody>
+      {/* No nav title: the question below is the screen's one heading, whichever mode is picked. */}
+      <BackBar onBack={() => leaveScreen()} />
+      {firstLeague ? <StepContext step={2} /> : null}
+      <FormBody
+        footer={<Button label={selected.action} onPress={go} loading={working} disabled={mode === "code" && !inviteCode} />}
+      >
         <View style={styles.body}>
-          <Text style={styles.question}>How do you want to play?</Text>
+          <Text style={styles.question} accessibilityRole="header">
+            How do you want to play?
+          </Text>
           <PressScale
             style={[styles.selector, open && styles.selectorOpen]}
             onPress={() => setOpen(!open)}
@@ -107,6 +113,9 @@ export function JoinScreen() {
           )}
           {!open && mode === "quickMatch" ? (
             <View style={styles.detail}>
+              <Text style={styles.fieldLabel} accessibilityRole="header">
+                {BUY_IN_LABEL}
+              </Text>
               <StakePicker value={stakeUsd} onChange={setStakeUsd} disabled={working} />
               {stakeLine(stakeUsd) ? <Text style={styles.description}>{stakeLine(stakeUsd)}</Text> : null}
             </View>
@@ -129,6 +138,9 @@ export function JoinScreen() {
           ) : null}
           {!open && mode === "versus" ? (
             <View style={styles.detail}>
+              <Text style={styles.fieldLabel} accessibilityRole="header">
+                {BUY_IN_LABEL}
+              </Text>
               <StakePicker value={versusStake} onChange={setVersusStake} disabled={working} />
             </View>
           ) : null}
@@ -144,17 +156,17 @@ export function JoinScreen() {
           {message ? <ErrorLine message={message} /> : null}
         </View>
         {!open && mode === "versus" ? <OpponentPicker value={opponent} onChange={setOpponent} /> : null}
-        <View style={styles.footer}>
-          <Button label={selected.action} onPress={go} loading={working} disabled={mode === "code" && !inviteCode} />
-        </View>
       </FormBody>
     </Screen>
   );
 }
 
+/** The stake chips' header, written the way TextField writes its label so both read as one kind of thing. */
+const BUY_IN_LABEL = "BUY-IN PER WEEK";
+
 const styles = StyleSheet.create({
   body: { paddingHorizontal: layout.margin, paddingTop: spacing.lg, gap: spacing.md },
-  question: { ...type.heading, color: colors.text },
+  question: { ...type.title, color: colors.text },
   selector: {
     minHeight: layout.control,
     flexDirection: "row",
@@ -176,7 +188,6 @@ const styles = StyleSheet.create({
   optionLabel: { ...type.label, color: colors.text },
   description: { ...type.small, color: colors.textMuted },
   detail: { gap: spacing.sm },
+  fieldLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   previewLine: { ...type.body, color: colors.text },
-  // The one action sits at the foot of the page; FormBody lifts it above the keyboard.
-  footer: { flex: 1, justifyContent: "flex-end", padding: layout.margin },
 });

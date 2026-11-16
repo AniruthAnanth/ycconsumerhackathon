@@ -106,7 +106,7 @@ export function ContactsScreen() {
     <Screen>
       <Stack.Screen options={{ gestureEnabled: !justJoined }} />
       <Header title="Add Friends" onBack={justJoined ? undefined : leave} />
-      {justJoined && (me?.leagues.length ?? 0) <= 1 ? <StepContext step={3} label="Invite friends" /> : null}
+      {justJoined && (me?.leagues.length ?? 0) <= 1 ? <StepContext step={3} /> : null}
       <ScrollView style={styles.list}>
         {league ? (
           <View style={styles.hero}>
