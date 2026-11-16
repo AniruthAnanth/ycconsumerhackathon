@@ -11,6 +11,7 @@ import { BackBar } from "@/components/join/BackBar";
 import { Button, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { leaveScreen } from "@/lib/leaveScreen";
+import { haptics } from "@/lib/native/haptics";
 import { formatPhoneInput, phoneHint, toE164 } from "@/lib/phone";
 import { colors, SCREEN_MARGIN, spacing, type } from "@/theme";
 
@@ -41,6 +42,7 @@ export function OnboardingScreen() {
     setError(null);
     try {
       await createUser({ name: trimmedName, phone: e164 });
+      haptics.success();
       setSaving(false);
       if (versusCode) router.replace({ pathname: "/versus/join", params: { code: versusCode } });
       else router.push("/join");

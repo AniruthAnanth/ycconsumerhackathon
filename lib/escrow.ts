@@ -1,42 +1,35 @@
-import { PLATFORM_FEE_RATE } from "@/convex/lib/settlement";
 import type { Payout, Pot, Standing } from "@/lib/backend";
-import { isSettled } from "@/lib/leagueText";
+import { formatUsd, isSettled } from "@/lib/leagueText";
 
 /** One league member as the escrow diagram draws them. */
 export type EscrowMember = { userId: string; name: string; avatarUrl?: string; paid: boolean };
 
-/** The diagram's lower box. amountUsd is left out when the label says it all ("No payout"). */
+/** The diagram's lower box. amountUsd is left out when the label says it all. */
 export type EscrowPayout = { label: string; amountUsd?: number };
 
 export type EscrowData = { members: EscrowMember[]; stakeUsd: number; potUsd: number; payout: EscrowPayout };
 
 const roundCents = (usd: number) => Math.round(usd * 100) / 100;
 
-/**
- * The most one member can take from the pot: their own stake back plus every other stake less
- * the fee, which is what happens when they alone clear all five slots. With several finishers
- * each takes less, so the diagram labels it "up to".
- */
-export function winnerTakesUsd(stakeUsd: number, potUsd: number): number {
-  if (potUsd <= 0) return 0;
-  return roundCents(stakeUsd + (1 - PLATFORM_FEE_RATE) * Math.max(0, potUsd - stakeUsd));
-}
-
-/** The largest total any one member received: a finisher gets a refund row and a winnings row. */
-export function largestPayoutUsd(payouts: readonly Pick<Payout, "userId" | "amountUsd">[]): number {
+/** What each top performer was credited: the largest share, since shares differ by a cent at most. */
+export function shareEachUsd(payouts: readonly Pick<Payout, "userId" | "amountUsd">[]): number {
   const totals = new Map<string, number>();
   for (const payout of payouts) totals.set(payout.userId, (totals.get(payout.userId) ?? 0) + payout.amountUsd);
   return roundCents(Math.max(0, ...totals.values()));
 }
 
-/** What the lower box reads: the prize while the week is open, what was really paid once it settles. */
-export function escrowPayout(pot: Pick<Pot, "stakeUsd" | "potUsd" | "settlesAt" | "payouts">, now: number): EscrowPayout {
-  if (!isSettled(pot, now)) return { label: "Winner takes up to", amountUsd: winnerTakesUsd(pot.stakeUsd, pot.potUsd) };
-  // The week's clock has run out but the settlement has not written its payouts yet.
+/**
+ * What the lower box reads. While the week is open the pot is split among its top finishers,
+ * the members tied for the most slots cleared; the box names the rule and leaves the figure to
+ * the pot above it. Once the week settles, each share sits in the league's escrow until the
+ * league cashes out, and a week nobody won rolls its pot into the next.
+ */
+export function escrowPayout(pot: Pick<Pot, "settlesAt" | "payouts">, now: number): EscrowPayout {
+  if (!isSettled(pot, now)) return { label: "Split among top finishers" };
+  // The week's clock has run out but the settlement has not written its rows yet.
   if (pot.payouts === undefined) return { label: "Settling up" };
-  const largest = largestPayoutUsd(pot.payouts);
-  // "Paid out $0" would read as a payment that happened; nobody finishing pays nobody.
-  return largest > 0 ? { label: "Paid out", amountUsd: largest } : { label: "No payout" };
+  const each = shareEachUsd(pot.payouts);
+  return each > 0 ? { label: `In escrow: ${formatUsd(each)} each` } : { label: "Rolls into next week" };
 }
 
 /**

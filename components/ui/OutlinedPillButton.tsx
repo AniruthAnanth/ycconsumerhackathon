@@ -1,6 +1,7 @@
 import { StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 
 import { PressScale } from "@/components/motion";
+import type { PressHaptic } from "@/lib/native/haptics";
 
 import { BORDER, colors, font, fontFamily, MIN_TARGET, radius, spacing } from "@/theme";
 
@@ -15,15 +16,18 @@ type Props = {
   accessibilityLabel?: string;
   /** Layout only, for example `{ flex: 1 }` for two buttons side by side. */
   style?: StyleProp<ViewStyle>;
+  /** "none" when onPress fires its own haptic. Defaults to a light tap. */
+  haptic?: PressHaptic;
 };
 
 /** A secondary action: green outline and text on a rounded surface. */
-export function OutlinedPillButton({ label, onPress, icon, disabled = false, accessibilityLabel = label, style }: Props) {
+export function OutlinedPillButton({ label, onPress, icon, disabled = false, accessibilityLabel = label, style, haptic }: Props) {
   const tint = disabled ? colors.textFaint : colors.accent;
   return (
     <PressScale
       style={[styles.pill, { borderColor: tint }, style]}
       onPress={onPress}
+      haptic={haptic}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}

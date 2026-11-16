@@ -31,16 +31,19 @@ export function WinProbChart({ matchup }: { matchup: NonNullable<Market["matchup
   const points = range === "week" ? all : [...(before ? [{ ...before, at: todayStart }] : []), ...today];
   const line = stepPath(points.length ? points : all.slice(-1), box);
   const y = (value: number) => box.padding + (1 - value) * (CHART_HEIGHT - 2 * box.padding);
-  const up = matchup.deltaToday >= 0;
+  // 1D moves since yesterday's close; 1W since the week opened.
+  const delta = range === "week" && all.length ? Math.round(matchup.chance * 100) - Math.round(all[0].value * 100) : matchup.deltaToday;
+  const since = range === "week" ? "since Monday" : "since yesterday";
+  const up = delta >= 0;
 
   return (
     <View style={styles.card} testID="win-prob-chart">
       <View style={styles.head}>
         <View style={styles.grow}>
           <Text style={styles.title}>Your chance to win</Text>
-          <Text style={[styles.delta, { color: up ? colors.green : colors.danger }]} accessibilityLabel={`${up ? "Up" : "Down"} ${Math.abs(matchup.deltaToday)} percent since yesterday`}>
-            {deltaPoints(matchup.deltaToday)}
-            <Text style={styles.since}> since yesterday</Text>
+          <Text style={[styles.delta, { color: up ? colors.green : colors.danger }]} accessibilityLabel={`${up ? "Up" : "Down"} ${Math.abs(delta)} percent ${since}`}>
+            {deltaPoints(delta)}
+            <Text style={styles.since}>{` ${since}`}</Text>
           </Text>
         </View>
         <View style={styles.tabs} accessibilityRole="tablist">

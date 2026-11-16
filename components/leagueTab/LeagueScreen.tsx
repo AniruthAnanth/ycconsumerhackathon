@@ -2,7 +2,9 @@ import { useRouter } from "expo-router";
 import { useQuery } from "convex/react";
 import { useMemo, type ReactNode } from "react";
 
+import { CoachTarget, CoachTour } from "@/components/coach";
 import { SeasonLink } from "@/components/league/SeasonLink";
+import { ResetAndRestartRow } from "@/components/shell/ResetAndRestart";
 import { LeaderboardsStrip } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
@@ -10,7 +12,11 @@ import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
 import { SunnyTextPrompt } from "@/components/social/sunny/SunnyPrompt";
-import { bySeasonRank, playoffSpots, seasonRecords } from "@/components/leagueTab/seasonColumns";
+import {
+  bySeasonRank,
+  playoffSpots,
+  seasonRecords,
+} from "@/components/leagueTab/seasonColumns";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { Entrance } from "@/components/motion";
 import { PayBanner } from "@/components/roster/PayBanner";
@@ -41,35 +47,61 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   const table = useQuery(backend.standings.table, args);
   const league = useQuery(backend.leagues.get, args);
   const season = useQuery(api.seasons.overview, args);
-  const records = useMemo(() => (season ? seasonRecords(season) : undefined), [season]);
+  const records = useMemo(
+    () => (season ? seasonRecords(season) : undefined),
+    [season],
+  );
   // One array per result: the table compares rows by identity to decide what flashes and slides.
-  const seasonTable = useMemo(() => (table && records ? bySeasonRank(table, records) : undefined), [table, records]);
+  const seasonTable = useMemo(
+    () => (table && records ? bySeasonRank(table, records) : undefined),
+    [table, records],
+  );
 
-  const owesBuyIn = membership !== undefined && !membership.paid && membership.stakeUsd > 0;
+  const owesBuyIn =
+    membership !== undefined && !membership.paid && membership.stakeUsd > 0;
 
   // The season is waited for too, so the table first draws in season order instead of re-sorting.
-  if (!leagueId || !pot || !seasonTable || !league || !me) return <Screen edges={[]}>{null}</Screen>;
+  if (!leagueId || !pot || !seasonTable || !league || !me)
+    return <Screen edges={[]}>{null}</Screen>;
 
   return (
-    <Screen edges={[]} scroll bottomInset={bottomInset}>
-      {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
-      <Entrance>{escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />}</Entrance>
-      <StandingsTable
-        rows={seasonTable}
-        records={records}
-        playoffSpots={season ? playoffSpots(season) : null}
-        viewerId={me._id}
-        onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
-      />
-      <SunnyTextPrompt />
-      {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
-      <LeagueInfo>
-        <LeagueDetails league={league} pot={pot} now={now} />
-        <SeasonLink leagueId={leagueId} />
-        <NotificationSettings />
-        {aboveStandings}
-        <LeaderboardsStrip leagueId={leagueId} />
-      </LeagueInfo>
-    </Screen>
+    <CoachTour tour="league">
+      <Screen edges={[]} scroll bottomInset={bottomInset}>
+        {owesBuyIn ? (
+          <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} />
+        ) : null}
+        <Entrance>
+          <CoachTarget id="pot">
+            {escrow ? (
+              escrow(pot, now)
+            ) : (
+              <PotSummary pot={pot} standings={table} now={now} />
+            )}
+          </CoachTarget>
+        </Entrance>
+        <CoachTarget id="standings">
+          <StandingsTable
+            rows={seasonTable}
+            records={records}
+            playoffSpots={season ? playoffSpots(season) : null}
+            viewerId={me._id}
+            onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
+          />
+        </CoachTarget>
+        <SunnyTextPrompt />
+        {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
+        <LeagueInfo>
+          <LeagueDetails league={league} pot={pot} now={now} />
+          <SeasonLink leagueId={leagueId} />
+          <NotificationSettings />
+          {aboveStandings}
+          <LeaderboardsStrip leagueId={leagueId} />
+        </LeagueInfo>
+        {/* Builds for development and the demo only: one tap back to a brand-new player. */}
+        {__DEV__ || process.env.EXPO_PUBLIC_DEV_FLAGS === "1" ? (
+          <ResetAndRestartRow />
+        ) : null}
+      </Screen>
+    </CoachTour>
   );
 }

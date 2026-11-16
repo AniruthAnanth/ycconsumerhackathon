@@ -19,104 +19,83 @@ const paidOutCents = (settlement: Settlement<string>) =>
   settlement.payouts.reduce((sum, p) => sum + p.refundCents + p.winningsCents, 0);
 
 describe("computeSettlement", () => {
-  test("finishers get their stake back plus 90% of forfeited stakes by points", () => {
+  test("everyone clearing all five splits the pot evenly", () => {
     const settlement = computeSettlement(20, [
-      member("maya", { finished: true, points: 300 }),
-      member("sam", { finished: true, points: 100 }),
-      member("ana"),
-      member("leo"),
-      member("kai"),
-      member("zoe"),
+      member("maya", { slotsCleared: 5, points: 300 }),
+      member("sam", { slotsCleared: 5, points: 100 }),
+      member("ana", { slotsCleared: 5 }),
     ]);
 
-    // Four non-finishers forfeit $80: $8 fee, $72 split 3:1.
-    expect(settlement).toEqual({
-      potCents: 12000,
-      feeCents: 800,
-      payouts: [
-        { userId: "maya", refundCents: 2000, winningsCents: 5400 },
-        { userId: "sam", refundCents: 2000, winningsCents: 1800 },
-      ],
-    });
-    expect(paidOutCents(settlement) + settlement.feeCents).toBe(settlement.potCents);
-  });
-
-  test("with no finishers every stake is refunded and no fee is taken", () => {
-    const settlement = computeSettlement(5, [member("maya", { points: 90 }), member("sam")]);
-
-    expect(settlement).toEqual({
-      potCents: 1000,
-      feeCents: 0,
-      payouts: [
-        { userId: "maya", refundCents: 500, winningsCents: 0 },
-        { userId: "sam", refundCents: 500, winningsCents: 0 },
-      ],
-    });
-  });
-
-  test("when everyone finishes there is nothing to win and nothing to charge", () => {
-    const settlement = computeSettlement(5, [
-      member("maya", { finished: true, points: 200 }),
-      member("sam", { finished: true, points: 50 }),
-    ]);
-
+    expect(settlement.potCents).toBe(6000);
     expect(settlement.feeCents).toBe(0);
     expect(settlement.payouts).toEqual([
-      { userId: "maya", refundCents: 500, winningsCents: 0 },
-      { userId: "sam", refundCents: 500, winningsCents: 0 },
+      { userId: "maya", refundCents: 0, winningsCents: 2000 },
+      { userId: "sam", refundCents: 0, winningsCents: 2000 },
+      { userId: "ana", refundCents: 0, winningsCents: 2000 },
     ]);
+  });
+
+  test("the members tied for the most slots split it, even short of five, whatever their points", () => {
+    const settlement = computeSettlement(20, [
+      member("maya", { slotsCleared: 4, points: 50 }),
+      member("sam", { slotsCleared: 4, points: 400 }),
+      member("ana", { slotsCleared: 3, points: 900 }),
+      member("leo", { slotsCleared: 0 }),
+    ]);
+
+    expect(settlement.payouts).toEqual([
+      { userId: "maya", refundCents: 0, winningsCents: 4000 },
+      { userId: "sam", refundCents: 0, winningsCents: 4000 },
+    ]);
+  });
+
+  test("an unpaid member shares nothing, even with the most slots", () => {
+    const settlement = computeSettlement(5, [
+      member("maya", { slotsCleared: 2 }),
+      member("leo", { paid: false, slotsCleared: 5, points: 900 }),
+    ]);
+
+    expect(settlement.potCents).toBe(500);
+    expect(settlement.payouts).toEqual([{ userId: "maya", refundCents: 0, winningsCents: 500 }]);
+  });
+
+  test("with no slot cleared by a paid member, the whole pot rolls over", () => {
+    const settlement = computeSettlement(5, [member("maya"), member("sam"), member("leo", { paid: false, slotsCleared: 5 })]);
+
+    expect(settlement).toEqual({ potCents: 1000, feeCents: 0, payouts: [], rolloverCents: 1000 });
+  });
+
+  test("a pot rolled over from earlier weeks joins the split when someone wins", () => {
+    const settlement = computeSettlement(5, [member("maya", { slotsCleared: 1 }), member("sam")], 1000);
+
+    expect(settlement.payouts).toEqual([{ userId: "maya", refundCents: 0, winningsCents: 2000 }]);
+    expect(settlement.carriedInCents).toBe(1000);
+  });
+
+  test("left out, slotsCleared counts five for a finisher and none for anyone else", () => {
+    const settlement = computeSettlement(5, [member("maya", { finished: true }), member("sam")]);
+
+    expect(settlement.payouts).toEqual([{ userId: "maya", refundCents: 0, winningsCents: 1000 }]);
   });
 
   test("a free league moves no money", () => {
-    const settlement = computeSettlement(0, [
-      member("maya", { finished: true, points: 200 }),
-      member("sam"),
-    ]);
-
-    expect(settlement).toEqual({ potCents: 0, feeCents: 0, payouts: [] });
-  });
-
-  test("an unpaid member neither wins nor forfeits, even with the top score", () => {
-    const settlement = computeSettlement(5, [
-      member("freeloader", { paid: false, finished: true, points: 999 }),
-      member("maya", { finished: true, points: 10 }),
-      member("sam"),
-      member("unpaid-quitter", { paid: false }),
-    ]);
-
-    // Only Sam's $5 is forfeited: 50c fee, $4.50 to Maya.
-    expect(settlement).toEqual({
-      potCents: 1000,
-      feeCents: 50,
-      payouts: [{ userId: "maya", refundCents: 500, winningsCents: 450 }],
-    });
-  });
-
-  test("finishers with no points between them split the winnings evenly", () => {
-    const settlement = computeSettlement(5, [
-      member("maya", { finished: true }),
-      member("sam", { finished: true }),
-      member("ana"),
-      member("leo"),
-    ]);
-
-    expect(settlement.payouts.map((p) => p.winningsCents)).toEqual([450, 450]);
+    expect(computeSettlement(0, [member("maya", { slotsCleared: 5 })])).toEqual({ potCents: 0, feeCents: 0, payouts: [] });
   });
 
   test("uneven shares are rounded without creating or losing a cent", () => {
     const settlement = computeSettlement(5, [
-      member("maya", { finished: true, points: 1 }),
-      member("sam", { finished: true, points: 1 }),
-      member("ana", { finished: true, points: 1 }),
-      member("leo"),
+      member("maya", { slotsCleared: 5 }),
+      member("sam", { slotsCleared: 5 }),
+      member("ana", { slotsCleared: 5 }),
+      member("leo", { slotsCleared: 1 }),
     ]);
 
-    // $4.50 three ways is exactly 150c each; make it awkward with a 7-way split too.
-    expect(settlement.payouts.map((p) => p.winningsCents)).toEqual([150, 150, 150]);
+    // $20 three ways: 667c, 667c and 666c.
+    expect(settlement.payouts.map((p) => p.winningsCents)).toEqual([667, 667, 666]);
     expect(splitByWeight(100, [1, 1, 1, 1, 1, 1, 1])).toEqual([15, 15, 14, 14, 14, 14, 14]);
   });
 
-  test("the rows always sum to the pot, whatever the league looks like", () => {
+  test("shares and rollovers always sum to the pot, whatever the league looks like", () => {
     // Deterministic pseudo-random leagues: no seed library, same cases every run.
     let seed = 42;
     const next = (n: number) => {
@@ -126,16 +105,15 @@ describe("computeSettlement", () => {
 
     for (let round = 0; round < 500; round++) {
       const stakeUsd = [0, 5, 20, 7.5, 0.01][next(5)];
+      const carriedInCents = [0, 0, 1000][next(3)];
       const entrants = Array.from({ length: next(12) }, (_, i) =>
-        member(`user${i}`, {
-          paid: next(4) > 0,
-          finished: next(2) === 0,
-          points: next(600) - 50,
-        }),
+        member(`user${i}`, { paid: next(4) > 0, slotsCleared: next(6), points: next(600) - 50 }),
       );
-      const settlement = computeSettlement(stakeUsd, entrants);
+      const settlement = computeSettlement(stakeUsd, entrants, carriedInCents);
 
-      expect(paidOutCents(settlement) + settlement.feeCents).toBe(settlement.potCents);
+      const won = paidOutCents(settlement) + settlement.feeCents;
+      if (settlement.payouts.length > 0) expect(won).toBe(settlement.potCents + carriedInCents);
+      else expect(settlement.rolloverCents ?? 0).toBe(settlement.potCents);
       for (const payout of settlement.payouts) {
         expect(Number.isInteger(payout.winningsCents)).toBe(true);
         expect(payout.winningsCents).toBeGreaterThanOrEqual(0);
@@ -156,40 +134,35 @@ describe("splitByWeight", () => {
 });
 
 describe("settlementLedgerRows", () => {
-  test("writes refund, winnings and fee rows that sum to the pot", () => {
+  test("writes one winnings row per top performer, their escrow credit, summing to the pot", () => {
     const settlement = computeSettlement(20, [
-      member("maya", { finished: true, points: 300 }),
-      member("sam", { finished: true, points: 100 }),
-      member("ana"),
+      member("maya", { slotsCleared: 5 }),
+      member("sam", { slotsCleared: 5 }),
+      member("ana", { slotsCleared: 2 }),
       member("leo"),
     ]);
     const rows = settlementLedgerRows("week1", settlement);
 
     expect(rows).toEqual([
-      { userId: "maya", kind: "refund", amountUsd: 20, idempotencyKey: "week1:maya:refund" },
-      { userId: "maya", kind: "winnings", amountUsd: 27, idempotencyKey: "week1:maya:winnings" },
-      { userId: "sam", kind: "refund", amountUsd: 20, idempotencyKey: "week1:sam:refund" },
-      { userId: "sam", kind: "winnings", amountUsd: 9, idempotencyKey: "week1:sam:winnings" },
-      { kind: "fee", amountUsd: 4, idempotencyKey: "week1:fee" },
+      { userId: "maya", kind: "winnings", amountUsd: 40, idempotencyKey: "week1:maya:winnings" },
+      { userId: "sam", kind: "winnings", amountUsd: 40, idempotencyKey: "week1:sam:winnings" },
     ]);
     expect(rows.reduce((sum, row) => sum + row.amountUsd, 0)).toBe(80);
   });
 
-  test("leaves out zero rows: no winnings without forfeits, no fee without finishers", () => {
-    const allRefunded = computeSettlement(5, [member("maya"), member("sam")]);
-
-    expect(settlementLedgerRows("week1", allRefunded).map((row) => row.kind)).toEqual([
-      "refund",
-      "refund",
+  test("writes a rollover row for a pot nobody won, and a negative one when it is won later", () => {
+    expect(settlementLedgerRows("week1", computeSettlement(5, [member("maya"), member("sam")]))).toEqual([
+      { kind: "rollover", amountUsd: 10, idempotencyKey: "week1:rollover" },
+    ]);
+    expect(settlementLedgerRows("week2", computeSettlement(5, [member("maya", { slotsCleared: 1 })], 1000))).toEqual([
+      { userId: "maya", kind: "winnings", amountUsd: 15, idempotencyKey: "week2:maya:winnings" },
+      { kind: "rollover", amountUsd: -10, idempotencyKey: "week2:rollover-in" },
     ]);
     expect(settlementLedgerRows("week1", computeSettlement(0, [member("maya")]))).toEqual([]);
   });
 
   test("keys are unique per row, so a second write can be recognised", () => {
-    const settlement = computeSettlement(5, [
-      member("maya", { finished: true, points: 10 }),
-      member("sam"),
-    ]);
+    const settlement = computeSettlement(5, [member("maya", { slotsCleared: 3 }), member("sam", { slotsCleared: 3 })], 500);
     const keys = settlementLedgerRows("week1", settlement).map((row) => row.idempotencyKey);
 
     expect(new Set(keys).size).toBe(keys.length);

@@ -393,6 +393,76 @@ export const pinPlace = mutation({
   },
 });
 
+// ---------------------------------------------------------------------------
+// Backfill: open tasks drafted under an earlier proof rule
+// ---------------------------------------------------------------------------
+
+const RECLASSIFY_INSTRUCTION =
+  "The proof rules changed. Choose proofType, place and targetMinutes again for every task by the rules. Keep every slot, title and points exactly as they are.";
+
+type OpenLineup = { userId: Id<"users">; tasks: Doc<"tasks">[] };
+
+/** This week's and next week's open lineups of real players. Seeded players (the demo set) are left alone. */
+export const openLineups = internalQuery({
+  args: {},
+  handler: async (ctx): Promise<OpenLineup[]> => {
+    const weeks = [weekStartOf(Date.now()), weekStartOf(Date.now() + 7 * 24 * 60 * 60 * 1000)];
+    const lineups: OpenLineup[] = [];
+    for (const user of await ctx.db.query("users").collect()) {
+      if (user.isSeed) continue;
+      for (const weekStart of weeks) {
+        const tasks = (await weekTasks(ctx, user._id, weekStart)).filter(
+          (task) => task.status === "open" && task.proofType !== "canvas" && task.source !== "group",
+        );
+        if (tasks.length > 0) lineups.push({ userId: user._id, tasks });
+      }
+    }
+    return lineups;
+  },
+});
+
+export const setProofTypes = internalMutation({
+  args: { updates: v.array(v.object({ taskId: v.id("tasks"), task: draftTask })) },
+  handler: async (ctx, args): Promise<number> => {
+    let changed = 0;
+    for (const { taskId, task } of args.updates) {
+      const row = await ctx.db.get("tasks", taskId);
+      if (row === null || row.status !== "open") continue;
+      await ctx.db.patch("tasks", taskId, {
+        proofType: task.proofType,
+        targetMinutes: task.targetMinutes,
+        place: task.proofType === "photo_location" ? (task.place ?? row.place) : undefined,
+      });
+      changed++;
+    }
+    return changed;
+  },
+});
+
+/**
+ * Gives every open task of real players this week and next the proof type the current rules
+ * would draft, keeping titles and points. Run once after the rules change:
+ * npx convex run lineup:reclassifyOpenTasks
+ */
+export const reclassifyOpenTasks = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ lineups: number; tasks: number }> => {
+    const lineups: OpenLineup[] = await ctx.runQuery(internal.lineup.openLineups, {});
+    let tasks = 0;
+    for (const lineup of lineups) {
+      const previous = lineup.tasks.map((task) => tidyTask(task));
+      const refined = await refineLineup({ previous, instruction: RECLASSIFY_INSTRUCTION });
+      const byKey = new Map(refined.map((task) => [`${task.slot}|${task.title.trim()}`, tidyTask(task)]));
+      const updates = lineup.tasks.flatMap((row) => {
+        const task = byKey.get(`${row.slot}|${row.title.trim()}`);
+        return task ? [{ taskId: row._id, task: { ...task, points: row.points } }] : [];
+      });
+      tasks += await ctx.runMutation(internal.lineup.setProofTypes, { updates });
+    }
+    return { lineups: lineups.length, tasks };
+  },
+});
+
 export const rateFlexTask = internalAction({
   args: { taskId: v.id("tasks"), title: v.string() },
   handler: async (ctx, args): Promise<null> => {

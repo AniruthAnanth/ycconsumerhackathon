@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Divider, Icon } from "@/components/ui";
+import { haptics } from "@/lib/native/haptics";
 import { BORDER, colors, font, fontFamily, hairline, MIN_TARGET, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { BOARDS, isPrimaryBoard, MORE_BOARDS, PRIMARY_BOARDS } from "./boards";
@@ -32,6 +33,7 @@ export function BoardPicker({ active, onChange }: Props) {
               style={[styles.segment, index > 0 && styles.segmentDivider, selected && styles.segmentActive]}
               onPress={() => {
                 setOpen(false);
+                if (!selected) haptics.select();
                 onChange(board.key);
               }}
               accessibilityRole="tab"
@@ -64,6 +66,7 @@ export function BoardPicker({ active, onChange }: Props) {
                   style={styles.option}
                   onPress={() => {
                     setOpen(false);
+                    if (!selected) haptics.select();
                     onChange(board.key);
                   }}
                   accessibilityRole="tab"

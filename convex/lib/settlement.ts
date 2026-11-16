@@ -1,21 +1,31 @@
 /**
- * Settlement maths for one league week (SPEC.md section 2), as pure functions.
+ * Settlement maths for one league week, as pure functions (docs/SCORING.md).
  *
- * The rule a player remembers: clear your five and you keep your money; score the
- * most and you take everyone else's.
+ * The rule a player remembers: clear the most slots and you share the pot.
  *
- *   - A finisher (cleared all five slots) gets their stake back, plus a share of the
- *     non-finishers' stakes in proportion to their points among finishers.
- *   - The platform keeps 10% of the non-finishers' stakes, and nothing else.
- *   - If nobody finishes, every stake is refunded in full and no fee is taken.
+ *   - The pot is the stake times the paid members, plus whatever rolled over from earlier
+ *     weeks nobody won.
+ *   - It is split evenly among the paid members tied for the most slots cleared that week,
+ *     even when that is fewer than five. If everyone clears all five, everyone splits it.
+ *   - Unpaid members play but share nothing.
+ *   - If no paid member cleared a slot, nobody wins and the whole pot rolls into next week.
  *   - A free league has no pot, so there is nothing to move.
+ *
+ * A share is credited to the member's escrow balance in the ledger. It is not sent anywhere
+ * here: cashing out happens on the league's payout timeline (whop.ts).
  *
  * Amounts are whole cents throughout. Splitting dollars as floats would invent or
  * lose a cent on shares like a third of $4.50, and the ledger must sum to the pot.
  */
 
-/** The platform's cut of forfeited stakes. Returned stakes are never charged. */
+/**
+ * The platform's cut. The current rule splits the whole pot, so it is not charged on league
+ * settlements; a 1v1 versus still takes it from the loser's stake (versusSettlement.ts).
+ */
 export const PLATFORM_FEE_RATE = 0.1;
+
+/** The most slots a week has. */
+export const SLOTS_PER_WEEK = 5;
 
 export type Entrant<UserId> = {
   userId: UserId;
@@ -23,58 +33,62 @@ export type Entrant<UserId> = {
   paid: boolean;
   /** Cleared all five roster slots this week. */
   finished: boolean;
-  /** Week points. Only a finisher's points matter: they set the share of winnings. */
+  /**
+   * Slots cleared, 0 to 5: the top performers are the paid members tied for the most. Left
+   * out, a finisher counts as five and anyone else as none.
+   */
+  slotsCleared?: number;
+  /** Week points. Kept for the 1v1 versus rule, which pays the higher score. */
   points: number;
 };
 
 export type Payout<UserId> = {
   userId: UserId;
-  /** The member's own stake coming back. */
+  /** The member's own stake coming back (only the 1v1 versus rule returns stakes). */
   refundCents: number;
-  /** Their share of the non-finishers' stakes, after the fee. */
+  /** Their share of the pot, credited to escrow. */
   winningsCents: number;
 };
 
 export type Settlement<UserId> = {
-  /** Everything paid in: stake x paid members. */
+  /** Everything paid in this week: stake x paid members. */
   potCents: number;
   feeCents: number;
   /** One entry per member who receives money, in the order they were given. */
   payouts: Payout<UserId>[];
+  /** What nobody won and carries into next week's pot. */
+  rolloverCents?: number;
+  /** What earlier weeks rolled over and this settlement shared out. */
+  carriedInCents?: number;
 };
 
+const slotsOf = <UserId>(entrant: Entrant<UserId>) =>
+  entrant.slotsCleared ?? (entrant.finished ? SLOTS_PER_WEEK : 0);
+
+/**
+ * `carriedInCents` is what earlier weeks rolled over: it joins this week's pot when someone
+ * wins it, and keeps waiting when nobody does.
+ */
 export function computeSettlement<UserId>(
   stakeUsd: number,
   entrants: Entrant<UserId>[],
+  carriedInCents = 0,
 ): Settlement<UserId> {
   const stakeCents = Math.round(stakeUsd * 100);
   const paid = entrants.filter((entrant) => entrant.paid);
   const potCents = stakeCents * paid.length;
-  if (potCents === 0) return { potCents: 0, feeCents: 0, payouts: [] };
+  if (potCents === 0 && carriedInCents === 0) return { potCents: 0, feeCents: 0, payouts: [] };
 
-  const finishers = paid.filter((entrant) => entrant.finished);
-  if (finishers.length === 0) {
-    return {
-      potCents,
-      feeCents: 0,
-      payouts: paid.map(({ userId }) => ({ userId, refundCents: stakeCents, winningsCents: 0 })),
-    };
-  }
+  const most = Math.max(0, ...paid.map(slotsOf));
+  if (most === 0) return { potCents, feeCents: 0, payouts: [], rolloverCents: potCents };
 
-  const forfeitedCents = stakeCents * (paid.length - finishers.length);
-  const feeCents = Math.round(forfeitedCents * PLATFORM_FEE_RATE);
-  const shares = splitByWeight(
-    forfeitedCents - feeCents,
-    finishers.map((finisher) => finisher.points),
-  );
+  const top = paid.filter((entrant) => slotsOf(entrant) === most);
+  const shares = splitByWeight(potCents + carriedInCents, top.map(() => 1));
   return {
     potCents,
-    feeCents,
-    payouts: finishers.map(({ userId }, i) => ({
-      userId,
-      refundCents: stakeCents,
-      winningsCents: shares[i],
-    })),
+    feeCents: 0,
+    payouts: top.map(({ userId }, i) => ({ userId, refundCents: 0, winningsCents: shares[i] })),
+    ...(carriedInCents > 0 && { carriedInCents }),
   };
 }
 
@@ -103,18 +117,21 @@ export function splitByWeight(totalCents: number, weights: number[]): number[] {
 export type SettlementLedgerRow<UserId> = {
   /** Absent on the fee row, which belongs to the platform. */
   userId?: UserId;
-  kind: "refund" | "winnings" | "fee";
+  kind: "refund" | "winnings" | "fee" | "rollover";
   amountUsd: number;
   /** Unique per row, so writing the same settlement twice inserts nothing new. */
   idempotencyKey: string;
 };
 
 /**
- * The ledger rows a settlement produces: a refund and (when non-zero) a winnings
- * row per paid-out member, and one fee row. Their amounts sum to the pot.
+ * The ledger rows a settlement produces: a winnings row per member who shares the pot (their
+ * escrow credit), a refund row where a stake comes back (1v1 versus only), a fee row when one
+ * is charged, and rollover rows: positive for a pot nobody won, negative for an earlier
+ * rollover this settlement shared out. Rollover rows summed over a league are what is still
+ * waiting to be won.
  *
- * `scope` names what is being settled, a week id or a league's season, and
- * prefixes every key, so each member has at most one refund and one winnings row in it.
+ * `scope` names what is being settled, a week id or a league's season, and prefixes every
+ * key, so writing the same settlement twice inserts nothing new.
  */
 export function settlementLedgerRows<UserId extends string>(
   scope: string,
@@ -122,27 +139,21 @@ export function settlementLedgerRows<UserId extends string>(
 ): SettlementLedgerRow<UserId>[] {
   const rows: SettlementLedgerRow<UserId>[] = [];
   for (const { userId, refundCents, winningsCents } of settlement.payouts) {
-    rows.push({
-      userId,
-      kind: "refund",
-      amountUsd: refundCents / 100,
-      idempotencyKey: `${scope}:${userId}:refund`,
-    });
+    if (refundCents > 0) {
+      rows.push({ userId, kind: "refund", amountUsd: refundCents / 100, idempotencyKey: `${scope}:${userId}:refund` });
+    }
     if (winningsCents > 0) {
-      rows.push({
-        userId,
-        kind: "winnings",
-        amountUsd: winningsCents / 100,
-        idempotencyKey: `${scope}:${userId}:winnings`,
-      });
+      rows.push({ userId, kind: "winnings", amountUsd: winningsCents / 100, idempotencyKey: `${scope}:${userId}:winnings` });
     }
   }
   if (settlement.feeCents > 0) {
-    rows.push({
-      kind: "fee",
-      amountUsd: settlement.feeCents / 100,
-      idempotencyKey: `${scope}:fee`,
-    });
+    rows.push({ kind: "fee", amountUsd: settlement.feeCents / 100, idempotencyKey: `${scope}:fee` });
+  }
+  if (settlement.carriedInCents) {
+    rows.push({ kind: "rollover", amountUsd: -settlement.carriedInCents / 100, idempotencyKey: `${scope}:rollover-in` });
+  }
+  if (settlement.rolloverCents) {
+    rows.push({ kind: "rollover", amountUsd: settlement.rolloverCents / 100, idempotencyKey: `${scope}:rollover` });
   }
   return rows;
 }

@@ -60,7 +60,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
                 {howToProve(toProofTarget(task))}
               </Text>
               <View style={styles.action}>
-                <Button label="Submit Proof" onPress={() => router.replace(submitProofHref(task))} />
+                <Button label="Submit Proof" haptic="medium" onPress={() => router.replace(submitProofHref(task))} />
               </View>
             </>
           ) : null}
@@ -86,7 +86,8 @@ const styles = StyleSheet.create({
   text: { flex: 1, gap: spacing.xs },
   title: { ...type.subheading, color: colors.text },
   meta: { ...type.small, color: colors.textMuted },
-  points: { ...type.label, color: colors.text, textAlign: "right", ...tabular },
+  // Never shrinks, so "40 pts" stays on one line at the trailing edge.
+  points: { flexShrink: 0, ...type.label, color: colors.text, textAlign: "right", ...tabular },
   howTo: { paddingLeft: TEXT_INSET, paddingRight: SCREEN_MARGIN, ...type.body, color: colors.textMuted },
   action: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
 });

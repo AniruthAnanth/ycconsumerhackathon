@@ -21,11 +21,14 @@ The model describes the photo, and pure code decides. Confidence under 0.6 fails
 
 All amounts are whole cents.
 
-1. The pot is the stake × the number of paid members. Unpaid members play but put nothing in and take nothing out.
-2. If nobody finished, every stake is refunded and no fee is taken.
-3. Otherwise each finisher gets their stake back. The stakes of paid non-finishers are forfeited.
-4. The platform fee is 10% of the forfeited stakes only (`PLATFORM_FEE_RATE`). Returned stakes are never charged.
-5. The rest of the forfeited stakes is split among finishers in proportion to their points, by largest remainder, so the parts add up exactly (`splitByWeight`).
-6. `settlementLedgerRows` writes one refund row and one winnings row per paid-out member, plus one fee row. Each row has an idempotency key, so settling twice writes nothing new, and the rows sum to the pot.
+1. The pot is the stake × the number of paid members, plus anything an earlier week rolled over. Unpaid members play but put nothing in and take nothing out.
+2. The top performers are the paid members tied for the most slots cleared that week, even when that is fewer than five. They split the pot evenly, by largest remainder, so the parts add up exactly (`splitByWeight`). If everyone clears all five, everyone splits it. Points don't affect the split.
+3. If no paid member cleared a slot, nobody wins and the whole pot rolls into next week.
+4. A league settlement takes no fee. A 1v1 versus keeps its own rule (`convex/lib/versusSettlement.ts`).
+5. `settlementLedgerRows` writes one `winnings` row per top performer. That row is their credit in the league's escrow, and nothing is sent when the week settles. A pot nobody won is a positive `rollover` row, and a later week that shares it out writes the matching negative one, so the league's rollover rows always sum to what is still waiting to be won. Every row has an idempotency key, so settling twice writes nothing new.
 
-Worked example: six paid players at $20 make a $120 pot. If four finish, the two forfeited stakes are $40, the fee is $4, and the four finishers split $36 by points on top of their own $20 back.
+## Escrow and cashout (`convex/whop.ts`)
+
+Shares stay in the league's escrow until it cashes out at the end of each season. In the season's last week, `settleInLedger` returns every unsent share from the season's weeks, and `payOnWhop` sends each member one transfer. A refused transfer leaves its rows unsent, and `retryPayouts` sends them later. A 1v1 versus is a one-week season, so it cashes out when it settles.
+
+Worked example: six paid players at $20 make a $120 pot. If two of them clear all five and nobody else does, each has $60 in escrow until the season ends. If the best anyone manages is four slots and three players do, each gets $40. If no paid player clears a slot, next week's pot starts at $120.
