@@ -20,6 +20,8 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
   // payout or a settled week keeps the leaderboards projection, which knows about both.
   const market = useMarket(leagueId);
   const live = market?.payout.eligible ? market.payout : undefined;
+  // An unpaid player's projection is only "Pay $N to play for the pot", which the Pay banner
+  // above already says; repeated here it squeezed the rank into a narrow column.
   if (!leagueId) return null;
 
   const place = week ? placeLabel(week.rows) : undefined;
@@ -27,12 +29,12 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
     <Pressable style={styles.strip} onPress={() => router.push("/leaderboards")} accessibilityRole="button" accessibilityLabel="Open leaderboards">
       {/* Without a label the place read as a stray "1st" at the top of the League tab. */}
       {place ? <Text style={styles.label}>YOUR RANK</Text> : null}
-      <Text style={styles.place}>
+      <Text style={styles.place} numberOfLines={1}>
         {place ?? "Leaderboards"}
       </Text>
       {live ? (
         <Text style={[styles.projection, live.expectedNetUsd >= 0.5 && styles.gain]}>{`Projected ${formatNet(live.expectedNetUsd)}`}</Text>
-      ) : projection ? (
+      ) : projection?.eligible ? (
         <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]}>
           {projection.label}
         </Text>
@@ -56,6 +58,6 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   place: { flex: 1, fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
-  projection: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
+  projection: { flexShrink: 1, fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
   gain: { color: colors.tabActive },
 });

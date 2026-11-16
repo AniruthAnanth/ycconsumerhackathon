@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Avatar, PositionPill, RowDivider, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
 import { colors, font, fontFamily, layout, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET, type } from "@/theme";
@@ -34,6 +34,8 @@ export function DraftRow({ task, editable, suggested, onRename, onRemove }: Prop
           placeholderTextColor={colors.textFaint}
           accessibilityLabel="Task title"
           multiline
+          // The web draws a multiline field as a two-row textarea, which left a blank line under a short title.
+          numberOfLines={Platform.OS === "web" ? 1 : undefined}
           scrollEnabled={false}
           returnKeyType="done"
           submitBehavior="blurAndSubmit"

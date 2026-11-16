@@ -18,7 +18,7 @@ import { CameraPermissionPrompt } from "./CameraPermissionPrompt";
 import { cameraScreen } from "./cameraScreen";
 import { CameraUnavailable } from "./CameraUnavailable";
 import { requestLocationFor } from "./deviceLocation";
-import { GhostOverlay } from "./GhostOverlay";
+import { GhostOverlay, GhostStep } from "./GhostOverlay";
 import { SampleTray } from "./SampleTray";
 import { ScreenshotPicker } from "./ScreenshotPicker";
 import { modesFor, ShutterBar } from "./ShutterBar";
@@ -98,6 +98,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
         {screen.unavailable ? <CameraUnavailable onRetry={capture.retryCamera} /> : null}
         <CameraOverlay target={target} onClose={close} />
         <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
+          {target.proofType === "before_after" ? <GhostStep beforeUri={capture.before?.uri ?? null} /> : null}
           {timelapse && capture.recording ? (
             <Text style={styles.hint} testID="camera-timelapse-status">
               {reachedTarget ? "Target reached. Stop when you're done." : `Keep going: ${capture.targetMinutes} min target`}
