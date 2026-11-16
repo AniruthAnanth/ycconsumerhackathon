@@ -14,6 +14,7 @@ import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
 import { boardByTask } from "../veto/vetoLogic";
 import { MatchupBody } from "./MatchupBody";
+import { MatchupTicker } from "./MatchupTicker";
 
 export default function MatchupScreen() {
   const { leagueId, league, weekStart } = useCurrentLeague();
@@ -40,6 +41,7 @@ export default function MatchupScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
+      {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
       <MatchupBody
         matchup={matchup}
         belowHero={<MatchupMarkets />}
