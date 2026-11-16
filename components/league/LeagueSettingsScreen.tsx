@@ -4,6 +4,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 
+import { PayButton } from "@/components/money/PayButton";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
@@ -40,7 +41,7 @@ export function LeagueSettingsScreen() {
 
   return (
     <Screen edges={["bottom"]}>
-      <Header title="League Settings" onBack={router.back} scrollY={scrollY} />
+      <Header title="League Settings" onBack={router.back} rightAction={<PayButton />} scrollY={scrollY} />
       <Animated.ScrollView
         contentContainerStyle={{ paddingTop: contentInsetTop }}
         scrollIndicatorInsets={{ top: contentInsetTop }}

@@ -6,7 +6,6 @@ import { StyleSheet, Text, View } from "react-native";
 import { InviteButton } from "@/components/invite";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
-import { PayBanner } from "@/components/roster/PayBanner";
 import { Button, OutlinedPillButton } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -50,10 +49,6 @@ export function VersusPot({ versus }: { versus: Versus }) {
   const opponentName = versus.opponent?.name ?? "your friend";
   return (
     <View>
-      {/* Only once both are in: a stake paid while waiting would sit in a week that may never be played. */}
-      {versus.status === "live" && versus.stakeUsd > 0 && !versus.me.paid ? (
-        <PayBanner leagueId={versus.leagueId} stakeUsd={versus.stakeUsd} />
-      ) : null}
       <View style={styles.panel}>
         <Text style={styles.pot}>{potLine(versus)}</Text>
         {versus.status === "waiting" ? (

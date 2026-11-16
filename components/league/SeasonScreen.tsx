@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { type ComponentRef, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 
+import { PayButton } from "@/components/money/PayButton";
 import { Header, Screen, SectionLabel, TopTabs } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -41,7 +42,7 @@ export function SeasonScreen() {
   if (season === undefined) {
     return (
       <Screen>
-        <Header title="Season" onBack={router.back} />
+        <Header title="Season" onBack={router.back} rightAction={<PayButton />} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.textMuted} />
         </View>
@@ -59,7 +60,7 @@ export function SeasonScreen() {
 
   return (
     <Screen>
-      <Header title="Season" onBack={router.back} />
+      <Header title="Season" onBack={router.back} rightAction={<PayButton />} />
       <SectionLabel
         left={seasonProgress(season.season, season.currentWeek, settings.seasonWeeks)}
         right={settingsSummary(settings)}
