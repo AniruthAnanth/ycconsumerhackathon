@@ -15,7 +15,7 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
 import { FADE_MS } from "@/lib/native/motion";
 import { systemTabBar } from "@/lib/native/nativeTabs";
-import { colors, easingCurve } from "@/theme";
+import { colors, easingCurve, spacing } from "@/theme";
 
 const TABS = [
   {
@@ -68,7 +68,7 @@ const TABS = [
  */
 export default function TabsLayout() {
   const router = useRouter();
-  const { me, membership, league, weekNumber, showPreviousWeek, showNextWeek } =
+  const { me, membership, weekNumber, showPreviousWeek, showNextWeek } =
     useCurrentLeague();
   // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others. While a sheet
   // such as the league switcher sits over the tabs, the segments name the sheet instead, so the
@@ -80,10 +80,9 @@ export default function TabsLayout() {
   const active = lastTab.current;
   usePaidHaptic(membership);
   const reduceMotion = useReduceMotion();
-  // Only Roster can show another week. The other tabs always show the current
-  // one, so the header must say so instead of following the browsed week.
-  const browsable = active.key === "index";
-  const shownWeek = browsable ? weekNumber : league?.week.number;
+  // Only Roster can show another week, so only Roster gets the stepper, and only while there is a week to step to.
+  // The other tabs always show the current week, which their content already names.
+  const stepper = active.key === "index" && (showPreviousWeek !== undefined || showNextWeek !== undefined);
 
   if (me === undefined) return <View style={styles.page} />;
   // A league is proof the player has been through the front door. `onboarded`
@@ -106,22 +105,20 @@ export default function TabsLayout() {
             onSettingsPress={() => router.push("/settings")}
             rightAction={<PayButton />}
             right={<SunnyButton />}
-            // One header row: the week sits beside the league name instead of a second bar under it.
-            // The Feed is not week-scoped, so it has no week.
-            accessory={
-              active.key === "feed" ? undefined : (
-                <WeekSelector
-                  compact
-                  label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
-                  arrows={browsable}
-                  onPrev={withSelectHaptic(showPreviousWeek)}
-                  onNext={withSelectHaptic(showNextWeek)}
-                  onLongPress={() => router.push("/demo")}
-                />
-              )
-            }
           />
         </CoachTarget>
+        {/* The week stepper is its own small row, so the league name keeps the header's width and centre line. */}
+        {stepper ? (
+          <View style={styles.weekRow}>
+            <WeekSelector
+              compact
+              label={weekNumber === undefined ? "Week" : `Week ${weekNumber}`}
+              onPrev={withSelectHaptic(showPreviousWeek)}
+              onNext={withSelectHaptic(showNextWeek)}
+              onLongPress={() => router.push("/demo")}
+            />
+          </View>
+        ) : null}
       </SafeAreaView>
       {systemTabBar ? (
         // The system bar: its own liquid glass and selection pill, accent tint only, and it shrinks while a tab scrolls down.
@@ -194,4 +191,5 @@ function withSelectHaptic(action: (() => void) | undefined) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background },
+  weekRow: { alignItems: "center", paddingVertical: spacing.xs, backgroundColor: colors.background },
 });

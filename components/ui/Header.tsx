@@ -21,9 +21,7 @@ type Props = {
   onClose?: () => void;
   /** Replaces the chat icon. */
   right?: ReactNode;
-  /** Sits beside a switchable title in the same row; the tabs put the week pill here, so the header is one row. */
-  accessory?: ReactNode;
-  /** One more 44-pt action left of `right`, such as the pay button; the right side widens to fit it. */
+  /** One more 44-pt action left of `right`, such as the pay button; both sides widen to fit it, so the title stays centred. */
   rightAction?: ReactNode;
   /**
    * From useCollapsingHeader(): floats the bar over the scroll content, clear at rest, and fades
@@ -37,10 +35,10 @@ type Props = {
  * chevron on the left for a pushed screen (the tabs put the settings gear there), close cross
  * on the right for a sheet.
  */
-export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, accessory, rightAction, scrollY }: Props) {
+export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, rightAction, scrollY }: Props) {
   const bar = (
     <View style={[styles.bar, scrollY && styles.barOverContent]}>
-      <View style={styles.side}>
+      <View style={[styles.side, rightAction !== undefined && styles.sideWide]}>
         {onBack ? (
           <Pressable onPress={onBack} style={styles.action} accessibilityRole="button" accessibilityLabel="Back">
             <Icon name="chevron-back" size={24} />
@@ -59,13 +57,13 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
               {title}
             </CompactTitle>
           ) : (
-            <Text style={styles.title} numberOfLines={1}>
+            // A long league name shrinks a little before it truncates, so about 14 characters always show.
+            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
               {title}
             </Text>
           )}
           <Icon name="chevron-down" size={18} color={colors.accent} />
         </Pressable>
-        {accessory}
         </View>
       ) : (
         // A plain heading rather than a disabled button, which a screen reader would announce as dimmed.
@@ -81,7 +79,6 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
           )}
         </View>
       )}
-      {/* Widened only on the right: on the tabs the title already shares its row with the week pill, so a matching left gap would squeeze the league name. */}
       <View style={[styles.side, styles.right, rightAction !== undefined && styles.sideWide]}>
         {rightAction}
         {right ??
