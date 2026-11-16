@@ -6,6 +6,7 @@ import { SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 
 import type { Matchup, TaskVeto } from "../contract";
+import { BonusRow } from "./BonusRow";
 import { MatchupHero } from "./MatchupHero";
 import { SlotRow } from "./SlotRow";
 
@@ -33,6 +34,7 @@ export function MatchupBody({
           <SlotRow row={row} vetoes={vetoes} />
         </Entrance>
       ))}
+      <BonusRow matchup={matchup} />
     </>
   );
 }
