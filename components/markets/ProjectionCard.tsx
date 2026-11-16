@@ -7,6 +7,7 @@ import { BORDER, colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, t
 
 import { formatChance, formatNet, sparkPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
+import { potNeedsLine } from "./marketQuestions";
 import type { Market } from "./useMarket";
 
 const SPARK = { width: 96, height: 36, padding: 3 };
@@ -16,7 +17,7 @@ const SPARK = { width: 96, height: 36, padding: 3 };
  * you're on track for now. The ranges, the trend and the chance to clear all five sit behind
  * Details, so a first-time player reads one line.
  */
-export function ProjectionCard({ market }: { market: Market }) {
+export function ProjectionCard({ market, slotsCleared }: { market: Market; slotsCleared?: number }) {
   const [open, setOpen] = useState(false);
   const { payout, me } = market;
   const finish = market.odds.rows.find((row) => row.isMe)?.finishChance ?? 0;
@@ -35,10 +36,14 @@ export function ProjectionCard({ market }: { market: Market }) {
             <Text style={[styles.figure, { color: payout.expectedNetUsd < 0 ? colors.textMuted : colors.green }]}>{formatNet(payout.expectedNetUsd)}</Text>
           </View>
         </View>
+      ) : null}
+      {/* Winning the matchup and winning the pot are different races; this says why the money can lag a big win chance. */}
+      {payout.eligible ? (
+        slotsCleared !== undefined ? <Text style={styles.label}>{potNeedsLine(slotsCleared)}</Text> : null
       ) : (
         <Text style={styles.label}>
           {payout.stakeUsd > 0
-            ? `Pay your ${payout.stakeUsd} buy-in to play for the pot. The pot fills as players pay.`
+            ? `Pay your $${payout.stakeUsd} buy-in to play for the pot. The pot fills as players pay.`
             : "Free league: no money on this one, just bragging rights."}
         </Text>
       )}
