@@ -33,7 +33,7 @@ export function LeaderboardsScreen() {
   return (
     <Screen>
       <Header
-        title={result?.title ?? "Leaderboards"}
+        title="Leaderboards"
         onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/league"))}
       />
       <BoardPicker active={board} onChange={setBoard} />

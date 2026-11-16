@@ -1,67 +1,111 @@
-import { useEffect, useRef } from "react";
-import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, MIN_TARGET, spacing, tabUnderlineHeight } from "@/theme";
+import { Divider, Icon } from "@/components/ui";
+import { BORDER, colors, font, fontFamily, hairline, MIN_TARGET, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
-import { BOARDS } from "./boards";
+import { BOARDS, isPrimaryBoard, MORE_BOARDS, PRIMARY_BOARDS } from "./boards";
 import type { BoardKey } from "./types";
-
-const TAB_PEEK = 48;
 
 type Props = {
   active: BoardKey;
   onChange: (key: BoardKey) => void;
 };
 
-/** TopTabs, but scrollable: fifteen boards do not fit across a phone. */
+/**
+ * Week, Season and All-time as a segmented control, and every other board behind one
+ * "More boards" row that expands in place: sixteen tabs in a scrolling strip hid most of them.
+ */
 export function BoardPicker({ active, onChange }: Props) {
-  const scroll = useRef<ScrollViewInstance>(null);
-  const tabX = useRef<Partial<Record<BoardKey, number>>>({});
-
-  // A deep link can select a board that starts off-screen; bring it into view, with its left neighbour peeking.
-  useEffect(() => {
-    scroll.current?.scrollTo({ x: Math.max(0, (tabX.current[active] ?? 0) - TAB_PEEK), animated: true });
-  }, [active]);
+  const [open, setOpen] = useState(false);
+  // While a secondary board is showing, the More row names it, so the choice is visible once and only there.
+  const moreLabel = isPrimaryBoard(active) ? undefined : BOARDS.find((board) => board.key === active)?.label;
 
   return (
     <View style={styles.bar}>
-      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
-        {BOARDS.map((board) => {
+      <View style={styles.segments} accessibilityRole="tablist">
+        {PRIMARY_BOARDS.map((board, index) => {
           const selected = board.key === active;
           return (
             <Pressable
               key={board.key}
-              style={styles.tab}
-              onLayout={(event) => {
-                tabX.current[board.key] = event.nativeEvent.layout.x;
-                if (board.key === active) scroll.current?.scrollTo({ x: Math.max(0, event.nativeEvent.layout.x - TAB_PEEK), animated: false });
+              style={[styles.segment, index > 0 && styles.segmentDivider, selected && styles.segmentActive]}
+              onPress={() => {
+                setOpen(false);
+                onChange(board.key);
               }}
-              onPress={() => onChange(board.key)}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
-              accessibilityLabel={board.label}
+              accessibilityLabel={BOARDS.find((entry) => entry.key === board.key)?.label}
             >
-              <Text style={[styles.label, selected && styles.labelActive]}>{board.label.toUpperCase()}</Text>
-              <View style={[styles.underline, selected && styles.underlineActive]} />
+              <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{board.segment}</Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
+      <Pressable
+        style={styles.moreRow}
+        onPress={() => setOpen((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={moreLabel ? `More boards, showing ${moreLabel}` : "More boards"}
+      >
+        <Text style={styles.moreText}>More boards</Text>
+        {moreLabel ? <Text style={styles.moreValue}>{moreLabel}</Text> : null}
+        <Icon name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textFaint} />
+      </Pressable>
+      {open
+        ? MORE_BOARDS.map((board) => {
+            const selected = board.key === active;
+            return (
+              <View key={board.key}>
+                <Divider inset={SCREEN_MARGIN} />
+                <Pressable
+                  style={styles.option}
+                  onPress={() => {
+                    setOpen(false);
+                    onChange(board.key);
+                  }}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={board.label}
+                >
+                  <Text style={[styles.optionText, selected && styles.optionTextActive]}>{board.label}</Text>
+                  {selected ? <Icon name="checkmark" size={18} color={colors.accent} /> : null}
+                </Pressable>
+              </View>
+            );
+          })
+        : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    height: MIN_TARGET,
+    paddingTop: spacing.sm,
     backgroundColor: colors.background,
     borderBottomWidth: hairline,
     borderBottomColor: colors.divider,
   },
-  tabs: { paddingHorizontal: spacing.xs },
-  tab: { height: MIN_TARGET, paddingHorizontal: spacing.lg, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: font.meta, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.5 },
-  labelActive: { color: colors.text },
-  underline: { position: "absolute", left: 0, right: 0, bottom: 0, height: tabUnderlineHeight, backgroundColor: "transparent" },
-  underlineActive: { backgroundColor: colors.tabActive },
+  segments: {
+    height: MIN_TARGET,
+    marginHorizontal: SCREEN_MARGIN,
+    flexDirection: "row",
+    borderWidth: BORDER,
+    borderColor: colors.divider,
+    borderRadius: radius.sm,
+    overflow: "hidden",
+  },
+  segment: { flex: 1, alignItems: "center", justifyContent: "center" },
+  segmentDivider: { borderLeftWidth: BORDER, borderLeftColor: colors.divider },
+  segmentActive: { backgroundColor: colors.accent },
+  segmentText: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.textMuted },
+  segmentTextActive: { color: colors.onAccent },
+  moreRow: { minHeight: MIN_TARGET, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN },
+  moreText: { flex: 1, fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
+  moreValue: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.accent },
+  option: { minHeight: MIN_TARGET, flexDirection: "row", alignItems: "center", paddingHorizontal: SCREEN_MARGIN },
+  optionText: { flex: 1, fontSize: font.body, fontFamily: fontFamily.regular, color: colors.text },
+  optionTextActive: { fontFamily: fontFamily.bold },
 });
