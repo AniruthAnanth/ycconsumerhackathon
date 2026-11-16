@@ -5,6 +5,7 @@ import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi } from "@/components/social/contract";
+import { SunnyBreathe } from "@/components/motion";
 import { leaveScreen } from "@/components/social/leave";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
@@ -70,7 +71,9 @@ export function ChatScreen() {
         >
           {state.messages.length === 0 ? (
             <View style={styles.suggestions}>
-              <SunnyAvatar size={72} />
+              <SunnyBreathe>
+                <SunnyAvatar size={72} />
+              </SunnyBreathe>
               <Text style={styles.intro}>{brief?.line ?? `${SUNNY.name}, your league's commissioner. Ask me anything about the week.`}</Text>
               {(brief?.chips ?? ["Who's on top of the league?"]).map((suggestion) => (
                 <OutlinedPillButton key={suggestion} label={suggestion} onPress={() => send(suggestion)} />
