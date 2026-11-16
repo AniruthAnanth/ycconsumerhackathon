@@ -9,6 +9,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { membersInJoinOrder } from "./leagues";
 import { requireUser } from "./lib/auth";
 import { UNNAMED_PLAYER } from "./lib/names";
+import { SEED_PHOTOS } from "./lib/seedPhotos";
 import { CLOSE_CALL_CONFIDENCE } from "./lib/verdict";
 import { slot } from "./schema";
 
@@ -30,6 +31,22 @@ export function feedKind(source: Doc<"tasks">["source"]): FeedKind {
   if (source === "drop") return "drop";
   return "proof";
 }
+
+/**
+ * The feed shows only a player's own shots. A proof is stock when it was submitted from the
+ * sample tray (stockMedia), or when a seeded player's photo is one of the seed's generated
+ * images: rows seeded before stockMedia existed carry no flag, so their file hash decides.
+ */
+export function isStockMedia(
+  proof: { stockMedia?: boolean },
+  owner: { isSeed?: boolean },
+  fileSha256: string | undefined,
+): boolean {
+  if (proof.stockMedia) return true;
+  return owner.isSeed === true && fileSha256 !== undefined && SEED_PHOTO_HASHES.has(fileSha256);
+}
+
+const SEED_PHOTO_HASHES = new Set(Object.values(SEED_PHOTOS).map((photo) => photo.sha256));
 
 export type ReactionSummary = { emoji: string; count: number; mine: boolean };
 
@@ -103,6 +120,8 @@ const feedItem = v.object({
   reason: v.string(),
   caption: v.string(),
   mediaUrl: v.optional(v.string()),
+  /** A timelapse's stills in time order, when it kept more than one. */
+  frameUrls: v.optional(v.array(v.string())),
   mediaType: v.union(v.literal("photo"), v.literal("video"), v.literal("canvas")),
   createdAt: v.number(),
   closeCall: v.boolean(),
@@ -172,9 +191,15 @@ async function feedItemFor(
     if (drop && drop.leagueId !== leagueId) return null;
   }
 
-  const [avatarUrl, mediaUrl, reactions, challenge] = await Promise.all([
+  // Only a seeded player's file needs its hash read; everyone else's photo is their own.
+  const file = proof.storageId && user.isSeed ? await ctx.db.system.get("_storage", proof.storageId) : null;
+  const stock = isStockMedia(proof, user, file?.sha256);
+  const frameIds = !stock && proof.frameStorageIds && proof.frameStorageIds.length > 1 ? proof.frameStorageIds : [];
+
+  const [avatarUrl, mediaUrl, frameUrls, reactions, challenge] = await Promise.all([
     user.avatarStorageId ? ctx.storage.getUrl(user.avatarStorageId) : (user.image ?? null),
-    proof.storageId ? ctx.storage.getUrl(proof.storageId) : null,
+    proof.storageId && !stock ? ctx.storage.getUrl(proof.storageId) : null,
+    Promise.all(frameIds.map((id) => ctx.storage.getUrl(id))),
     ctx.db
       .query("reactions")
       .withIndex("by_proof", (q) => q.eq("proofId", proof._id))
@@ -202,6 +227,7 @@ async function feedItemFor(
     reason: proof.reason,
     caption: proof.caption,
     ...(mediaUrl ? { mediaUrl } : {}),
+    ...(frameIds.length > 0 && frameUrls.every((url) => url !== null) ? { frameUrls: frameUrls as string[] } : {}),
     mediaType: proof.mediaType,
     createdAt: proof.createdAt,
     closeCall: isCloseCall(proof),

@@ -430,7 +430,7 @@ describe("canvas functions", () => {
     expect((await t.run((ctx) => ctx.db.get("tasks", first)))?.points).toBe(35);
     // The same assignment again is the same task, not a second one.
     expect(await add(maya.as, "1")).toBe(first);
-    await expect(add(maya.as, "2")).rejects.toThrow(/already have 1 flex tasks/);
+    await expect(add(maya.as, "2")).rejects.toThrow(/already have a bonus task/);
 
     const sam = await signIn("Sam");
     await t.run((ctx) =>

@@ -1,4 +1,5 @@
 import type { FeedChallenge, FeedItem, FeedReaction } from "@/components/social/contract";
+import type { Slot } from "@/lib/slots";
 import { formatScore } from "@/lib/taskText";
 
 const MINUTE = 60_000;
@@ -87,4 +88,58 @@ export function proofShareText(
 ): string {
   const line = `${item.user.name} proved "${item.taskTitle}" for ${formatScore(item.points)} pts on Lineup.`;
   return item.mediaUrl && item.mediaType !== "canvas" ? `${line}\n${item.mediaUrl}` : line;
+}
+
+export type ProofVisual = { kind: "none" } | { kind: "media"; uri: string } | { kind: "filmstrip"; frames: string[] };
+
+/**
+ * What a post shows above its words: a timelapse's stills when it kept several, else the
+ * player's own photo or clip, else nothing. A Canvas proof has no picture, and the server
+ * leaves out stock media, so both read as a photo-less card.
+ */
+export function proofVisual(item: Pick<FeedItem, "mediaUrl" | "mediaType" | "frameUrls">): ProofVisual {
+  if (item.mediaType === "canvas") return { kind: "none" };
+  if (item.mediaType === "photo" && item.frameUrls && item.frameUrls.length > 1) {
+    return { kind: "filmstrip", frames: item.frameUrls };
+  }
+  return item.mediaUrl ? { kind: "media", uri: item.mediaUrl } : { kind: "none" };
+}
+
+/** A caption the feed shows as is: the referee's own line, when it is short enough to read at a glance. */
+export const MAX_CAPTION_WORDS = 8;
+
+const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+/** A few lines per slot, each well under eight words, so a fallback never reads like a sentence. */
+const QUIPS: Record<Slot, string[]> = {
+  body: ["Legs will file a complaint tomorrow.", "Sweat is just weakness leaving.", "Gravity lost this round.", "The couch misses you already."],
+  mind: ["Brain cells reporting for duty.", "Smarter than an hour ago.", "Neurons did a little dance.", "Big brain energy, verified."],
+  recharge: ["Battery back in the green.", "Doing nothing, done perfectly.", "Peak chill achieved.", "Rest is a skill. Mastered."],
+  chores: ["You could eat off this counter.", "Mom would be proud.", "Chaos, firmly defeated.", "Adulting level: expert."],
+  people: ["Friendship streak still alive.", "Social battery spent well.", "Someone's day just got better.", "Main character in their story too."],
+  flex: ["Showed up. That's the flex.", "Off script and on point.", "Wildcard played perfectly.", "Nobody saw that coming."],
+};
+
+/** A stable small number from a string, so the same task always gets the same quip. */
+function hash(text: string): number {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+/**
+ * A short, funny line for a proof whose own caption is missing or too long. A short task
+ * title joins the slot's lines so the quip can name it ("Call mom: done and dusted.").
+ */
+export function quipFor(taskTitle: string, slot: Slot): string {
+  const title = taskTitle.trim();
+  const named = title && wordCount(title) <= 3 ? [`${title}: done and dusted.`] : [];
+  const pool = [...QUIPS[slot], ...named];
+  return pool[hash(title.toLowerCase()) % pool.length];
+}
+
+/** The one caption under a post: the referee's own when short, else a quip for the task. */
+export function postCaption(item: Pick<FeedItem, "caption" | "taskTitle" | "slot">): string {
+  const caption = item.caption.trim();
+  return caption && wordCount(caption) <= MAX_CAPTION_WORDS ? caption : quipFor(item.taskTitle, item.slot);
 }

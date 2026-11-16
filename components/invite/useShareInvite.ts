@@ -21,6 +21,15 @@ export function useInviteMessage() {
   );
 }
 
+/** The league's invite link alone, for a Copy link button. */
+export function useInviteLink() {
+  const createLink = useMutation(api.referrals.createLink);
+  return useCallback(
+    async (leagueId: Id<"leagues">) => (await createLink({ leagueId, appUrl: Linking.createURL("/invite") })).url,
+    [createLink],
+  );
+}
+
 /**
  * One tap: create (or fetch) the link, then open the share sheet. The web has
  * no share sheet in most browsers, so there the message goes to the clipboard

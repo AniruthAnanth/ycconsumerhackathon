@@ -7,6 +7,7 @@ import { makeFunctionReference } from "convex/server";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend, type Place, type Task as TaskRow } from "@/lib/backend";
+import type { DecreeStats } from "@/convex/lib/decree";
 import type { Slot } from "@/lib/slots";
 
 export type { Slot } from "@/lib/slots";
@@ -63,7 +64,10 @@ export type FeedItem = {
   /** The referee's one-line justification. Always shown. */
   reason: string;
   caption: string;
+  /** Absent when there is nothing of the player's own to show (no photo, or a stock one). */
   mediaUrl?: string;
+  /** A timelapse's stills in time order, when it kept more than one. */
+  frameUrls?: string[];
   mediaType: "photo" | "video" | "canvas";
   createdAt: number;
   /** Confidence between 0.6 and 0.75: passed, but worth a second look. */
@@ -127,6 +131,8 @@ export type CanvasAssignment = {
   dueAt?: number;
 };
 
+export type Decree = { text: string; epithet: string | null };
+
 export type LeagueMessageId = Id<"leagueMessages">;
 
 export type ChatPost = {
@@ -164,6 +170,12 @@ export const socialApi = {
   },
   profile: {
     get: query<{ userId: Id<"users"> }, Profile>("profile:get"),
+  },
+  decree: {
+    /** The stats and the cached proclamation while it still matches them (null: call generate). */
+    get: query<{ userId: Id<"users"> }, { stats: DecreeStats; statsHash: string; decree: Decree | null }>("decree:get"),
+    /** Writes the decree when stale; reroll (own profile only) asks for a fresh one. */
+    generate: action<{ userId: Id<"users">; reroll?: boolean }, Decree>("decree:generate"),
   },
   wrapped: {
     get: query<{ leagueId: Id<"leagues">; weekNumber?: number }, { cards: WrappedCard[] }>("wrapped:get"),

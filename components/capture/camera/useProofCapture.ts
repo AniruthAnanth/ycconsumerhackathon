@@ -49,6 +49,8 @@ export function useProofCapture(target: ProofTarget) {
   const [frameCount, setFrameCount] = useState(0);
   const [cameraFailed, setCameraFailed] = useState(false);
   const [before, setBefore] = useState<Frame | null>(null);
+  // Set once a bundled sample stands in for a shot, so the proof is sent marked as stock.
+  const stock = useRef(false);
   const [review, setReview] = useState<TimelapseReview | null>(null);
   const targetMinutes = targetMinutesFor(target.targetMinutes);
 
@@ -63,7 +65,8 @@ export function useProofCapture(target: ProofTarget) {
 
   async function finish(media: Extract<Capture, { uri: string }>) {
     const coords = await resolveCaptureCoords({ flags: getDevFlags(), place: target.place, gps: deviceGps });
-    router.replace(verdictHref(target, { capturedAt: Date.now(), ...media, lat: coords?.lat, lng: coords?.lng }));
+    const marked = stock.current ? { stock: true } : {};
+    router.replace(verdictHref(target, { capturedAt: Date.now(), ...media, ...marked, lat: coords?.lat, lng: coords?.lng }));
   }
 
   function stopTicker() {
@@ -205,6 +208,7 @@ export function useProofCapture(target: ProofTarget) {
   function submitSample(sample: SampleMedia) {
     if (busy) return;
     return guarded(async () => {
+      stock.current = true;
       const uri = await sampleUri(sample);
       if (sample.mediaType === "photo" && target.proofType === "before_after") return finishPhoto({ uri, at: Date.now() });
       await finish({ mediaType: sample.mediaType, uri, durationMs: sample.durationMs });
@@ -214,6 +218,7 @@ export function useProofCapture(target: ProofTarget) {
   /** Development only: a bundled photo stands in for each shot of a timelapse, so the flow runs where there is no camera. */
   function startSampleTimelapse(sample: SampleMedia) {
     if (busy || sample.mediaType !== "photo") return;
+    stock.current = true;
     void sampleUri(sample).then((uri) => shootEvery(async () => ({ uri, at: Date.now() }), SAMPLE_SHOT_MS));
   }
 
@@ -225,6 +230,7 @@ export function useProofCapture(target: ProofTarget) {
     if (busy || !sample.frames) return;
     const frameSources = sample.frames;
     return guarded(async () => {
+      stock.current = true;
       const durationMs = targetMinutes * 60_000;
       const endedAt = Date.now();
       const uris = await Promise.all(frameSources.map((source) => sampleUri({ ...sample, source })));
@@ -237,6 +243,7 @@ export function useProofCapture(target: ProofTarget) {
   function sampleSurvey(sample: SampleMedia) {
     if (busy || sample.mediaType !== "video") return;
     return guarded(async () => {
+      stock.current = true;
       const uri = await sampleUri(sample);
       setReview(await surveyReview(uri, Date.now(), sample.durationMs ?? SURVEY_SECONDS * 1000));
     });

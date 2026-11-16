@@ -13,6 +13,7 @@ export type VerifyMediaArgs = {
   durationSec?: number;
   capturedAt?: number;
   frameTimes?: number[];
+  stockMedia?: boolean;
 };
 
 /** The calls submitProof needs, injected so it runs without React, a network or a camera. */
@@ -46,6 +47,7 @@ export async function submitProof(backend: ProofBackend, taskId: string, capture
   const upload = async (uri: string, contentType: string) =>
     backend.uploadMedia(await backend.generateUploadUrl(), uri, contentType);
   const { lat, lng } = capture;
+  const stock = capture.stock ? { stockMedia: true } : {};
 
   if (capture.mediaType === "photo") {
     const { beforeUri, frames, capturedAt } = capture;
@@ -62,6 +64,7 @@ export async function submitProof(backend: ProofBackend, taskId: string, capture
       mediaType: "photo",
       lat,
       lng,
+      ...stock,
       ...(capturedAt !== undefined && { capturedAt }),
       ...(beforeStorageId && { beforeStorageId }),
       ...(frames?.length && {
@@ -86,6 +89,7 @@ export async function submitProof(backend: ProofBackend, taskId: string, capture
     frameStorageIds,
     lat,
     lng,
+    ...stock,
     ...(capture.frames && {
       frameTimes: capture.frames.map((frame) => frame.at),
       durationSec: Math.round((capture.durationMs ?? 0) / 1000),
