@@ -5,7 +5,7 @@ import { useMemo, type ReactNode } from "react";
 import { CoachTarget, CoachTour } from "@/components/coach";
 import { SeasonLink } from "@/components/league/SeasonLink";
 import { ResetAndRestartRow } from "@/components/shell/ResetAndRestart";
-import { LeaderboardsStrip } from "@/components/leaderboards";
+import { LeaderboardsStrip, placeText, tiedRanks } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
@@ -60,6 +60,10 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   if (!leagueId || !pot || !seasonTable || !league || !me)
     return <Screen edges={[]}>{null}</Screen>;
 
+  // YOUR RANK reads the same rows as the table, so the two can never disagree.
+  const mine = seasonTable.find((row) => row.userId === me._id);
+  const place = mine ? placeText(mine.rank, tiedRanks(seasonTable).has(mine.rank)) : undefined;
+
   return (
     <CoachTour tour="league">
       <Screen edges={[]} scroll bottomInset={bottomInset}>
@@ -88,7 +92,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
           <SeasonLink leagueId={leagueId} />
           <NotificationSettings />
           {aboveStandings}
-          <LeaderboardsStrip leagueId={leagueId} />
+          <LeaderboardsStrip leagueId={leagueId} place={place} />
         </LeagueInfo>
         {/* Builds for development and the demo only: one tap back to a brand-new player. */}
         {__DEV__ || process.env.EXPO_PUBLIC_DEV_FLAGS === "1" ? (

@@ -8,6 +8,15 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
+/** A rank more than one player holds reads "T-2" in a table and "T-2nd" as a place. */
+export function rankText(rank: number, tied: boolean): string {
+  return tied ? `T-${rank}` : `${rank}`;
+}
+
+export function placeText(rank: number, tied: boolean): string {
+  return `${tied ? "T-" : ""}${ordinal(rank)}`;
+}
+
 export function formatUsdWithCents(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
