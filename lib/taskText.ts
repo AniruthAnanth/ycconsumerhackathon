@@ -46,14 +46,23 @@ export function taskStatusLine(task: TaskRowData): string {
     case "verified":
       return task.verifiedAt == null ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
     case "held":
-      return "Up for veto | Points on hold";
+      return "Up for veto · Points on hold";
     case "failed":
       // A rejected proof leaves a task open. Only a drop that closed with no
       // proof writes "failed", and that task can no longer be played.
       return "Missed";
     default:
-      return task.dueLabel ? `${proof} | ${task.dueLabel}` : proof;
+      return task.dueLabel ? `${proof} · ${task.dueLabel}` : proof;
   }
+}
+
+/**
+ * The line under a task title in a list. An open task shows only how it is proved: the due day is
+ * the same for the whole week, so the list says it once instead of on every row.
+ */
+export function taskRowLine(task: TaskRowData): string {
+  if (task.status === "verified" || task.status === "held" || task.status === "failed") return taskStatusLine(task);
+  return taskStatusLine({ ...task, dueLabel: undefined });
 }
 
 /** Line 3 of a row: where the task happens, when it is pinned to a place. */
@@ -70,7 +79,7 @@ export function taskRowLabel(task: TaskRowData, upNext = false): string {
   return [
     task.title,
     upNext ? "Up next" : SLOT_NAME[task.slot],
-    taskStatusLine(task).replace(" | ", ", "),
+    taskStatusLine(task).replaceAll(" · ", ", "),
     task.place ? `at ${task.place.name}` : undefined,
     points,
   ]
