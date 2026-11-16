@@ -149,12 +149,12 @@ describe("leagueTime", () => {
 
 describe("joinLink", () => {
   it("opens Messages with the join code typed", () => {
-    expect(joinLink("+17796251378", "K-ZL2PWU")).toBe("sms:+17796251378?&body=Lineup%2C%20I'm%20in%20(K-ZL2PWU)");
+    expect(joinLink("+17796251378", "K-ZL2PWU")).toBe("sms:+17796251378?&body=Hi%20Sunny%20(K-ZL2PWU)");
   });
 
   it("adds the account's link code after the join code", () => {
     expect(joinLink("+17796251378", "K-ZL2PWU", "MI0R2D5K-9F3A07BC")).toBe(
-      "sms:+17796251378?&body=Lineup%2C%20I'm%20in%20(K-ZL2PWU)%20MI0R2D5K-9F3A07BC",
+      "sms:+17796251378?&body=Hi%20Sunny%20(K-ZL2PWU%20MI0R2D5K-9F3A07BC)",
     );
   });
 });
@@ -165,6 +165,10 @@ describe("linkCodeIn", () => {
       code: "MI0R2D5K-9F3A07BC",
       createdMs: parseInt("mi0r2d5k", 36),
     });
+  });
+
+  it("reads it from the text the Text Sunny button writes", () => {
+    expect(linkCodeIn("Hi Sunny (K-ZL2PWU MI0R2D5K-9F3A07BC)")?.code).toBe("MI0R2D5K-9F3A07BC");
   });
 
   it("finds none in the join code alone or in an ordinary text", () => {
