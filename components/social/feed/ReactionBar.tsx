@@ -23,6 +23,7 @@ export function ReactionBar({ proofId, reactions }: { proofId: Id<"proofs">; rea
           accessibilityLabel={`React ${emoji}`}
           accessibilityState={{ selected: mine }}
           hitSlop={4}
+          haptic="none"
           onPress={() => {
             haptics.select();
             react({ proofId, emoji }).catch((error) => notify(errorMessage(error)));

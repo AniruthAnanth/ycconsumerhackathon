@@ -28,6 +28,7 @@ export function TimedActions({ view }: { view: TimedView }) {
         <Button
           label="Submit"
           style={styles.submit}
+          haptic="none"
           onPress={() => {
             haptics.select();
             router.push(proofCameraHref(proof));
