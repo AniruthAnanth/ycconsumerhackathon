@@ -21,6 +21,11 @@
  *   npx convex run fixtures:list '{"everything": true, "keep": ["<user id>"]}'
  *   npx convex run fixtures:remove '{"everything": true, "keep": ["<user id>"]}'
  *
+ * `only` takes exactly the players named, a real phone's included, so that phone starts over as a
+ * new user. Their leagues go only when nobody else is in them; elsewhere they just leave:
+ *
+ *   npx convex run fixtures:remove '{"only": ["<user id>"]}'
+ *
  * Stored photos are left alone: a fixture proof may point at the same file as a seeded one.
  */
 import { v, type ObjectType } from "convex/values";
@@ -49,6 +54,8 @@ const scope = {
   // Players who stay all the same: the accounts of real phones. The leagues they made or are in
   // stay with them, unless named as fixtures.
   keep: v.optional(v.array(v.id("users"))),
+  // Exactly these players and the leagues nobody else is in, and nothing named as a fixture.
+  only: v.optional(v.array(v.id("users"))),
 };
 type Scope = ObjectType<typeof scope>;
 
@@ -61,8 +68,25 @@ const DELETES_PER_RUN = 1000;
 
 async function fixtures(
   ctx: QueryCtx,
-  { everything = false, keep = [] }: Scope,
+  { everything = false, keep = [], only }: Scope,
 ): Promise<{ leagues: Doc<"leagues">[]; players: Doc<"users">[] }> {
+  if (only !== undefined) {
+    const players = (await ctx.db.query("users").take(MAX_ROOTS)).filter(
+      (user) => !user.isSeed && only.includes(user._id),
+    );
+    const leagues: Doc<"leagues">[] = [];
+    for (const league of await ctx.db.query("leagues").take(MAX_ROOTS)) {
+      if (SEEDED_LEAGUE_INVITE_CODES.includes(league.inviteCode)) continue;
+      const members = await ctx.db
+        .query("memberships")
+        .withIndex("by_league", (q) => q.eq("leagueId", league._id))
+        .take(PAGE);
+      const theirs = members.length > 0 ? members.every((m) => only.includes(m.userId)) : only.includes(league.createdBy);
+      if (theirs) leagues.push(league);
+    }
+    return { leagues, players };
+  }
+
   // A real phone quick-matches into a public league or makes one of its own, and that league is
   // not a tester's to delete, whoever else is in it.
   const keptLeagueIds = new Set<Id<"leagues">>();

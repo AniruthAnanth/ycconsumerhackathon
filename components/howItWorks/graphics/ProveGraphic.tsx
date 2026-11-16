@@ -6,7 +6,7 @@ import { Artwork } from "@/components/art";
 import { StampSlam, useReduceMotion } from "@/components/motion";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { PROOF_LABEL, type ProofType } from "@/lib/slots";
-import { colors, duration, radius, spacing, type } from "@/theme";
+import { colors, duration, radius, spacing, status, type } from "@/theme";
 
 import { useBeat } from "./useBeat";
 
@@ -51,7 +51,7 @@ export function ProveGraphic({ playing }: { playing: boolean }) {
 
   const stamp = (
     <View style={styles.stamp}>
-      <Icon name="checkmark-circle" size={16} color={colors.accent} />
+      <Icon name="checkmark-circle" size={16} color={status.verified} />
       <Text style={styles.stampText}>Verified +40</Text>
     </View>
   );

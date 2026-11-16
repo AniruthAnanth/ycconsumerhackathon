@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CoachTarget } from "@/components/coach";
 import { Icon } from "@/components/ui";
 import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
@@ -30,9 +31,11 @@ export function CameraOverlay({ target, onClose }: Props) {
         </View>
         <Text style={styles.points}>{target.points} PTS</Text>
       </View>
-      <Text style={styles.hint} testID="camera-how-to-prove">
-        {howToProve(target)}
-      </Text>
+      <CoachTarget id="howToProve">
+        <Text style={styles.hint} testID="camera-how-to-prove">
+          {howToProve(target)}
+        </Text>
+      </CoachTarget>
       {target.gesture ? (
         <View style={styles.gesture}>
           <Text style={styles.gestureText}>{target.gesture.toUpperCase()}</Text>

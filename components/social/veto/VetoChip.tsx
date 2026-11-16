@@ -14,6 +14,7 @@ import {
   layout,
   radius,
   spacing,
+  status,
   tabular,
 } from "@/theme";
 
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   mine: { backgroundColor: colors.accent, borderColor: colors.accent },
-  struck: { borderColor: colors.danger },
+  struck: { borderColor: status.danger },
   label: {
     color: colors.textMuted,
     fontSize: font.label,
@@ -117,5 +118,5 @@ const styles = StyleSheet.create({
   },
   labelQuiet: { color: colors.textMuted },
   labelMine: { color: colors.onAccent },
-  labelStruck: { color: colors.danger },
+  labelStruck: { color: status.danger },
 });

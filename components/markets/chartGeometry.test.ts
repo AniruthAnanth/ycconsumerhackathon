@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { areaPath, hasLineups, deltaLabel, formatChance, formatNet, sparkPath, stepPath } from "./chartGeometry";
+import { areaPath, deltaPoints, hasLineups, deltaLabel, formatChance, formatNet, sparkPath, stepPath } from "./chartGeometry";
 
 const box = { width: 108, height: 58, padding: 4 };
 
@@ -61,5 +61,13 @@ describe("hasLineups", () => {
     expect(hasLineups([{ high: 0 }, { high: 0 }])).toBe(false);
     expect(hasLineups([{ high: 0 }, { high: 40 }])).toBe(true);
     expect(hasLineups([])).toBe(false);
+  });
+});
+
+describe("deltaPoints", () => {
+  test("shows the move with an arrow and a % sign", () => {
+    expect(deltaPoints(1)).toBe("▲ 1%");
+    expect(deltaPoints(-26)).toBe("▼ 26%");
+    expect(deltaPoints(0)).toBe("▲ 0%");
   });
 });

@@ -22,7 +22,10 @@ afterEach(() => {
 type Harness = TestConvex<typeof schema>;
 
 /** Runs `remove` and every run it schedules after itself. Returns what the first run deleted. */
-async function removeFixtures(t: Harness, scope: { everything?: boolean; keep?: Id<"users">[] } = {}): Promise<number> {
+async function removeFixtures(
+  t: Harness,
+  scope: { everything?: boolean; keep?: Id<"users">[]; only?: Id<"users">[] } = {},
+): Promise<number> {
   const { deleted } = await t.mutation(internal.fixtures.remove, scope);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   return deleted;
@@ -346,6 +349,49 @@ describe("fixtures.remove", () => {
 
     expect(await stillThere(t, [...gone, ...more.gone])).toEqual([]);
     expect(await stillThere(t, [...kept, ...more.kept])).toEqual([...kept, ...more.kept]);
+    expect(await removeFixtures(t, scope)).toBe(0);
+  });
+
+  test("`only` takes just the named account and the leagues nobody else is in", async () => {
+    const t = convexTest(schema, modules);
+    const { device, kept } = await world(t);
+    const more = await t.run(async (ctx) => {
+      const friend = await ctx.db.insert("users", { name: "A friend" });
+      const ownLeague = await league(ctx, "Quick Match Free", "QMFREE", device);
+      const ownWeek = await ctx.db.insert("weeks", { leagueId: ownLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
+      const emptyLeague = await league(ctx, "Gh", "GHGHGH", device);
+      const sharedLeague = await league(ctx, "Quick Match $5", "QMFIVE", friend);
+      const sharedWeek = await ctx.db.insert("weeks", { leagueId: sharedLeague, number: 1, startsAt: WEEK, endsAt: 1, status: "open" });
+      // The friend's matchup against the named player, and the referral the named player made, go with them.
+      const { matchupId, referralId, ...friendInShared } = await playIn(ctx, sharedLeague, sharedWeek, friend, device);
+      return {
+        kept: [friend, sharedLeague, sharedWeek, ...Object.values(friendInShared)],
+        gone: [
+          device,
+          ownLeague,
+          ownWeek,
+          emptyLeague,
+          matchupId,
+          referralId,
+          ...Object.values(await ownRows(ctx, device)),
+          ...Object.values(await playIn(ctx, ownLeague, ownWeek, device, friend)),
+          ...Object.values(await playIn(ctx, sharedLeague, sharedWeek, device, friend)),
+        ],
+      };
+    });
+    const scope = { only: [device] };
+
+    expect(await t.query(internal.fixtures.list, scope)).toEqual({
+      leagues: ["Quick Match Free", "Gh"],
+      players: ["Demo phone"],
+    });
+    await removeFixtures(t, scope);
+
+    expect(await stillThere(t, more.gone)).toEqual([]);
+    // The fixture player and the fixture league are not named, so they stay this time.
+    const others = kept.filter((id) => id !== device);
+    expect(await stillThere(t, [...more.kept])).toEqual(more.kept);
+    expect((await stillThere(t, others)).length).toBeGreaterThan(0);
     expect(await removeFixtures(t, scope)).toBe(0);
   });
 

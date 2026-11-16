@@ -1,9 +1,10 @@
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View, type ScrollViewInstance } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { confirmAction } from "@/components/social/notify";
-import { Button, Header, Screen } from "@/components/ui";
+import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
 import { Artwork } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
@@ -34,6 +35,7 @@ export function VoiceDraftScreen() {
   };
   const prompt = useSpeakingPrompt(state.phase === "idle");
   const navigation = useNavigation();
+  const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
 
   // Close, Back from the first step, the hardware back button and the iOS swipe all remove the
   // screen, so one guard asks before any of them throws away an unlocked lineup.
@@ -61,22 +63,27 @@ export function VoiceDraftScreen() {
   const lockRefused = state.phase === "review" && state.error !== null;
 
   return (
-    <Screen>
+    <Screen edges={["bottom"]}>
       <Header
         title="Voice Draft"
+        scrollY={scrollY}
         onBack={state.phase === "locking" ? undefined : back}
         onClose={state.phase === "locking" ? undefined : leave}
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Dragging the page puts the keyboard away, and the content insets itself so the typed box and Draft from text can scroll above the keyboard. */}
-        <ScrollView
+        <Animated.ScrollView
           ref={scroll}
           style={styles.flex}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingTop: contentInsetTop }]}
+          scrollIndicatorInsets={{ top: contentInsetTop }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         >
+          <LargeTitle title="Voice Draft" scrollY={scrollY} />
           <View style={styles.sunny}>
             <Artwork name="sunny" size={80} />
           </View>
@@ -120,14 +127,14 @@ export function VoiceDraftScreen() {
               />
             </View>
           ) : null}
-        </ScrollView>
+        </Animated.ScrollView>
         {/* One primary action at a time: Lock Lineup appears with the lineup it locks. Pinned while
             the player is still talking or typing, it covered "Draft from text" on a short phone. */}
         {/* Talking is the quick way in, not the only one: the same lineup can be picked by hand. A plain
             grey link at the foot of the screen, so the microphone stays the one obvious action. */}
         {state.phase === "idle" && !showsLineup ? (
           <Pressable accessibilityRole="button" onPress={draft.pickOwn} style={styles.skip} testID="draft-skip">
-            <Text style={styles.skipLabel}>Skip — I'll pick my own</Text>
+            <Text style={styles.skipLabel}>Skip, I'll pick my own</Text>
           </Pressable>
         ) : null}
         {showsLineup || state.error ? (
@@ -155,7 +162,7 @@ export function VoiceDraftScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: spacing.lg, paddingBottom: ROW_HEIGHT + spacing.xxl },
+  content: { paddingBottom: ROW_HEIGHT + spacing.xxl },
   sunny: { alignItems: "center", paddingBottom: spacing.md },
   weekNote: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, textAlign: "center", ...type.small, color: colors.textMuted },
   recorder: { alignItems: "center" },

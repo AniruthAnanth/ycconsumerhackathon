@@ -46,7 +46,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
               <Text style={styles.title} numberOfLines={3}>
                 {task.title}
               </Text>
-              <Text style={styles.meta}>{taskStatusLine(task).replace(" | ", " · ")}</Text>
+              <Text style={styles.meta}>{taskStatusLine(task)}</Text>
               {place ? <Text style={styles.meta}>{place}</Text> : null}
             </View>
             <Text style={styles.points}>{`${formatScore(task.score ?? task.points)} pts`}</Text>

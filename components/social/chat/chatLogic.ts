@@ -16,8 +16,6 @@ export type ChatAction =
 
 export const initialChatState: ChatState = { messages: [], pending: false };
 
-export const SUGGESTIONS = ["Standings", "What's left this week?", "Who am I playing?"];
-
 /**
  * One request is in flight at a time, so `pending` is a single flag: a reply or
  * a failure clears it, and a failed message stays in place until it is retried.

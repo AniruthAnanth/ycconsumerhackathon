@@ -241,6 +241,14 @@ export const SCORING_RULES = [
   `A group session pays its points plus ${GROUP_BONUS_PER_ATTENDEE} for each other attendee, at most ${GROUP_BONUS_CAP}.`,
 ].join(" ");
 
+/**
+ * Drops a trailing "[action:…]" line. The app's chat turns that tag into a button; in a text
+ * message it would only be noise.
+ */
+export function withoutActionTag(text: string): string {
+  return text.replace(/\n?\s*\[action:[^\]]*\]\s*$/, "").trimEnd();
+}
+
 function sentence(text: string): string {
   const trimmed = text.trim();
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;

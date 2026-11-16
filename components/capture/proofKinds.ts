@@ -16,8 +16,8 @@ export function parseProofType(value: string | undefined): CaptureProofType {
   return KNOWN.find((known) => known === value) ?? "photo";
 }
 
-/** A timelapse with no target from the draft asks for half an hour. */
-export const DEFAULT_TARGET_MINUTES = 30;
+/** A task with no target from the draft asks for ten minutes, which suits the short tasks that lack one. */
+export const DEFAULT_TARGET_MINUTES = 10;
 
 /** The referee is shown this many stills from a timelapse, spread evenly across it. */
 export const TIMELAPSE_FRAMES = 8;
@@ -52,21 +52,10 @@ export function formatElapsed(ms: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
-/** One line telling the player what proof this task takes, shown on the task sheet and over the camera. */
-export function howToProve(task: { proofType: CaptureProofType; title: string; targetMinutes?: number; place?: { name: string } }): string {
-  const minutes = task.targetMinutes ?? DEFAULT_TARGET_MINUTES;
-  switch (task.proofType) {
-    case "photo":
-      return "Take one photo that shows it done.";
-    case "photo_location":
-      return task.place ? `Take a photo at ${task.place.name}. Your location is checked.` : "Take a photo where it happens. Your location is checked.";
-    case "canvas":
-      return "Submit it on Canvas. The referee checks the submission.";
-    case "before_after":
-      return "Take a before photo, then an after photo from the same spot.";
-    case "timelapse":
-      return `Record a timelapse of yourself doing it, at least ${minutes} min.`;
-    case "screenshot":
-      return "Pick a screenshot that shows it done.";
-  }
+/**
+ * The one line telling the player how to prove a task, on the task sheet and over the camera.
+ * Every proof is a timelapse (owner's call, Nov 16), so it names the minutes and nothing else.
+ */
+export function howToProve(task: { targetMinutes?: number }): string {
+  return `Record a timelapse while you do it, at least ${task.targetMinutes ?? DEFAULT_TARGET_MINUTES} min.`;
 }
