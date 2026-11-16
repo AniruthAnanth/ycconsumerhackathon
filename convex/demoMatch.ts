@@ -147,23 +147,36 @@ async function seedPlayer(
   return userId;
 }
 
+function quickMatchCode(seed: string): string {
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return `QM${hash.toString(36).toUpperCase().padStart(7, "0").slice(-6)}`;
+}
+
 /** Seats the caller in their own demo league and returns it; the same league on every call. */
 export async function demoQuickMatch(
   ctx: MutationCtx,
   caller: Doc<"users">,
   stakeUsd: number,
 ): Promise<Id<"leagues">> {
-  let hash = 0;
-  for (const char of caller._id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  const inviteCode = `QM${hash.toString(36).toUpperCase().padStart(7, "0").slice(-6)}`;
-  const existing = await ctx.db
-    .query("leagues")
-    .withIndex("by_inviteCode", (q) => q.eq("inviteCode", inviteCode))
-    .first();
-  if (existing !== null) {
+  // The first code is the one players already matched under, whatever the stake, so it stays as is.
+  // A second stake gets its own code, so picking Free after $5 never lands back in the $5 table.
+  const codes = [quickMatchCode(caller._id), quickMatchCode(`${caller._id}:${stakeUsd}`)];
+  let inviteCode: string | undefined;
+  for (const code of codes) {
+    const existing = await ctx.db
+      .query("leagues")
+      .withIndex("by_inviteCode", (q) => q.eq("inviteCode", code))
+      .first();
+    if (existing === null) {
+      inviteCode ??= code;
+      continue;
+    }
+    if (existing.stakeUsd !== stakeUsd) continue;
     await addMember(ctx, existing, caller._id);
     return existing._id;
   }
+  if (inviteCode === undefined) throw new Error("No free Quick match code");
 
   const now = Date.now();
   const photos = await storedPhotos(ctx);

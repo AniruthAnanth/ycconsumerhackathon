@@ -390,6 +390,28 @@ describe("leagues.quickMatch", () => {
     }));
     expect(counts).toEqual({ leagues: 2, seeded: 9, lineups: 11, members: 10 });
   });
+
+  it("gives each stake its own table: Free after $5 is a free league, and each repeats", async () => {
+    const t = newHarness();
+    const ava = await addUser(t, { name: "Ava" });
+
+    const paid = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 5 });
+    const free = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
+    const paidAgain = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 5 });
+    const freeAgain = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
+
+    expect(free.leagueId).not.toBe(paid.leagueId);
+    expect(paidAgain.leagueId).toBe(paid.leagueId);
+    expect(freeAgain.leagueId).toBe(free.leagueId);
+    const leagues = await t.run(async (ctx) => ({
+      paid: await ctx.db.get("leagues", paid.leagueId),
+      free: await ctx.db.get("leagues", free.leagueId),
+      lineups: (await ctx.db.query("lineups").collect()).length,
+    }));
+    expect(leagues.paid).toMatchObject({ name: "Quick Match \$5", stakeUsd: 5 });
+    expect(leagues.free).toMatchObject({ name: "Quick Match", stakeUsd: 0 });
+    expect(leagues.lineups).toBe(10);
+  });
 });
 
 describe("leagues.get", () => {
