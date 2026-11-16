@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
-import { colors, font, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { SunnyAvatar } from "./SunnyAvatar";
 import { SUNNY } from "./sunnyLogic";
@@ -44,7 +44,19 @@ export function SunnyCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.md, borderBottomWidth: hairline, borderBottomColor: colors.divider },
+  // The shared card: 24-pt corners, the one outline, 20-pt margin and inset, like the Roster hero.
+  card: {
+    marginHorizontal: SCREEN_MARGIN,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    borderWidth: BORDER,
+    borderColor: colors.divider,
+  },
   top: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
   text: { flex: 1, gap: spacing.xs },
   name: { color: colors.text, fontFamily: fontFamily.bold, fontSize: font.body },

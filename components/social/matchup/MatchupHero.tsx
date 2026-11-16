@@ -44,7 +44,7 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
         <HeroSide side={me} record={recordOf(me.userId)} caption={caption(market?.me.projected, minePossible)} align="flex-start" />
         <HeroSide side={opponent} record={recordOf(opponent.userId)} caption={caption(opponentProjected, theirsPossible)} align="flex-end" />
       </View>
-      {undrafted ? null : <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} />}
+      {undrafted ? null : <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} compact />}
     </View>
   );
 }

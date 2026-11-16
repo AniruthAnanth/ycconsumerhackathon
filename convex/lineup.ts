@@ -580,10 +580,11 @@ async function toRow(
     slot: task.slot,
     title: task.title,
     points: task.points,
-    // Every proof is a timelapse now, whatever older tasks stored, so the app opens the recorder.
-    proofType: "timelapse",
+    // Every proof is a survey video or a timelapse now; older tasks of other types read as timelapses.
+    ...(task.proofType === "survey_video"
+      ? { proofType: "survey_video" as const }
+      : { proofType: "timelapse" as const, targetMinutes: task.targetMinutes ?? DEFAULT_TARGET_MINUTES }),
     place: task.place,
-    targetMinutes: task.targetMinutes ?? DEFAULT_TARGET_MINUTES,
     status: task.status,
     source: task.source,
     score: taskScore(task),

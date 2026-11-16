@@ -6,3 +6,4 @@ export { ProgressFill } from "./ProgressFill";
 export { ReorderRow } from "./ReorderRow";
 export { StampSlam } from "./StampSlam";
 export { useReduceMotion } from "./useReduceMotion";
+export { SunnyBreathe, SunnyHop, useSunnyHop } from "./SunnyMotion";

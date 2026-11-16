@@ -243,7 +243,7 @@ describe("lineup.lock", () => {
     expect(rows[5]).toMatchObject({ slot: "flex", place });
   });
 
-  it("makes every task a timelapse and keeps the minutes the player set", async () => {
+  it("keeps survey videos, makes every other task a timelapse and keeps the minutes the player set", async () => {
     const { as } = await signedIn();
     await as.mutation(api.lineup.lock, {
       tasks: [
@@ -251,14 +251,12 @@ describe("lineup.lock", () => {
         FULL_LINEUP[1],
         { ...FULL_LINEUP[2], proofType: "timelapse", targetMinutes: 45 },
         { ...FULL_LINEUP[3], proofType: "before_after", targetMinutes: 45 },
-        { ...FULL_LINEUP[4], proofType: "screenshot" },
+        { ...FULL_LINEUP[4], proofType: "survey_video" },
       ],
     });
     const { rows } = await as.query(api.lineup.roster, {});
-    expect(rows.map((row) => row.proofType)).toEqual(
-      Array(5).fill("timelapse"),
-    );
-    expect(rows.map((row) => row.targetMinutes)).toEqual([10, 10, 45, 45, 10]);
+    expect(rows.map((row) => row.proofType)).toEqual(["timelapse", "timelapse", "timelapse", "timelapse", "survey_video"]);
+    expect(rows.map((row) => row.targetMinutes)).toEqual([10, 10, 45, 45, undefined]);
   });
 });
 

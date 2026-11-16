@@ -60,9 +60,10 @@ export function sunnyBrief(matchup: Matchup | null | undefined, week: Week | und
   const slot = swing ? SLOT_NAME[swing.slot] : undefined;
   const swingLine = swing && slot ? ` Your ${slot} slot is the swing: ${formatScore(swing.points)} pts.` : " Every slot of yours is played.";
 
-  const chips = [gap < 0 ? `How do I catch ${opponent}?` : `How do I hold off ${opponent}?`];
-  if (slot) chips.push(`Swap my ${slot} task`);
-  chips.push(`Trash talk ${opponent}`);
+  // The line already names the opponent and the slot, so the chips stay short verbs instead of repeating them.
+  const chips = [gap < 0 ? "How do I catch up?" : "How do I hold on?"];
+  if (slot) chips.push("Swap that task");
+  chips.push("Trash talk");
   return { line: lead + swingLine, chips };
 }
 

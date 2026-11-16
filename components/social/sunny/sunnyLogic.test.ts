@@ -25,11 +25,11 @@ describe("sunnyBrief", () => {
   it("names the gap, the time left and my biggest open slot when I'm behind", () => {
     const brief = sunnyBrief(matchup(60, 100), open, now);
     expect(brief?.line).toBe("Sam's 40 up with 2 days left. Your Mind slot is the swing: 30 pts.");
-    expect(brief?.chips).toEqual(["How do I catch Sam?", "Swap my Mind task", "Trash talk Sam"]);
+    expect(brief?.chips).toEqual(["How do I catch up?", "Swap that task", "Trash talk"]);
   });
 
   it("talks about holding on when I lead", () => {
-    expect(sunnyBrief(matchup(100, 60), open, now)?.chips[0]).toBe("How do I hold off Sam?");
+    expect(sunnyBrief(matchup(100, 60), open, now)?.chips[0]).toBe("How do I hold on?");
   });
 
   it("calls a finished week", () => {

@@ -11,8 +11,10 @@ export const RANK_WIDTH = 30;
 export const MOVEMENT_WIDTH = 30;
 /** The trailing score column, shared with the table header so PTS sits over the figures. */
 export const VALUE_WIDTH = layout.numericColumn + spacing.lg;
-/** Where the name starts; dividers start here, as in an iOS list. */
-export const ROW_TEXT_INSET = SCREEN_MARGIN + RANK_WIDTH + MOVEMENT_WIDTH + layout.avatar + 3 * layout.columnGap;
+/** Where the name starts; dividers start here, as in an iOS list. The movement column only counts while it shows. */
+export function rowTextInset(showMovement: boolean): number {
+  return SCREEN_MARGIN + RANK_WIDTH + layout.avatarCompact + 2 * layout.columnGap + (showMovement ? MOVEMENT_WIDTH + layout.columnGap : 0);
+}
 
 const MOVEMENT_COLOR = { up: colors.tabActive, down: colors.danger, flat: colors.textFaint } as const;
 
@@ -20,11 +22,13 @@ type Props = {
   row: BoardRow;
   /** Another row holds the same rank. */
   tied: boolean;
+  /** Some row on the board has moved; until then the column is empty dashes and is left out. */
+  showMovement: boolean;
   onPress: () => void;
 };
 
 /** One standings line, at least 60 px: rank, movement, avatar, name over context, and the score on the right. */
-export function LeaderboardRow({ row, tied, onPress }: Props) {
+export function LeaderboardRow({ row, tied, showMovement, onPress }: Props) {
   const movement = movementMark(row.movement);
   const subtitle = rowSubtitle(row);
   return (
@@ -32,17 +36,19 @@ export function LeaderboardRow({ row, tied, onPress }: Props) {
       style={[styles.row, row.isMe && styles.me]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${row.rank}. ${row.name}, ${row.valueLabel}`}
+      accessibilityLabel={`${row.rank}. ${row.name}${row.isMe ? ", you" : ""}, ${row.valueLabel}`}
     >
       <Text style={styles.rank}>{tied ? `T${row.rank}` : row.rank}</Text>
-      <Text style={[styles.movement, { color: MOVEMENT_COLOR[movement.tone] }]}>{movement.text}</Text>
-      <Avatar uri={row.avatarUrl} name={row.name} size={layout.avatar} />
+      {showMovement ? <Text style={[styles.movement, { color: MOVEMENT_COLOR[movement.tone] }]}>{movement.text}</Text> : null}
+      {/* The same ringed avatar as the League standings, so a player looks the same on both. */}
+      <View style={[styles.avatarRing, row.isMe && styles.avatarRingMe]}>
+        <Avatar uri={row.avatarUrl} name={row.name} size={layout.avatarCompact} />
+      </View>
       <View style={styles.who}>
         <View style={styles.nameLine}>
           <Text style={styles.name} numberOfLines={1}>
             {row.name}
           </Text>
-          {row.isMe ? <Tag label="YOU" color={colors.accent} /> : null}
           {row.isRival ? <Tag label="RIVAL" color={colors.danger} /> : null}
         </View>
         {subtitle ? (
@@ -66,10 +72,12 @@ function Tag({ label, color }: { label: string; color: string }) {
 
 const styles = StyleSheet.create({
   row: { minHeight: ROW_HEIGHT_COMPACT, paddingVertical: spacing.xs, flexDirection: "row", alignItems: "center", gap: layout.columnGap, paddingHorizontal: SCREEN_MARGIN },
-  // The caller finds themselves at a glance.
+  // The tint is how the caller finds themselves; a YOU pill on top of it said the same thing twice and cost the name its room.
   me: { backgroundColor: colors.accentTint },
   rank: { width: RANK_WIDTH, fontSize: font.score, fontFamily: fontFamily.extraBold, color: colors.text, ...tabular },
   movement: { width: MOVEMENT_WIDTH, fontSize: font.label, fontFamily: fontFamily.bold },
+  avatarRing: { width: layout.avatarCompact, height: layout.avatarCompact, borderRadius: layout.avatarCompact / 2, borderWidth: hairline, borderColor: colors.divider, overflow: "hidden" },
+  avatarRingMe: { borderColor: colors.accent },
   who: { flex: 1, gap: spacing.xs },
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { flexShrink: 1, fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },

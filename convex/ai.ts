@@ -164,11 +164,13 @@ Anything more the player mentioned goes in the "flex" slot, at most three flex t
 Rules:
 - First decide whether the player named at least one thing they mean to do this week. A greeting, small talk, a question, a mic test or a remark about their mood is not a plan: return an empty tasks list, whatever the notes say.
 - Use the player's own plans and wording wherever they gave them. When they said nothing for a slot, add an easy, specific task for it rather than leaving it empty.
-- Every task is one concrete thing the player proves with a timelapse recorded while they do it. Split "gym twice" into one body task and one flex task.
+- Every task is one concrete thing the player proves on camera. Split "gym twice" into one body task and one flex task.
 - title: at most six words, starts with a verb or names the activity, no day of the week unless the player gave one. Examples: "Leg day at the gym", "Finish OS problem set", "Call Mom".
 - points: 10 to 50 in steps of 5, by effort. 10 is trivial (take out the trash), 20 is light (call a friend), 30 is solid (a gym session, an hour of study), 40 is hard (a long run, a full problem set), 50 is a major push (a 10k race, finishing a big project).
 - place is set only when the task happens at a specific real-world place the player named and whose coordinates you know: a named park, landmark, campus building or company office. Then give its name as the player said it, with its latitude and longitude. "The YC office" is Y Combinator's San Francisco office at 580 20th Street in the Dogpatch, 37.7608, -122.3866.
-- targetMinutes is how long the timelapse runs, 5 to 60: the length the player said when they gave one (read for 30 minutes), else what the task honestly takes. 5 for a quick chore or a call (take out the trash, call Mom), 15 to 20 for a tidy-up, 30 to 45 for a workout or a study session, 60 at most.
+- proofType is how the task is proven:
+  - "survey_video" for an outcome task, where the result or the place is the proof: a cleaned room, folded laundry, a cooked meal, being at the gym, a check-in. The player films a 5-second clip panning the area. targetMinutes is null.
+  - "timelapse" for a duration task, defined by how long the player keeps at it: read for 30 minutes, study, meditate, practise an instrument, a run, a call. targetMinutes is how long it runs, 5 to 60: the length the player said when they gave one, else what the task honestly takes (5 for a quick call, 30 to 45 for a study session or a run, 60 at most).
 - Otherwise place is null. Generic places such as the gym, home, a café or "the library" are never "photo_location".
 - Notes about past weeks are history, not this week's plan. Use them to set difficulty: when they show a slot was missed, make that slot's task easier and worth fewer points than the player's wording alone would suggest. Never add a task only because it appears in the notes; a slot the player did not mention gets a fresh easy task. Never mention the notes in a title.`;
 
@@ -182,7 +184,7 @@ const DRAFT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["slot", "title", "points", "place", "targetMinutes"],
+        required: ["slot", "title", "points", "proofType", "place", "targetMinutes"],
         properties: {
           slot: {
             type: "string",
@@ -190,7 +192,8 @@ const DRAFT_SCHEMA = {
           },
           title: { type: "string" },
           points: { type: "integer" },
-          targetMinutes: { type: "integer" },
+          proofType: { type: "string", enum: ["survey_video", "timelapse"] },
+          targetMinutes: { type: ["integer", "null"] },
           place: {
             anyOf: [
               {
@@ -213,8 +216,9 @@ const DRAFT_SCHEMA = {
 };
 
 type DraftedTask = Omit<DraftTask, "place" | "proofType" | "targetMinutes"> & {
+  proofType: "survey_video" | "timelapse";
   place: DraftTask["place"] | null;
-  targetMinutes: number;
+  targetMinutes: number | null;
 };
 
 /**
@@ -248,11 +252,10 @@ export async function draftLineup(input: {
   // is believed.
   let { tasks } = await ask("none");
   if (tasks.length === 0) ({ tasks } = await ask("low"));
-  // Every proof is a timelapse (the owner's call), so the model only says how long each one runs.
-  return tasks.map(({ place, ...task }) => ({
+  return tasks.map(({ place, targetMinutes, ...task }) => ({
     ...task,
-    proofType: "timelapse",
     ...(place && { place }),
+    ...(targetMinutes !== null && { targetMinutes }),
   }));
 }
 
@@ -307,9 +310,25 @@ const JUDGEMENT_FLAGS = [
 ] as const;
 
 /**
- * Every proof is a timelapse: up to 8 stills taken across the task. This rubric is what the
- * referee holds them to; proofs.ts has already checked the frame count, the time span, frames
- * from before the task existed and byte-identical frames.
+ * A survey video: about 5 stills from a clip of about 5 seconds panning the place. proofs.ts has
+ * already checked the frame count, the clip's length, freshness and byte-identical frames.
+ */
+function surveyRubric(imageCount: number): string[] {
+  return [
+    `Proof type: survey video. These ${imageCount} stills are in order from one clip of a few seconds, the player panning the camera across the place to show the result.`,
+    "Screen it hard. Pass only when all of these hold:",
+    '- The stills show one real, consistent place, the view moving the way a hand-held pan moves. Flag "scene_changed" when they look like different places.',
+    '- The result the task claims is plainly visible in most stills: the made bed and clear floor, the folded laundry, the cooked meal, the gym floor. Flag "not_doing_task" otherwise.',
+    '- It is a live scene, not a photo of a screen or a printed picture, and the stills are not near-identical. Flag "static_frames" for those, and "looks_edited" for stills pasted together.',
+    "Any flag fails.",
+    'activityFrames is how many of the stills show the claimed result. scene is what they show in at most six words, addressed to the player, like "your made bed and clear floor" or "you at the gym".',
+  ];
+}
+
+/**
+ * A timelapse: up to 8 stills taken across the task. This rubric is what the referee holds them
+ * to; proofs.ts has already checked the frame count, the time span, frames from before the task
+ * existed and byte-identical frames.
  */
 function timelapseRubric(input: {
   imageCount: number;
@@ -387,6 +406,8 @@ export async function judgeProof(input: {
   placeName?: string;
   /** True for a group session's check-in, where the proof is the people who came. */
   groupSession?: boolean;
+  /** A survey video's stills rather than a timelapse's. */
+  survey: boolean;
   targetMinutes: number;
   durationSec?: number;
   frameTimes?: number[];
@@ -400,13 +421,10 @@ export async function judgeProof(input: {
       "This is the check-in for a group session, a meet-up the league scheduled. GPS has already confirmed the phone is at the place, so the proof is the people who came. Pass when at least one person is in the shot, wherever it was taken, and fail a shot with nobody in it. Do not judge the scenery, or whether the activity in the title is visible.",
     );
   }
-  if (input.fromVideo) {
-    lines.push(
-      "These are stills from one clip of at most 10 seconds, in order. Judge them together as one proof.",
-    );
-  }
   lines.push(
-    ...timelapseRubric({ imageCount: input.imageUrls.length, ...input }),
+    ...(input.survey
+      ? surveyRubric(input.imageUrls.length)
+      : timelapseRubric({ imageCount: input.imageUrls.length, ...input })),
   );
   const ask = (model: string) =>
     askJson<Judgement>({

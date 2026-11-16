@@ -879,6 +879,39 @@ describe("timelapse rules", () => {
   });
 });
 
+describe("survey video", () => {
+  async function clip(t: Backend, seconds = 5) {
+    const frameStorageIds = await Promise.all(Array.from({ length: 5 }, () => upload(t)));
+    const frameTimes = frameStorageIds.map((_, i) => NOW - Math.round(((4 - i) / 4) * seconds * 1000));
+    return { storageId: await upload(t, "video/quicktime"), mediaType: "video" as const, frameStorageIds, frameTimes, durationSec: seconds, capturedAt: NOW };
+  }
+
+  it("judges a 5-second clip as a survey video, even on a timelapse task, and says what it showed", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "timelapse", targetMinutes: 30, slot: "chores", title: "Clean my room" });
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ activityFrames: 5, scene: "your made bed and clear floor" }));
+    const verdict = await as.action(api.proofs.verify, { taskId, ...(await clip(t)) });
+    expect(verdict).toMatchObject({ pass: true, points: 30, reason: "Survey video 5 s · your made bed and clear floor in 5/5 frames" });
+    const call = vi.mocked(judgeProof).mock.calls[0][0];
+    expect(call).toMatchObject({ survey: true });
+    expect(call.imageUrls).toHaveLength(5);
+  });
+
+  it("turns away a clip under 3 seconds and a stale one without calling the model", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "survey_video" });
+    expect(await as.action(api.proofs.verify, { taskId, ...(await clip(t, 1)) })).toMatchObject({ pass: false, flags: ["too_short"] });
+    const stale = { ...(await clip(t)), capturedAt: NOW - 20 * 60_000 };
+    expect(await as.action(api.proofs.verify, { taskId, ...stale })).toMatchObject({ pass: false, flags: ["stale_capture"] });
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+
+  it("fails when the result shows in half the stills or fewer", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "survey_video" });
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ activityFrames: 2, scene: "a messy floor" }));
+    const verdict = await as.action(api.proofs.verify, { taskId, ...(await clip(t)) });
+    expect(verdict).toMatchObject({ pass: false, flags: ["not_doing_task"] });
+  });
+});
+
 describe("video proofs", () => {
   it("judges the three stills the app sampled and keeps the clip on the proof", async () => {
     const { t, as, taskId } = await playerWithTask();
@@ -935,7 +968,7 @@ describe("video proofs", () => {
     });
     expect(verdict).toMatchObject({
       pass: false,
-      reason: expect.stringContaining("Proofs are timelapses now"),
+      reason: expect.stringContaining("Proofs are a timelapse or a survey video now"),
     });
     expect(judgeProof).not.toHaveBeenCalled();
     expect((await taskOf(t, taskId))?.status).toBe("open");
@@ -1021,7 +1054,7 @@ describe("proofs.verifyForUser (Keiki)", () => {
       via: "keiki",
     });
     expect(verdict.reason).toBe(
-      "Proofs are timelapses now. Record one in the app while you do the task.",
+      "Proofs are a timelapse or a survey video now. Record one in the app.",
     );
   });
 });

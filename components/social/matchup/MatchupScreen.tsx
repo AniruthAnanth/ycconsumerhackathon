@@ -3,8 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { InviteButton } from "@/components/invite";
 import { useTabBarInset } from "@/components/ui";
-import { MatchupMarkets } from "@/components/markets";
-import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -14,6 +12,7 @@ import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
 import { boardByTask } from "../veto/vetoLogic";
 import { MatchupBody } from "./MatchupBody";
+import { MatchupMore } from "./MatchupMore";
 import { MatchupTicker } from "./MatchupTicker";
 
 export default function MatchupScreen() {
@@ -42,23 +41,14 @@ export default function MatchupScreen() {
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
       {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
-      <MatchupBody
-        matchup={matchup}
-        belowHero={<MatchupMarkets />}
-        vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined}
-      />
-      <ChallengeButton />
-      <View style={styles.invite}>
-        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
-      </View>
+      <MatchupBody matchup={matchup} bonus={false} vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined} />
+      <MatchupMore matchup={matchup} leagueId={leagueId} />
     </ScrollView>
   );
 }
 
-// The same inset as Challenge a friend above it, so the two secondary buttons share one width.
 const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: SCREEN_MARGIN },
-  invite: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md },
   emptyTitle: { color: colors.text, fontFamily: fontFamily.bold, fontSize: font.title },
   emptyText: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, lineHeight: type.body.lineHeight, textAlign: "center" },
 });
