@@ -23,6 +23,7 @@ import { judgeProof } from "./ai";
 import { requireUser } from "./lib/auth";
 import { MAX_CLIP_SECONDS, clipSeconds, isClipTooLong } from "./lib/clip";
 import { distanceMeters, isValidLatLng } from "./lib/geo";
+import { DEFAULT_TARGET_MINUTES } from "./lib/lineupRules";
 import { verdictReached } from "./lib/notificationContent";
 import {
   decideVerdict,
@@ -72,7 +73,8 @@ const proofArgs = {
 /** The app's entry point: verifies a proof for the signed-in player. */
 export const verify = action({
   args: proofArgs,
-  handler: async (ctx, args): Promise<Verdict> => await runVerification(ctx, { ...args, via: "app" }),
+  handler: async (ctx, args): Promise<Verdict> =>
+    await runVerification(ctx, { ...args, via: "app" }),
 });
 
 /**
@@ -81,14 +83,24 @@ export const verify = action({
  * the user explicitly.
  */
 export const verifyForUser = internalAction({
-  args: { ...proofArgs, userId: v.id("users"), via: v.union(v.literal("app"), v.literal("keiki")) },
-  handler: async (ctx, args): Promise<Verdict> => await runVerification(ctx, args),
+  args: {
+    ...proofArgs,
+    userId: v.id("users"),
+    via: v.union(v.literal("app"), v.literal("keiki")),
+  },
+  handler: async (ctx, args): Promise<Verdict> =>
+    await runVerification(ctx, args),
 });
 
 // The model reads these image types. Anything else (HEIC from iMessage, a
 // PDF) is turned away with a reason instead of an API error.
-const READABLE_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-const MAX_VIDEO_FRAMES = 3;
+const READABLE_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 
 type ProofSubmission = {
   taskId: Id<"tasks">;
@@ -106,32 +118,51 @@ type ProofSubmission = {
   via: "app" | "keiki";
 };
 
-async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Promise<Verdict> {
-  const { proofType } = await ctx.runQuery(internal.proofs.proofTypeOf, { taskId: submission.taskId });
-  const imageIds = proofImages(proofType, submission);
+async function runVerification(
+  ctx: ActionCtx,
+  submission: ProofSubmission,
+): Promise<Verdict> {
+  const imageIds = timelapseFrames(submission);
 
-  const { userId, task, gesture, imageTypes, imageHashes, reusedImage }: ProofContext = await ctx.runQuery(
-    internal.proofs.context,
-    { taskId: submission.taskId, userId: submission.userId, imageIds },
-  );
+  const {
+    userId,
+    task,
+    gesture,
+    imageTypes,
+    imageHashes,
+    reusedImage,
+  }: ProofContext = await ctx.runQuery(internal.proofs.context, {
+    taskId: submission.taskId,
+    userId: submission.userId,
+    imageIds,
+  });
 
   // A group session is proven by GPS and by who is in the photo (drops.ts then counts them), so
   // its scene is not held to the pinned place: a stand-up on the lawn outside the office counts.
   const groupSession = task.source === "group";
   const rules: ProofRules = { points: task.points, gesture };
-  if (task.proofType === "photo_location" && task.place) {
-    const phone = { lat: submission.lat ?? Number.NaN, lng: submission.lng ?? Number.NaN };
+  if (task.place) {
+    const phone = {
+      lat: submission.lat ?? Number.NaN,
+      lng: submission.lng ?? Number.NaN,
+    };
     rules.location = {
       placeName: task.place.name,
-      distanceM: isValidLatLng(phone) ? distanceMeters(phone, task.place) : null,
+      distanceM: isValidLatLng(phone)
+        ? distanceMeters(phone, task.place)
+        : null,
       anyScene: groupSession,
     };
   }
 
   let verdict =
     (await rejectionBeforeJudging(ctx, submission, rules, imageTypes)) ??
-    antiCheatRejection(task, submission, imageIds, reusedImage);
+    antiCheatRejection(task, submission, imageIds, imageHashes, reusedImage);
   if (verdict === null) {
+    rules.timelapse = {
+      minutes: Math.round((timelapseSeconds(submission) ?? 0) / 60),
+      frames: imageIds.length,
+    };
     const judgement = await judgeProof({
       taskTitle: task.title,
       slot: task.slot,
@@ -140,14 +171,17 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
       gesture,
       placeName: groupSession ? undefined : rules.location?.placeName,
       groupSession,
-      proofType: task.proofType,
-      targetMinutes: task.targetMinutes,
+      targetMinutes: targetMinutes(task),
       durationSec: timelapseSeconds(submission),
       frameTimes: submission.frameTimes,
-      today: new Date().toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", weekday: "long", month: "long", day: "numeric" }),
     }).catch((error) => {
-      console.error("judgeProof failed:", error instanceof Error ? error.message : error);
-      throw new ConvexError("The referee couldn't be reached. Try again in a moment.");
+      console.error(
+        "judgeProof failed:",
+        error instanceof Error ? error.message : error,
+      );
+      throw new ConvexError(
+        "The referee couldn't be reached. Try again in a moment.",
+      );
     });
     verdict = judgement
       ? decideVerdict(judgement, rules)
@@ -169,33 +203,31 @@ async function runVerification(ctx: ActionCtx, submission: ProofSubmission): Pro
   return verdict;
 }
 
-// A timelapse is up to 8 stills; a before/after is the before photo then the after.
+// Every proof is a timelapse (the owner's call): up to 8 stills taken across the task.
 const MAX_TIMELAPSE_FRAMES = 8;
 const MIN_TIMELAPSE_FRAMES = 3;
 // The app captures and submits within seconds; anything older was taken some other time.
 const STALE_CAPTURE_MS = 15 * 60 * 1000;
-// A timelapse may stop a little short of its target, for the seconds lost starting and stopping.
-const TIMELAPSE_SLACK = 0.9;
+// The stills must span at least this share of the task's minutes.
+const TIMELAPSE_COVERAGE = 0.8;
+const targetMinutes = (task: Doc<"tasks">): number =>
+  task.targetMinutes ?? DEFAULT_TARGET_MINUTES;
 
-/** What the model looks at, by the task's proof type. */
-function proofImages(proofType: Doc<"tasks">["proofType"], submission: ProofSubmission): Id<"_storage">[] {
-  if (proofType === "before_after") {
-    return submission.beforeStorageId ? [submission.beforeStorageId, submission.storageId] : [submission.storageId];
-  }
-  if (proofType === "timelapse") {
-    const frames = submission.frameStorageIds ?? [];
-    return frames.length > 0 ? frames.slice(0, MAX_TIMELAPSE_FRAMES) : [submission.storageId];
-  }
-  return submission.mediaType === "photo"
-    ? [submission.storageId]
-    : (submission.frameStorageIds ?? []).slice(0, MAX_VIDEO_FRAMES);
+/** What the model looks at: the timelapse's stills, or the one image sent when there are none. */
+function timelapseFrames(submission: ProofSubmission): Id<"_storage">[] {
+  const frames = submission.frameStorageIds ?? [];
+  return frames.length > 0
+    ? frames.slice(0, MAX_TIMELAPSE_FRAMES)
+    : [submission.storageId];
 }
 
 /** A timelapse's elapsed seconds: as the app measured it, else from the first and last still's times. */
 function timelapseSeconds(submission: ProofSubmission): number | undefined {
   if (submission.durationSec !== undefined) return submission.durationSec;
   const times = submission.frameTimes;
-  return times && times.length > 1 ? (times[times.length - 1] - times[0]) / 1000 : undefined;
+  return times && times.length > 1
+    ? (times[times.length - 1] - times[0]) / 1000
+    : undefined;
 }
 
 /**
@@ -206,27 +238,46 @@ function antiCheatRejection(
   task: Doc<"tasks">,
   submission: ProofSubmission,
   imageIds: Id<"_storage">[],
+  imageHashes: string[],
   reusedImage: boolean,
 ): Verdict | null {
   if (reusedImage) {
-    return rejectWithoutJudging("That photo was already used for an earlier proof. Take a new one.", ["reused_image"]);
+    return rejectWithoutJudging(
+      "That photo was already used for an earlier proof. Take a new one.",
+      ["reused_image"],
+    );
   }
-  if (submission.capturedAt !== undefined && Date.now() - submission.capturedAt > STALE_CAPTURE_MS) {
-    return rejectWithoutJudging("That shot was taken too long ago. Take it again now.", ["stale_capture"]);
+  if (
+    submission.capturedAt !== undefined &&
+    Date.now() - submission.capturedAt > STALE_CAPTURE_MS
+  ) {
+    return rejectWithoutJudging(
+      "That shot was taken too long ago. Take it again now.",
+      ["stale_capture"],
+    );
   }
-  if (task.proofType === "before_after" && (!submission.beforeStorageId || submission.beforeStorageId === submission.storageId)) {
-    return rejectWithoutJudging("This task needs a before photo and an after photo.", ["no_change"]);
+  if (new Set(imageHashes).size < imageHashes.length) {
+    return rejectWithoutJudging(
+      "Some of those frames are the same image. Record the timelapse again.",
+      ["static_frames"],
+    );
   }
-  if (task.proofType === "timelapse") {
-    if (imageIds.length < MIN_TIMELAPSE_FRAMES) {
-      return rejectWithoutJudging("That timelapse is too short to check. Record it again.", ["too_short"]);
-    }
-    const target = task.targetMinutes ?? 30;
-    const seconds = timelapseSeconds(submission);
-    if (seconds === undefined || seconds < target * 60 * TIMELAPSE_SLACK) {
-      const covered = seconds === undefined ? "no time" : `${Math.round(seconds / 60)} minutes`;
-      return rejectWithoutJudging(`That timelapse covers ${covered}; this task needs ${target}.`, ["too_short"]);
-    }
+  const firstFrame = submission.frameTimes?.[0];
+  if (firstFrame !== undefined && firstFrame < task._creationTime) {
+    return rejectWithoutJudging(
+      "That timelapse started before this task was on your lineup. Record a new one.",
+      ["stale_capture"],
+    );
+  }
+  const target = targetMinutes(task);
+  const seconds = timelapseSeconds(submission);
+  if (seconds === undefined || seconds < target * 60 * TIMELAPSE_COVERAGE) {
+    const covered =
+      seconds === undefined ? "no time" : `${Math.round(seconds / 60)} minutes`;
+    return rejectWithoutJudging(
+      `That timelapse covers ${covered}; this task needs ${target}.`,
+      ["too_short"],
+    );
   }
   return null;
 }
@@ -253,31 +304,46 @@ async function rejectionBeforeJudging(
     const problem = locationProblem(rules.location);
     if (problem) return rejectWithoutJudging(problem);
   }
-  if (imageTypes.length === 0) {
-    // A video that arrived without stills, which is every texted video.
+  if (imageTypes.length < MIN_TIMELAPSE_FRAMES) {
+    // One photo or a clip with no stills, which is everything texted to Keiki.
     return rejectWithoutJudging(
-      submission.via === "keiki"
-        ? "Videos can't be checked from a text yet. Send a photo instead."
-        : "That video couldn't be read. Record it again, or send a photo instead.",
+      "Proofs are timelapses now. Record one in the app while you do the task.",
+      ["too_short"],
     );
   }
   if (imageTypes.some((type) => type === null)) {
-    return rejectWithoutJudging("That upload didn't arrive. Take the shot again.");
+    return rejectWithoutJudging(
+      "That upload didn't arrive. Take the shot again.",
+    );
   }
   if (submission.mediaType === "video") {
     // The app's recorder stops at 10 seconds; this holds any other client to the same limit.
     const clip = await ctx.storage.get(submission.storageId);
-    if (clip !== null && isClipTooLong(clipSeconds(new Uint8Array(await clip.arrayBuffer())))) {
-      return rejectWithoutJudging(`Clips can be up to ${MAX_CLIP_SECONDS} seconds. Record a shorter one.`);
+    if (
+      clip !== null &&
+      isClipTooLong(clipSeconds(new Uint8Array(await clip.arrayBuffer())))
+    ) {
+      return rejectWithoutJudging(
+        `Clips can be up to ${MAX_CLIP_SECONDS} seconds. Record a shorter one.`,
+      );
     }
   }
-  if (imageTypes.some((type) => type !== "" && !READABLE_IMAGE_TYPES.includes(type as string))) {
-    return rejectWithoutJudging("That file type can't be checked. Send a regular photo (JPEG or PNG).");
+  if (
+    imageTypes.some(
+      (type) => type !== "" && !READABLE_IMAGE_TYPES.includes(type as string),
+    )
+  ) {
+    return rejectWithoutJudging(
+      "That file type can't be checked. Send a regular photo (JPEG or PNG).",
+    );
   }
   return null;
 }
 
-async function imageUrls(ctx: ActionCtx, imageIds: Id<"_storage">[]): Promise<string[]> {
+async function imageUrls(
+  ctx: ActionCtx,
+  imageIds: Id<"_storage">[],
+): Promise<string[]> {
   const urls = await Promise.all(imageIds.map((id) => ctx.storage.getUrl(id)));
   return urls.filter((url): url is string => url !== null);
 }
@@ -299,15 +365,6 @@ type ProofContext = {
   reusedImage: boolean;
 };
 
-/** The task's proof type, which decides which uploads the referee looks at. */
-export const proofTypeOf = internalQuery({
-  args: { taskId: v.id("tasks") },
-  handler: async (ctx, args): Promise<{ proofType: Doc<"tasks">["proofType"] }> => {
-    const task = await ctx.db.get("tasks", args.taskId);
-    return { proofType: task?.proofType ?? "photo" };
-  },
-});
-
 const NOT_OPEN: Record<Exclude<Doc<"tasks">["status"], "open">, string> = {
   verified: "This task is already verified.",
   held: "This proof is under review by the league.",
@@ -328,11 +385,10 @@ export const context = internalQuery({
       throw new ConvexError("That task isn't on your lineup.");
     }
     if (task.status !== "open") throw new ConvexError(NOT_OPEN[task.status]);
-    if (task.proofType === "canvas") {
-      throw new ConvexError("This task is verified from Canvas, not with a photo.");
-    }
     const drop = task.dropId ? await ctx.db.get("drops", task.dropId) : null;
-    const files = await Promise.all(args.imageIds.map((id) => ctx.db.system.get("_storage", id)));
+    const files = await Promise.all(
+      args.imageIds.map((id) => ctx.db.system.get("_storage", id)),
+    );
     // Identical bytes, not a look-alike: the same file re-sent or re-uploaded from the camera roll.
     const imageHashes = files.flatMap((file) => (file ? [file.sha256] : []));
     const earlier = await ctx.db
@@ -344,11 +400,17 @@ export const context = internalQuery({
       userId,
       task,
       gesture: drop?.gesture,
-      imageTypes: files.map((file) => (file ? (file.contentType ?? "").split(";")[0].toLowerCase() : null)),
+      imageTypes: files.map((file) =>
+        file ? (file.contentType ?? "").split(";")[0].toLowerCase() : null,
+      ),
       imageHashes,
       // Only an image that already scored (or waits on a vote) counts as used: a player whose
       // proof failed may send the same shots again once they fix what was wrong.
-      reusedImage: earlier.some((proof) => proof.pass && proof.imageHashes?.some((hash) => imageHashes.includes(hash))),
+      reusedImage: earlier.some(
+        (proof) =>
+          proof.pass &&
+          proof.imageHashes?.some((hash) => imageHashes.includes(hash)),
+      ),
     };
   },
 });
@@ -390,7 +452,8 @@ export const record = internalMutation({
     if (task === null || task.status !== "open") {
       throw new ConvexError("This task closed while the referee was looking.");
     }
-    const { pass, confidence, reason, highlight, caption, flags, needsVote } = args.verdict;
+    const { pass, confidence, reason, highlight, caption, flags, needsVote } =
+      args.verdict;
     const proofId = await ctx.db.insert("proofs", {
       taskId: task._id,
       userId: args.userId,
@@ -415,7 +478,9 @@ export const record = internalMutation({
       // The referee wasn't sure, so the league decides. The task is held, scoring nothing, until
       // challenges.ts settles the vote: the proof stands or the task reopens.
       await ctx.db.patch("tasks", task._id, { status: "held" });
-      await ctx.scheduler.runAfter(0, internal.challenges.refereeVote, { proofId });
+      await ctx.scheduler.runAfter(0, internal.challenges.refereeVote, {
+        proofId,
+      });
       return null;
     }
     // The prover hears the call, pass or fail, on a phone where the app is closed: a proof
@@ -423,22 +488,37 @@ export const record = internalMutation({
     // rather than called, like the follow-ups below, so a push can never undo a proof.
     await ctx.scheduler.runAfter(0, internal.push.send, {
       userId: args.userId,
-      notification: verdictReached({ taskId: task._id, title: task.title, points: task.points, pass, reason }),
+      notification: verdictReached({
+        taskId: task._id,
+        title: task.title,
+        points: task.points,
+        pass,
+        reason,
+      }),
     });
     if (pass) {
       await ctx.db.patch("tasks", task._id, { status: "verified" });
       // Drops price their own bonuses (first finisher, group check-ins) once the task is verified.
       if (task.dropId) {
-        await ctx.scheduler.runAfter(0, internal.drops.onTaskVerified, { taskId: task._id });
+        await ctx.scheduler.runAfter(0, internal.drops.onTaskVerified, {
+          taskId: task._id,
+        });
       }
       // The league is texted when this proof changes who is in front. Both follow-ups are
       // scheduled rather than called, so a problem in either can never undo a verified proof.
-      await ctx.scheduler.runAfter(0, internal.leadChange.afterProof, { userId: args.userId });
+      await ctx.scheduler.runAfter(0, internal.leadChange.afterProof, {
+        userId: args.userId,
+      });
       // A pass can carry the player past a league mate. Check-ins tells whoever was passed; it
       // is scheduled after the drop bonus above so it compares the final points.
-      await ctx.scheduler.runAfter(0, internal.checkins.afterProof, { taskId: task._id });
+      await ctx.scheduler.runAfter(0, internal.checkins.afterProof, {
+        taskId: task._id,
+      });
       // Leaderboards keep a stored copy of each player's week; this rebuilds theirs.
-      await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, { userId: args.userId, weekStart: task.weekStart });
+      await ctx.scheduler.runAfter(0, internal.leaderboards.refresh, {
+        userId: args.userId,
+        weekStart: task.weekStart,
+      });
     }
     return null;
   },
