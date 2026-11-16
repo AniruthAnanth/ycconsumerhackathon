@@ -2,17 +2,21 @@ import { useQuery } from "convex/react";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import Animated, { SlideInDown } from "react-native-reanimated";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import Animated, { SlideInDown, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ease, useReduceMotion } from "@/components/motion";
+import { confirmAction } from "@/components/social/notify";
 import { Header, Icon, SheetGrabber, sheetSurface } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseCheckoutMessage } from "@/convex/lib/checkoutPage";
 import { backend } from "@/lib/backend";
 import { formatUsd } from "@/lib/leagueText";
 import { SHEET_MS } from "@/lib/native/motion";
-import { colors, font, fontFamily, MIN_TARGET, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { shouldDismiss } from "@/lib/native/swipeDismiss";
+import { colors, duration, font, fontFamily, MIN_TARGET, radius, SCREEN_MARGIN, spacing, spring } from "@/theme";
 
 import { CheckoutFrame } from "./CheckoutFrame";
 
@@ -75,6 +79,41 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
     return () => clearTimeout(timer);
   }, [stage, attempt, onClose, openInBrowser]);
 
+  // Swiping the top of the sheet down closes it, as the grabber promises. The drag lives on the
+  // grabber, header and summary only, so it never fights the checkout form's own scrolling. Once
+  // Whop's form is up the player may be partway through paying, so a swipe asks first.
+  const dragY = useSharedValue(0);
+  const sheetHeight = useSharedValue(0);
+  const confirmLeave = useCallback(() => {
+    confirmAction({
+      title: "Leave checkout?",
+      message: "If you've already paid, Whop still counts it. Otherwise nothing is charged.",
+      confirmLabel: "Leave",
+      onConfirm: onClose,
+    });
+  }, [onClose]);
+  const asksFirst = stage === "ready";
+  const swipeDown = usePanGesture({
+    activeOffsetY: 8,
+    failOffsetX: [-24, 24],
+    onUpdate: (event) => {
+      dragY.value = Math.max(0, event.translationY);
+    },
+    onDeactivate: (event) => {
+      if (!shouldDismiss(event.translationY, event.velocityY)) {
+        dragY.value = withSpring(0, spring.snappy);
+        return;
+      }
+      if (asksFirst) {
+        dragY.value = withSpring(0, spring.snappy);
+        scheduleOnRN(confirmLeave);
+        return;
+      }
+      dragY.value = withTiming(sheetHeight.value, { duration: duration.base, easing: ease.standard }, () => scheduleOnRN(onClose));
+    },
+  });
+  const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
+
   // An RN Modal rather than a native form sheet: a form sheet needs its own route, and checkout
   // opens over the screen that asked for it. The scrim fades while the sheet rises with the
   // shared sheet chrome (components/ui/Sheet) and the emphasized easing.
@@ -85,24 +124,31 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
         <Animated.View
           testID="checkout-sheet"
           entering={reduceMotion ? undefined : SlideInDown.duration(SHEET_MS).easing(ease.emphasized)}
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }, dragStyle]}
+          onLayout={(event) => {
+            sheetHeight.value = event.nativeEvent.layout.height;
+          }}
           accessibilityViewIsModal
         >
-          <SheetGrabber />
-          <Header title="Lineup" onClose={onClose} />
+          <GestureDetector gesture={swipeDown}>
+            <View>
+              <SheetGrabber />
+              <Header title="Lineup" onClose={onClose} />
 
-          <View style={styles.summary}>
-            <View style={styles.league}>
-              <Text style={styles.label}>BUY-IN</Text>
-              <Text style={styles.leagueName} numberOfLines={1}>
-                {league?.name ?? " "}
-              </Text>
-              <Text style={styles.muted}>{pot ? `Pot ${formatUsd(pot.potUsd)} · ${pot.paid.length} paid` : " "}</Text>
+              <View style={styles.summary}>
+                <View style={styles.league}>
+                  <Text style={styles.label}>BUY-IN</Text>
+                  <Text style={styles.leagueName} numberOfLines={1}>
+                    {league?.name ?? " "}
+                  </Text>
+                  <Text style={styles.muted}>{pot ? `Pot ${formatUsd(pot.potUsd)} · ${pot.paid.length} paid` : " "}</Text>
+                </View>
+                <Text style={styles.amount} accessibilityLabel={`Buy-in ${formatUsd(stakeUsd)}`}>
+                  {formatUsd(stakeUsd)}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.amount} accessibilityLabel={`Buy-in ${formatUsd(stakeUsd)}`}>
-              {formatUsd(stakeUsd)}
-            </Text>
-          </View>
+          </GestureDetector>
 
           {stage === "paid" ? (
             <View style={styles.paid} accessibilityLiveRegion="polite">
