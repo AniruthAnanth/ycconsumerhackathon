@@ -15,9 +15,9 @@ const market = (overrides: Partial<Market> = {}) =>
 
 describe("marketQuestions", () => {
   test("asks whether you beat your opponent and who is closest to clearing all 5, never the pot the board answers", () => {
-    expect(marketQuestions(market()).map(({ question, answer, chance }) => [question, answer, chance])).toEqual([
-      ["Will you beat Ava Kim?", "Yes", 0.62],
-      ["Will you clear all 5?", "Yes", 0.55],
+    expect(marketQuestions(market()).map(({ question, chance }) => [question, chance])).toEqual([
+      ["Will you beat Ava Kim?", 0.62],
+      ["Will you clear all 5?", 0.55],
     ]);
   });
 
@@ -29,7 +29,7 @@ describe("marketQuestions", () => {
 
 describe("potNeedsLine", () => {
   test("says how far from the pot you are", () => {
-    expect(potNeedsLine(2)).toBe("The pot needs all 5 slots cleared — you've cleared 2.");
+    expect(potNeedsLine(2)).toBe("The pot needs all 5 slots cleared. You've cleared 2.");
     expect(potNeedsLine(5)).toBe("You've cleared all 5 slots, so you're in the running for the pot.");
   });
 });

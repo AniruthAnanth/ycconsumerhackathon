@@ -4,7 +4,7 @@ import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from "react-nativ
 
 import { BORDER, colors, fontFamily, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
-import { areaPath, formatChance, stepPath } from "./chartGeometry";
+import { areaPath, deltaPoints, formatChance, stepPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
 import type { Market } from "./useMarket";
 
@@ -37,8 +37,9 @@ export function WinProbChart({ matchup }: { matchup: NonNullable<Market["matchup
       <View style={styles.head}>
         <View style={styles.grow}>
           <Text style={styles.title}>Your chance to win</Text>
-          <Text style={[styles.delta, { color: up ? colors.green : colors.textMuted }]}>
-            {`${up ? "▲" : "▼"} ${Math.abs(matchup.deltaToday)} since yesterday`}
+          <Text style={[styles.delta, { color: up ? colors.green : colors.danger }]} accessibilityLabel={`${up ? "Up" : "Down"} ${Math.abs(matchup.deltaToday)} percent since yesterday`}>
+            {deltaPoints(matchup.deltaToday)}
+            <Text style={styles.since}> since yesterday</Text>
           </Text>
         </View>
         <View style={styles.tabs} accessibilityRole="tablist">
@@ -106,6 +107,7 @@ const styles = StyleSheet.create({
   grow: { flex: 1, gap: 2 },
   title: { ...type.subheading, color: colors.text },
   delta: { fontFamily: fontFamily.bold, fontSize: type.small.fontSize, ...tabular },
+  since: { ...type.caption, color: colors.textFaint },
   tabs: { flexDirection: "row", gap: spacing.xs },
   tab: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill },
   tabOn: { backgroundColor: colors.accentTint },

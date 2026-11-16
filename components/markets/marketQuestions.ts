@@ -1,6 +1,6 @@
 import type { Market } from "./useMarket";
 
-export type MarketQuestion = { key: string; question: string; answer: string; chance: number };
+export type MarketQuestion = { key: string; question: string; chance: number };
 
 /**
  * The League tab's question cards, all read off the same market: whether you beat this week's
@@ -13,7 +13,6 @@ export function marketQuestions(market: Market): MarketQuestion[] {
     questions.push({
       key: "matchup",
       question: `Will you beat ${market.matchup.opponentName}?`,
-      answer: "Yes",
       chance: market.matchup.chance,
     });
   }
@@ -25,15 +24,14 @@ export function marketQuestions(market: Market): MarketQuestion[] {
     questions.push({
       key: "clear",
       question: `Will ${chaser.isMe ? "you" : chaser.name} clear all 5?`,
-      answer: "Yes",
       chance: chaser.finishChance,
     });
   }
   return questions;
 }
 
-/** "The pot needs all 5 slots cleared — you've cleared 2." Under the money line, so a big matchup chance next to a loss reads right. */
+/** "The pot needs all 5 slots cleared. You've cleared 2." Under the money line, so a big matchup chance next to a loss reads right. */
 export function potNeedsLine(slotsCleared: number): string {
   if (slotsCleared >= 5) return "You've cleared all 5 slots, so you're in the running for the pot.";
-  return `The pot needs all 5 slots cleared — you've cleared ${slotsCleared}.`;
+  return `The pot needs all 5 slots cleared. You've cleared ${slotsCleared}.`;
 }
