@@ -27,13 +27,13 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
     <Pressable style={styles.strip} onPress={() => router.push("/leaderboards")} accessibilityRole="button" accessibilityLabel="Open leaderboards">
       {/* Without a label the place read as a stray "1st" at the top of the League tab. */}
       {place ? <Text style={styles.label}>YOUR RANK</Text> : null}
-      <Text style={styles.place}>
+      <Text style={styles.place} numberOfLines={1}>
         {place ?? "Leaderboards"}
       </Text>
       {live ? (
         <Text style={[styles.projection, live.expectedNetUsd >= 0.5 && styles.gain]}>{`Projected ${formatNet(live.expectedNetUsd)}`}</Text>
       ) : projection ? (
-        <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]}>
+        <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]} numberOfLines={2}>
           {projection.label}
         </Text>
       ) : null}
@@ -56,6 +56,7 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   place: { flex: 1, fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
-  projection: { fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
+  // A long label ("Pay $5 to play for the pot") wraps in its own column instead of squeezing the place into a sliver.
+  projection: { maxWidth: "45%", flexShrink: 1, textAlign: "right", fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
   gain: { color: colors.tabActive },
 });
