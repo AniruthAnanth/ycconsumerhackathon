@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { haptics } from "@/lib/native/haptics";
 import { colors, font, fontFamily, hairline, layout, tabUnderlineHeight } from "@/theme";
 
 type Props<Key extends string> = {
@@ -18,7 +19,10 @@ export function TopTabs<Key extends string>({ tabs, active, onChange }: Props<Ke
           <Pressable
             key={tab.key}
             style={styles.tab}
-            onPress={() => onChange(tab.key)}
+            onPress={() => {
+              if (!selected) haptics.select();
+              onChange(tab.key);
+            }}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={tab.label}

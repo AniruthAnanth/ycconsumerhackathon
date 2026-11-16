@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, type TextProps } from "react-native";
 
+import { haptics } from "@/lib/native/haptics";
 import { COUNT_MS, countValue } from "@/lib/native/motion";
 
 import { useReduceMotion } from "./useReduceMotion";
@@ -26,9 +27,13 @@ export function CountUp({ value, format, decimals = 0, fromZero = false, delay =
   const [shown, setShown] = useState(fromZero ? 0 : value);
   const shownRef = useRef(shown);
   shownRef.current = shown;
+  // A fromZero count on mount is the screen opening, not a score changing, so it stays silent.
+  const mounted = useRef(false);
 
   useEffect(() => {
     const from = shownRef.current;
+    const silent = !mounted.current;
+    mounted.current = true;
     if (reduceMotion || from === value) {
       setShown(value);
       return;
@@ -40,6 +45,7 @@ export function CountUp({ value, format, decimals = 0, fromZero = false, delay =
         start ??= now;
         const next = countValue(from, value, now - start, COUNT_MS, decimals);
         setShown(next);
+        if (!silent) haptics.tick();
         if (next !== value) frame = requestAnimationFrame(step);
       };
       frame = requestAnimationFrame(step);

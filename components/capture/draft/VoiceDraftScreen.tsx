@@ -148,7 +148,7 @@ export function VoiceDraftScreen() {
           <View style={styles.footer}>
             {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
             {showsLineup ? (
-              <Button label="Lock Lineup" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
+              <Button label="Lock Lineup" haptic="medium" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
             ) : null}
             {state.phase === "review" ? (
               <Pressable accessibilityRole="button" onPress={draft.redo} style={styles.leave} hitSlop={8}>

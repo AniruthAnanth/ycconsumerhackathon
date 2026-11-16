@@ -60,7 +60,7 @@ export function TaskSheet({ taskId }: { taskId: string }) {
                 {howToProve(toProofTarget(task))}
               </Text>
               <View style={styles.action}>
-                <Button label="Submit Proof" onPress={() => router.replace(submitProofHref(task))} />
+                <Button label="Submit Proof" haptic="medium" onPress={() => router.replace(submitProofHref(task))} />
               </View>
             </>
           ) : null}

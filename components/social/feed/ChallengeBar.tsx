@@ -45,6 +45,7 @@ export function ChallengeBar({
           accessibilityState={{ selected: challenge.myVote === true, disabled: !votable }}
           disabled={!votable}
           onPress={() => cast(true)}
+          haptic="none"
           style={[styles.side, votable && styles.sideVotable, challenge.myVote === true && styles.sideLegitMine]}
         >
           <Text style={[styles.sideLabel, styles.legitText]}>Legit</Text>
@@ -56,6 +57,7 @@ export function ChallengeBar({
           accessibilityState={{ selected: challenge.myVote === false, disabled: !votable }}
           disabled={!votable}
           onPress={() => cast(false)}
+          haptic="none"
           style={[styles.side, votable && styles.sideVotable, challenge.myVote === false && styles.sideNotLegitMine]}
         >
           <CountUp value={challenge.notLegit} format={String} style={styles.sideCount} />
