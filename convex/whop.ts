@@ -86,6 +86,9 @@ export const createCheckout = action({
         initial_price: buyIn.stakeUsd,
         currency: "usd",
       },
+      // Card only, preselected: Apple Pay, ACH (through Plaid) and crypto made the hosted page
+      // open on the wrong method, and a bank transfer can't confirm a buy-in before the week starts.
+      payment_method_configuration: { enabled: ["card"], disabled: [], include_platform_defaults: false },
       // Copied by Whop onto the payment, which is how the webhook knows whose buy-in it is.
       metadata: { userId: buyIn.userId, leagueId },
     });
