@@ -3,7 +3,6 @@ import { Linking } from "react-native";
 
 import { api } from "@/convex/_generated/api";
 
-import { formatLineNumber } from "./formatLineNumber";
 
 /**
  * The Play by text opt-in, shared by the League tab's row and Settings. Turning it on also opens
@@ -30,9 +29,7 @@ export function usePlayByText() {
   return {
     value: line?.optedIn ?? false,
     ready: Boolean(line),
-    copy: line
-      ? `Get drops and send proofs by text at ${formatLineNumber(line.number)}.`
-      : "Get drops and send proofs by text.",
+    copy: "Get drops and send proofs by text.",
     onValueChange,
   };
 }
