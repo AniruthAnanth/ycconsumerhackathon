@@ -7,7 +7,6 @@ import { SeasonLink } from "@/components/league/SeasonLink";
 import { LeaderboardsStrip } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
-import { MyRank } from "@/components/leagueTab/MyRank";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
@@ -55,7 +54,6 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   return (
     <Screen edges={[]} scroll bottomInset={bottomInset}>
       {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
-      <MyRank rows={seasonTable} viewerId={me._id} />
       <Entrance>{escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />}</Entrance>
       <StandingsTable
         rows={seasonTable}
