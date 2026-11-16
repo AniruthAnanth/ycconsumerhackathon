@@ -86,7 +86,7 @@ export const layout = {
   /** Every button and text field. */
   control: 48,
   /** The position pill column at the start of a task row. */
-  pillColumn: 40,
+  pillColumn: 64,
   avatar: 40,
   avatarCompact: 32,
   /** Trailing score and points columns: right-aligned, tabular figures. */
