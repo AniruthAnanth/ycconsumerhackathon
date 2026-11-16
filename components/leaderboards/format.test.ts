@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { BOARDS, parseBoardKey } from "./boards";
-import { formatUsdWithCents, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle, tiedRanks } from "./format";
+import { BOARDS, isPrimaryBoard, MORE_BOARDS, parseBoardKey, PRIMARY_BOARDS } from "./boards";
+import { formatUsdWithCents, hasMovement, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle, tiedRanks } from "./format";
 import type { BoardRow } from "./types";
 
 const row = (overrides: Partial<BoardRow>): BoardRow => ({
@@ -114,6 +114,25 @@ describe("boards", () => {
     expect(parseBoardKey(["streak", "week"])).toBe("streak");
     expect(parseBoardKey("nope")).toBeUndefined();
     expect(parseBoardKey(undefined)).toBeUndefined();
+  });
+});
+
+describe("board picker split", () => {
+  it("puts Week, Season and All-time in the control and every other board under More, each exactly once", () => {
+    expect(PRIMARY_BOARDS.map((board) => board.key)).toEqual(["week", "season", "allTime"]);
+    expect(MORE_BOARDS).toHaveLength(BOARDS.length - PRIMARY_BOARDS.length);
+    expect(MORE_BOARDS.some((board) => isPrimaryBoard(board.key))).toBe(false);
+  });
+});
+
+describe("hasMovement", () => {
+  it("is false while every row is unchanged, as in week one", () => {
+    expect(hasMovement([row({ movement: 0 }), row({ movement: 0 })])).toBe(false);
+    expect(hasMovement([])).toBe(false);
+  });
+
+  it("is true once any row gains or loses a place", () => {
+    expect(hasMovement([row({ movement: 0 }), row({ movement: -1 })])).toBe(true);
   });
 });
 
