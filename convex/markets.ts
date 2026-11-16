@@ -29,6 +29,7 @@ import {
   type HistoryPoint,
   type ScoreProjection,
 } from "./lib/markets";
+import { resolveSettings, seasonOf } from "./lib/schedule";
 import { clearedSlots, CORE_SLOTS, SLOT_CLEARED_BONUS, type ScorableTask } from "./lib/scoring";
 import { pacificDay, startOfPacificDay } from "./lib/week";
 import { leagueStandings, opponentInWeek, tasksCountingIn, type MemberStanding } from "./standings";
@@ -177,6 +178,8 @@ export const week = query({
         expectedShareUsd: v.number(),
         /** What each paid member gets if everyone clears all five. */
         everyoneShareUsd: v.number(),
+        /** When this season's escrow cashes out: the end of its last week. */
+        cashOutAt: v.number(),
         history: v.array(v.object({ at: v.number(), netUsd: v.number() })),
       }),
       odds: v.object({
@@ -277,6 +280,7 @@ export const week = query({
         potChance: sim.top[myIndex],
         expectedShareUsd,
         everyoneShareUsd: paidCount > 0 ? potUsd / paidCount : 0,
+        cashOutAt: week.endsAt + (seasonOf(week.number, resolveSettings(league).seasonWeeks).lastWeek - week.number) * (week.endsAt - week.startsAt),
         history: payoutHistory,
       },
       odds,
