@@ -21,6 +21,15 @@ export function splitRoster(rows: readonly Task[]): { starters: StarterSlot[]; e
 }
 
 /**
+ * The due label every row shares, so Roster says it once in the section header
+ * instead of on each row; undefined when the rows disagree or there are none.
+ */
+export function sharedDueLabel(rows: readonly Pick<Task, "dueLabel">[]): string | undefined {
+  const labels = new Set(rows.map((row) => row.dueLabel));
+  return labels.size === 1 ? [...labels][0] || undefined : undefined;
+}
+
+/**
  * How many more flex tasks the week takes. lineup.addFlexTask enforces the
  * limit by the same count; this only decides whether Roster offers the action.
  */
