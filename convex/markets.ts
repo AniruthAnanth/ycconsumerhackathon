@@ -164,6 +164,7 @@ export const week = query({
           opponentName: v.string(),
           chance: v.number(),
           deltaToday: v.number(),
+          todayStart: v.number(),
           history: v.array(v.object({ at: v.number(), chance: v.number() })),
           opponent: scoreRange,
         }),
@@ -180,6 +181,8 @@ export const week = query({
       odds: v.object({
         /** "pot" in a staked league; "week" (chance of the top score) in a free one, which has no pot. */
         kind: v.union(v.literal("pot"), v.literal("week")),
+        /** Stakes in play from paid members, the pot's size. */
+        potUsd: v.number(),
         rows: v.array(v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), chance: v.number(), finishChance: v.number(), projected: v.number() })),
         /** The chance nobody clears all five and every stake goes back; with the rows it sums to 1. */
         nobody: v.number(),
@@ -212,6 +215,7 @@ export const week = query({
         opponentName: theirs.standing.name,
         chance: history[history.length - 1].chance,
         deltaToday: deltaSince(history, startOfPacificDay(pacificDay(asOf))),
+        todayStart: startOfPacificDay(pacificDay(asOf)),
         history,
         opponent: toRange(atNow[replays.indexOf(theirs)].projection),
       };
@@ -265,6 +269,7 @@ export const week = query({
         }))
         .sort((a, b) => b.chance - a.chance || b.projected - a.projected || a.name.localeCompare(b.name)),
       nobody: staked ? sim.nobody : 0,
+      potUsd: staked ? league.stakeUsd * replays.filter((replay) => replay.standing.paid).length : 0,
     };
 
     return {

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Artwork } from "@/components/art";
+import { MatchupOdds } from "@/components/markets/MatchupOdds";
 import { CountUp, PressScale, ProgressFill } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
 import { formatScore } from "@/components/ui";
@@ -84,6 +85,10 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           <Text style={styles.name}>points this week</Text>
         </View>
       )}
+      {/* The win chance gets its own two-colour bar, so it can't be read off the plan bar below. */}
+      {matchup ? (
+        <MatchupOdds compact me={{ name: matchup.me.name, chance: matchup.me.winProbability }} them={{ name: matchup.opponent.name, chance: matchup.opponent.winProbability }} />
+      ) : null}
       {plan.possible > 0 ? (
         <View
           style={styles.plan}
@@ -96,7 +101,6 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
             Your weekly plan · {plan.confirmed} / {plan.possible} pts
           </Text>
           <ProgressFill ratio={plan.ratio} />
-          {chance !== null ? <Text style={styles.chance}>Win this matchup · {chance}%</Text> : null}
           {plan.pending > 0 ? <Text style={styles.pending}>+{plan.pending} points pending review</Text> : null}
         </View>
       ) : null}
