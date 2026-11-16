@@ -117,7 +117,8 @@ export function checkInVerdict(rules: ProofRules): Verdict {
     confidence: 1,
     reason: `Checked in at ${placeName}${distanceM === null ? "" : `, ${formatDistance(distanceM)} away`}`,
     highlight: 3,
-    caption: "",
+    // No model looks at a check-in, so the feed's line is ours.
+    caption: "Showed up. That's half of it.",
     points: rules.points,
     closeCall: false,
     flags: [],
