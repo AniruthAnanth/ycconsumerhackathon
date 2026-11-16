@@ -21,6 +21,6 @@ describe("join modes", () => {
 
   it("explains the pot only for a paid match", () => {
     expect(stakeLine(0)).toBeNull();
-    expect(stakeLine(5)).toBe("The top scorer who clears all 5 slots takes the pot.");
+    expect(stakeLine(5)).toBe("Whoever clears the most of their week splits the pot, held in escrow until cashout.");
   });
 });
