@@ -19,8 +19,8 @@ export const TOURS = {
     { target: "odds", text: "Live odds on who wins the pot." },
   ],
   proof: [
-    { target: "howToProve", text: "This is what your proof has to show." },
-    { target: "shutter", text: "The AI checks your proof matches the task before it scores." },
+    // One step on the line that is always there: before camera access the shutter is not.
+    { target: "howToProve", text: "The AI checks that your proof shows this before it scores." },
   ],
 } as const satisfies Record<string, readonly { target: string; text: string }[]>;
 

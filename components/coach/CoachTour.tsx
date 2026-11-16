@@ -101,7 +101,7 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
             text={step.text}
             rect={step.rect}
             screen={screen}
-            position={`${shown.index + 1} of ${shown.steps.length}`}
+            position={shown.steps.length > 1 ? `${shown.index + 1} of ${shown.steps.length}` : null}
             last={last}
             onNext={next}
             onSkip={finish}
@@ -124,7 +124,7 @@ function Bubble({
   text: string;
   rect: Rect;
   screen: { width: number; height: number };
-  position: string;
+  position: string | null;
   last: boolean;
   onNext: () => void;
   onSkip: () => void;
@@ -148,7 +148,7 @@ function Bubble({
           </Pressable>
         )}
         <View style={styles.right}>
-          <Text style={styles.position}>{position}</Text>
+          {position ? <Text style={styles.position}>{position}</Text> : null}
           <Pressable onPress={onNext} style={styles.next} accessibilityRole="button" testID="coach-next">
             <Text style={styles.nextLabel}>{last ? "Got it" : "Next"}</Text>
           </Pressable>
