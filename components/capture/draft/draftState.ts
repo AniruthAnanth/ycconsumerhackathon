@@ -13,6 +13,8 @@ export type DraftState = {
   micUnavailable: boolean;
   /** The lineup under review was picked by hand, not drafted from what the player said. */
   manual: boolean;
+  /** A typed change ("swap laundry for dishes") is being applied; the rows wait for it. */
+  refining: boolean;
 };
 
 export type DraftAction =
@@ -25,6 +27,9 @@ export type DraftAction =
   | { type: "manualStarted"; tasks: DraftTask[] }
   | { type: "taskRenamed"; index: number; title: string }
   | { type: "taskRemoved"; index: number }
+  | { type: "refineRequested" }
+  | { type: "refineSucceeded"; tasks: DraftTask[] }
+  | { type: "refineFailed"; message: string }
   | { type: "lockRequested" }
   | { type: "lockFailed"; message: string }
   | { type: "redone" };
@@ -36,6 +41,7 @@ export const initialDraftState: DraftState = {
   error: null,
   micUnavailable: false,
   manual: false,
+  refining: false,
 };
 
 /**
@@ -77,8 +83,15 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
       return state.phase === "review" ? { ...state, tasks: renameTask(state.tasks, action.index, action.title) } : state;
     case "taskRemoved":
       return state.phase === "review" ? { ...state, tasks: removeTask(state.tasks, action.index) } : state;
+    case "refineRequested":
+      return state.phase === "review" && !state.refining ? { ...state, refining: true, error: null } : state;
+    case "refineSucceeded":
+      // The changed lineup replaces the old one whole, points included: the model re-rates what it touched.
+      return state.refining ? { ...state, refining: false, tasks: action.tasks } : state;
+    case "refineFailed":
+      return state.refining ? { ...state, refining: false, error: action.message } : state;
     case "lockRequested":
-      return state.phase === "review" ? { ...state, phase: "locking", error: null } : state;
+      return state.phase === "review" && !state.refining ? { ...state, phase: "locking", error: null } : state;
     case "lockFailed":
       return state.phase === "locking" ? { ...state, phase: "review", error: action.message } : state;
     case "redone":

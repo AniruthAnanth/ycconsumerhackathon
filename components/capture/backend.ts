@@ -39,6 +39,8 @@ export const capture = {
     /** Send the uploaded voice note, or a typed transcript; never both. */
     draft: action<{ audioStorageId?: Id<"_storage">; transcript?: string }, Draft>("lineup:draft"),
     lock: mutation<{ tasks: DraftTask[]; transcript?: string }, { weekStart: number }>("lineup:lock"),
+    /** Applies a typed change to a lineup that isn't locked yet; untouched tasks come back as they were. */
+    refine: action<{ previousLineup: DraftTask[]; instruction: string }, { tasks: DraftTask[] }>("lineup:refine"),
   },
   liveTranscribe: {
     /** One recorded segment's words while the player talks; "" when it can't be read. */
