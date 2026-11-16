@@ -62,9 +62,9 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
         <Text style={[styles.heading, { width: COL.rank }]}>RK</Text>
         <Text style={[styles.heading, styles.playerCol, styles.playerHeading]}>PLAYER</Text>
         <Text style={[styles.heading, styles.right, { width: COL.record }]}>W-L</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.pointsFor }]}>PF</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.pointsAgainst }]}>PA</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STRK</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.pointsFor }]} accessibilityLabel="Points for">PF</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.pointsAgainst }]} accessibilityLabel="Points against">PA</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.streak }]} accessibilityLabel="Streak">STRK</Text>
       </View>
       {rows.map((row, index) => {
         const moved = rankMovement(baseline.current, row);
