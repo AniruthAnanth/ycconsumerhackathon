@@ -269,6 +269,36 @@ export default defineSchema({
     .index("by_league", ["leagueId", "closesAt"]),
 
   // One row per league member who called a locked task too easy (vetoes.ts).
+  // The league group chat: one thread per league, members and Sunny. A Sunny message has no userId.
+  leagueMessages: defineTable({
+    leagueId: v.id("leagues"),
+    userId: v.optional(v.id("users")),
+    text: v.string(),
+    replyToId: v.optional(v.id("leagueMessages")),
+    createdAt: v.number(),
+  }).index("by_league_created", ["leagueId", "createdAt"]),
+
+  leagueMessageReactions: defineTable({
+    messageId: v.id("leagueMessages"),
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+    emoji: v.string(),
+  })
+    .index("by_message", ["messageId"])
+    .index("by_league", ["leagueId"]),
+
+  // Per member: when they last opened the thread (the unread count), and per league whether Sunny is typing.
+  leagueChatReads: defineTable({
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+    lastReadAt: v.number(),
+  }).index("by_league_user", ["leagueId", "userId"]),
+
+  leagueChatSunny: defineTable({
+    leagueId: v.id("leagues"),
+    typing: v.boolean(),
+  }).index("by_league", ["leagueId"]),
+
   taskVetoes: defineTable({
     taskId: v.id("tasks"),
     leagueId: v.id("leagues"),

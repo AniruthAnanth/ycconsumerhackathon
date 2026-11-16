@@ -109,7 +109,7 @@ export function GroupChat() {
               />
             )
           }
-          ListFooterComponent={thread.sunnyTyping ? <TypingIndicator avatar={<SunnyAvatar size={AVATAR} />} /> : undefined}
+          ListFooterComponent={thread.sunnyTyping ? <TypingIndicator avatar={<SunnyAvatar size={AVATAR} face />} /> : undefined}
           onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
           onScrollBeginDrag={() => setPicking(null)}
           keyboardShouldPersistTaps="handled"
@@ -198,7 +198,7 @@ const PostRow = memo(function PostRow({
       <View style={[styles.row, post.mine ? styles.rowMine : styles.rowOther, first ? styles.rowFirst : styles.rowCont]}>
         {post.mine ? null : (
           <View style={styles.avatarColumn}>
-            {first ? sunny ? <SunnyAvatar size={AVATAR} /> : <Avatar uri={post.author.kind === "member" ? post.author.avatarUrl : undefined} name={name} size={AVATAR} /> : null}
+            {first ? sunny ? <SunnyAvatar size={AVATAR} face /> : <Avatar uri={post.author.kind === "member" ? post.author.avatarUrl : undefined} name={name} size={AVATAR} /> : null}
           </View>
         )}
         <View style={[styles.column, post.mine ? styles.columnMine : styles.columnOther]}>

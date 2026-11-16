@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { draftLineup, rateTask, transcribe } from "./ai";
+import { draftLineup, rateTask, refineLineup, transcribe } from "./ai";
 import type { DraftTask } from "./lib/lineupRules";
 import { addMemory, searchMemories } from "./memory";
 import schema from "./schema";
@@ -14,6 +14,7 @@ import schema from "./schema";
 vi.mock("./ai", async (original) => ({
   ...(await original<typeof import("./ai")>()),
   draftLineup: vi.fn(),
+  refineLineup: vi.fn(),
   rateTask: vi.fn(),
   transcribe: vi.fn(),
 }));
@@ -207,22 +208,48 @@ describe("lineup.lock", () => {
 });
 
 describe("lineup.addFlexTask", () => {
-  it("adds a task the model then rates", async () => {
+  it("adds a task the model then rates, before the week is locked", async () => {
     const { t, as } = await signedIn();
-    await as.mutation(api.lineup.lock, { tasks: FULL_LINEUP });
-
     const taskId = await as.mutation(api.lineup.addFlexTask, { title: "  Run a half marathon " });
     await runScheduled(t);
 
     expect(rateTask).toHaveBeenCalledWith("Run a half marathon");
-    const { rows } = await as.query(api.lineup.roster, {});
-    expect(rows[5]).toMatchObject({ taskId, slot: "flex", source: "flex", title: "Run a half marathon", points: 45 });
+    expect(await t.run((ctx) => ctx.db.get("tasks", taskId))).toMatchObject({ slot: "flex", source: "flex", title: "Run a half marathon", points: 45 });
   });
 
   it("stops at three flex tasks a week", async () => {
     const { as } = await signedIn();
     for (const title of ["One", "Two", "Three"]) await as.mutation(api.lineup.addFlexTask, { title });
     await expect(as.mutation(api.lineup.addFlexTask, { title: "Four" })).rejects.toThrow("already have 3 flex tasks");
+  });
+
+  it("refuses a locked week", async () => {
+    const { as } = await signedIn();
+    await as.mutation(api.lineup.lock, { tasks: FULL_LINEUP });
+    await expect(as.mutation(api.lineup.addFlexTask, { title: "Run" })).rejects.toThrow("locked for this week");
+  });
+});
+
+describe("lineup.refine", () => {
+  it("applies the instruction and keeps untouched tasks exactly as they were", async () => {
+    const { as } = await signedIn();
+    vi.mocked(refineLineup).mockResolvedValueOnce([
+      { ...FULL_LINEUP[0], points: 50 },
+      ...FULL_LINEUP.slice(1, 3),
+      { slot: "chores", title: "Deep-clean the kitchen", points: 35, proofType: "before_after" },
+      FULL_LINEUP[4],
+    ]);
+    const { tasks } = await as.action(api.lineup.refine, { previousLineup: FULL_LINEUP, instruction: "Swap laundry for deep-cleaning the kitchen" });
+    expect(vi.mocked(refineLineup).mock.calls[0][0]).toEqual({ previous: FULL_LINEUP, instruction: "Swap laundry for deep-cleaning the kitchen" });
+    expect(tasks[0]).toMatchObject({ title: "Leg day at the gym", points: 30 });
+    expect(tasks[3]).toMatchObject({ slot: "chores", title: "Deep-clean the kitchen", points: 35, proofType: "before_after" });
+    expect(tasks).toHaveLength(5);
+  });
+
+  it("is for signed-in players and needs an instruction", async () => {
+    const { t, as } = await signedIn();
+    await expect(as.action(api.lineup.refine, { previousLineup: FULL_LINEUP, instruction: "  " })).rejects.toThrow("Say what to change");
+    await expect(t.action(api.lineup.refine, { previousLineup: FULL_LINEUP, instruction: "harder" })).rejects.toThrow();
   });
 });
 

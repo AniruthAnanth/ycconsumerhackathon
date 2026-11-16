@@ -21,7 +21,7 @@ import {
   type ActionCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { draftLineup, rateTask, transcribe } from "./ai";
+import { draftLineup, rateTask, refineLineup, transcribe } from "./ai";
 import { challengerPointsByUser } from "./challenges";
 import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
@@ -256,6 +256,27 @@ const weekName = (weekStart: number) =>
 // ---------------------------------------------------------------------------
 
 /**
+ * A typed instruction applied to a drafted lineup, before it is locked. Tasks the instruction
+ * didn't touch come back exactly as they were, points included, whatever the model wrote for
+ * them: a re-rate is only for what the player changed.
+ */
+export const refine = action({
+  args: { previousLineup: v.array(draftTask), instruction: v.string() },
+  handler: async (ctx, args): Promise<{ tasks: DraftTask[] }> => {
+    await ctx.runQuery(internal.lineup.callerId, {});
+    const instruction = args.instruction.trim();
+    if (instruction === "") throw new ConvexError("Say what to change.");
+    const refined = await refineLineup({ previous: args.previousLineup, instruction }).catch((error) => {
+      console.error("refineLineup failed:", error instanceof Error ? error.message : error);
+      throw new ConvexError("The draft desk is busy. Try again in a moment.");
+    });
+    if (refined.length === 0) return { tasks: args.previousLineup };
+    const untouched = new Map(args.previousLineup.map((task) => [`${task.slot}|${task.title.trim()}`, task]));
+    return { tasks: shapeDraft(refined.map((task) => untouched.get(`${task.slot}|${task.title.trim()}`) ?? task)) };
+  },
+});
+
+/**
  * Writes each league member's result for a finished week into their memory,
  * so the next draft can react to it ("you skipped Body twice, so here's an
  * easy one"). Settlement schedules this once per league week.
@@ -307,6 +328,9 @@ export const weekOutcomes = internalQuery({
 // Flex tasks
 // ---------------------------------------------------------------------------
 
+// The owner's rule: a locked lineup stays as it is all week. Only a league veto swaps a task.
+const LOCKED_WEEK = "Your lineup is locked for this week. You can change it when the next week opens.";
+
 // A typed-in task starts mid-range so it is playable at once; the model then
 // rates it on the same scale as drafted tasks a moment later.
 const UNRATED_FLEX_POINTS = 20;
@@ -316,6 +340,7 @@ export const addFlexTask = mutation({
   args: { title: v.string() },
   handler: async (ctx, args): Promise<Id<"tasks">> => {
     const user = await requireUser(ctx);
+    if (await isLocked(ctx, user._id, weekStartOf(Date.now()))) throw new ConvexError(LOCKED_WEEK);
     const task = tidyTask({
       slot: "flex",
       title: args.title,

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_RECORDING_MS, formatElapsed, hasReachedLimit, meterLevel } from "./recordingMeter";
+import { MAX_RECORDING_MS, formatElapsed, hasReachedLimit, meterLevel, pushLevel } from "./recordingMeter";
+
+describe("pushLevel", () => {
+  it("appends the newest level and keeps the last few", () => {
+    expect(pushLevel([0.1, 0.2], 0.3, 3)).toEqual([0.1, 0.2, 0.3]);
+    expect(pushLevel([0.1, 0.2, 0.3], 0.4, 3)).toEqual([0.2, 0.3, 0.4]);
+  });
+});
 
 describe("meterLevel", () => {
   it("maps speech loudness onto 0 to 1", () => {

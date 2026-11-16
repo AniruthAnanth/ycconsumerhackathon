@@ -9,6 +9,7 @@ import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
+import { SunnyTextPrompt } from "@/components/social/sunny/SunnyPrompt";
 import { bySeasonRank, playoffSpots, seasonRecords } from "@/components/leagueTab/seasonColumns";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { Entrance } from "@/components/motion";
@@ -60,6 +61,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
         viewerId={me._id}
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
+      <SunnyTextPrompt />
       {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
       <LeagueInfo>
         <LeagueDetails league={league} pot={pot} now={now} />

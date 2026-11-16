@@ -461,8 +461,7 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
   if (!understood.isSessionProposal) {
     // Action tags are buttons in the app's chat; a phone would show them as text.
     const tagged = onPhone(turn) ? withoutActionTag(understood.reply) : understood.reply;
-    // The owner's rule: no em-dashes anywhere a player reads, the model's words included.
-    const answer = tagged.replace(/\s*\u2014\s*/g, ", ");
+    const answer = withoutEmDashes(tagged);
     return answer.trim() || reply.help;
   }
 
@@ -485,25 +484,6 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
 
 /** What the model is told about the league: enough to answer "how am I doing", nothing private. */
 async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text: string, now: number): Promise<string> {
-  const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId: player.userId, now });
-  const openTasks = [
-    ...(open.quickTime ? [`${open.quickTime.title} (the live quick-time drop; reply with a photo)`] : []),
-    ...open.photoTasks.map((task) => `${task.title} (photo)`),
-    ...open.locationTasks.map((task) => `${task.title} (photo${task.placeName ? ` at ${task.placeName}` : ""})`),
-    ...open.canvasTasks.map((task) => `${task.title} (submitted on Canvas)`),
-  ];
-  let week = "The player is not in a league yet.";
-  if (player.league !== null) {
-    const { leagueId, name } = player.league;
-    try {
-      const rows = await ctx.runQuery(internal.standings.tableForLeague, { leagueId });
-      const opponentId: Id<"users"> | null = await ctx.runQuery(internal.keiki.opponentOf, { leagueId, userId: player.userId });
-      week = weekFacts(name, rows, player.userId, opponentId);
-    } catch {
-      // A league that has not started its first week has no table yet.
-      week = `League: ${name}. Its standings are unavailable right now.`;
-    }
-  }
   const earlier = turn.history
     .slice(-6)
     .map((entry) => `${entry.role === "user" ? "Player" : "You"}: ${splitLeagueTag(captionOf(entry.content)).text}`);
@@ -512,8 +492,7 @@ async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text
     `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
     // The model words a reply for where it will be read: a chat reply should not say "text me".
     `The player is writing ${turn.conversationId.startsWith(GATEWAY_PREFIX) ? "in the app's chat screen" : "by text message"}.`,
-    week,
-    `This player's open tasks this week and how each is proved: ${openTasks.join("; ") || "none"}.`,
+    await playerWeek(ctx, player.userId, player.league, now),
     `How scoring works: ${SCORING_RULES}`,
     earlier.length > 0 ? `Earlier in this conversation:\n${earlier.join("\n")}` : "",
     `Message: ${text}`,
@@ -521,6 +500,103 @@ async function leagueFacts(ctx: ActionCtx, turn: KeikiTurn, player: Player, text
     .filter((part) => part !== "")
     .join("\n\n");
 }
+
+/** The player's league table, matchup and rank, and their open tasks with how each is proved. */
+async function playerWeek(ctx: ActionCtx, userId: Id<"users">, league: League | null, now: number): Promise<string> {
+  const open: OpenTasks = await ctx.runQuery(internal.keiki.proofTargets, { userId, now });
+  const openTasks = [
+    ...(open.quickTime ? [`${open.quickTime.title} (the live quick-time drop; reply with a photo)`] : []),
+    ...open.photoTasks.map((task) => `${task.title} (photo)`),
+    ...open.locationTasks.map((task) => `${task.title} (photo${task.placeName ? ` at ${task.placeName}` : ""})`),
+    ...open.canvasTasks.map((task) => `${task.title} (submitted on Canvas)`),
+  ];
+  let week = "The player is not in a league yet.";
+  if (league !== null) {
+    try {
+      const rows = await ctx.runQuery(internal.standings.tableForLeague, { leagueId: league.leagueId });
+      const opponentId: Id<"users"> | null = await ctx.runQuery(internal.keiki.opponentOf, { leagueId: league.leagueId, userId });
+      week = weekFacts(league.name, rows, userId, opponentId);
+    } catch {
+      // A league that has not started its first week has no table yet.
+      week = `League: ${league.name}. Its standings are unavailable right now.`;
+    }
+  }
+  return `${week}\n\nThis player's open tasks this week and how each is proved: ${openTasks.join("; ") || "none"}.`;
+}
+
+/** Sunny's words go out as written: no em-dashes, by the owner's rule, the model's included. */
+function withoutEmDashes(text: string): string {
+  return text.replace(/\s*\u2014\s*/g, ", ");
+}
+
+// ─── The league group chat ───────────────────────────────────────────────────────────────────
+
+const GROUP_INSTRUCTIONS = [
+  "You are Sunny, the capybara who is this league's commissioner: the referee and scorekeeper of a fantasy league for",
+  "people's own lives. Calm, warm, a little dry, never cute. You are one member of the league's group chat. The last",
+  "messages are given oldest first, each with its author; the newest one addressed you. Reply to it in one to three",
+  "short, punchy sentences, as a message in the group, no emojis, never an em-dash. Answer only from the league facts",
+  "given, and cite the real names and numbers. 'I', 'me' and 'my' in the newest message mean its author, whose week is",
+  "spelled out in the facts. When your reply recommends an action, end it with exactly one tag on its own line:",
+  "[action:swap] to swap a task the league struck, [action:nudge:<name>] to nudge a named member (their name as written",
+  "in the table), or [action:veto] to veto a member's task. Otherwise add no tag.",
+].join(" ");
+
+const GROUP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply"],
+  properties: { reply: { type: "string" } },
+};
+
+/**
+ * Sunny's reply in a league's group chat. The chat module owns the thread: it passes the last
+ * messages in and posts the returned text as Sunny's. This writes nothing, so a failed model
+ * call leaves the thread as it was and the chat decides what to show.
+ */
+export const groupReply = internalAction({
+  args: {
+    leagueId: v.id("leagues"),
+    /** Who addressed Sunny, so "my matchup" means theirs. */
+    askerId: v.id("users"),
+    /** Oldest first, the last twenty or so. */
+    messages: v.array(v.object({ author: v.string(), fromSunny: v.boolean(), text: v.string() })),
+  },
+  returns: v.object({ text: v.string() }),
+  handler: async (ctx, { leagueId, askerId, messages }): Promise<{ text: string }> => {
+    const now = Date.now();
+    const league: League | null = await ctx.runQuery(internal.keiki.leagueNamed, { leagueId });
+    const thread = messages
+      .slice(-GROUP_CONTEXT_MESSAGES)
+      .map((message) => `${message.fromSunny ? "Sunny (you)" : message.author}: ${message.text.slice(0, 1000)}`);
+    const facts: string = [
+      `Current time: ${new Date(now).toISOString()}, which is ${leagueTime(now)} in America/Los_Angeles.`,
+      `The newest message is from ${messages[messages.length - 1]?.author ?? "a member"}. Their week:`,
+      await playerWeek(ctx, askerId, league, now),
+      `How scoring works: ${SCORING_RULES}`,
+      `The group chat:\n${thread.join("\n")}`,
+    ].join("\n\n");
+    const { reply: text } = await askJson<{ reply: string }>({
+      name: "league_group_reply",
+      instructions: GROUP_INSTRUCTIONS,
+      text: facts,
+      schema: GROUP_SCHEMA,
+    });
+    return { text: withoutEmDashes(text).trim() };
+  },
+});
+
+/** How much of the group chat Sunny reads before replying. */
+const GROUP_CONTEXT_MESSAGES = 20;
+
+export const leagueNamed = internalQuery({
+  args: { leagueId: v.id("leagues") },
+  returns: v.union(v.null(), v.object({ leagueId: v.id("leagues"), name: v.string() })),
+  handler: async (ctx, { leagueId }) => {
+    const league = await ctx.db.get("leagues", leagueId);
+    return league === null ? null : { leagueId: league._id, name: league.name };
+  },
+});
 
 // ─── Outbound: texts from the rest of the backend ────────────────────────────────────────────
 

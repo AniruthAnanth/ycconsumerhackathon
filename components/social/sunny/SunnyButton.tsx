@@ -31,7 +31,7 @@ export function SunnyButton() {
       ) : unread ? (
         <BouncingFace key={brief?.line} />
       ) : (
-        <SunnyAvatar size={FACE} />
+        <SunnyAvatar size={FACE} face />
       )}
     </Pressable>
   );
@@ -41,7 +41,7 @@ function BouncingFace({ count }: { count?: number }) {
   const hop = useSunnyHop(FACE);
   return (
     <Animated.View style={hop}>
-      <SunnyAvatar size={FACE} />
+      <SunnyAvatar size={FACE} face />
       {count ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count > 99 ? "99+" : count}</Text>
@@ -53,7 +53,7 @@ function BouncingFace({ count }: { count?: number }) {
   );
 }
 
-const FACE = 32;
+const FACE = 36;
 const DOT = 10;
 const BADGE = 18;
 
@@ -66,7 +66,8 @@ const styles = StyleSheet.create({
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
-    backgroundColor: colors.danger,
+    // Green, not red: something new from Sunny is good news, not an error.
+    backgroundColor: colors.accent,
     borderWidth: 2,
     borderColor: colors.background,
   },

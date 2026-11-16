@@ -35,6 +35,9 @@ const REVIEW_MODEL = "gpt-6.1-sol";
 // the transcription endpoint first and the model only ever sees text.
 const TRANSCRIPTION_MODEL = "gpt-transcribe";
 
+// Voice Draft's live words while the player talks: a short segment back in well under a second.
+export const LIVE_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+
 // Built per call, not at module load: Convex evaluates modules at deploy time,
 // and a missing key must fail the one feature that needs it, not the deploy.
 function client(): OpenAI {
@@ -140,10 +143,10 @@ const AUDIO_EXTENSIONS: Record<string, string> = {
   "audio/ogg": "ogg",
 };
 
-export async function transcribe(audio: Blob): Promise<string> {
+export async function transcribe(audio: Blob, model: string = TRANSCRIPTION_MODEL): Promise<string> {
   const extension = AUDIO_EXTENSIONS[audio.type.split(";")[0]] ?? "m4a";
   const file = await toFile(audio, `voice-note.${extension}`, { type: audio.type });
-  const result = await client().audio.transcriptions.create({ file, model: TRANSCRIPTION_MODEL });
+  const result = await client().audio.transcriptions.create({ file, model });
   return withoutDashes(result.text.trim());
 }
 
@@ -254,6 +257,38 @@ export async function draftLineup(input: {
   // 3 seconds instead of 5.5, just as well. Its one weakness is calling a thin plan ("I've got a
   // midterm Thursday") no plan at all, so an empty draft is asked again with reasoning before it
   // is believed.
+  let { tasks } = await ask("none");
+  if (tasks.length === 0) ({ tasks } = await ask("low"));
+  return tasks.map(({ place, targetMinutes, ...task }) => ({
+    ...task,
+    ...(place && { place }),
+    ...(targetMinutes !== null && { targetMinutes }),
+  }));
+}
+
+/**
+ * Applies a typed instruction ("swap chores for laundry", "make the gym task harder") to a
+ * drafted lineup. Same rules and shape as draftLineup; lineup.ts holds untouched tasks to what
+ * they were, so the model only has to get the changed ones right.
+ */
+export async function refineLineup(input: { previous: DraftTask[]; instruction: string }): Promise<DraftTask[]> {
+  const ask = (effort: "none" | "low") =>
+    askJson<{ tasks: DraftedTask[] }>({
+      name: "lineup_refine",
+      instructions: `${DRAFT_INSTRUCTIONS}
+
+You are refining a lineup the player already has. Apply their instruction and return the whole lineup. Copy every task the instruction does not touch exactly as given: same slot, title, points, proofType, place and targetMinutes. Give a changed or new task its points, proofType and targetMinutes by the rules above.`,
+      text: `Current lineup:
+${JSON.stringify(input.previous)}
+
+The player's instruction:
+"""
+${input.instruction}
+"""`,
+      schema: DRAFT_SCHEMA,
+      effort,
+    });
+  // As with the draft, no reasoning first; an empty answer is asked again with reasoning.
   let { tasks } = await ask("none");
   if (tasks.length === 0) ({ tasks } = await ask("low"));
   return tasks.map(({ place, targetMinutes, ...task }) => ({

@@ -127,8 +127,7 @@ export type CanvasAssignment = {
   dueAt?: number;
 };
 
-/** Placeholder until the leagueMessages table is on main; then this becomes Id<"leagueMessages">. */
-export type LeagueMessageId = string & { __leagueMessage?: never };
+export type LeagueMessageId = Id<"leagueMessages">;
 
 export type ChatPost = {
   _id: LeagueMessageId;

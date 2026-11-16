@@ -99,25 +99,29 @@ describe("stakes", () => {
   });
 
   it("says where the money goes, for either payout", () => {
-    expect(potExplanation("weekly")).toBe("Everyone pays in, the money is held in the league pot, and the weekly winner takes it.");
-    expect(potExplanation("season")).toBe("Everyone pays in, the money is held in the league pot, and the season's winner takes it at the end.");
+    expect(potExplanation("weekly")).toBe(
+      "Everyone pays in. Each week, whoever clears the most of their week splits the pot, held in escrow until cashout after each week.",
+    );
+    expect(potExplanation("season")).toBe(
+      "Everyone pays in. Each week, whoever clears the most of their week splits the pot, held in escrow until cashout at the end of the season.",
+    );
   });
 });
 
 describe("season", () => {
-  it("recommends 8 weeks, double round robin and a weekly payout", () => {
-    expect(RECOMMENDED_SETTINGS).toEqual({ payout: "weekly", seasonWeeks: 8, format: "double_round_robin" });
+  it("recommends 8 weeks, double round robin and an end-of-season payout", () => {
+    expect(RECOMMENDED_SETTINGS).toEqual({ payout: "season", seasonWeeks: 8, format: "double_round_robin" });
     expect(isRecommended({ ...RECOMMENDED_SETTINGS })).toBe(true);
     expect(isRecommended({ ...RECOMMENDED_SETTINGS, format: "bracket" })).toBe(false);
     expect(isRecommended({ ...RECOMMENDED_SETTINGS, seasonWeeks: 4 })).toBe(false);
-    expect(isRecommended({ ...RECOMMENDED_SETTINGS, payout: "season" })).toBe(false);
+    expect(isRecommended({ ...RECOMMENDED_SETTINGS, payout: "weekly" })).toBe(false);
   });
 
   it("says the recommendation in plain words", () => {
     expect(recommendedLines()).toEqual([
       "8 weeks. Long enough for a comeback.",
       "Double round robin. You play everyone twice.",
-      "Weekly payout. The pot pays out every week, to that week's winner.",
+      "End of season payout. Winnings stay in escrow until the last week, then cash out.",
     ]);
   });
 });
