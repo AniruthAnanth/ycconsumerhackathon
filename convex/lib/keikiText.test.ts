@@ -15,6 +15,7 @@ import {
   taskNamedIn,
   unwrapOutbound,
   weekFacts,
+  withoutActionTag,
   withLeagueTag,
   wrapOutbound,
 } from "./keikiText";
@@ -218,6 +219,13 @@ describe("SCORING_RULES", () => {
   it("states the bonuses with the numbers scoring.ts uses", () => {
     expect(SCORING_RULES).toContain("the higher scorer of a pair gets 50 more; a tie pays nobody");
     expect(SCORING_RULES).toContain("Clearing a slot with its drafted task adds 25, and clearing all 5 adds 100 more");
+  });
+});
+
+describe("withoutActionTag", () => {
+  it("drops a trailing action tag and leaves any other text alone", () => {
+    expect(withoutActionTag("Sam is 12 back. Give him a push.\n[action:nudge:Sam Patel]")).toBe("Sam is 12 back. Give him a push.");
+    expect(withoutActionTag("You lead by 30.")).toBe("You lead by 30.");
   });
 });
 
