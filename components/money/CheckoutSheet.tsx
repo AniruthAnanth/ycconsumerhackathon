@@ -179,9 +179,23 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
             <View style={styles.form}>
               <CheckoutFrame key={attempt} url={checkout.embedUrl} onMessage={onMessage} onError={openInBrowser} />
               {stage === "loading" ? (
-                <View style={styles.loading}>
-                  <ActivityIndicator color={colors.accent} />
-                  <Text style={styles.muted}>Loading secure checkout</Text>
+                <View style={styles.loading} accessibilityLabel="Loading secure checkout" accessibilityLiveRegion="polite">
+                  <View style={[styles.bone, styles.boneLabel]} />
+                  <View style={[styles.bone, styles.boneField]} />
+                  <View style={[styles.bone, styles.boneLabel]} />
+                  <View style={styles.boneCard}>
+                    <View style={[styles.bone, styles.boneField]} />
+                    <View style={styles.boneRow}>
+                      <View style={[styles.bone, styles.boneField, styles.boneHalf]} />
+                      <View style={[styles.bone, styles.boneField, styles.boneHalf]} />
+                    </View>
+                  </View>
+                  <View style={[styles.bone, styles.boneField]} />
+                  <View style={[styles.bone, styles.bonePay]} />
+                  <View style={styles.loadingNote}>
+                    <ActivityIndicator color={colors.accent} />
+                    <Text style={styles.muted}>Loading secure checkout · Whop</Text>
+                  </View>
                 </View>
               ) : null}
             </View>
@@ -230,11 +244,20 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingTop: spacing.lg,
     gap: spacing.sm,
     backgroundColor: colors.background,
   },
+  // A still outline of Whop's card form, so the wait reads as a form arriving and not an empty sheet.
+  bone: { borderRadius: radius.control, backgroundColor: colors.divider, opacity: 0.6 },
+  boneLabel: { width: 72, height: 12, marginTop: spacing.sm },
+  boneField: { height: 44 },
+  boneCard: { gap: spacing.sm },
+  boneRow: { flexDirection: "row", gap: spacing.sm },
+  boneHalf: { flex: 1 },
+  bonePay: { height: 48, marginTop: spacing.md, backgroundColor: colors.accent, opacity: 0.25 },
+  loadingNote: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.lg },
   paid: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl },
   tick: { width: 64, height: 64, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.accent },
   paidTitle: { fontFamily: fontFamily.extraBold, fontSize: font.total, color: colors.text },

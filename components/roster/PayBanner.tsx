@@ -1,7 +1,8 @@
 import { useAction } from "convex/react";
-import { useState } from "react";
-import { Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Platform, StyleSheet, View } from "react-native";
 
+import { CheckoutFrame } from "@/components/money/CheckoutFrame";
 import { CheckoutSheet } from "@/components/money/CheckoutSheet";
 import { Banner } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -22,6 +23,14 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
   const createCheckout = useAction(backend.whop.createCheckout);
   const [state, setState] = useState<"idle" | "opening" | "failed" | "blocked">("idle");
   const [checkout, setCheckout] = useState<{ embedUrl: string; purchaseUrl: string } | null>(null);
+  // Made as soon as the banner shows, so Pay doesn't wait on Whop for a checkout session.
+  const [prepared, setPrepared] = useState<{ embedUrl: string; purchaseUrl: string } | null>(null);
+  const preparing = useRef(false);
+  useEffect(() => {
+    if (preparing.current) return;
+    preparing.current = true;
+    createCheckout({ leagueId }).then(setPrepared, () => undefined);
+  }, [createCheckout, leagueId]);
 
   async function pay() {
     setState("opening");
@@ -35,7 +44,7 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
       return;
     }
     try {
-      const created = await createCheckout({ leagueId });
+      const created = prepared ?? (await createCheckout({ leagueId }));
       if (tab) {
         tab.location.href = created.purchaseUrl;
       } else {
@@ -56,6 +65,14 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
         subtitle={SUBTITLE[state]}
         onPress={state === "opening" ? undefined : pay}
       />
+      {/* A hidden copy of the checkout page loads while the player reads the screen, so Whop's
+          scripts and card fields are already cached when the sheet opens hers. Native only: on the
+          web Pay opens Whop in a tab. */}
+      {Platform.OS !== "web" && prepared && !checkout ? (
+        <View style={styles.prewarm} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          <CheckoutFrame url={prepared.embedUrl} onMessage={() => undefined} onError={() => undefined} />
+        </View>
+      ) : null}
       {checkout ? (
         <CheckoutSheet leagueId={leagueId} stakeUsd={stakeUsd} checkout={checkout} onClose={() => setCheckout(null)} />
       ) : null}
@@ -69,3 +86,7 @@ const SUBTITLE = {
   failed: "Checkout didn't open. Tap to try again.",
   blocked: "Your browser blocked the checkout tab. Allow pop-ups, then tap to try again.",
 } as const;
+
+const styles = StyleSheet.create({
+  prewarm: { position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" },
+});
