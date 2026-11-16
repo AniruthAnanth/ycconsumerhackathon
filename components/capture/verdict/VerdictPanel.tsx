@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Artwork } from "@/components/art";
@@ -36,7 +36,15 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, spacing.lg);
 
-  if (phase.name === "reviewing") return <View style={styles.panel}>{whileReviewing}</View>;
+  // The caption over the media already says the referee is reviewing; the spinner only shows it is still working.
+  if (phase.name === "reviewing") {
+    return (
+      <View style={styles.panel}>
+        {whileReviewing}
+        <ActivityIndicator style={styles.reviewing} color={colors.accent} testID="verdict-reviewing" />
+      </View>
+    );
+  }
 
   if (phase.name === "error") {
     return (
@@ -71,7 +79,7 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
           <View style={styles.pointsRow}>
             <View style={styles.pointsValue}>
               <PointsCounter points={verdict.points} delay={REASON_DELAY_MS} />
-              <Text style={styles.pointsUnit}>PTS</Text>
+              <Text style={styles.pointsUnit}>pts</Text>
             </View>
             {verdict.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : null}
           </View>
@@ -118,7 +126,8 @@ const styles = StyleSheet.create({
   reasonPass: { ...type.body, color: colors.textMuted, marginBottom: spacing.lg },
   pointsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
   pointsValue: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  pointsUnit: { ...type.label, color: colors.textMuted, letterSpacing: 1.2 },
+  reviewing: { flex: 1 },
+  pointsUnit: { ...type.label, color: colors.textMuted },
   closeCall: {
     color: colors.textMuted,
     borderColor: colors.divider,
