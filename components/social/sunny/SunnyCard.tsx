@@ -7,6 +7,8 @@ import Animated from "react-native-reanimated";
 import { PressScale, useSunnyHop } from "@/components/motion";
 import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
+import { useTextSunny } from "@/components/keiki/useTextSunny";
+
 import { SUNNY } from "./sunnyLogic";
 import { useSunny } from "./useSunny";
 
@@ -24,6 +26,7 @@ const POINTER = 12;
 export function SunnyCard() {
   const router = useRouter();
   const { brief } = useSunny();
+  const textSunny = useTextSunny();
   if (!brief) return null;
   const ask = (text?: string) => router.push(text ? { pathname: "/chat", params: { ask: text } } : "/chat");
 
@@ -48,6 +51,13 @@ export function SunnyCard() {
             </Text>
           </PressScale>
         ))}
+        {textSunny.ready ? (
+          <PressScale accessibilityRole="button" accessibilityLabel={`Text Sunny instead, at ${textSunny.number}`} onPress={() => void textSunny.open()} style={styles.chip}>
+            <Text style={styles.chipText} numberOfLines={1}>
+              Text Sunny instead
+            </Text>
+          </PressScale>
+        ) : null}
       </View>
     </View>
   );
