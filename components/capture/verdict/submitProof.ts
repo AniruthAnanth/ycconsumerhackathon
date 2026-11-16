@@ -72,10 +72,24 @@ export async function submitProof(backend: ProofBackend, taskId: string, capture
     });
   }
 
-  const stills = await Promise.all(stillTimes(capture.durationMs).map((time) => backend.captureStill(capture.uri, time)));
+  // A survey video arrives with its stills already taken (the player looked them over); a plain clip still needs them.
+  const stills = capture.frames?.map((frame) => frame.uri) ??
+    (await Promise.all(stillTimes(capture.durationMs).map((time) => backend.captureStill(capture.uri, time))));
   const [storageId, ...frameStorageIds] = await Promise.all([
     upload(capture.uri, contentTypeFor("video", capture.uri)),
     ...stills.map((still) => upload(still, "image/jpeg")),
   ]);
-  return backend.verifyMedia({ taskId, storageId, mediaType: "video", frameStorageIds, lat, lng });
+  return backend.verifyMedia({
+    taskId,
+    storageId,
+    mediaType: "video",
+    frameStorageIds,
+    lat,
+    lng,
+    ...(capture.frames && {
+      frameTimes: capture.frames.map((frame) => frame.at),
+      durationSec: Math.round((capture.durationMs ?? 0) / 1000),
+      capturedAt: capture.capturedAt,
+    }),
+  });
 }

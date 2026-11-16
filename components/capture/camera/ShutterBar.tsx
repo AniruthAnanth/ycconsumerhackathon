@@ -9,11 +9,18 @@ const RECORD_RED = colors.danger;
 // expo-camera cannot record on web: recordAsync only warns and returns an empty file.
 const RECORDS = Platform.OS !== "web";
 
-/** The modes a task offers. A timelapse task offers only its own two; interval photos work everywhere. */
-export function modesFor(timelapse: boolean): CaptureMode[] {
-  if (timelapse) return RECORDS ? ["timelapse", "interval"] : ["interval"];
-  return RECORDS ? ["photo", "video"] : ["photo"];
+/** Every proof is a timelapse or a 5-second survey video; interval photos stand in for the timelapse where recording is impossible. */
+export function modesFor(): CaptureMode[] {
+  return RECORDS ? ["timelapse", "survey"] : ["interval", "survey"];
 }
+
+const MODE_LABEL: Record<CaptureMode, string> = {
+  photo: "PHOTO",
+  video: "VIDEO",
+  timelapse: "TIMELAPSE",
+  interval: "TIMELAPSE",
+  survey: "QUICK VIDEO (5 S)",
+};
 
 type Props = {
   modes: CaptureMode[];
@@ -37,7 +44,7 @@ export function ShutterBar({ modes, mode, recording, counter, busy, onModeChange
         <View style={styles.side}>
           {modes.map((option) => (
             <Pressable key={option} disabled={!idle} onPress={() => onModeChange(option)} hitSlop={8} testID={`camera-mode-${option}`}>
-              <Text style={[styles.mode, mode === option && styles.modeActive]}>{option.toUpperCase()}</Text>
+              <Text style={[styles.mode, mode === option && styles.modeActive]}>{MODE_LABEL[option]}</Text>
             </Pressable>
           ))}
         </View>

@@ -7,9 +7,9 @@
  */
 import type { ProofType } from "@/lib/slots";
 
-export type CaptureProofType = ProofType | "before_after" | "timelapse" | "screenshot";
+export type CaptureProofType = ProofType | "before_after" | "timelapse" | "screenshot" | "survey_video";
 
-const KNOWN: readonly CaptureProofType[] = ["photo", "photo_location", "canvas", "before_after", "timelapse", "screenshot"];
+const KNOWN: readonly CaptureProofType[] = ["photo", "photo_location", "canvas", "before_after", "timelapse", "screenshot", "survey_video"];
 
 /** An unknown or missing type opens the plain camera, which every task can fall back on. */
 export function parseProofType(value: string | undefined): CaptureProofType {
@@ -26,6 +26,10 @@ export const TIMELAPSE_FRAMES = 8;
 export function timelapseCapSeconds(targetMinutes: number): number {
   return Math.min(60 * 60, targetMinutes * 60 * 2);
 }
+
+/** A survey video: five seconds panning over the result, sampled into this many stills. */
+export const SURVEY_SECONDS = 5;
+export const SURVEY_FRAMES = 5;
 
 /** In the interval fallback, one photo every this many milliseconds lands eight across the target. */
 export function intervalMs(targetMinutes: number): number {
@@ -56,6 +60,8 @@ export function formatElapsed(ms: number): string {
  * The one line telling the player how to prove a task, on the task sheet and over the camera.
  * Every proof is a timelapse (owner's call, Nov 16), so it names the minutes and nothing else.
  */
-export function howToProve(task: { targetMinutes?: number }): string {
+export function howToProve(task: { proofType?: CaptureProofType; targetMinutes?: number }): string {
+  // An outcome (a cleaned room, a cooked dinner) is shown once it's done; a stretch of effort is recorded while it happens.
+  if (task.proofType === "survey_video") return "Take a 5-second video showing it's done.";
   return `Record a timelapse while you do it, at least ${task.targetMinutes ?? DEFAULT_TARGET_MINUTES} min.`;
 }

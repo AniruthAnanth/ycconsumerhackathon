@@ -51,4 +51,8 @@ describe("howToProve", () => {
     expect(howToProve({ targetMinutes: 45 })).toBe("Record a timelapse while you do it, at least 45 min.");
     expect(howToProve({})).toBe("Record a timelapse while you do it, at least 10 min.");
   });
+
+  it("asks an outcome task for a 5-second survey video", () => {
+    expect(howToProve({ proofType: "survey_video", targetMinutes: 30 })).toBe("Take a 5-second video showing it's done.");
+  });
 });
