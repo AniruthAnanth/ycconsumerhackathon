@@ -1,6 +1,6 @@
 import { useMutation } from "convex/react";
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ErrorLine } from "@/components/join/ErrorLine";
@@ -36,19 +36,28 @@ export function CreateLeagueScreen() {
   // A versus is one friend for one week, with no name, season or format to ask about: its own screen takes over.
   const openVersus = () => router.push({ pathname: "/join", params: { mode: "versus" } });
 
+  // Set by Cancel, so the next removal leaves the wizard instead of stepping back.
+  const leaving = useRef(false);
+  const previousStep = stepBefore(step);
   // Every way out (Cancel, Back on the first step, the hardware back button, the iOS swipe) passes
-  // through here, so typed answers are never dropped without asking. Once Create is under way the
-  // screen is replaced by Add Friends, which must not ask.
-  usePreventRemove(!busy && hasUnsavedWork(draft, start), ({ data }) =>
+  // through here. Past the first step, a swipe or hardware back goes back one step like the Back
+  // button; leaving asks before typed answers are dropped. Once Create is under way the screen is
+  // replaced by Add Friends, which must not ask.
+  const unsaved = hasUnsavedWork(draft, start);
+  usePreventRemove(!busy && (previousStep !== null || unsaved), ({ data }) => {
+    if (!leaving.current && previousStep) return setPlace({ step: previousStep, forward: false });
+    leaving.current = false;
+    if (!unsaved) return navigation.dispatch(data.action);
     confirmAction({
       title: "Discard this league?",
       message: "Your answers won't be saved.",
       confirmLabel: "Discard",
       onConfirm: () => navigation.dispatch(data.action),
-    }),
-  );
+    });
+  });
 
   function cancel() {
+    leaving.current = true;
     if (router.canGoBack()) router.back();
     else router.replace("/join");
   }
@@ -67,7 +76,7 @@ export function CreateLeagueScreen() {
 
   /** The fast path: the recommended season, and straight to Review with the answers given so far. */
   function takeRecommended() {
-    if (draft.name.trim().length === 0) return;
+    if (blockerOf("name", draft)) return;
     if (draft.kind === "versus") return openVersus();
     change({ settings: RECOMMENDED_SETTINGS });
     // A custom buy-in still without an amount is finished on its own step first.
