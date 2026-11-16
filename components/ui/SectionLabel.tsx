@@ -1,8 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, hairline, SCREEN_MARGIN } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
-/** The small uppercase strip above a group of rows: a label on the left, a column name on the right. */
+/**
+ * The small uppercase header above a group of rows: a label on the left, a column name on the right.
+ * It sits on the canvas with the 20-pt leading edge, iOS style, so the white section below reads as its own block.
+ */
 export function SectionLabel({ left, right }: { left: string; right?: string }) {
   return (
     <View style={styles.strip}>
@@ -14,14 +17,13 @@ export function SectionLabel({ left, right }: { left: string; right?: string }) 
 
 const styles = StyleSheet.create({
   strip: {
-    height: 36,
+    minHeight: 36,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     paddingHorizontal: SCREEN_MARGIN,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.strip,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
 });
