@@ -50,3 +50,28 @@ export function statusLine(task: Pick<TaskRow, "status" | "dueLabel">) {
       return "Not verified";
   }
 }
+
+type ScoredRow = { mine?: Pick<TaskRow, "score">; theirs?: Pick<TaskRow, "score"> };
+
+/** Which half of a slot row is ahead, for its highlight. Nobody leads a slot until someone has scored on it. */
+export function slotLeader(row: ScoredRow): "mine" | "theirs" | null {
+  const mine = row.mine?.score ?? 0;
+  const theirs = row.theirs?.score ?? 0;
+  if (mine === theirs) return null;
+  return mine > theirs ? "mine" : "theirs";
+}
+
+/** The small dot beside a task's status: done, pending a league vote, or still open. A failed task scores nothing, like an open one. */
+export function statusDot(status: TaskRow["status"]): "done" | "pending" | "open" {
+  if (status === "verified") return "done";
+  if (status === "held") return "pending";
+  return "open";
+}
+
+/** A season record as the header prints it; ties only appear once there has been one. */
+export function formatRecord(record: { wins: number; losses: number; ties: number }) {
+  return record.ties > 0 ? `${record.wins}-${record.losses}-${record.ties}` : `${record.wins}-${record.losses}`;
+}
+
+/** First names on the ticker's narrow cards. */
+export const shortName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
