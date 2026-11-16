@@ -7,6 +7,7 @@ import { PressScale } from "@/components/motion";
 import { Button, Header, Icon, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, hairline, layout, radius, spacing, type } from "@/theme";
 
 import { ErrorLine } from "./ErrorLine";
@@ -62,7 +63,7 @@ export function JoinScreen() {
 
   return (
     <Screen>
-      <Header title="Join a League" onBack={router.canGoBack() ? router.back : undefined} />
+      <Header title="Join a League" onBack={() => leaveScreen()} />
       {firstLeague ? <StepContext step={2} label="Join or start a league" /> : null}
       <FormBody>
         <View style={styles.body}>
