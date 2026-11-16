@@ -9,7 +9,7 @@ import { useSwipeDownToClose } from "@/components/motion/useSwipeDownToClose";
 import { confirmAction } from "@/components/social/notify";
 import { useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, font, fontFamily, layout, spacing } from "@/theme";
+import { colors, font, fontFamily, layout, spacing, tabular } from "@/theme";
 
 import type { ProofTarget } from "../proofRoute";
 import { CameraOverlay } from "./CameraOverlay";
@@ -31,12 +31,12 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
   const [facing, setFacing] = useState<CameraType>("back");
   // Every proof is a timelapse (owner's call, Nov 16). The photo, before/after and screenshot
   // capture stay in the code base but are not offered.
-  const modes = modesFor(true);
-  const [mode, setMode] = useState<CaptureMode>(modes[0]);
+  const modes = modesFor();
+  const [mode, setMode] = useState<CaptureMode>(target.proofType === "survey_video" ? "survey" : modes[0]);
   const capture = useProofCapture(target);
   // A running recording or a kept before shot is lost on the way out, so leaving then asks first.
   const holdsWork = capture.recording || capture.review !== null;
-  const dim = useDimWhileRecording(capture.recording);
+  const dim = useDimWhileRecording(capture.elapsedMs !== null);
   const close = () => {
     if (!holdsWork) return leaveScreen("/(tabs)");
     confirmAction({
@@ -58,6 +58,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
     video: capture.startRecording,
     timelapse: capture.startTimelapse,
     interval: capture.startInterval,
+    survey: capture.startSurvey,
   }[mode];
   const stop = () => {
     dim.wake();
@@ -97,6 +98,11 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
         {dim.dimmed ? <View style={styles.dark} pointerEvents="none" testID="timelapse-dimmed" /> : null}
         {dim.dimmed ? null : <CameraOverlay target={target} onClose={close} />}
         <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
+          {capture.recording && capture.secondsRemaining !== null ? (
+            <Text style={styles.countdown} testID="survey-countdown">
+              {capture.secondsRemaining}
+            </Text>
+          ) : null}
           {capture.recording && capture.elapsedMs !== null ? (
             <RecordingPanel
               elapsedMs={capture.elapsedMs}
@@ -116,9 +122,13 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
               onFlip={() => setFacing(facing === "back" ? "front" : "back")}
             />
           ) : null}
-          {screen.samplesOnly && !capture.recording ? <Text style={styles.hint}>Tap a photo to start a sample timelapse</Text> : null}
+          {screen.samplesOnly && !capture.recording ? <Text style={styles.hint}>Tap a photo for a sample timelapse, or Video for a 5 s video</Text> : null}
           {screen.samples && !capture.recording ? (
-            <SampleTray disabled={capture.busy} onPick={capture.startSampleTimelapse} bottomInset={insets.bottom} />
+            <SampleTray
+              disabled={capture.busy}
+              onPick={(sample) => void (sample.mediaType === "video" ? capture.sampleSurvey(sample) : capture.startSampleTimelapse(sample))}
+              bottomInset={insets.bottom}
+            />
           ) : null}
         </View>
       </Animated.View>
@@ -129,6 +139,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.text },
   bottom: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  countdown: { color: colors.onAccent, fontFamily: fontFamily.bold, fontSize: 48, textAlign: "center", ...tabular },
   dark: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#000" },
   retake: { alignSelf: "center", minHeight: layout.rowMin, justifyContent: "center", paddingHorizontal: spacing.lg },
   retakeLabel: { paddingBottom: 0, fontFamily: fontFamily.semiBold },
