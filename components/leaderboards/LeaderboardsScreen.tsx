@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 
+import { PayButton } from "@/components/money/PayButton";
 import { Header, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -35,6 +36,7 @@ export function LeaderboardsScreen() {
       <Header
         title="Leaderboards"
         onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/league"))}
+        rightAction={<PayButton />}
       />
       <BoardPicker active={board} onChange={setBoard} />
       <ScrollView>

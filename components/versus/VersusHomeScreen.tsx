@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 
+import { PayButton } from "@/components/money/PayButton";
 import { ScreenState } from "@/components/social/ScreenState";
 import { Header, Screen } from "@/components/ui";
 import { VersusMatchup } from "./VersusMatchup";
@@ -19,6 +20,7 @@ export function VersusHomeScreen() {
       <Header
         title={versus?.opponent ? `vs ${versus.opponent.name}` : "Versus"}
         onBack={() => (router.canGoBack() ? router.back() : router.replace("/matchup"))}
+        rightAction={<PayButton leagueId={leagueId} />}
       />
       {versus ? <VersusMatchup versus={versus} /> : <ScreenState loading />}
     </Screen>

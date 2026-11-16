@@ -6,6 +6,7 @@ import { Easing, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoachTarget } from "@/components/coach";
+import { PayButton } from "@/components/money/PayButton";
 import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
 import { SunnyButton } from "@/components/social/sunny/SunnyButton";
@@ -103,6 +104,7 @@ export default function TabsLayout() {
             title={membership?.name ?? "Lineup"}
             onTitlePress={() => router.push("/league-switcher")}
             onSettingsPress={() => router.push("/settings")}
+            rightAction={<PayButton />}
             right={<SunnyButton />}
             // One header row: the week sits beside the league name instead of a second bar under it.
             // The Feed is not week-scoped, so it has no week.

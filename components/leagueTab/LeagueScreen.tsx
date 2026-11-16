@@ -19,7 +19,6 @@ import {
 } from "@/components/leagueTab/seasonColumns";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { Entrance } from "@/components/motion";
-import { PayBanner } from "@/components/roster/PayBanner";
 import { useNow } from "@/lib/useNow";
 import { Screen, useTabBarInset } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
@@ -39,7 +38,7 @@ type Props = {
  */
 export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   const router = useRouter();
-  const { me, leagueId, membership } = useCurrentLeague();
+  const { me, leagueId } = useCurrentLeague();
   const now = useNow(60_000);
   const bottomInset = useTabBarInset();
   const args = leagueId ? { leagueId } : "skip";
@@ -57,9 +56,6 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
     [table, records],
   );
 
-  const owesBuyIn =
-    membership !== undefined && !membership.paid && membership.stakeUsd > 0;
-
   // The season is waited for too, so the table first draws in season order instead of re-sorting.
   if (!leagueId || !pot || !seasonTable || !league || !me)
     return <Screen edges={[]}>{null}</Screen>;
@@ -67,9 +63,6 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   return (
     <CoachTour tour="league">
       <Screen edges={[]} scroll bottomInset={bottomInset}>
-        {owesBuyIn ? (
-          <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} />
-        ) : null}
         <Entrance>
           <CoachTarget id="pot">
             {escrow ? (
