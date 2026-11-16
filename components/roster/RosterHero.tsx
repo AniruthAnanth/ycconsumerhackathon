@@ -2,7 +2,6 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Artwork } from "@/components/art";
 import { CountUp, PressScale } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
 import { formatScore } from "@/components/ui";
@@ -13,7 +12,7 @@ import { useNow } from "@/lib/useNow";
 import { BORDER, colors, fontFamily, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
- * The top of Roster: the head-to-head score, compact, with the league and week in small type above.
+ * The top of Roster: the head-to-head score, compact, with the members and time left in small type above.
  * The win chance and the plan progress sit behind Week details further down, so the hero answers
  * one thing at a glance. Until the numbers load the card says so rather than showing a 0.
  * A tap opens the League tab.
@@ -50,14 +49,11 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
       accessibilityLabel={[`${league.name}, ${members}`, `${week}${timing}`, scoreboard].join(". ")}
       testID="roster-hero"
     >
-      {/* The header above already names the league in full, so the card only adds what it lacks. */}
-      <View style={styles.head}>
-        <Text style={[styles.meta, styles.headText]} numberOfLines={1}>
-          {members} · {week}
-          {timing}
-        </Text>
-        <Artwork name="sunny" size={40} />
-      </View>
+      {/* The header names the league and the week switcher the week, so the card adds only the members and the time left. */}
+      <Text style={styles.meta} numberOfLines={1}>
+        {members}
+        {timing}
+      </Text>
 
       {matchup ? (
         <View style={styles.scores}>
@@ -99,9 +95,6 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   loading: { minHeight: 120, alignItems: "center", justifyContent: "center" },
-  // Sunny stays small here: the card shares the first screen with the starters.
-  head: { flexDirection: "row", alignItems: "center", gap: layout.columnGap },
-  headText: { flex: 1 },
   meta: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
   // Bottom-aligned so the two names under the scores share a baseline.
   scores: { flexDirection: "row", alignItems: "flex-end", gap: layout.columnGap },

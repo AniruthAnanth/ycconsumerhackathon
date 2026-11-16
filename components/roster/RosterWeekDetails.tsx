@@ -4,25 +4,23 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { ProjectionLine } from "@/components/leaderboards";
 import { MatchupOdds } from "@/components/markets/MatchupOdds";
-import { PressScale, ProgressFill } from "@/components/motion";
-import { RosterTotal } from "@/components/roster/RosterTotal";
+import { PressScale } from "@/components/motion";
+import { RosterBonuses } from "@/components/roster/RosterBonuses";
 import { socialApi } from "@/components/social/contract";
 import { Icon } from "@/components/ui";
 import type { Roster } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { planProgress, planProgressLabel } from "@/lib/weeklyPlan";
 import { colors, hairline, layout, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
- * Everything about the week that does not decide what to do next: the win chance, the weekly
- * plan's progress, the projection and the box-score total. Roster keeps them one tap away behind
- * a single chevron row, closed by default, so the lineup is the first thing the player reads.
+ * Everything about the week that does not decide what to do next: the win chance, the projection
+ * and the bonuses. Roster keeps them one tap away behind a single chevron row, closed by default,
+ * so the lineup is the first thing the player reads. The total itself lives only in the hero.
  */
 export function RosterWeekDetails({ roster }: { roster: Roster }) {
   const [open, setOpen] = useState(false);
   const { leagueId, weekStart } = useCurrentLeague();
   const matchup = useQuery(socialApi.standings.matchup, open && leagueId && weekStart === undefined ? { leagueId } : "skip");
-  const plan = planProgress(roster.rows);
 
   return (
     <View>
@@ -49,23 +47,8 @@ export function RosterWeekDetails({ roster }: { roster: Roster }) {
               />
             </View>
           ) : null}
-          {plan.possible > 0 ? (
-            <View
-              style={[styles.inset, styles.plan]}
-              accessible
-              accessibilityRole="progressbar"
-              accessibilityLabel={planProgressLabel(plan)}
-              accessibilityValue={{ min: 0, max: plan.possible, now: plan.confirmed }}
-            >
-              <Text style={styles.meta}>
-                Your weekly plan · {plan.confirmed} / {plan.possible} pts
-              </Text>
-              <ProgressFill ratio={plan.ratio} />
-              {plan.pending > 0 ? <Text style={styles.meta}>+{plan.pending} points pending review</Text> : null}
-            </View>
-          ) : null}
           {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
-          <RosterTotal total={roster.total} bonusPoints={roster.bonusPoints} bonusLabels={roster.bonusLabels} />
+          <RosterBonuses bonusPoints={roster.bonusPoints} bonusLabels={roster.bonusLabels} />
         </View>
       ) : null}
     </View>
@@ -85,6 +68,4 @@ const styles = StyleSheet.create({
   label: { ...type.body, flex: 1, color: colors.text },
   body: { gap: spacing.md, paddingTop: spacing.sm },
   inset: { paddingHorizontal: SCREEN_MARGIN },
-  plan: { gap: spacing.sm },
-  meta: { ...type.small, color: colors.textMuted },
 });
