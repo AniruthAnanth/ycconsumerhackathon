@@ -10,6 +10,7 @@ import { LeaderboardsStrip, placeText, tiedRanks } from "@/components/leaderboar
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
+import { potEmptyText } from "@/components/leagueTab/emptyState";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
 import { SunnyTextPrompt } from "@/components/social/sunny/SunnyPrompt";
@@ -62,6 +63,8 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
     return <Screen edges={[]}>{null}</Screen>;
 
   const potCard = escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />;
+  // No money in the pot yet: the section would hold one note and empty space, so the standings lead instead.
+  const showPot = escrow !== undefined || potEmptyText(pot) === null;
   // YOUR RANK reads the same rows as the table, so the two can never disagree.
   const mine = seasonTable.find((row) => row.userId === me._id);
   const place = mine ? placeText(mine.rank, tiedRanks(seasonTable).has(mine.rank)) : undefined;
@@ -69,16 +72,18 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   return (
     <CoachTour tour="league">
       <Screen edges={[]} scroll bottomInset={bottomInset}>
-        <View style={styles.first}>
-          <SectionLabel left="This week" />
-          <Entrance>
-            {/* A free league has no pot, so the tour's pot step finds no target and skips itself. */}
-            {pot.stakeUsd > 0 ? <CoachTarget id="pot">{potCard}</CoachTarget> : potCard}
-          </Entrance>
-        </View>
+        {showPot ? (
+          <View style={styles.first}>
+            <SectionLabel left="This week" />
+            <Entrance>
+              {/* A free league has no pot, so the tour's pot step finds no target and skips itself. */}
+              {pot.stakeUsd > 0 ? <CoachTarget id="pot">{potCard}</CoachTarget> : potCard}
+            </Entrance>
+          </View>
+        ) : null}
         <CoachTarget id="standings">
           <StandingsTable
-            style={styles.section}
+            style={showPot ? styles.section : styles.first}
             rows={seasonTable}
             records={records}
             playoffSpots={season ? playoffSpots(season) : null}

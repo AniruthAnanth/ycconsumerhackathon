@@ -30,6 +30,9 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
   const [pressed, setPressed] = useState(false);
   const place = taskPlaceLine(task);
   const label = taskRowLabel(task, highlighted);
+  // A control in `right` takes the score column, so an unscored row carries its points in the subtitle instead.
+  const offer = right && task.score == null ? `${formatScore(task.points)} pts` : undefined;
+  const line = [taskRowLine(task) || undefined, offer].filter(Boolean).join(" · ");
   const lead = (
     <>
       {/* The pill is the row's one slot cue: no slot icon and no slot name in the line under the title. */}
@@ -41,9 +44,9 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
           {task.title}
         </Text>
         {/* No empty meta line: it pushed a one-line title above the row's centre. */}
-        {taskRowLine(task) ? (
+        {line ? (
           <Text style={styles.meta} numberOfLines={2}>
-            {taskRowLine(task)}
+            {line}
           </Text>
         ) : null}
         {place ? (
