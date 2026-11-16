@@ -12,21 +12,23 @@ import { colors, font, fontFamily, hairline, layout, ROW_HEIGHT_COMPACT, SCREEN_
 
 import { slotsText } from "./emptyState";
 import { rankMovement, withBaseline } from "./rankMovement";
+import type { SeasonRecord } from "./seasonColumns";
 
-// Fixed widths keep every number in a column lined up whatever the names are.
-const COL = { rank: layout.avatarCompact, record: layout.numericColumn, points: layout.numericColumn, streak: layout.numericColumn } as const;
+// Fixed widths keep every number in a column lined up whatever the names are. Four numbers at
+// numericColumn leave a name under 60 pt at 390 pt, so each gives up a column gap to keep ~100 pt.
+const NUMBER = layout.numericColumn - layout.columnGap;
+const COL = { rank: layout.avatarCompact, record: NUMBER, pointsFor: NUMBER, pointsAgainst: NUMBER, streak: NUMBER } as const;
 // Where the player name starts: the divider starts there too.
 const NAME_INSET = SCREEN_MARGIN + COL.rank + layout.avatarCompact + layout.columnGap;
-
-/** Win-loss-tie from the season table, keyed by player. */
-export type SeasonRecord = { wins: number; losses: number; ties: number };
 
 type Props = {
   rows: Standing[];
   /** The row to tint: the player this device is playing as. */
   viewerId: Id<"users"> | undefined;
-  /** Season records by player; undefined while loading, shown as a dash. */
+  /** Season records by player; a player missing from it shows dashes. */
   records?: Map<string, SeasonRecord>;
+  /** How many make the playoffs; the playoff line is drawn under that rank. Null without playoffs. */
+  playoffSpots?: number | null;
   onPressPlayer: (userId: Id<"users">) => void;
 };
 
@@ -36,10 +38,11 @@ function recordText(record: SeasonRecord | undefined): string {
 }
 
 /**
- * A fantasy standings table: RK, player, W-L, PTS (this week's points, the figure that matters and
- * the largest type), STRK and the places gained or lost since the table was first shown.
+ * A fantasy standings table in season order: RK, player, W-L, PF (season points for, the largest
+ * type), PA (points against), STRK, the places gained or lost since the table was first shown,
+ * and the playoff line when the format has one.
  */
-export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props) {
+export function StandingsTable({ rows, viewerId, records, playoffSpots = null, onPressPlayer }: Props) {
   const baseline = useRef<Record<string, number>>({});
   baseline.current = withBaseline(baseline.current, rows);
   // Each rows result is compared once, so a re-render with the same data never re-flashes a row.
@@ -59,11 +62,14 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
         <Text style={[styles.heading, { width: COL.rank }]}>RK</Text>
         <Text style={[styles.heading, styles.playerCol, styles.playerHeading]}>PLAYER</Text>
         <Text style={[styles.heading, styles.right, { width: COL.record }]}>W-L</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.points }]}>PTS</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.pointsFor }]}>PF</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.pointsAgainst }]}>PA</Text>
         <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STRK</Text>
       </View>
       {rows.map((row, index) => {
         const moved = rankMovement(baseline.current, row);
+        const record = records?.get(row.userId);
+        const cutline = playoffSpots !== null && row.rank === playoffSpots && index < rows.length - 1;
         return (
           // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
           <LiveRow key={row.userId} flash={live.current.flash[row.userId] ?? 0}>
@@ -93,14 +99,27 @@ export function StandingsTable({ rows, viewerId, records, onPressPlayer }: Props
                     </View>
                   </View>
                 </View>
-                <Text style={[styles.record, { width: COL.record }]}>{recordText(records?.get(row.userId))}</Text>
-                <CountUp style={[styles.points, { width: COL.points }]} value={row.points} format={formatScore} decimals={1} />
+                <Text style={[styles.record, { width: COL.record }]}>{recordText(record)}</Text>
+                {record ? (
+                  <CountUp style={[styles.points, { width: COL.pointsFor }]} value={record.pointsFor} format={formatScore} decimals={1} />
+                ) : (
+                  <Text style={[styles.points, { width: COL.pointsFor }]}>–</Text>
+                )}
+                <Text style={[styles.record, { width: COL.pointsAgainst }]}>{record ? formatScore(record.pointsAgainst) : "–"}</Text>
                 <View style={[styles.streak, { width: COL.streak }]}>
                   <Icon name="flame" size={14} color={row.streak > 0 ? colors.text : colors.textFaint} />
                   <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
                 </View>
               </PressScale>
-              <Divider inset={NAME_INSET} />
+              {cutline ? (
+                <View accessibilityLabel={`Playoff line, top ${playoffSpots} make the playoffs`}>
+                  <Divider />
+                  <Text style={[styles.heading, styles.cutlineLabel]}>PLAYOFF LINE</Text>
+                  <Divider />
+                </View>
+              ) : (
+                <Divider inset={NAME_INSET} />
+              )}
             </Entrance>
           </LiveRow>
         );
@@ -142,4 +161,6 @@ const styles = StyleSheet.create({
   streak: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.xs },
   streakText: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.text, ...tabular },
   faint: { color: colors.textFaint },
+  // Muted like the column headings, starting where the names do.
+  cutlineLabel: { paddingLeft: NAME_INSET, paddingVertical: spacing.xs },
 });

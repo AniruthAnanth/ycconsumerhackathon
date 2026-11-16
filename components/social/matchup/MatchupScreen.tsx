@@ -1,13 +1,14 @@
 import { useQuery } from "convex/react";
-import { ScrollView } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { InviteButton } from "@/components/invite";
+import { useTabBarInset } from "@/components/ui";
 import { MatchupMarkets } from "@/components/markets";
 import { ChallengeButton } from "@/components/versus/ChallengeButton";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { spacing } from "@/theme";
+import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
@@ -16,6 +17,7 @@ import { MatchupBody } from "./MatchupBody";
 
 export default function MatchupScreen() {
   const { leagueId, league, weekStart } = useCurrentLeague();
+  const bottomInset = useTabBarInset();
   // standings.matchup takes no week, so it only ever answers for the current one; weekStart is set once the header steps away from it.
   const otherWeek = weekStart !== undefined;
   const matchup = useQuery(socialApi.standings.matchup, leagueId && !otherWeek ? { leagueId } : "skip");
@@ -30,19 +32,28 @@ export default function MatchupScreen() {
     return (
       <>
         <ScreenState message="No matchup this week" />
-        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+        <View style={styles.invite}>
+          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+        </View>
       </>
     );
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
+    <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
       <MatchupBody
         matchup={matchup}
         belowHero={<MatchupMarkets />}
         vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined}
       />
       <ChallengeButton />
-      <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+      <View style={styles.invite}>
+          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+        </View>
     </ScrollView>
   );
 }
+
+// The same inset as Challenge a friend above it, so the two secondary buttons share one width.
+const styles = StyleSheet.create({
+  invite: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md },
+});

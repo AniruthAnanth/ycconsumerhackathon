@@ -50,6 +50,21 @@ export function stepBefore(step: Step): Step | null {
   return index > 0 ? STEPS[index - 1] : null;
 }
 
+/**
+ * Whether leaving now would throw away answers the player gave: any field moved off what the
+ * walkthrough started with. Untouched defaults cost nothing to lose, so they leave without asking.
+ */
+export function hasUnsavedWork(draft: Draft, start: Draft): boolean {
+  return (
+    draft.name !== start.name ||
+    draft.kind !== start.kind ||
+    draft.stakeUsd !== start.stakeUsd ||
+    draft.settings.payout !== start.settings.payout ||
+    draft.settings.seasonWeeks !== start.settings.seasonWeeks ||
+    draft.settings.format !== start.settings.format
+  );
+}
+
 /** "Step 2 of 4" and how full the bar is. Review is past the last decision, so its bar is full. */
 export function progressOf(step: Step): { label: string; ratio: number } {
   if (step === "review") return { label: "Review", ratio: 1 };
@@ -60,6 +75,8 @@ export function progressOf(step: Step): { label: string; ratio: number } {
 /** Why Next is unavailable on this step, or null when the step's answer is fine. */
 export function blockerOf(step: Step, draft: Draft): string | null {
   if (draft.name.trim().length === 0) return "Give your league a name";
+  // The field caps typing, but a paste can still get past it on the web.
+  if (draft.name.trim().length > MAX_NAME_LENGTH) return `Keep the name to ${MAX_NAME_LENGTH} characters`;
   // Only from the stakes step on: before it, Next is how the player gets there to fix the amount.
   const stakeAsked = step !== "name" && step !== "kind";
   if (stakeAsked && draft.stakeUsd === null) return `Enter a whole-dollar buy-in from $1 to ${usd(MAX_STAKE_USD)}`;

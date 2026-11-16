@@ -86,7 +86,7 @@ export function NewGroupSessionScreen() {
 
   return (
     <Screen>
-      <Header title="New Session" onBack={leaveScreen} />
+      <Header title="New Session" onClose={leaveScreen} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
         <View style={styles.fields}>
           <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Sunset run" />

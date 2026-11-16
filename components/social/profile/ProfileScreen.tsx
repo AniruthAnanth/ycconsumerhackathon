@@ -59,7 +59,7 @@ export function ProfileScreen() {
           <StatRow label="Current streak" value={formatStreak(profile.currentStreak)} />
           <StatRow label="Longest streak" value={formatStreak(profile.longestStreak)} />
           <SectionLabel left="RECORDS" />
-          <StatRow label="Best week" value={formatPoints(profile.bestWeek)} />
+          <StatRow label="Best week" value={profile.bestWeek > 0 ? formatPoints(profile.bestWeek) : NO_VALUE} />
           <StatRow
             label="Fastest quick-time"
             value={profile.fastestQuickTimeSec === undefined ? NO_VALUE : formatDuration(profile.fastestQuickTimeSec)}

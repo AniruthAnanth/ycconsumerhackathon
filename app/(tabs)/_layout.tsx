@@ -6,23 +6,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
-import { Header, TopTabs, WeekSelector } from "@/components/ui";
+import { GlassTabBar, Header, WeekSelector } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
 import { FADE_MS } from "@/lib/native/motion";
 import { colors, easingCurve } from "@/theme";
 
 const TABS = [
-  { key: "index", label: "Roster", href: "/" },
-  { key: "matchup", label: "Matchup", href: "/matchup" },
-  { key: "feed", label: "Feed", href: "/feed" },
-  { key: "league", label: "League", href: "/league" },
+  { key: "index", label: "Roster", href: "/", icon: "home-outline", testID: "tab-roster" },
+  { key: "matchup", label: "Matchup", href: "/matchup", icon: "flash-outline", testID: "tab-matchup" },
+  { key: "feed", label: "Feed", href: "/feed", icon: "image-outline", testID: "tab-feed" },
+  { key: "league", label: "League", href: "/league", icon: "trophy-outline", testID: "tab-league" },
 ] as const;
 
 /**
- * The home of the app, laid out like ESPN's team screen: header, the four top
- * tabs, the week selector, then the active tab. The bar is drawn here once
- * rather than by each tab, so it stays put while the content below changes.
+ * The home of the app: header and week selector on top, the active tab below,
+ * and the four tabs in a floating glass bar at the bottom that the content
+ * scrolls under. The bars are drawn here once rather than by each tab, so they
+ * stay put while the content changes.
  *
  * It is also the front door: a player who has not given a name and phone, or
  * is in no league yet, is sent to do that first.
@@ -61,14 +62,6 @@ export default function TabsLayout() {
           onTitlePress={() => router.push("/league-switcher")}
           onChatPress={() => router.push("/chat")}
         />
-        <TopTabs
-          tabs={TABS}
-          active={active.key}
-          onChange={(key) => {
-            if (key !== active.key) haptics.select();
-            router.navigate(TABS.find((tab) => tab.key === key)!.href);
-          }}
-        />
         <WeekSelector
           label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
           arrows={browsable}
@@ -77,7 +70,7 @@ export default function TabsLayout() {
           onLongPress={() => router.push("/demo")}
         />
       </SafeAreaView>
-      {/* The navigator keeps each tab mounted; its own bottom bar is replaced by TopTabs above. */}
+      {/* The navigator keeps each tab mounted; its own bottom bar is replaced by the GlassTabBar drawn over it. */}
       <Tabs
         tabBar={() => null}
         screenOptions={{
@@ -92,6 +85,14 @@ export default function TabsLayout() {
           <Tabs.Screen key={tab.key} name={tab.key} />
         ))}
       </Tabs>
+      <GlassTabBar
+        tabs={TABS}
+        active={active.key}
+        onChange={(key) => {
+          if (key !== active.key) haptics.select();
+          router.navigate(TABS.find((tab) => tab.key === key)!.href);
+        }}
+      />
     </View>
   );
 }

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { SLOT_LABEL, type Slot } from "@/lib/slots";
 import { colors, font, fontFamily, layout, radius } from "@/theme";
 
-/** The green position code at the start of a row: BOD, MND, RCH, CHR, PPL, FLX. */
+/** The green slot pill at the start of a row: Body, Mind, Recharge, Chores, People, Flex. */
 export function PositionPill({ slot }: { slot: Slot }) {
   return (
     <View style={styles.pill}>
@@ -21,5 +21,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.accent, letterSpacing: 0.3 },
+  label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.accent },
 });

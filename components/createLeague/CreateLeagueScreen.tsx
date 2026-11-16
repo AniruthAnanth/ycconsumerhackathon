@@ -1,11 +1,12 @@
 import { useMutation } from "convex/react";
-import { useRouter } from "expo-router";
+import { useNavigation, usePreventRemove, useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { useJoinLeague } from "@/components/join/useJoinLeague";
 import { ProgressFill } from "@/components/motion";
+import { confirmAction } from "@/components/social/notify";
 import { Button, Header, OutlinedPillButton, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -13,7 +14,7 @@ import { colors, hairline, layout, spacing, type } from "@/theme";
 
 import { KindStep, NameStep, ReviewStep, SeasonStep, StakeStep } from "./Steps";
 import { StepSlide } from "./StepSlide";
-import { blockerOf, defaultDraft, progressOf, RECOMMENDED_SETTINGS, stepAfter, stepBefore, type Draft, type Step } from "./wizard";
+import { blockerOf, defaultDraft, hasUnsavedWork, progressOf, RECOMMENDED_SETTINGS, stepAfter, stepBefore, type Draft, type Step } from "./wizard";
 
 /**
  * Create a League as a walkthrough: one question per step, each already answered with the
@@ -25,19 +26,37 @@ export function CreateLeagueScreen() {
   const { me } = useCurrentLeague();
   const createLeague = useMutation(api.leagues.create);
   const { join, busy, failure } = useJoinLeague();
-  const [draft, setDraft] = useState<Draft>(() => defaultDraft(me?.name));
+  const navigation = useNavigation();
+  const [start] = useState<Draft>(() => defaultDraft(me?.name));
+  const [draft, setDraft] = useState<Draft>(start);
   const [{ step, forward }, setPlace] = useState<{ step: Step; forward: boolean | null }>({ step: "name", forward: null });
   const change = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
   const progress = progressOf(step);
   const blocker = blockerOf(step, draft);
   // A versus is one friend for one week, with no name, season or format to ask about: its own screen takes over.
-  const openVersus = () => router.push("/versus/new");
+  const openVersus = () => router.push({ pathname: "/join", params: { mode: "versus" } });
+
+  // Every way out (Cancel, Back on the first step, the hardware back button, the iOS swipe) passes
+  // through here, so typed answers are never dropped without asking. Once Create is under way the
+  // screen is replaced by Add Friends, which must not ask.
+  usePreventRemove(!busy && hasUnsavedWork(draft, start), ({ data }) =>
+    confirmAction({
+      title: "Discard this league?",
+      message: "Your answers won't be saved.",
+      confirmLabel: "Discard",
+      onConfirm: () => navigation.dispatch(data.action),
+    }),
+  );
+
+  function cancel() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/join");
+  }
 
   function back() {
     const previous = stepBefore(step);
     if (previous) setPlace({ step: previous, forward: false });
-    else if (router.canGoBack()) router.back();
-    else router.replace("/join");
+    else cancel();
   }
 
   function next() {
@@ -65,7 +84,7 @@ export function CreateLeagueScreen() {
   const steps = { draft, change, disabled: busy };
   return (
     <Screen>
-      <Header title="Create a League" onBack={busy ? undefined : back} />
+      <Header title="Create a League" onBack={busy ? undefined : back} onClose={busy ? undefined : cancel} />
       <View style={styles.progress}>
         <View style={styles.progressRow}>
           <Text style={styles.progressLabel}>{progress.label}</Text>

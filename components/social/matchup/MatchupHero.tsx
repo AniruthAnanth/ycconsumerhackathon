@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import { MatchupOdds } from "@/components/markets/MatchupOdds";
 import { CountUp, PressScale } from "@/components/motion";
 import { Avatar } from "@/components/ui";
 import { formatScore } from "@/lib/taskText";
@@ -8,23 +9,26 @@ import { colors, fontFamily, layout, SCREEN_MARGIN, spacing, tabular, type } fro
 
 import type { Matchup, MatchupSide } from "../contract";
 import { possiblePoints } from "./matchupLogic";
-import { WinProbabilityBar } from "./WinProbabilityBar";
 
 /** Me against the opponent: the two scores are the biggest type on the screen, everything else sits under them. */
 export function MatchupHero({ matchup }: { matchup: Matchup }) {
   const { me, opponent, rows } = matchup;
+  const minePossible = possiblePoints(rows, "mine", me.total);
+  const theirsPossible = possiblePoints(rows, "theirs", opponent.total);
+  // Before anyone drafts there is nothing to win yet: no "of 0 possible" and no 50/50 bar.
+  const undrafted = minePossible === 0 && theirsPossible === 0;
   return (
     <View style={styles.hero}>
       <View style={styles.sides}>
-        <HeroSide side={me} possible={possiblePoints(rows, "mine")} align="flex-start" />
-        <HeroSide side={opponent} possible={possiblePoints(rows, "theirs")} align="flex-end" />
+        <HeroSide side={me} caption={undrafted ? "Draft to start" : `of ${formatScore(minePossible)} possible`} align="flex-start" />
+        <HeroSide side={opponent} caption={undrafted ? "Draft to start" : `of ${formatScore(theirsPossible)} possible`} align="flex-end" />
       </View>
-      <WinProbabilityBar mine={me.winProbability} theirs={opponent.winProbability} />
+      {undrafted ? null : <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} />}
     </View>
   );
 }
 
-function HeroSide({ side, possible, align }: { side: MatchupSide; possible: number; align: "flex-start" | "flex-end" }) {
+function HeroSide({ side, caption, align }: { side: MatchupSide; caption: string; align: "flex-start" | "flex-end" }) {
   const router = useRouter();
   return (
     <PressScale
@@ -38,7 +42,7 @@ function HeroSide({ side, possible, align }: { side: MatchupSide; possible: numb
         {side.name}
       </Text>
       <CountUp style={styles.score} value={side.total} format={formatScore} decimals={1} numberOfLines={1} adjustsFontSizeToFit />
-      <Text style={styles.possible}>of {formatScore(possible)} possible</Text>
+      <Text style={styles.possible}>{caption}</Text>
     </PressScale>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { areaPath, deltaLabel, formatChance, formatNet, sparkPath, stepPath } from "./chartGeometry";
+import { areaPath, hasLineups, deltaLabel, formatChance, formatNet, sparkPath, stepPath } from "./chartGeometry";
 
 const box = { width: 108, height: 58, padding: 4 };
 
@@ -53,5 +53,13 @@ describe("labels", () => {
     expect(formatNet(34.4)).toBe("+$34");
     expect(formatNet(-8)).toBe("−$8");
     expect(formatNet(0.2)).toBe("$0");
+  });
+});
+
+describe("hasLineups", () => {
+  test("is false only while nobody has a task or a point", () => {
+    expect(hasLineups([{ high: 0 }, { high: 0 }])).toBe(false);
+    expect(hasLineups([{ high: 0 }, { high: 40 }])).toBe(true);
+    expect(hasLineups([])).toBe(false);
   });
 });

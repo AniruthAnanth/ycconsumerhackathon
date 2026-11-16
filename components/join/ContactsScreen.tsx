@@ -24,7 +24,7 @@ import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacin
  */
 export function ContactsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ leagueId?: string; next?: string }>();
+  const params = useLocalSearchParams<{ leagueId?: string; next?: string; created?: string }>();
   const leagueId = params.leagueId as Id<"leagues"> | undefined;
   // useJoinLeague sends `next` when this step follows joining a league; Add
   // Friends on the League tab sends none and is an ordinary pushed screen.
@@ -111,7 +111,7 @@ export function ContactsScreen() {
         {league ? (
           <View style={styles.hero}>
             <Text style={styles.ready} accessibilityRole="header">
-              {justJoined ? `${league.name} is ready` : league.name}
+              {!justJoined ? league.name : params.created ? `${league.name} is ready` : `You're in ${league.name}`}
             </Text>
             <Text style={styles.line}>Friends join with this code, or with the link you share.</Text>
             <Pressable
