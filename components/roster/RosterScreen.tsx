@@ -136,7 +136,7 @@ export function RosterScreen() {
                 )}
               </CoachTarget>
               {/* The lineup is fixed once locked: the bonus row comes only from the draft. */}
-              {extras.length > 0 ? <SectionLabel left="Extra" /> : null}
+              {extras.length > 0 ? <SectionLabel left="Bonus · optional" /> : null}
               {extras.map(listed)}
               {/* Odds, projection and bonuses wait behind one row: none of them is the next thing to do. */}
               {undrafted || !roster ? null : (
