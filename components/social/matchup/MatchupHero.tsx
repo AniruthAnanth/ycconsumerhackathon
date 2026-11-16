@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import { CoachTarget } from "@/components/coach";
 import { MatchupOdds } from "@/components/markets/MatchupOdds";
 import { CountUp, PressScale } from "@/components/motion";
 import { useMarket } from "@/components/markets/useMarket";
@@ -31,25 +32,30 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
   const undrafted = minePossible === 0 && theirsPossible === 0;
   const recordOf = (userId: Id<"users">) => {
     const row = season?.table.find((entry) => entry.userId === userId);
-    return row ? formatRecord(row) : undefined;
+    // Week 1 has no games yet, so a 0-0 says nothing.
+    return row && row.wins + row.losses + row.ties > 0 ? formatRecord(row) : undefined;
   };
   const caption = (projected: number | undefined, possible: number) => {
     if (undrafted) return "Draft to start";
-    return projected === undefined ? `of ${formatScore(possible)} possible` : `Proj ${formatScore(projected)}`;
+    return projected === undefined ? `of ${formatScore(possible)} possible` : `Projected ${formatScore(projected)}`;
   };
   const opponentProjected = market?.matchup?.opponentId === opponent.userId ? market.matchup.opponent.projected : undefined;
   return (
     <Card style={styles.hero}>
       <View style={styles.sides}>
-        <HeroSide side={me} record={recordOf(me.userId)} caption={caption(market?.me.projected, minePossible)} align="flex-start" />
+        <HeroSide you side={me} record={recordOf(me.userId)} caption={caption(market?.me.projected, minePossible)} align="flex-start" />
         <HeroSide side={opponent} record={recordOf(opponent.userId)} caption={caption(opponentProjected, theirsPossible)} align="flex-end" />
       </View>
-      {undrafted ? null : <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} compact />}
+      {undrafted ? null : (
+        <CoachTarget id="winChance">
+          <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} compact />
+        </CoachTarget>
+      )}
     </Card>
   );
 }
 
-function HeroSide({ side, record, caption, align }: { side: MatchupSide; record?: string; caption: string; align: "flex-start" | "flex-end" }) {
+function HeroSide({ side, record, caption, align, you = false }: { side: MatchupSide; record?: string; caption: string; align: "flex-start" | "flex-end"; you?: boolean }) {
   const router = useRouter();
   return (
     <PressScale
@@ -60,7 +66,7 @@ function HeroSide({ side, record, caption, align }: { side: MatchupSide; record?
     >
       <Avatar name={side.name} size={layout.rowMin} />
       <Text style={styles.name} numberOfLines={2}>
-        {side.name}
+        {you ? "You" : side.name}
       </Text>
       {record ? <Text style={styles.possible}>{record}</Text> : null}
       <CountUp style={styles.score} value={side.total} format={formatScore} decimals={1} numberOfLines={1} adjustsFontSizeToFit />

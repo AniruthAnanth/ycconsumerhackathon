@@ -43,7 +43,8 @@ export function statusLine(task: Pick<TaskRow, "status" | "dueLabel">) {
       // No time: beside the score a clock time truncated on a phone, and the check says enough.
       return "Verified";
     case "open":
-      return task.dueLabel;
+      // The due day is the same for every row, so the section header says it once.
+      return undefined;
     case "held":
       return "Up for veto";
     case "failed":

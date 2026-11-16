@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { useIsFocused } from "expo-router";
-import { type ComponentRef, createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { type ComponentRef, type ReactNode, useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { backend } from "@/lib/backend";
@@ -14,14 +14,23 @@ type ViewType = ComponentRef<typeof View>;
 const ARROW = 16;
 const RING = spacing.xs;
 
-type Register = (id: CoachTargetId, view: ViewType | null) => void;
-const CoachContext = createContext<Register | null>(null);
+/**
+ * Every mounted target, by id, app-wide: a tour can point outside its own screen, such as the
+ * league switcher in the tab header above Roster. Ids are unique per screen, and only the focused
+ * screen's tour runs.
+ */
+const targets = new Map<CoachTargetId, ViewType>();
 
-/** Marks the element a tour step points at. Without a CoachTour around it, it is a plain View. */
+/** Marks the element a tour step points at; otherwise a plain View. */
 export function CoachTarget({ id, children }: { id: CoachTargetId; children: ReactNode }) {
-  const register = useContext(CoachContext);
   return (
-    <View ref={(view) => register?.(id, view)} collapsable={false}>
+    <View
+      ref={(view) => {
+        if (view) targets.set(id, view);
+        else targets.delete(id);
+      }}
+      collapsable={false}
+    >
       {children}
     </View>
   );
@@ -35,18 +44,12 @@ type Shown = { index: number; steps: { text: string; rect: Rect }[] };
  * at a time. Got it or Skip tips marks the tour seen for this player on this device.
  */
 export function CoachTour({ tour, ready = true, children }: { tour: TourId; ready?: boolean; children: ReactNode }) {
-  const targets = useRef(new Map<CoachTargetId, ViewType>());
   const me = useQuery(backend.users.me);
   const focused = useIsFocused();
   const resets = useCoachResets();
   const screen = useWindowDimensions();
   const [shown, setShown] = useState<Shown | null>(null);
   const userId = me?._id;
-
-  const register = useCallback<Register>((id, view) => {
-    if (view) targets.current.set(id, view);
-    else targets.current.delete(id);
-  }, []);
 
   useEffect(() => {
     if (!userId || !focused || !ready) return;
@@ -58,7 +61,7 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
         TOURS[tour].map(
           ({ target, text }) =>
             new Promise<{ text: string; rect: Rect } | null>((resolve) => {
-              const view = targets.current.get(target);
+              const view = targets.get(target);
               if (!view) return resolve(null);
               view.measureInWindow((x, y, width, height) => resolve({ text, rect: { x, y, width, height } }));
             }),
@@ -83,7 +86,7 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
   const next = () => (last ? finish() : setShown((now) => now && { ...now, index: now.index + 1 }));
 
   return (
-    <CoachContext.Provider value={register}>
+    <>
       {children}
       {step && shown ? (
         <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={finish}>
@@ -108,7 +111,7 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
           />
         </Modal>
       ) : null}
-    </CoachContext.Provider>
+    </>
   );
 }
 

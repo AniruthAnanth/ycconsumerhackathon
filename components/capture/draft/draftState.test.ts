@@ -94,6 +94,29 @@ describe("skipping the voice note", () => {
   });
 });
 
+describe("refining by text", () => {
+  const swapped: DraftTask = { ...body, title: "Leg day, heavier", points: 40 };
+
+  it("swaps in the changed lineup, points and all", () => {
+    const asked = draftReducer(reviewing, { type: "refineRequested" });
+    expect(asked.refining).toBe(true);
+    const done = draftReducer(asked, { type: "refineSucceeded", tasks: [swapped, flex] });
+    expect(done).toMatchObject({ phase: "review", refining: false, tasks: [swapped, flex] });
+  });
+
+  it("keeps the lineup and says why when the change fails", () => {
+    const failed = run([{ type: "refineRequested" }, { type: "refineFailed", message: "Try again" }], reviewing);
+    expect(failed).toMatchObject({ refining: false, error: "Try again", tasks: result.tasks });
+  });
+
+  it("is only offered on the review step, and holds Lock until it lands", () => {
+    expect(draftReducer(initialDraftState, { type: "refineRequested" })).toBe(initialDraftState);
+    const asked = draftReducer(reviewing, { type: "refineRequested" });
+    expect(draftReducer(asked, { type: "lockRequested" })).toBe(asked);
+    expect(draftReducer(asked, { type: "refineRequested" })).toBe(asked);
+  });
+});
+
 describe("locking", () => {
   it("returns to review with the message when locking fails", () => {
     const state = run([{ type: "lockRequested" }, { type: "lockFailed", message: "Try again" }], reviewing);

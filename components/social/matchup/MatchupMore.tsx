@@ -6,7 +6,7 @@ import { useShareInvite } from "@/components/invite/useShareInvite";
 import { MatchupMarkets } from "@/components/markets";
 import { Icon, RowDivider, SectionLabel, type IconName } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Matchup } from "../contract";
 import { BonusRow } from "./BonusRow";
@@ -99,7 +99,7 @@ const ROW_TEXT_INSET = spacing.lg + ICON_SIZE + layout.columnGap;
 
 const styles = StyleSheet.create({
   section: { paddingTop: spacing.lg },
-  group: { marginHorizontal: SCREEN_MARGIN, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.card, overflow: "hidden" },
+  group: { marginHorizontal: SCREEN_MARGIN, marginTop: spacing.sm, backgroundColor: colors.surface, borderWidth: BORDER, borderColor: colors.cardBorder, borderRadius: radius.card, overflow: "hidden" },
   row: { minHeight: layout.rowMin, paddingHorizontal: spacing.lg, flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   pressed: { opacity: 0.6 },
   label: { flex: 1, color: colors.text, fontFamily: fontFamily.regular, fontSize: font.body },

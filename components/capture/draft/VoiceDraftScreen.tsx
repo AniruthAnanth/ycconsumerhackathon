@@ -14,6 +14,7 @@ import { colors, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, sp
 import { DraftLineup } from "./DraftLineup";
 import { hasUnsavedDraft } from "./draftState";
 import { RecordButton } from "./RecordButton";
+import { RefineField } from "./RefineField";
 import { TranscriptView } from "./TranscriptView";
 import { TypedDraft } from "./TypedDraft";
 import { useSpeakingPrompt } from "./useSpeakingPrompt";
@@ -72,7 +73,8 @@ export function VoiceDraftScreen() {
         onClose={state.phase === "locking" ? undefined : leave}
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        {/* Dragging the page puts the keyboard away, and the content insets itself so the typed box and Draft from text can scroll above the keyboard. */}
+        {/* Dragging the page puts the keyboard away. The KeyboardAvoidingView alone lifts the page above the keyboard:
+            automaticallyAdjustKeyboardInsets on top of it counted the keyboard twice and scrolled the typed box under the header (ANI-52). */}
         <Animated.ScrollView
           ref={scroll}
           style={styles.flex}
@@ -80,7 +82,6 @@ export function VoiceDraftScreen() {
           scrollIndicatorInsets={{ top: contentInsetTop }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
@@ -131,7 +132,15 @@ export function VoiceDraftScreen() {
                 suggested={state.manual}
                 onRename={draft.renameTask}
                 onRemove={draft.removeTask}
+                refining={state.refining}
+                onTitleDone={(_, title) => void draft.rerate(title)}
               />
+              {/* Only before Lock: a locked lineup is fixed for the week. */}
+              {state.phase === "review" ? (
+                <View style={styles.refine}>
+                  <RefineField busy={state.refining} onSend={draft.refine} onFocus={revealTypedWeek} />
+                </View>
+              ) : null}
             </View>
           ) : null}
         </Animated.ScrollView>
@@ -186,6 +195,7 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
+  refine: { paddingHorizontal: SCREEN_MARGIN },
   // A paper bar with a hairline, so the lineup visibly scrolls under it instead of being sliced.
   footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.background, borderTopWidth: hairline, borderTopColor: colors.divider },
   error: { ...type.body, color: colors.danger },

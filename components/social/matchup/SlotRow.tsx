@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { CoachTarget } from "@/components/coach";
 import { PositionPill, RowDivider, Score } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
@@ -53,15 +54,20 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
       <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
         {task.title}
       </Text>
-      <View style={[styles.meta, mirrored && styles.sideMirrored]}>
-        <Score value={task.score} />
-        <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
-          {statusLine(task)}
-        </Text>
-      </View>
+      {/* Nothing to say until there is a score or a status, so an open, unscored task is just its title. */}
+      {task.score != null || statusLine(task) ? (
+        <View style={[styles.meta, mirrored && styles.sideMirrored]}>
+          {task.score != null ? <Score value={task.score} /> : null}
+          <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
+            {statusLine(task)}
+          </Text>
+        </View>
+      ) : null}
       {veto && vetoes && showsVeto(side, veto) ? (
         <View style={mirrored ? styles.chipRight : styles.chipLeft}>
-          <VetoChip veto={veto} leagueId={vetoes.leagueId} />
+          <CoachTarget id="veto">
+            <VetoChip veto={veto} leagueId={vetoes.leagueId} />
+          </CoachTarget>
         </View>
       ) : null}
     </View>
