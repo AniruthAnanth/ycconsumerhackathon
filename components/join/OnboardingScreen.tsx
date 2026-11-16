@@ -30,6 +30,8 @@ export function OnboardingScreen() {
   const [phone, setPhone] = useState(signupDraft.phone);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The number pad lifts Continue onto the caption under the phone field, so it shows only while the pad is down.
+  const [typingPhone, setTypingPhone] = useState(false);
 
   const trimmedName = name.trim();
   const e164 = toE164(phone);
@@ -98,8 +100,10 @@ export function OnboardingScreen() {
               autoComplete="tel"
               textContentType="telephoneNumber"
               editable={!saving}
+              onFocus={() => setTypingPhone(true)}
+              onBlur={() => setTypingPhone(false)}
             />
-            <Text style={styles.note}>For your league's texts. Never shown.</Text>
+            {typingPhone ? null : <Text style={styles.note}>For your league's texts. Never shown.</Text>}
           </View>
           {hint ? <ErrorLine message={hint} /> : null}
           {error ? <ErrorLine message={error} /> : null}
