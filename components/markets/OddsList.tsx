@@ -40,7 +40,7 @@ export function OddsList({ odds }: { odds: Market["odds"] }) {
         </ReorderRow>
       ))}
       <Text style={styles.note}>
-        {pot ? "Expected share. The pot splits evenly among everyone who clears the most slots." : "Chance of clearing the most slots this week."}
+        {pot ? "Expected share. Everyone tied for the most slots cleared splits the pot evenly, held in escrow until season end." : "Chance of clearing the most slots this week."}
       </Text>
     </View>
   );
