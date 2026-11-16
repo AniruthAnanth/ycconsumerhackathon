@@ -134,7 +134,7 @@ export function VoiceDraftScreen() {
             grey link at the foot of the screen, so the microphone stays the one obvious action. */}
         {state.phase === "idle" && !showsLineup ? (
           <Pressable accessibilityRole="button" onPress={draft.pickOwn} style={styles.skip} testID="draft-skip">
-            <Text style={styles.skipLabel}>Skip — I'll pick my own</Text>
+            <Text style={styles.skipLabel}>Skip, I'll pick my own</Text>
           </Pressable>
         ) : null}
         {showsLineup || state.error ? (

@@ -32,8 +32,8 @@ export function marketQuestions(market: Market): MarketQuestion[] {
   return questions;
 }
 
-/** "The pot needs all 5 slots cleared — you've cleared 2." Under the money line, so a big matchup chance next to a loss reads right. */
+/** "The pot needs all 5 slots cleared. You've cleared 2." Under the money line, so a big matchup chance next to a loss reads right. */
 export function potNeedsLine(slotsCleared: number): string {
   if (slotsCleared >= 5) return "You've cleared all 5 slots, so you're in the running for the pot.";
-  return `The pot needs all 5 slots cleared — you've cleared ${slotsCleared}.`;
+  return `The pot needs all 5 slots cleared. You've cleared ${slotsCleared}.`;
 }
