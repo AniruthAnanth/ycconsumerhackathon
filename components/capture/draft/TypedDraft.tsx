@@ -7,10 +7,11 @@ type Props = {
   value: string;
   onChangeText: (text: string) => void;
   onSubmit: () => void;
+  onFocus?: () => void;
 };
 
 /** Stands in for the microphone on simulators and when recording fails. */
-export function TypedDraft({ value, onChangeText, onSubmit }: Props) {
+export function TypedDraft({ value, onChangeText, onSubmit, onFocus }: Props) {
   return (
     <View style={styles.container}>
       {/* Return closes the keyboard: a week is one paragraph, and without it nothing on the screen let go of the keyboard (ANI-52). */}
@@ -24,6 +25,7 @@ export function TypedDraft({ value, onChangeText, onSubmit }: Props) {
         returnKeyType="done"
         submitBehavior="blurAndSubmit"
         testID="draft-typed-week"
+        onFocus={onFocus}
       />
       <OutlinedPillButton label="Draft from text" onPress={onSubmit} disabled={value.trim().length === 0} />
     </View>

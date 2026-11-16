@@ -1,6 +1,6 @@
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { confirmAction } from "@/components/social/notify";
 import { Button, Header, Screen } from "@/components/ui";
@@ -23,6 +23,15 @@ export function VoiceDraftScreen() {
   const draft = useVoiceDraft();
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
+  const scroll = useRef<ScrollView>(null);
+  // The typed box and "Draft from text" are the last things on the page, so once the keyboard is
+  // up the page scrolls to its end to keep them above it (ANI-52).
+  const revealTypedWeek = () => {
+    const shown = Keyboard.addListener("keyboardDidShow", () => {
+      shown.remove();
+      scroll.current?.scrollToEnd({ animated: true });
+    });
+  };
   const prompt = useSpeakingPrompt(state.phase === "idle");
   const navigation = useNavigation();
 
@@ -61,6 +70,7 @@ export function VoiceDraftScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Dragging the page puts the keyboard away, and the content insets itself so the typed box and Draft from text can scroll above the keyboard. */}
         <ScrollView
+          ref={scroll}
           style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
@@ -91,7 +101,12 @@ export function VoiceDraftScreen() {
           </View>
           {showsTyped ? (
             <View style={styles.transcript}>
-              <TypedDraft value={typedWeek} onChangeText={setTypedWeek} onSubmit={() => draft.draftFromText(typedWeek)} />
+              <TypedDraft
+                value={typedWeek}
+                onChangeText={setTypedWeek}
+                onSubmit={() => draft.draftFromText(typedWeek)}
+                onFocus={revealTypedWeek}
+              />
             </View>
           ) : null}
           {showsLineup ? (
