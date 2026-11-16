@@ -70,8 +70,8 @@ export type ProofRules = {
     distanceM: number | null;
     anyScene?: boolean;
   };
-  /** A timelapse's measured length and how many stills the referee saw. */
-  timelapse?: { minutes: number; frames: number };
+  /** A timelapse's or survey video's label for the post ("Timelapse 32 min") and how many stills the referee saw. */
+  footage?: { label: string; frames: number };
 };
 
 /**
@@ -181,11 +181,11 @@ export function decideVerdict(
   if (!judgement.pass) return fail(judgement.reason);
 
   let reason = judgement.reason;
-  if (rules.timelapse) {
-    // The post shows what the timelapse proved in numbers the league can check at a glance.
-    const { minutes, frames } = rules.timelapse;
+  if (rules.footage) {
+    // The post shows what the footage proved in numbers the league can check at a glance.
+    const { label, frames } = rules.footage;
     const seen = Math.round(clamp(judgement.activityFrames ?? 0, 0, frames));
-    const summary = `Timelapse ${minutes} min · ${judgement.scene?.trim() || "the task"} in ${seen}/${frames} frames`;
+    const summary = `${label} · ${judgement.scene?.trim() || "the task"} in ${seen}/${frames} frames`;
     if (seen * 2 <= frames)
       return {
         ...fail(`${summary}. It has to show in most of them.`),

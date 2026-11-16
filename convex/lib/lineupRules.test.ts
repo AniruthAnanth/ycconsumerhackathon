@@ -59,6 +59,9 @@ describe("tidyTask: every proof is a timelapse", () => {
       expect(tidyTask({ ...base, proofType }).proofType).toBe("timelapse");
     }
   });
+  it("keeps a survey video, with no minutes", () => {
+    expect(tidyTask({ ...base, proofType: "survey_video", targetMinutes: 30 })).toEqual({ ...base, proofType: "survey_video" });
+  });
   it("gives it 5 to 60 minutes, 10 when none was given", () => {
     expect(tidyTask({ ...base, proofType: "timelapse" }).targetMinutes).toBe(
       10,

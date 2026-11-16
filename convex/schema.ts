@@ -25,7 +25,8 @@ export const slot = v.union(
 /**
  * How a task is proven. "photo" is the default: rows written before the other kinds existed
  * keep working. before_after is two photos of the same place, timelapse a series of stills
- * spread over the task's duration, screenshot an image from the phone's library.
+ * spread over the task's duration, screenshot an image from the phone's library, survey_video a
+ * 5-second clip panning the place that shows the result.
  */
 export const proofType = v.union(
   v.literal("photo"),
@@ -34,6 +35,7 @@ export const proofType = v.union(
   v.literal("before_after"),
   v.literal("timelapse"),
   v.literal("screenshot"),
+  v.literal("survey_video"),
 );
 
 export const place = v.object({

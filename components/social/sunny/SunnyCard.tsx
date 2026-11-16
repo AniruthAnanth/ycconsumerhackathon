@@ -2,7 +2,9 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Artwork } from "@/components/art";
-import { PressScale } from "@/components/motion";
+import Animated from "react-native-reanimated";
+
+import { PressScale, useSunnyHop } from "@/components/motion";
 import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { SUNNY } from "./sunnyLogic";
@@ -28,7 +30,8 @@ export function SunnyCard() {
   return (
     <View testID="sunny-card" style={styles.card}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${SUNNY.name}: ${brief.line}`} onPress={() => ask()} style={styles.top}>
-        <Artwork name="sunny" size={MASCOT} style={styles.mascot} />
+        {/* Keyed on the line, so Sunny hops once each time there is something new to say. */}
+        <HoppingSunny key={brief.line} />
         <View style={styles.bubble}>
           <View style={styles.pointer} />
           <Text style={styles.name}>
@@ -47,6 +50,15 @@ export function SunnyCard() {
         ))}
       </View>
     </View>
+  );
+}
+
+function HoppingSunny() {
+  const hop = useSunnyHop(MASCOT);
+  return (
+    <Animated.View style={[styles.mascot, hop]}>
+      <Artwork name="sunny" size={MASCOT} />
+    </Animated.View>
   );
 }
 
