@@ -29,6 +29,24 @@ export const chunk = action({
   },
 });
 
+/**
+ * One live clip sent as WAV bytes rather than through storage: a phone streaming its microphone
+ * sends a clip a second, and skipping the upload round trip is what makes the words keep up.
+ */
+export const chunkWav = action({
+  args: { wav: v.bytes() },
+  returns: v.string(),
+  handler: async (ctx, { wav }) => {
+    await requireCaller(ctx);
+    // A second of 16 kHz mono is 32 KB; anything far past that isn't a live clip.
+    if (wav.byteLength > 256_000) return "";
+    return await transcribe(new Blob([wav], { type: "audio/wav" }), LIVE_TRANSCRIPTION_MODEL).catch((error) => {
+      console.warn("live transcribe failed:", error instanceof Error ? error.message : error);
+      return "";
+    });
+  },
+});
+
 /** Every segment in recording order, transcribed at full quality and joined into one text. */
 export const whole = action({
   args: { storageIds: v.array(v.id("_storage")) },

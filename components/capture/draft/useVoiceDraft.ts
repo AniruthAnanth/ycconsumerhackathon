@@ -71,12 +71,11 @@ export function useVoiceDraft() {
   const stopRecording = useCallback(
     () =>
       requestDraft(async () => {
-        const segments = await finishLive();
-        if (segments.length === 0) throw new Error("Nothing was recorded");
-        // A short take is one segment and goes to the draft as it is; a longer one is
+        const take = await finishLive();
+        // A phone's whole take is one file and goes to the draft as it is; a browser's segments are
         // transcribed whole first, so the draft never reads the fast model's live words.
-        if (segments.length === 1) return { audioStorageId: segments[0] };
-        return { transcript: await transcribeWhole({ storageIds: segments }) };
+        if ("audioStorageId" in take) return take;
+        return { transcript: await transcribeWhole({ storageIds: take.storageIds }) };
       }),
     [finishLive, requestDraft, transcribeWhole],
   );

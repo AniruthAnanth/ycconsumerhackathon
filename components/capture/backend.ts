@@ -47,6 +47,8 @@ export const capture = {
   liveTranscribe: {
     /** One recorded segment's words while the player talks; "" when it can't be read. */
     chunk: action<{ storageId: Id<"_storage"> }, string>("liveTranscribe:chunk"),
+    /** A phone's live clip as WAV bytes, skipping the upload; "" when it can't be read. */
+    chunkWav: action<{ wav: ArrayBuffer }, string>("liveTranscribe:chunkWav"),
     /** Every segment in recording order, transcribed at full quality into the draft's text. */
     whole: action<{ storageIds: Id<"_storage">[] }, string>("liveTranscribe:whole"),
   },
