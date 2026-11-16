@@ -10,19 +10,24 @@ export function GhostOverlay({ beforeUri }: Props) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {beforeUri ? <Image source={{ uri: beforeUri }} style={[StyleSheet.absoluteFill, styles.ghost]} contentFit="cover" testID="camera-ghost" /> : null}
-      <View style={styles.stepRow}>
-        <Text style={styles.step} testID="camera-step">
-          {beforeUri ? "2 OF 2 · AFTER: LINE IT UP WITH THE GHOST" : "1 OF 2 · BEFORE"}
-        </Text>
-      </View>
     </View>
+  );
+}
+
+/** Which shot is next. It sits in the bottom stack above the shutter, so it never collides with the bar on a short screen. */
+export function GhostStep({ beforeUri }: Props) {
+  return (
+    <Text style={styles.step} testID="camera-step">
+      {beforeUri ? "2 OF 2 · AFTER: LINE IT UP WITH THE GHOST" : "1 OF 2 · BEFORE"}
+    </Text>
   );
 }
 
 const styles = StyleSheet.create({
   ghost: { opacity: 0.35 },
-  stepRow: { position: "absolute", left: 0, right: 0, bottom: 220, alignItems: "center" },
   step: {
+    alignSelf: "center",
+    marginBottom: spacing.md,
     color: colors.onAccent,
     fontFamily: fontFamily.bold,
     fontSize: font.label,

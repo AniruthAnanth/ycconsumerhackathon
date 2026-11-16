@@ -36,7 +36,7 @@ export function OpponentPicker({ value, onChange }: Props) {
 
   return (
     <>
-      {friends.length > 0 ? <SectionLabel left="Friends on Lineup" /> : null}
+      <SectionLabel left="Who are you challenging?" />
       {friends.map((friend) => (
         <PersonRow
           key={friend.userId}
@@ -45,9 +45,14 @@ export function OpponentPicker({ value, onChange }: Props) {
           onToggle={() => onChange({ kind: "friend", ...friend })}
         />
       ))}
-      <SectionLabel left="Anyone else" />
       {value.kind === "contact" ? <PersonRow name={value.name} detail={value.phone} selected onToggle={() => {}} /> : null}
-      <PersonRow name="Send invite link" detail="Text or share a code" selected={value.kind === "link"} onToggle={() => onChange({ kind: "link" })} />
+      <PersonRow
+        name="Send invite link"
+        detail="Text or share a code"
+        icon="link-outline"
+        selected={value.kind === "link"}
+        onToggle={() => onChange({ kind: "link" })}
+      />
       <View style={styles.body}>
         <OutlinedPillButton label="Pick from contacts" icon="person-add-outline" onPress={pickContact} />
         {contactFailure ? <ErrorLine message={contactFailure} /> : null}
