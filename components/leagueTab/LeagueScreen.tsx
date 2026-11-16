@@ -14,11 +14,7 @@ import { potEmptyText } from "@/components/leagueTab/emptyState";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
 import { SunnyTextPrompt } from "@/components/social/sunny/SunnyPrompt";
-import {
-  bySeasonRank,
-  playoffSpots,
-  seasonRecords,
-} from "@/components/leagueTab/seasonColumns";
+import { playoffSpots, seasonRecords } from "@/components/leagueTab/seasonColumns";
 import { Entrance } from "@/components/motion";
 import { useNow } from "@/lib/useNow";
 import { Screen, SectionLabel, useTabBarInset } from "@/components/ui";
@@ -52,22 +48,16 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
     () => (season ? seasonRecords(season) : undefined),
     [season],
   );
-  // One array per result: the table compares rows by identity to decide what flashes and slides.
-  const seasonTable = useMemo(
-    () => (table && records ? bySeasonRank(table, records) : undefined),
-    [table, records],
-  );
-
-  // The season is waited for too, so the table first draws in season order instead of re-sorting.
-  if (!leagueId || !pot || !seasonTable || !league || !me)
+  // The season is waited for too, so W-L and PF draw with the first rows instead of filling in.
+  if (!leagueId || !pot || !table || !records || !league || !me)
     return <Screen edges={[]}>{null}</Screen>;
 
   const potCard = escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />;
   // No money in the pot yet: the section would hold one note and empty space, so the standings lead instead.
   const showPot = escrow !== undefined || potEmptyText(pot) === null;
   // YOUR RANK reads the same rows as the table, so the two can never disagree.
-  const mine = seasonTable.find((row) => row.userId === me._id);
-  const place = mine ? placeText(mine.rank, tiedRanks(seasonTable).has(mine.rank)) : undefined;
+  const mine = table.find((row) => row.userId === me._id);
+  const place = mine ? placeText(mine.rank, tiedRanks(table).has(mine.rank)) : undefined;
 
   return (
     <CoachTour tour="league">
@@ -84,7 +74,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
         <CoachTarget id="standings">
           <StandingsTable
             style={showPot ? styles.section : styles.first}
-            rows={seasonTable}
+            rows={table}
             records={records}
             playoffSpots={season ? playoffSpots(season) : null}
             viewerId={me._id}

@@ -363,10 +363,14 @@ describe("seasonTable", () => {
     }
   });
 
-  it("ignores live results", () => {
+  it("counts live results in points for and nowhere else", () => {
     for (const { label, members, before, played } of states) {
       const live = played.map((result) => ({ ...result, live: true }));
-      expect(seasonTable(members, [...before, ...live]), label).toEqual(seasonTable(members, before));
+      const withLive = new Map(seasonTable(members, [...before, ...live]).map((row) => [row.id, row]));
+      for (const row of seasonTable(members, before)) {
+        const scored = live.reduce((sum, r) => sum + (r.a === row.id ? r.scoreA : 0) + (r.b === row.id ? r.scoreB : 0), 0);
+        expect(withLive.get(row.id), label).toEqual({ ...row, pointsFor: row.pointsFor + scored });
+      }
     }
   });
 });

@@ -206,7 +206,7 @@ export async function leagueStandings(
   const today = Math.max(...members.flatMap((member) => member.days));
   return members
     .map(({ days, ...member }) => ({ ...member, streak: currentStreak(days, today) }))
-    .sort((a, b) => b.points - a.points || b.slotsCleared - a.slotsCleared || a.name.localeCompare(b.name));
+    .sort((a, b) => b.points - a.points || b.slotsCleared - a.slotsCleared || b.streak - a.streak || a.name.localeCompare(b.name));
 }
 
 /** One member's points in a league week: the number the table and the matchup show. */
@@ -232,11 +232,19 @@ const tableRow = v.object({
 });
 
 async function toTable(ctx: QueryCtx, standings: MemberStanding[]) {
-  const rows = [];
+  const rows: (typeof tableRow.type)[] = [];
   for (const [index, standing] of standings.entries()) {
     const avatarUrl = standing.avatarStorageId ? await ctx.storage.getUrl(standing.avatarStorageId) : null;
+    // Players level on points, slots and streak share a place (1, 2, 2, 4); the name order that
+    // follows is only for a steady list, not a result.
+    const previous = standings[index - 1];
+    const level =
+      previous !== undefined &&
+      previous.points === standing.points &&
+      previous.slotsCleared === standing.slotsCleared &&
+      previous.streak === standing.streak;
     rows.push({
-      rank: index + 1,
+      rank: level ? rows[index - 1].rank : index + 1,
       userId: standing.userId,
       name: standing.name,
       ...(avatarUrl !== null && { avatarUrl }),

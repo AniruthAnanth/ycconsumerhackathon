@@ -126,11 +126,12 @@ describe("seed.reset", () => {
     );
     expect(new Set(met).size).toBe(15);
     expect(season.table.map((row) => [row.name, row.wins, row.losses, row.pointsFor])).toEqual([
-      ["Sam Patel", 4, 0, 1502],
-      ["Maya Chen", 3, 1, 1599],
-      ["Priya Shah", 2, 2, 1251],
-      ["Jordan Lee", 2, 2, 1162],
-      ["Ava Kim", 1, 3, 910],
+      // Points for include the week in play: Sam 285, Maya 500, Priya 195, Jordan 120, Ava 60, Leo 0.
+      ["Sam Patel", 4, 0, 1787],
+      ["Maya Chen", 3, 1, 2099],
+      ["Priya Shah", 2, 2, 1446],
+      ["Jordan Lee", 2, 2, 1282],
+      ["Ava Kim", 1, 3, 970],
       ["Leo Martinez", 0, 4, 635],
     ]);
   });
