@@ -1,18 +1,59 @@
 import { useQuery } from "convex/react";
 import { useIsFocused } from "expo-router";
 import { type ComponentRef, type ReactNode, useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import Svg, { Defs, Mask, Rect as SvgRect } from "react-native-svg";
 
+import { Artwork } from "@/components/art";
+import { ease } from "@/components/motion";
+import { cardStyle } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { colors, duration, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { haptics } from "@/lib/native/haptics";
+import {
+  colors,
+  duration,
+  layout,
+  radius,
+  SCREEN_MARGIN,
+  spacing,
+  spring,
+  type,
+} from "@/theme";
 
 import { hasSeenTour, markTourSeen, useCoachResets } from "./store";
-import { arrowOffset, bubbleSide, type CoachTargetId, isOnScreen, type Rect, TOURS, type TourId } from "./tours";
+import {
+  arrowOffset,
+  bubbleLeft,
+  bubbleSide,
+  type CoachTargetId,
+  isOnScreen,
+  type Rect,
+  spotlightFrame,
+  TOURS,
+  type TourId,
+} from "./tours";
 
 type ViewType = ComponentRef<typeof View>;
 
-const ARROW = 16;
-const RING = spacing.xs;
+const ARROW = 14;
+const BUBBLE_MAX = 300;
+const SUNNY = 32;
+const CUTOUT_RADIUS = radius.control;
+const AnimatedRect = Animated.createAnimatedComponent(SvgRect);
 
 /**
  * Every mounted target, by id, app-wide: a tour can point outside its own screen, such as the
@@ -22,7 +63,13 @@ const RING = spacing.xs;
 const targets = new Map<CoachTargetId, ViewType>();
 
 /** Marks the element a tour step points at; otherwise a plain View. */
-export function CoachTarget({ id, children }: { id: CoachTargetId; children: ReactNode }) {
+export function CoachTarget({
+  id,
+  children,
+}: {
+  id: CoachTargetId;
+  children: ReactNode;
+}) {
   return (
     <View
       ref={(view) => {
@@ -36,19 +83,29 @@ export function CoachTarget({ id, children }: { id: CoachTargetId; children: Rea
   );
 }
 
-type Shown = { index: number; steps: { text: string; rect: Rect }[] };
+type Step = { title: string; text: string; cutout: Rect };
 
 /**
  * Runs one screen's first-run tour: once the screen is focused and its content has arrived
- * (ready), it measures each step's target and walks through the ones on screen, a bubble
- * at a time. Got it or Skip tips marks the tour seen for this player on this device.
+ * (ready), it measures each step's target and walks through the ones on screen. A dark scrim
+ * with a spotlight cut around the target slides from one target to the next, and Sunny speaks
+ * each tip from a small bubble beside it. Got it or Skip marks the tour seen for this player.
  */
-export function CoachTour({ tour, ready = true, children }: { tour: TourId; ready?: boolean; children: ReactNode }) {
+export function CoachTour({
+  tour,
+  ready = true,
+  children,
+}: {
+  tour: TourId;
+  ready?: boolean;
+  children: ReactNode;
+}) {
   const me = useQuery(backend.users.me);
   const focused = useIsFocused();
   const resets = useCoachResets();
   const screen = useWindowDimensions();
-  const [shown, setShown] = useState<Shown | null>(null);
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [index, setIndex] = useState(0);
   const userId = me?._id;
 
   useEffect(() => {
@@ -59,16 +116,30 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
       if (await hasSeenTour(userId, tour)) return;
       const measured = await Promise.all(
         TOURS[tour].map(
-          ({ target, text }) =>
-            new Promise<{ text: string; rect: Rect } | null>((resolve) => {
+          ({ target, title, text }) =>
+            new Promise<Step | null>((resolve) => {
               const view = targets.get(target);
               if (!view) return resolve(null);
-              view.measureInWindow((x, y, width, height) => resolve({ text, rect: { x, y, width, height } }));
+              view.measureInWindow((x, y, width, height) => {
+                const rect = { x, y, width, height };
+                resolve(
+                  isOnScreen(rect, screen)
+                    ? {
+                        title,
+                        text,
+                        cutout: spotlightFrame(rect, screen, SCREEN_MARGIN),
+                      }
+                    : null,
+                );
+              });
             }),
         ),
       );
-      const steps = measured.filter((step): step is { text: string; rect: Rect } => !!step && isOnScreen(step.rect, screen));
-      if (live && steps.length > 0) setShown({ index: 0, steps });
+      const shown = measured.filter((step): step is Step => step !== null);
+      if (live && shown.length > 0) {
+        setIndex(0);
+        setSteps(shown);
+      }
     }, duration.slow * 3);
     return () => {
       live = false;
@@ -77,36 +148,28 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
   }, [userId, focused, ready, tour, resets, screen]);
 
   function finish() {
-    setShown(null);
+    setSteps(null);
     if (userId) void markTourSeen(userId, tour);
   }
-
-  const step = shown?.steps[shown.index];
-  const last = shown ? shown.index === shown.steps.length - 1 : false;
-  const next = () => (last ? finish() : setShown((now) => now && { ...now, index: now.index + 1 }));
 
   return (
     <>
       {children}
-      {step && shown ? (
-        <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={finish}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={next} accessibilityLabel="Next tip">
-            <View style={[StyleSheet.absoluteFill, styles.scrim]} />
-          </Pressable>
-          <View
-            pointerEvents="none"
-            style={[
-              styles.ring,
-              { left: step.rect.x - RING, top: step.rect.y - RING, width: step.rect.width + RING * 2, height: step.rect.height + RING * 2 },
-            ]}
-          />
-          <Bubble
-            text={step.text}
-            rect={step.rect}
+      {steps ? (
+        <Modal
+          transparent
+          visible
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={finish}
+        >
+          <Spotlight
+            steps={steps}
+            index={index}
             screen={screen}
-            position={shown.steps.length > 1 ? `${shown.index + 1} of ${shown.steps.length}` : null}
-            last={last}
-            onNext={next}
+            onNext={() =>
+              index === steps.length - 1 ? finish() : setIndex(index + 1)
+            }
             onSkip={finish}
           />
         </Modal>
@@ -115,73 +178,255 @@ export function CoachTour({ tour, ready = true, children }: { tour: TourId; read
   );
 }
 
-function Bubble({
-  text,
-  rect,
+function Spotlight({
+  steps,
+  index,
   screen,
-  position,
-  last,
   onNext,
   onSkip,
 }: {
-  text: string;
-  rect: Rect;
+  steps: Step[];
+  index: number;
   screen: { width: number; height: number };
-  position: string | null;
-  last: boolean;
   onNext: () => void;
   onSkip: () => void;
 }) {
-  const side = bubbleSide(rect, screen.height);
-  const width = screen.width - SCREEN_MARGIN * 2;
-  const gap = RING + ARROW / 2 + spacing.xs;
-  const arrowLeft = arrowOffset(rect, { left: SCREEN_MARGIN, width }, ARROW, radius.card);
+  const step = steps[index];
+  const last = index === steps.length - 1;
+  const x = useSharedValue(step.cutout.x);
+  const y = useSharedValue(step.cutout.y);
+  const width = useSharedValue(step.cutout.width);
+  const height = useSharedValue(step.cutout.height);
+  const lift = useSharedValue(0);
+
+  useEffect(() => {
+    // The light slides to the next target; the bubble fades and lifts in after it.
+    x.value = withSpring(step.cutout.x, spring.gentle);
+    y.value = withSpring(step.cutout.y, spring.gentle);
+    width.value = withSpring(step.cutout.width, spring.gentle);
+    height.value = withSpring(step.cutout.height, spring.gentle);
+    lift.value = 0;
+    lift.value = withTiming(1, {
+      duration: duration.base,
+      easing: ease.standard,
+    });
+    haptics.select();
+  }, [step, x, y, width, height, lift]);
+
+  const hole = useAnimatedProps(() => ({
+    x: x.value,
+    y: y.value,
+    width: width.value,
+    height: height.value,
+  }));
+  const glow = useAnimatedStyle(() => ({
+    left: x.value,
+    top: y.value,
+    width: width.value,
+    height: height.value,
+  }));
+  const bubbleIn = useAnimatedStyle(() => ({
+    opacity: lift.value,
+    transform: [{ translateY: (1 - lift.value) * spacing.sm }],
+  }));
+
+  const side = bubbleSide(step.cutout, screen.height);
+  const bubbleWidth = Math.min(BUBBLE_MAX, screen.width - SCREEN_MARGIN * 2);
+  const left = bubbleLeft(
+    step.cutout,
+    bubbleWidth,
+    screen.width,
+    SCREEN_MARGIN,
+  );
+  const gap = ARROW / 2 + spacing.sm;
   const place =
     side === "below"
-      ? { top: Math.min(rect.y + rect.height + gap, screen.height - layout.bar * 3) }
-      : { bottom: Math.min(screen.height - rect.y + gap, screen.height - layout.bar * 3) };
+      ? { top: step.cutout.y + step.cutout.height + gap }
+      : { bottom: screen.height - step.cutout.y + gap };
+
   return (
-    <View style={[styles.bubble, { width }, place]} accessibilityViewIsModal accessibilityLiveRegion="polite">
-      <View style={[styles.arrow, { left: arrowLeft }, side === "below" ? styles.arrowTop : styles.arrowBottom]} />
-      <Text style={styles.text}>{text}</Text>
-      <View style={styles.actions}>
-        {last ? <View /> : (
-          <Pressable onPress={onSkip} hitSlop={spacing.md} accessibilityRole="button" testID="coach-skip">
-            <Text style={styles.skip}>Skip tips</Text>
-          </Pressable>
-        )}
-        <View style={styles.right}>
-          {position ? <Text style={styles.position}>{position}</Text> : null}
-          <Pressable onPress={onNext} style={styles.next} accessibilityRole="button" testID="coach-next">
-            <Text style={styles.nextLabel}>{last ? "Got it" : "Next"}</Text>
-          </Pressable>
+    <View style={StyleSheet.absoluteFill}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onNext}
+        accessibilityLabel="Next tip"
+      >
+        <Svg width={screen.width} height={screen.height}>
+          <Defs>
+            <Mask
+              id="coach-hole"
+              x="0"
+              y="0"
+              width={screen.width}
+              height={screen.height}
+            >
+              <SvgRect
+                x="0"
+                y="0"
+                width={screen.width}
+                height={screen.height}
+                fill="white"
+              />
+              <AnimatedRect
+                animatedProps={hole}
+                rx={CUTOUT_RADIUS}
+                ry={CUTOUT_RADIUS}
+                fill="black"
+              />
+            </Mask>
+          </Defs>
+          <SvgRect
+            x="0"
+            y="0"
+            width={screen.width}
+            height={screen.height}
+            fill="black"
+            opacity={0.55}
+            mask="url(#coach-hole)"
+          />
+        </Svg>
+      </Pressable>
+      <Animated.View pointerEvents="none" style={[styles.glow, glow]} />
+      <Animated.View
+        key={index}
+        style={[styles.bubble, { width: bubbleWidth, left }, place, bubbleIn]}
+        accessibilityViewIsModal
+        accessibilityLiveRegion="polite"
+      >
+        <View
+          style={[
+            styles.arrow,
+            {
+              left: arrowOffset(
+                step.cutout,
+                { left, width: bubbleWidth },
+                ARROW,
+                radius.card,
+              ),
+            },
+            side === "below" ? styles.arrowTop : styles.arrowBottom,
+          ]}
+        />
+        <View style={styles.speech}>
+          <View style={styles.sunny}>
+            <Artwork name="sunny" size={SUNNY} />
+          </View>
+          <View style={styles.words}>
+            <Text style={styles.title}>{step.title}</Text>
+            <Text style={styles.text}>{step.text}</Text>
+          </View>
         </View>
-      </View>
+        <View style={styles.actions}>
+          <View
+            style={styles.dots}
+            accessibilityLabel={`Tip ${index + 1} of ${steps.length}`}
+          >
+            {steps.length > 1
+              ? steps.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, i === index && styles.dotOn]}
+                  />
+                ))
+              : null}
+          </View>
+          <View style={styles.right}>
+            {last ? null : (
+              <Pressable
+                onPress={onSkip}
+                style={styles.skip}
+                accessibilityRole="button"
+                testID="coach-skip"
+              >
+                <Text style={styles.skipLabel}>Skip</Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={onNext}
+              style={styles.next}
+              accessibilityRole="button"
+              testID="coach-next"
+            >
+              <Text style={styles.nextLabel}>{last ? "Got it" : "Next"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { backgroundColor: colors.scrim },
-  ring: { position: "absolute", borderRadius: radius.md, borderWidth: 2, borderColor: colors.onAccent },
-  bubble: {
+  glow: {
     position: "absolute",
-    left: SCREEN_MARGIN,
-    padding: spacing.lg,
-    gap: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
+    borderRadius: CUTOUT_RADIUS,
+    borderWidth: 2,
+    borderColor: colors.accentTint,
+    shadowColor: colors.accentTint,
+    shadowOpacity: 0.9,
+    shadowRadius: spacing.md,
+    shadowOffset: { width: 0, height: 0 },
   },
-  arrow: { position: "absolute", width: ARROW, height: ARROW, backgroundColor: colors.surface, transform: [{ rotate: "45deg" }] },
-  arrowTop: { top: -ARROW / 2 },
-  arrowBottom: { bottom: -ARROW / 2 },
-  text: { ...type.body, color: colors.text },
-  actions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  right: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  skip: { ...type.label, color: colors.textMuted },
-  position: { ...type.small, color: colors.textFaint },
+  bubble: {
+    ...cardStyle,
+    position: "absolute",
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  arrow: {
+    position: "absolute",
+    width: ARROW,
+    height: ARROW,
+    backgroundColor: colors.surface,
+    borderColor: colors.divider,
+    transform: [{ rotate: "45deg" }],
+  },
+  arrowTop: {
+    top: -ARROW / 2,
+    borderLeftWidth: cardStyle.borderWidth,
+    borderTopWidth: cardStyle.borderWidth,
+  },
+  arrowBottom: {
+    bottom: -ARROW / 2,
+    borderRightWidth: cardStyle.borderWidth,
+    borderBottomWidth: cardStyle.borderWidth,
+  },
+  speech: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
+  sunny: {
+    width: SUNNY + spacing.sm,
+    height: SUNNY + spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  words: { flex: 1, gap: spacing.xs },
+  title: { ...type.label, color: colors.text },
+  text: { ...type.small, color: colors.textMuted },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dots: { flexDirection: "row", gap: spacing.xs },
+  dot: {
+    width: spacing.sm - 2,
+    height: spacing.sm - 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.divider,
+  },
+  dotOn: { backgroundColor: colors.accent },
+  right: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  skip: {
+    minHeight: layout.rowMin,
+    minWidth: layout.rowMin,
+    paddingHorizontal: spacing.sm,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  skipLabel: { ...type.small, color: colors.textMuted },
   next: {
-    minHeight: layout.bar,
+    minHeight: layout.pillHeight + spacing.md,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
     borderRadius: radius.pill,

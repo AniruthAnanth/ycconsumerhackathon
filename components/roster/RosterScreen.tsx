@@ -130,8 +130,8 @@ export function RosterScreen() {
             <EmptyState inline message="No lineup this week" />
           ) : (
             <Entrance index={1}>
+              <SectionLabel left="This week's tasks" right={due} />
               <CoachTarget id="tasks">
-                <SectionLabel left="This week's tasks" right={due} />
                 {starters.map(({ slot, task }) =>
                   task ? (
                     listed(task)
