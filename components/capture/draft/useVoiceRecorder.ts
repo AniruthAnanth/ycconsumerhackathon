@@ -1,9 +1,29 @@
-import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from "expo-audio";
-import { useCallback, useEffect, useState } from "react";
+import {
+  AudioModule,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+  useAudioStream,
+  type AudioStreamBuffer,
+} from "expo-audio";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 
+import { createClipper, pcmLevel, wavFromPcm16 } from "./pcmChunks";
 import { meterLevel } from "./recordingMeter";
 import { recordingContentType } from "./recordingType";
+
+/** 16 kHz mono is what speech transcription uses anyway, and keeps a live clip near 32 KB. */
+const STREAM_SAMPLE_RATE = 16_000;
+
+/**
+ * A phone streams its microphone as PCM: one continuous take with nothing lost between live clips.
+ * The browser has no stream, and an Expo Go older than the stream API has no native class for it,
+ * so both fall back to the segmented recorder. Decided once, so the same hook runs on every render.
+ */
+const STREAMS = Platform.OS !== "web" && typeof (AudioModule as { AudioStream?: unknown }).AudioStream === "function";
 
 const RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
 
@@ -15,7 +35,7 @@ export type Segment = { blob: Blob; contentType: string };
  * segment can be transcribed while the player keeps talking. A file still being written can't be
  * read (an .m4a is only playable once closed), which is why the recording is cut rather than read.
  */
-export function useVoiceRecorder() {
+function useSegmentRecorder() {
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
   const state = useAudioRecorderState(recorder, 100);
   // Time in segments already closed, so the timer and the one-minute limit count the whole take.
@@ -63,6 +83,7 @@ export function useVoiceRecorder() {
   }, [begin, close]);
 
   return {
+    kind: "segments" as const,
     durationMillis: closedMillis + (state.isRecording ? state.durationMillis : 0),
     segmentMillis: state.isRecording ? state.durationMillis : 0,
     level: meterLevel(state.metering),
@@ -71,3 +92,70 @@ export function useVoiceRecorder() {
     stop: close,
   };
 }
+
+/** A finished streamed take: one WAV file of the whole thing, for the full-quality transcription. */
+export type Take = { uri: string; contentType: string };
+
+/**
+ * Streams the microphone: every LIVE_CLIP_MS of audio is handed to onClip as a short WAV that
+ * overlaps the one before, while the whole take is written to one WAV file alongside.
+ */
+function useStreamRecorder() {
+  const [durationMillis, setDurationMillis] = useState(0);
+  const [level, setLevel] = useState(0);
+  // Remade at the first buffer's rate: the hardware may not deliver the rate asked for, and a
+  // clip a second long has to be counted in the samples that actually arrive.
+  const clipper = useRef({ rate: STREAM_SAMPLE_RATE, clips: createClipper(STREAM_SAMPLE_RATE) });
+  const onClip = useRef<(wav: Uint8Array) => void>(() => undefined);
+
+  const onBuffer = useCallback((buffer: AudioStreamBuffer) => {
+    const samples = new Int16Array(buffer.data);
+    setLevel(pcmLevel(samples));
+    setDurationMillis(Math.round(buffer.timestamp * 1000));
+    if (clipper.current.rate !== buffer.sampleRate) clipper.current = { rate: buffer.sampleRate, clips: createClipper(buffer.sampleRate) };
+    for (const clip of clipper.current.clips.push(samples)) onClip.current(wavFromPcm16(clip, buffer.sampleRate));
+  }, []);
+  const { stream } = useAudioStream({ sampleRate: STREAM_SAMPLE_RATE, channels: 1, encoding: "int16", onBuffer });
+
+  useEffect(
+    () => () => {
+      if (stream.isStreaming) stream.stop();
+    },
+    [stream],
+  );
+
+  const start = useCallback(async () => {
+    const permission = await requestRecordingPermissionsAsync();
+    if (!permission.granted) throw new Error("Microphone access is off");
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    clipper.current = { rate: STREAM_SAMPLE_RATE, clips: createClipper(STREAM_SAMPLE_RATE) };
+    setDurationMillis(0);
+    await stream.start();
+    await stream.startFileRecordingAsync({ format: "wav" });
+  }, [stream]);
+
+  /** Ends the take; the last part-second still goes to onClip. Null when nothing was captured. */
+  const stop = useCallback(async (): Promise<Take | null> => {
+    const take = await stream.stopFileRecordingAsync().catch(() => null);
+    stream.stop();
+    setLevel(0);
+    const rest = clipper.current.clips.flush();
+    if (rest) onClip.current(wavFromPcm16(rest, clipper.current.rate));
+    return take && take.duration > 0 ? { uri: take.uri, contentType: "audio/wav" } : null;
+  }, [stream]);
+
+  return {
+    kind: "stream" as const,
+    durationMillis,
+    level,
+    start,
+    stop,
+    setOnClip: (handler: (wav: Uint8Array) => void) => {
+      onClip.current = handler;
+    },
+  };
+}
+
+export type VoiceRecorder = ReturnType<typeof useSegmentRecorder> | ReturnType<typeof useStreamRecorder>;
+
+export const useVoiceRecorder: () => VoiceRecorder = STREAMS ? useStreamRecorder : useSegmentRecorder;
