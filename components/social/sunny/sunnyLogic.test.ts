@@ -57,12 +57,8 @@ describe("verdictLine", () => {
 
 describe("sunnyPrompt", () => {
   it("offers a plan against the opponent on Matchup, worded by who leads", () => {
-    expect(sunnyPrompt("matchup", matchup(60, 100)).line).toBe("Want a plan to catch Sam Ortiz?");
-    expect(sunnyPrompt("matchup", matchup(100, 60)).line).toBe("Want to stay ahead of Sam Ortiz?");
-  });
-
-  it("asks about a stuck task on Roster", () => {
-    expect(sunnyPrompt("roster", null).cta).toBe("Ask Sunny");
+    expect(sunnyPrompt(matchup(60, 100)).line).toBe("Want a plan to catch Sam Ortiz?");
+    expect(sunnyPrompt(matchup(100, 60)).line).toBe("Want to stay ahead of Sam Ortiz?");
   });
 });
 

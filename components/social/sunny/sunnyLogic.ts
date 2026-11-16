@@ -82,13 +82,10 @@ export function verdictLine(points: number, matchup: Matchup | null | undefined)
 export type SunnyPrompt = { line: string; cta: string; question: string };
 
 /**
- * The slim row between sections that invites a question for Sunny, varied by screen and by the
- * live matchup so it never repeats what the screen above it already shows.
+ * Matchup's slim row that invites a question for Sunny, worded by who leads so it adds a next
+ * step instead of repeating the scores above it.
  */
-export function sunnyPrompt(screen: "roster" | "matchup", matchup: Matchup | null | undefined): SunnyPrompt {
-  if (screen === "roster") {
-    return { line: "Stuck on a task?", cta: "Ask Sunny", question: "I'm stuck on a task. What's the easiest one to prove today?" };
-  }
+export function sunnyPrompt(matchup: Matchup | null | undefined): SunnyPrompt {
   if (!matchup) return { line: "Want a plan for this week?", cta: "Text Sunny", question: "What's my plan for this week?" };
   const opponent = playerName(matchup.opponent.name);
   const behind = matchup.me.total < matchup.opponent.total;
