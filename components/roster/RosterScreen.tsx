@@ -6,7 +6,6 @@ import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CoachTarget, CoachTour } from "@/components/coach";
 import { HomeWidgetSync, LiveActivitySync } from "@/components/liveActivity";
 import { Entrance } from "@/components/motion";
-import { AddFlexTask } from "@/components/roster/AddFlexTask";
 import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { RosterHero } from "@/components/roster/RosterHero";
@@ -25,7 +24,7 @@ import {
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { sharedDueLabel, splitRoster, weekActions } from "@/lib/roster";
-import { colors, SCREEN_MARGIN, spacing, TASK_TEXT_INSET } from "@/theme";
+import { SCREEN_MARGIN } from "@/theme";
 
 /**
  * ROSTER, the screen the app opens on every day: this week's lineup as a team
@@ -49,7 +48,7 @@ export function RosterScreen() {
   );
   const { starters, extras } = splitRoster(roster?.rows ?? []);
 
-  const { canDraft, noLineup, undrafted, takesFlex } = weekActions({
+  const { canDraft, noLineup, undrafted } = weekActions({
     roster,
     shownWeekStart: weekStart,
     currentWeekStart: league?.week.startsAt,
@@ -67,7 +66,7 @@ export function RosterScreen() {
   )?.taskId;
 
   // The Up Next task is highlighted where it sits in the lineup rather than repeated above it,
-  // and its camera button sits under the row so the title keeps the row's full width.
+  // and its camera button sits inside the row on the trailing side: one background, one unit.
   const listed = (task: Task) => {
     const upNext = task.upNext && !settled;
     const canProve = upNext && roster?.locked && task.proofType !== "canvas";
@@ -76,25 +75,21 @@ export function RosterScreen() {
         task={task}
         highlighted={upNext}
         onPress={() => router.push(`/task/${task.taskId}`)}
-      />
-    );
-    return (
-      <View key={task.taskId}>
-        {task.taskId === coachTaskId ? (
-          <CoachTarget id="task">{row}</CoachTarget>
-        ) : (
-          row
-        )}
-        {canProve ? (
-          <View style={styles.proof}>
+        right={
+          canProve ? (
             <OutlinedPillButton
               label="Submit Proof"
               icon="camera"
               onPress={() => router.push(proofCameraHref(task))}
             />
-          </View>
-        ) : null}
-      </View>
+          ) : undefined
+        }
+      />
+    );
+    return task.taskId === coachTaskId ? (
+      <CoachTarget key={task.taskId} id="task">{row}</CoachTarget>
+    ) : (
+      <View key={task.taskId}>{row}</View>
     );
   };
 
@@ -140,11 +135,9 @@ export function RosterScreen() {
                   ),
                 )}
               </CoachTarget>
-              {extras.length > 0 || takesFlex ? (
-                <SectionLabel left="Extra" />
-              ) : null}
+              {/* The lineup is fixed once locked: the bonus row comes only from the draft. */}
+              {extras.length > 0 ? <SectionLabel left="Extra" /> : null}
               {extras.map(listed)}
-              {takesFlex ? <AddFlexTask /> : null}
               {/* Odds, projection and bonuses wait behind one row: none of them is the next thing to do. */}
               {undrafted || !roster ? null : (
                 <RosterWeekDetails roster={roster} />
@@ -167,12 +160,4 @@ export function RosterScreen() {
 
 const styles = StyleSheet.create({
   draft: { margin: SCREEN_MARGIN },
-  // The highlighted row's tint continues under the button, which starts on the row's text edge.
-  proof: {
-    alignItems: "flex-start",
-    paddingLeft: TASK_TEXT_INSET,
-    paddingRight: SCREEN_MARGIN,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.accentTint,
-  },
 });

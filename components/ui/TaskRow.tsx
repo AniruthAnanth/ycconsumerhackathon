@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { PressScale } from "@/components/motion";
+import { PressHighlight, PressRow } from "@/components/motion";
+import { haptics } from "@/lib/native/haptics";
 
 import { formatScore, taskPlaceLine, taskRowLabel, taskRowLine, type TaskRowData } from "@/lib/taskText";
 import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET, tabular } from "@/theme";
@@ -15,7 +16,7 @@ type Props = {
   /** The Up Next task: tinted, with an UP NEXT tag in place of the slot name. */
   highlighted?: boolean;
   onPress?: () => void;
-  /** Replaces the score column, for example with Submit Proof on the Up Next row. */
+  /** Replaces the score column, for example with Submit Proof on the Up Next row; it shares the row's one background. */
   right?: ReactNode;
   /** Lines the title may use; defaults to 2 when highlighted, else 1. */
   titleLines?: number;
@@ -26,6 +27,7 @@ type Props = {
  * text and the score. Roster and the task sheet both draw tasks with it.
  */
 export function TaskRow({ task, highlighted = false, onPress, right, titleLines }: Props) {
+  const [pressed, setPressed] = useState(false);
   const place = taskPlaceLine(task);
   const label = taskRowLabel(task, highlighted);
   const lead = (
@@ -56,9 +58,20 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
     <View style={[styles.row, highlighted && styles.highlighted]}>
       {/* A control in `right` sits beside the row's button, not inside it: a screen reader cannot reach a button nested in another. */}
       {onPress && right ? (
-        <PressScale style={styles.lead} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+        // The whole row darkens while its left side is held, so row and button read as one unit.
+        <Pressable
+          style={styles.lead}
+          onPress={() => {
+            haptics.press("light");
+            onPress();
+          }}
+          onPressIn={() => setPressed(true)}
+          onPressOut={() => setPressed(false)}
+          accessibilityRole="button"
+          accessibilityLabel={label}
+        >
           {lead}
-        </PressScale>
+        </Pressable>
       ) : (
         lead
       )}
@@ -70,13 +83,14 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
           <Score value={task.score} animated />
         ))}
       <RowDivider inset={TASK_TEXT_INSET} />
+      <PressHighlight visible={pressed} />
     </View>
   );
   if (!onPress || right) return row;
   return (
-    <PressScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <PressRow onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
       {row}
-    </PressScale>
+    </PressRow>
   );
 }
 

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { LiveRow } from "@/components/live/LiveRow";
 import { rankChanges, ranksOf } from "@/components/live/rankChanges";
-import { CountUp, Entrance, PressScale } from "@/components/motion";
+import { CountUp, Entrance, PressRow } from "@/components/motion";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
@@ -80,7 +80,7 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
           // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
           <LiveRow key={row.userId} flash={live.current.flash[row.userId] ?? 0}>
             <Entrance index={index}>
-              <PressScale
+              <PressRow
                 style={[styles.row, row.userId === viewerId && styles.viewer]}
                 onPress={() => onPressPlayer(row.userId)}
                 accessibilityRole="button"
@@ -118,7 +118,7 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
                     <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
                   </View>
                 </View>
-              </PressScale>
+              </PressRow>
               {cutline ? (
                 <View accessibilityLabel={`Playoff line, top ${playoffSpots} make the playoffs`}>
                   <Divider />
