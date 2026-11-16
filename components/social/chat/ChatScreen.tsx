@@ -31,6 +31,8 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 /** The chat tab: the league's group thread by default, or the 1:1 with Sunny. A chip that asks Sunny something opens on Private. */
+const CHIP_HEIGHT = 36;
+
 export function ChatScreen() {
   const { ask, draft } = useLocalSearchParams<{ ask?: string; draft?: string }>();
   const [tab, setTab] = useState<Tab>(ask || draft ? "private" : "league");
@@ -139,7 +141,7 @@ function PrivateChat() {
             </View>
           )}
           {state.pending ? null : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
               {chips.map((chip) => (
                 <PressScale key={chip} accessibilityRole="button" onPress={() => send(chip)} style={styles.chip}>
                   <Text style={styles.chipText}>{chip}</Text>
@@ -176,8 +178,11 @@ const styles = StyleSheet.create({
   segmentText: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.body },
   segmentTextOn: { color: colors.text },
   messages: { paddingVertical: spacing.sm },
-  chips: { gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  // A ScrollView grows to fill a column on iOS, which stretched the chips into tall pills: the row
+  // takes only its content's height, and each chip keeps a fixed height.
+  chipRow: { flexGrow: 0, flexShrink: 0 },
+  chips: { alignItems: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  chip: { height: CHIP_HEIGHT, alignSelf: "center", justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.lime },
   textSunny: { flexDirection: "row", paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.sm },
-  chip: { minHeight: layout.pillHeight, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.lime },
   chipText: { color: colors.accent, fontFamily: fontFamily.bold, fontSize: font.meta },
 });
