@@ -66,37 +66,26 @@ describe("weekActions", () => {
 
   it("offers the draft for the week in play while nothing is drafted", () => {
     const actions = weekActions({ roster: { locked: false, rows: [] }, shownWeekStart: undefined, currentWeekStart: thisWeek });
-    expect(actions).toEqual({ canDraft: true, noLineup: false, undrafted: true, takesFlex: false });
+    expect(actions).toEqual({ canDraft: true, noLineup: false, undrafted: true });
   });
 
-  it("offers a flex task on a locked lineup in the week in play, until it holds one", () => {
-    const week = { shownWeekStart: undefined, currentWeekStart: thisWeek };
-    expect(weekActions({ ...week, roster: { locked: true, rows: [task("gym", "body")] } }).takesFlex).toBe(true);
-    const full = drafted;
-    expect(weekActions({ ...week, roster: { locked: true, rows: full } }).takesFlex).toBe(false);
-    expect(weekActions({ ...week, roster: { locked: false, rows: drafted } }).takesFlex).toBe(false);
-  });
-
-  it("never offers the draft or a flex task on a week that has ended", () => {
+  it("never offers the draft on a week that has ended", () => {
     const week = { shownWeekStart: lastWeek, currentWeekStart: thisWeek };
     expect(weekActions({ ...week, roster: { locked: false, rows: [] } })).toEqual({
       canDraft: false,
       noLineup: true,
       undrafted: false,
-      takesFlex: false,
     });
     expect(weekActions({ ...week, roster: { locked: true, rows: drafted } })).toEqual({
       canDraft: false,
       noLineup: false,
       undrafted: false,
-      takesFlex: false,
     });
   });
 
-  it("offers the draft for next week but adds no flex task to it", () => {
+  it("offers the draft for next week", () => {
     const week = { shownWeekStart: nextWeek, currentWeekStart: thisWeek };
     expect(weekActions({ ...week, roster: { locked: false, rows: [] } }).undrafted).toBe(true);
-    expect(weekActions({ ...week, roster: { locked: true, rows: drafted } }).takesFlex).toBe(false);
   });
 
   it("offers nothing but the draft while the roster or the league loads", () => {
@@ -104,7 +93,6 @@ describe("weekActions", () => {
       canDraft: true,
       noLineup: false,
       undrafted: false,
-      takesFlex: false,
     });
   });
 });

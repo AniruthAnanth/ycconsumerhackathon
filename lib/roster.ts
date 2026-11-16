@@ -61,8 +61,6 @@ export function weekActions(week: {
     noLineup: empty && past,
     /** Nothing drafted yet in a week that still can be. */
     undrafted: empty && !past && !roster.locked,
-    /** A locked lineup can't be edited but still takes flex tasks, and lineup.addFlexTask always adds to the week in play. */
-    takesFlex: roster !== undefined && roster.locked && shownWeekStart === undefined && flexTasksLeft(roster.rows) > 0,
   };
 }
 

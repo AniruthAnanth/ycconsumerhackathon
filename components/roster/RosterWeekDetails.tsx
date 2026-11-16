@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { ProjectionLine } from "@/components/leaderboards";
 import { MatchupOdds } from "@/components/markets/MatchupOdds";
-import { PressScale } from "@/components/motion";
+import { PressRow } from "@/components/motion";
 import { RosterBonuses } from "@/components/roster/RosterBonuses";
 import { socialApi } from "@/components/social/contract";
 import { Icon } from "@/components/ui";
@@ -24,7 +24,7 @@ export function RosterWeekDetails({ roster }: { roster: Roster }) {
 
   return (
     <View>
-      <PressScale
+      <PressRow
         style={styles.row}
         onPress={() => setOpen((was) => !was)}
         accessibilityRole="button"
@@ -35,7 +35,7 @@ export function RosterWeekDetails({ roster }: { roster: Roster }) {
         <Icon name="stats-chart-outline" size={20} color={colors.textMuted} />
         <Text style={styles.label}>Week details</Text>
         <Icon name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.textFaint} />
-      </PressScale>
+      </PressRow>
       {open ? (
         <View style={styles.body}>
           {matchup ? (
