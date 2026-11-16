@@ -9,11 +9,10 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Matchup } from "../contract";
-import { BonusRow } from "./BonusRow";
 
 /**
- * Everything on Matchup that does not answer "am I winning?": the odds detail, the bonus line and
- * the ways to bring in a friend. One inset-grouped list at the bottom keeps them a tap away.
+ * Everything on Matchup that does not answer "am I winning?": the odds detail and the ways to
+ * bring in a friend. The bonus line is not here: it sits under the rows so the totals add up. One inset-grouped list at the bottom keeps them a tap away.
  */
 export function MatchupMore({ matchup, leagueId }: { matchup: Matchup; leagueId: Id<"leagues"> | null | undefined }) {
   const router = useRouter();
@@ -25,14 +24,13 @@ export function MatchupMore({ matchup, leagueId }: { matchup: Matchup; leagueId:
       <View style={styles.group}>
         <MoreRow
           icon="stats-chart-outline"
-          label="Odds and bonuses"
+          label="Odds"
           trailing={<Icon name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.textFaint} />}
           onPress={() => setOpen((value) => !value)}
           accessibilityState={{ expanded: open }}
         />
         {open ? (
           <View style={styles.details}>
-            <BonusRow matchup={matchup} />
             <MatchupMarkets />
           </View>
         ) : null}
