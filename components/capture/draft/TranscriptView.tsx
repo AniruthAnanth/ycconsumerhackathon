@@ -3,8 +3,11 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { colors, duration, fontFamily, radius, spacing, type } from "@/theme";
 
+import { BucketChips } from "./BucketChips";
+import type { CoreSlot } from "./bucketMatch";
 import type { DraftPhase } from "./draftState";
 import { pushLevel } from "./recordingMeter";
+import { useBucketCoverage } from "./useBucketCoverage";
 import { useWordReveal } from "./useWordReveal";
 
 type Props = {
@@ -19,8 +22,9 @@ type Props = {
 
 export function TranscriptView({ phase, transcript, liveTranscript, level, onRevealFinished }: Props) {
   const text = useWordReveal(transcript, phase === "revealing", onRevealFinished);
+  const covered = useBucketCoverage(liveTranscript, phase === "recording");
 
-  if (phase === "recording") return <LiveTranscript text={liveTranscript} level={level} />;
+  if (phase === "recording") return <LiveTranscript text={liveTranscript} level={level} covered={covered} />;
   if (phase === "drafting") {
     return (
       <View style={styles.working}>
@@ -43,7 +47,7 @@ const BAR_MAX_HEIGHT = 20;
 const CARET_BLINK_MS = duration.slow + duration.base;
 
 /** The words so far behind a blinking caret, over a waveform that moves with the voice, so it visibly listens. */
-function LiveTranscript({ text, level }: { text: string; level: number }) {
+function LiveTranscript({ text, level, covered }: { text: string; level: number; covered: Set<CoreSlot> }) {
   const [levels, setLevels] = useState<number[]>(() => Array(BARS).fill(0));
   const [caretOn, setCaretOn] = useState(true);
 
@@ -68,6 +72,7 @@ function LiveTranscript({ text, level }: { text: string; level: number }) {
         {text}
         <Text style={[styles.caret, !caretOn && styles.caretOff]}>|</Text>
       </Text>
+      <BucketChips lit={covered} />
     </View>
   );
 }

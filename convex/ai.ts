@@ -535,3 +535,53 @@ export function isUnreadableImage(error: unknown): error is APIError {
     param === "url" || param.startsWith("input") || /image/i.test(error.message)
   );
 }
+
+// ---------------------------------------------------------------------------
+// Live bucket coverage
+// ---------------------------------------------------------------------------
+
+/** The five buckets a lineup must cover; flex is never asked about. */
+export const CORE_BUCKETS = ["body", "mind", "recharge", "chores", "people"] as const;
+export type CoreBucket = (typeof CORE_BUCKETS)[number];
+
+// Runs every few seconds while the player talks, so the smallest fast model, not MODEL.
+const LIVE_BUCKETS_MODEL = "gpt-4o-mini";
+
+/**
+ * Which of the five buckets a half-spoken week mentions at least one plan for. A preview for
+ * Voice Draft's chips only: the draft itself still comes from draftLineup.
+ */
+export async function classifyBuckets(text: string): Promise<CoreBucket[]> {
+  const response = await client().chat.completions.create({
+    model: LIVE_BUCKETS_MODEL,
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content:
+          "A player is saying out loud what they plan to do this week. List which buckets the words so far mention at least one plan for. " +
+          "body: exercise, sport, movement. mind: study, reading, learning, focused work. recharge: sleep, rest, relaxing, meditation. " +
+          "chores: housework, errands, cooking, groceries, admin. people: time with or contact with family, friends, a partner. " +
+          "Only list a bucket the text clearly mentions. The text may be cut off mid-sentence.",
+      },
+      { role: "user", content: text },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "live_buckets",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: { buckets: { type: "array", items: { type: "string", enum: [...CORE_BUCKETS] } } },
+          required: ["buckets"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+  const answer = response.choices[0]?.message.content;
+  if (!answer) return [];
+  const { buckets } = JSON.parse(answer) as { buckets: string[] };
+  return CORE_BUCKETS.filter((bucket) => buckets.includes(bucket));
+}

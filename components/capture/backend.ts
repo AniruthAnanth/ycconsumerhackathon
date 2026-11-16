@@ -50,6 +50,10 @@ export const capture = {
     /** Every segment in recording order, transcribed at full quality into the draft's text. */
     whole: action<{ storageIds: Id<"_storage">[] }, string>("liveTranscribe:whole"),
   },
+  liveBuckets: {
+    /** Which of the five buckets the live words mention, by a cheap model pass; [] on any failure. */
+    classify: action<{ text: string }, Exclude<Slot, "flex">[]>("liveBuckets:classify"),
+  },
   proofs: {
     /** Also used for the Voice Draft recording: it is the app's one upload path. */
     generateUploadUrl: mutation<NoArgs, string>("proofs:generateUploadUrl"),
