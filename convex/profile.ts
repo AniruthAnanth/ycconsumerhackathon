@@ -5,7 +5,7 @@
 import { ConvexError, v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import { query, type QueryCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 import { currentStreak, longestStreak, scoreWeek, type ScorableTask } from "./lib/scoring";
 import { pacificDay } from "./lib/week";
@@ -45,6 +45,21 @@ export function bestSlot(tasks: TaskFacts[]): Slot | null {
 }
 
 /**
+ * The slot the player clears least often, among the five fixed slots they have drafted; ties go
+ * to the slot that earned fewer points. Flex is left out: it is whatever the player wanted.
+ */
+export function weakestSlot(tasks: TaskFacts[]): Slot | null {
+  const bySlot = new Map<Slot, { done: number; points: number }>();
+  for (const task of tasks) {
+    if (task.slot === "flex") continue;
+    const total = bySlot.get(task.slot) ?? { done: 0, points: 0 };
+    bySlot.set(task.slot, isDone(task) ? { done: total.done + 1, points: total.points + task.points } : total);
+  }
+  const ranked = [...bySlot.entries()].sort(([, a], [, b]) => a.done - b.done || a.points - b.points);
+  return ranked[0]?.[0] ?? null;
+}
+
+/**
  * Each week's points, keyed by weekStart, scored by the same rules as the standings (task points,
  * slot and sweep bonuses, streak bonus). Bonuses that belong to one league, the matchup win and
  * challenge results, are left out: a profile is the player across all their leagues.
@@ -77,6 +92,48 @@ export function fastestResponseSec(responses: { opensAt: number; provedAt: numbe
 const MAX_TASKS = 2000;
 const MAX_PROOFS = 4000;
 
+/**
+ * The player's lifetime facts, read once: the profile shows them and convex/decree.ts writes
+ * its proclamation from them.
+ */
+export async function profileStats(ctx: QueryCtx, player: Doc<"users">) {
+  const userId = player._id;
+  const [tasks, proofs] = await Promise.all([
+    ctx.db.query("tasks").withIndex("by_user_week", (q) => q.eq("userId", userId)).take(MAX_TASKS),
+    ctx.db.query("proofs").withIndex("by_user_week", (q) => q.eq("userId", userId)).take(MAX_PROOFS),
+  ]);
+
+  // A proof counts while its task is still verified: a successful challenge reopens the task,
+  // and that proof stops earning anything, streak days included.
+  const doneTaskIds = new Set(tasks.filter(isDone).map((task) => task._id));
+  const standingProofs = proofs.filter((proof) => proof.pass && doneTaskIds.has(proof.taskId));
+
+  const proofDays = standingProofs.map((proof) => ({
+    weekStart: proof.weekStart,
+    day: pacificDay(proof.createdAt),
+  }));
+  const weekPoints = [...pointsByWeek(tasks, proofDays).values()];
+  const days = proofDays.map((proof) => proof.day);
+
+  const quickTimeResponses = [];
+  for (const task of tasks) {
+    if (!task.dropId || !isDone(task)) continue;
+    const drop = await ctx.db.get("drops", task.dropId);
+    const proof = standingProofs.find((p) => p.taskId === task._id);
+    if (drop?.kind === "quicktime" && proof) {
+      quickTimeResponses.push({ opensAt: drop.opensAt, provedAt: proof.createdAt });
+    }
+  }
+  return {
+    tasks,
+    standingProofs,
+    doneTaskIds,
+    weekPoints,
+    days,
+    fastestQuickTimeSec: fastestResponseSec(quickTimeResponses),
+  };
+}
+
 export const get = query({
   args: { userId: v.id("users") },
   returns: v.object({
@@ -96,35 +153,11 @@ export const get = query({
     const player = await ctx.db.get("users", userId);
     if (!player) throw new ConvexError("That player doesn't exist.");
 
-    const [tasks, proofs, avatarUrl] = await Promise.all([
-      ctx.db.query("tasks").withIndex("by_user_week", (q) => q.eq("userId", userId)).take(MAX_TASKS),
-      ctx.db.query("proofs").withIndex("by_user_week", (q) => q.eq("userId", userId)).take(MAX_PROOFS),
+    const [stats, avatarUrl] = await Promise.all([
+      profileStats(ctx, player),
       player.avatarStorageId ? ctx.storage.getUrl(player.avatarStorageId) : (player.image ?? null),
     ]);
-
-    // A proof counts while its task is still verified: a successful challenge reopens the task,
-    // and that proof stops earning anything, streak days included.
-    const doneTaskIds = new Set(tasks.filter(isDone).map((task) => task._id));
-    const standingProofs = proofs.filter((proof) => proof.pass && doneTaskIds.has(proof.taskId));
-
-    const proofDays = standingProofs.map((proof) => ({
-      weekStart: proof.weekStart,
-      day: pacificDay(proof.createdAt),
-    }));
-    const weekPoints = [...pointsByWeek(tasks, proofDays).values()];
-    const days = proofDays.map((proof) => proof.day);
-
-    const quickTimeResponses = [];
-    for (const task of tasks) {
-      if (!task.dropId || !isDone(task)) continue;
-      const drop = await ctx.db.get("drops", task.dropId);
-      const proof = standingProofs.find((p) => p.taskId === task._id);
-      if (drop?.kind === "quicktime" && proof) {
-        quickTimeResponses.push({ opensAt: drop.opensAt, provedAt: proof.createdAt });
-      }
-    }
-    const fastestQuickTimeSec = fastestResponseSec(quickTimeResponses);
-
+    const { tasks, doneTaskIds, weekPoints, days, fastestQuickTimeSec } = stats;
     return {
       name: player.name ?? "Player",
       ...(avatarUrl ? { avatarUrl } : {}),

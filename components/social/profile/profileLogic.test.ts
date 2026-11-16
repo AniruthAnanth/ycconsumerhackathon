@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration, formatPercent, formatPoints, formatStreak } from "./profileLogic";
+import { formatDuration, formatPercent, formatPoints, formatStreak, nameProblem } from "./profileLogic";
 
 describe("formatPercent", () => {
   it("rounds a 0..1 rate to a whole percent", () => {
@@ -38,5 +38,17 @@ describe("formatDuration", () => {
   it("shows only seconds under a minute", () => {
     expect(formatDuration(45)).toBe("45s");
     expect(formatDuration(0)).toBe("0s");
+  });
+});
+
+describe("nameProblem", () => {
+  it("accepts 1 to 40 characters once trimmed", () => {
+    expect(nameProblem("  Ava ")).toBeNull();
+    expect(nameProblem("x".repeat(40))).toBeNull();
+  });
+
+  it("refuses an empty or over-long name", () => {
+    expect(nameProblem("   ")).toBe("Enter a name");
+    expect(nameProblem(` ${"x".repeat(41)} `)).toBe("Keep it to 40 characters");
   });
 });
