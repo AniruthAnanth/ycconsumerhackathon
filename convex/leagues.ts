@@ -9,6 +9,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { demoQuickMatch } from "./demoMatch";
 import { requireUser } from "./lib/auth";
 import {
   isSeasonLength,
@@ -371,35 +372,8 @@ export const quickMatch = mutation({
   returns: v.object({ leagueId: v.id("leagues") }),
   handler: async (ctx, args) => {
     const caller = await requireUser(ctx);
-    const publicLeagues = await ctx.db
-      .query("leagues")
-      .withIndex("by_visibility_stake", (q) =>
-        q.eq("visibility", "public").eq("stakeUsd", args.stakeUsd),
-      )
-      .take(100);
-
-    // Fill the fullest league first so open leagues reach a full table quickly.
-    let best: { league: Doc<"leagues">; memberCount: number } | null = null;
-    for (const league of publicLeagues) {
-      const members = await membersInJoinOrder(ctx, league._id);
-      const hasRoom = members.length < league.maxMembers;
-      const alreadyIn = members.some((member) => member.userId === caller._id);
-      if (hasRoom && !alreadyIn && (best === null || members.length > best.memberCount)) {
-        best = { league, memberCount: members.length };
-      }
-    }
-    if (best !== null) {
-      await addMember(ctx, best.league, caller._id);
-      return { leagueId: best.league._id };
-    }
-
-    const label = args.stakeUsd === 0 ? "Free" : `$${args.stakeUsd}`;
-    const { leagueId } = await createLeagueWithCreator(ctx, caller, {
-      name: `Quick Match ${label}`,
-      stakeUsd: args.stakeUsd,
-      visibility: "public",
-    });
-    return { leagueId };
+    // Demo build: Quick match seats the player at a seeded table of ten (convex/demoMatch.ts).
+    return { leagueId: await demoQuickMatch(ctx, caller, args.stakeUsd) };
   },
 });
 

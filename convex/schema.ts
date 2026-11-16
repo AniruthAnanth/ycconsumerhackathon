@@ -42,6 +42,8 @@ export const place = v.object({
   name: v.string(),
   lat: v.number(),
   lng: v.number(),
+  // A wider check-in circle than the 150 m default, for a big indoor venue where GPS drifts.
+  radiusM: v.optional(v.number()),
 });
 
 // League settings the creator picks. They are optional on leagues so a league

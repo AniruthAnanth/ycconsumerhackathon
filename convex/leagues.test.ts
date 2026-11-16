@@ -340,75 +340,55 @@ describe("leagues.joinByCode", () => {
 });
 
 describe("leagues.quickMatch", () => {
-  it("creates a public league named for the stake when none exists", async () => {
+  it("seats the player at a seeded table of ten, with a locked lineup and a YC HQ check-in", async () => {
     const t = newHarness();
-    const ava = await addUser(t);
+    const ava = await addUser(t, { name: "Ava" });
 
-    const free = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
-    const five = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 5 });
-    const twenty = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 20 });
+    const { leagueId } = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 5 });
 
-    const leagues = await t.run(async (ctx) => [
-      await ctx.db.get("leagues", free.leagueId),
-      await ctx.db.get("leagues", five.leagueId),
-      await ctx.db.get("leagues", twenty.leagueId),
-    ]);
-    expect(leagues.map((l) => [l?.name, l?.stakeUsd, l?.visibility])).toEqual([
-      ["Quick Match Free", 0, "public"],
-      ["Quick Match $5", 5, "public"],
-      ["Quick Match $20", 20, "public"],
-    ]);
-    expect(await memberIdsOf(t, free.leagueId)).toEqual([ava]);
-  });
-
-  it("joins the fullest open public league with that stake", async () => {
-    const t = newHarness();
-    const [ava, ben, cal, dee] = [
-      await addUser(t),
-      await addUser(t),
-      await addUser(t),
-      await addUser(t),
-    ];
-    const emptyish = await createLeague(t, ava, { stakeUsd: 5, visibility: "public" });
-    const fuller = await createLeague(t, ben, { stakeUsd: 5, visibility: "public" });
-    await asUser(t, cal).mutation(api.leagues.joinByCode, {
-      inviteCode: await codeOf(t, fuller.leagueId),
+    const { league, members, tasks, proofs, buyIns } = await t.run(async (ctx) => {
+      const memberships = await ctx.db.query("memberships").withIndex("by_league", (q) => q.eq("leagueId", leagueId)).collect();
+      return {
+        league: await ctx.db.get("leagues", leagueId),
+        members: memberships,
+        tasks: await ctx.db.query("tasks").collect(),
+        proofs: await ctx.db.query("proofs").collect(),
+        buyIns: await ctx.db.query("ledger").collect(),
+      };
     });
-
-    const matched = await asUser(t, dee).mutation(api.leagues.quickMatch, { stakeUsd: 5 });
-
-    expect(matched.leagueId).toBe(fuller.leagueId);
-    expect(await memberIdsOf(t, fuller.leagueId)).toEqual([ben, cal, dee]);
-    expect(await memberIdsOf(t, emptyish.leagueId)).toEqual([ava]);
+    expect(league).toMatchObject({ name: "Quick Match \$5", stakeUsd: 5, visibility: "private", maxMembers: 10 });
+    expect(members).toHaveLength(10);
+    expect(buyIns).toHaveLength(9);
+    expect(proofs).toHaveLength(5 + 4 + 4 + 3 + 3 + 2 + 2 + 1);
+    const own = tasks.filter((task) => task.userId === ava);
+    expect(own).toHaveLength(5);
+    expect(own.find((task) => task.slot === "people")).toMatchObject({
+      title: "Chill with friends at YC HQ",
+      proofType: "photo_location",
+      place: { name: "YC HQ", lat: 37.760796, lng: -122.38606, radiusM: 400 },
+    });
+    const lineup = await t.run((ctx) => ctx.db.query("lineups").withIndex("by_user_week", (q) => q.eq("userId", ava)).first());
+    expect(lineup?.lockedAt).toBeDefined();
   });
 
-  it("skips leagues the player is in, full leagues, private leagues and other stakes", async () => {
+  it("returns the same league on a second Quick match, and a second player gets their own", async () => {
     const t = newHarness();
-    const ava = await addUser(t);
-    const host = await addUser(t);
-    const own = await createLeague(t, ava, { stakeUsd: 5, visibility: "public" });
-    const privateOne = await createLeague(t, host, { stakeUsd: 5, visibility: "private" });
-    const otherStake = await createLeague(t, host, { stakeUsd: 20, visibility: "public" });
-    const full = await createLeague(t, host, { stakeUsd: 5, visibility: "public" });
-    const fillers: Id<"users">[] = [];
-    for (let i = 0; i < 11; i++) fillers.push(await addUser(t));
-    await joinAll(t, full.leagueId, fillers);
+    const ava = await addUser(t, { name: "Ava" });
+    const ben = await addUser(t, { name: "Ben" });
 
-    const matched = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 5 });
-
-    const skipped = [own, privateOne, otherStake, full].map((l) => l.leagueId);
-    expect(skipped).not.toContain(matched.leagueId);
-    const created = await t.run((ctx) => ctx.db.get("leagues", matched.leagueId));
-    expect(created).toMatchObject({ name: "Quick Match $5", visibility: "public", stakeUsd: 5 });
-    expect(await memberIdsOf(t, matched.leagueId)).toEqual([ava]);
-  });
-
-  it("does not match a second time into the same league", async () => {
-    const t = newHarness();
-    const ava = await addUser(t);
     const first = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
-    const second = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
-    expect(second.leagueId).not.toBe(first.leagueId);
+    const again = await asUser(t, ava).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
+    const other = await asUser(t, ben).mutation(api.leagues.quickMatch, { stakeUsd: 0 });
+
+    expect(again.leagueId).toBe(first.leagueId);
+    expect(other.leagueId).not.toBe(first.leagueId);
+    const counts = await t.run(async (ctx) => ({
+      leagues: (await ctx.db.query("leagues").collect()).length,
+      seeded: (await ctx.db.query("users").collect()).filter((user) => user.isSeed).length,
+      lineups: (await ctx.db.query("lineups").collect()).length,
+      members: (await ctx.db.query("memberships").withIndex("by_league", (q) => q.eq("leagueId", first.leagueId)).collect()).length,
+    }));
+    expect(counts).toEqual({ leagues: 2, seeded: 9, lineups: 11, members: 10 });
   });
 });
 

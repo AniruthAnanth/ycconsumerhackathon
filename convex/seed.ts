@@ -450,7 +450,7 @@ function momentAt(now: number, [daysAgo, clock]: When): number {
  * The seed photos and avatars already in file storage, found by content hash. They are never
  * deleted on reset, so after the first upload every later reset reuses the same files.
  */
-async function storedPhotos(ctx: QueryCtx): Promise<Partial<Record<string, Id<"_storage">>>> {
+export async function storedPhotos(ctx: QueryCtx): Promise<Partial<Record<string, Id<"_storage">>>> {
   const nameBySha256 = new Map(FILE_NAMES.map((name) => [SEED_FILES[name].sha256, name]));
   const stored: Partial<Record<string, Id<"_storage">>> = {};
   for await (const file of ctx.db.system.query("_storage")) {
