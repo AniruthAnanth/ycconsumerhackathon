@@ -217,6 +217,22 @@ export function useProofCapture(target: ProofTarget) {
     void sampleUri(sample).then((uri) => shootEvery(async () => ({ uri, at: Date.now() }), SAMPLE_SHOT_MS));
   }
 
+  /**
+   * Development only: a bundled timelapse's stills, spread across the task's target as if recorded
+   * just now, so a timelapse task can pass on a phone with no camera.
+   */
+  function sampleTimelapse(sample: SampleMedia) {
+    if (busy || !sample.frames) return;
+    const frameSources = sample.frames;
+    return guarded(async () => {
+      const durationMs = targetMinutes * 60_000;
+      const endedAt = Date.now();
+      const uris = await Promise.all(frameSources.map((source) => sampleUri({ ...sample, source })));
+      const frames = uris.map((uri, i) => ({ uri, at: endedAt - durationMs + Math.round((i / (uris.length - 1)) * durationMs) }));
+      setReview({ frames, durationMs });
+    });
+  }
+
   /** Development only: the bundled clip stands in for a survey video recorded on the spot. */
   function sampleSurvey(sample: SampleMedia) {
     if (busy || sample.mediaType !== "video") return;
@@ -267,6 +283,7 @@ export function useProofCapture(target: ProofTarget) {
     startSampleTimelapse,
     startSurvey,
     sampleSurvey,
+    sampleTimelapse,
     review,
     submitReview,
     retake: () => setReview(null),

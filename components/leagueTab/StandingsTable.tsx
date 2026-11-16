@@ -46,14 +46,20 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
   const baseline = useRef<Record<string, number>>({});
   baseline.current = withBaseline(baseline.current, rows);
   // Each rows result is compared once, so a re-render with the same data never re-flashes a row.
-  const live = useRef<{ rows?: Standing[]; ranks?: Record<string, number>; flash: Record<string, number>; moved: number }>({ flash: {}, moved: 0 });
+  const live = useRef<{ rows?: Standing[]; ranks?: Record<string, number>; flash: Record<string, number>; moved: number; viewerUp?: boolean }>({ flash: {}, moved: 0 });
   if (live.current.rows !== rows) {
     const moved = rankChanges(live.current.ranks, rows);
     for (const userId of moved) live.current.flash[userId] = (live.current.flash[userId] ?? 0) + 1;
-    live.current = { rows, ranks: ranksOf(rows), flash: live.current.flash, moved: moved.size };
+    const ranks = ranksOf(rows);
+    const before = viewerId && live.current.ranks?.[viewerId];
+    const after = viewerId && ranks[viewerId];
+    const viewerUp = typeof before === "number" && typeof after === "number" && after < before;
+    live.current = { rows, ranks, flash: live.current.flash, moved: moved.size, viewerUp };
   }
   useEffect(() => {
-    if (live.current.moved > 0) haptics.tap();
+    // Climbing the table is the one rank change worth a celebration; any other shuffle is a tap.
+    if (live.current.viewerUp) haptics.success();
+    else if (live.current.moved > 0) haptics.tap();
   }, [rows]);
 
   return (

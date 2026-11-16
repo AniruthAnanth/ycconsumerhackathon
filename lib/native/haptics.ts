@@ -19,17 +19,44 @@ export function setHapticsEnabled(on: boolean) {
 
 function fire(play: () => Promise<void>) {
   if (!enabled || muted) return;
-  play().catch(() => {});
+  try {
+    play().catch(() => {});
+  } catch {}
 }
 
+/** A count-up ticks at most this often, so a score spinning at 60 fps reads as a ratchet, not a buzz. */
+export const TICK_MS = 100;
+let lastTick = -Infinity;
+/** The gap between the heavy and light halves of the intro's L drop. */
+const DROP_GAP_MS = 90;
+
+/** Which press feedback a shared pressable gives; "none" when the action fires its own haptic. */
+export type PressHaptic = "light" | "medium" | "none";
+
 export const haptics = {
-  /** The VERIFIED stamp landing: a heavy thud, like ink hitting paper. NOT VERIFIED gets the error buzz. */
+  /** The VERIFIED stamp landing: a heavy thud, like ink hitting paper. NOT VERIFIED gets the warning double-tap. */
   stamp(pass: boolean) {
     fire(() =>
       pass
         ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
-        : Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+        : Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
     );
+  },
+  /** The press feedback of a shared button or card. */
+  press(kind: PressHaptic) {
+    if (kind === "light") fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    if (kind === "medium") fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
+  },
+  /** One step of a score counting up: a rigid tick, throttled to TICK_MS. */
+  tick(now: number = Date.now()) {
+    if (now - lastTick < TICK_MS) return;
+    lastTick = now;
+    fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid));
+  },
+  /** The intro's L dropping into place: a heavy landing, then a light settle. */
+  drop() {
+    fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+    setTimeout(() => fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)), DROP_GAP_MS);
   },
   /** A tab, a league, a week or a picker changed: the light tick iOS uses for selection. */
   select() {
