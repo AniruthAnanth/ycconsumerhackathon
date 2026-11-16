@@ -266,6 +266,38 @@ export async function draftLineup(input: {
   }));
 }
 
+/**
+ * Applies a typed instruction ("swap chores for laundry", "make the gym task harder") to a
+ * drafted lineup. Same rules and shape as draftLineup; lineup.ts holds untouched tasks to what
+ * they were, so the model only has to get the changed ones right.
+ */
+export async function refineLineup(input: { previous: DraftTask[]; instruction: string }): Promise<DraftTask[]> {
+  const ask = (effort: "none" | "low") =>
+    askJson<{ tasks: DraftedTask[] }>({
+      name: "lineup_refine",
+      instructions: `${DRAFT_INSTRUCTIONS}
+
+You are refining a lineup the player already has. Apply their instruction and return the whole lineup. Copy every task the instruction does not touch exactly as given: same slot, title, points, proofType, place and targetMinutes. Give a changed or new task its points, proofType and targetMinutes by the rules above.`,
+      text: `Current lineup:
+${JSON.stringify(input.previous)}
+
+The player's instruction:
+"""
+${input.instruction}
+"""`,
+      schema: DRAFT_SCHEMA,
+      effort,
+    });
+  // As with the draft, no reasoning first; an empty answer is asked again with reasoning.
+  let { tasks } = await ask("none");
+  if (tasks.length === 0) ({ tasks } = await ask("low"));
+  return tasks.map(({ place, targetMinutes, ...task }) => ({
+    ...task,
+    ...(place && { place }),
+    ...(targetMinutes !== null && { targetMinutes }),
+  }));
+}
+
 /** Points for a flex task the player typed in, on the same 10 to 50 scale the draft uses. */
 export async function rateTask(title: string): Promise<number> {
   const { points } = await askJson<{ points: number }>({
