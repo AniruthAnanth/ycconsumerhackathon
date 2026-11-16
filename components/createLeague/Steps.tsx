@@ -153,7 +153,6 @@ export function StakeStep({ draft, change, disabled }: StepProps) {
           inputMode="numeric"
           maxLength={5}
           editable={!disabled}
-          returnKeyType="done"
         />
       ) : null}
       <View style={styles.panel}>

@@ -9,7 +9,7 @@ import { errorMessage } from "@/components/join/errorMessage";
 import { FormBody } from "@/components/join/FormBody";
 import { Button, Header, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { phoneHint, toE164 } from "@/lib/phone";
+import { formatPhoneInput, phoneHint, toE164 } from "@/lib/phone";
 import { colors, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { StepContext } from "./StepContext";
@@ -71,15 +71,15 @@ export function OnboardingScreen() {
             label="Phone"
             value={phone}
             onChangeText={(text) => {
-              setPhone(text);
+              setPhone(formatPhoneInput(text, phone));
               setError(null);
             }}
+            prefix="+1"
+            placeholder="(650) 555-7733"
             keyboardType="phone-pad"
             autoComplete="tel"
             textContentType="telephoneNumber"
-            returnKeyType="done"
             editable={!saving}
-            onSubmitEditing={submit}
           />
           {hint ? <ErrorLine message={hint} /> : null}
           {error ? <ErrorLine message={error} /> : null}
