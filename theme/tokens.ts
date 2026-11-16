@@ -106,7 +106,7 @@ export const layout = {
 } as const;
 
 /** Where a task row's text starts; its inset divider starts here too, as in an iOS list. */
-export const TASK_TEXT_INSET = SCREEN_MARGIN + layout.pillColumn + layout.columnGap + layout.avatar + layout.columnGap;
+export const TASK_TEXT_INSET = SCREEN_MARGIN + layout.pillColumn + layout.columnGap;
 /** Where a person row's text starts (compact avatar). */
 export const PERSON_TEXT_INSET = SCREEN_MARGIN + layout.avatarCompact + layout.columnGap;
 

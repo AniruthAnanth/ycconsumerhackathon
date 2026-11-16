@@ -1,6 +1,6 @@
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Avatar, PositionPill, RowDivider, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
+import { PositionPill, RowDivider, Score, taskPlaceLine, taskStatusLine } from "@/components/ui";
 import { colors, font, fontFamily, layout, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET, type } from "@/theme";
 
 import { canRemoveTask } from "./lineupEdit";
@@ -20,7 +20,6 @@ export function DraftRow({ task, editable, suggested, onRename, onRemove }: Prop
   return (
     <View style={styles.row} testID={`draft-row-${task.slot}`}>
       <PositionPill slot={task.slot} />
-      <Avatar slot={task.slot} />
       <View style={styles.text}>
         <TextInput
           style={styles.title}

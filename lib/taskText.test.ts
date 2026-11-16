@@ -28,7 +28,7 @@ describe("formatClock", () => {
 describe("taskStatusLine", () => {
   it("names a timelapse's target length from the task, not a fixed proof word", () => {
     expect(taskStatusLine({ ...base, proofType: "timelapse", targetMinutes: 10, status: "open", dueLabel: "Due Sun" })).toBe(
-      "Timelapse · 10 min | Due Sun",
+      "Timelapse · 10 min · Due Sun",
     );
   });
 
@@ -37,7 +37,7 @@ describe("taskStatusLine", () => {
   });
 
   it("adds the due label to an open task", () => {
-    expect(taskStatusLine({ ...base, status: "open", dueLabel: "Due Sun" })).toBe("Photo + location | Due Sun");
+    expect(taskStatusLine({ ...base, status: "open", dueLabel: "Due Sun" })).toBe("Photo + location · Due Sun");
   });
 
   it("shows when a task was verified", () => {
@@ -50,7 +50,7 @@ describe("taskStatusLine", () => {
   });
 
   it("marks a challenged proof", () => {
-    expect(taskStatusLine({ ...base, status: "held" })).toBe("Up for veto | Points on hold");
+    expect(taskStatusLine({ ...base, status: "held" })).toBe("Up for veto · Points on hold");
   });
 });
 
