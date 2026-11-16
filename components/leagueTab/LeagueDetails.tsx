@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useShareInvite } from "@/components/invite/useShareInvite";
-import { Divider, Icon, SectionLabel } from "@/components/ui";
+import { Divider, Icon } from "@/components/ui";
 import type { League, Pot } from "@/lib/backend";
 import { formatCountdown, isSettled } from "@/lib/leagueText";
 import { colors, font, fontFamily, layout, SCREEN_MARGIN, spacing, tabular } from "@/theme";
@@ -14,7 +14,6 @@ export function LeagueDetails({ league, pot, now }: Props) {
 
   return (
     <View>
-      <SectionLabel left="League" />
       <Pressable style={styles.row} onPress={share} accessibilityRole="button" accessibilityLabel={`Share invite code ${league.inviteCode}`}>
         <Text style={styles.label}>{notice ?? "Invite friends"}</Text>
         <View style={styles.valueWithIcon}>
