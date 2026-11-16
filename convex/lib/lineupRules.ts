@@ -31,7 +31,8 @@ export type DraftTask = {
     | "canvas"
     | "before_after"
     | "timelapse"
-    | "screenshot";
+    | "screenshot"
+    | "survey_video";
   place?: Place;
   /** Timelapse only: how many minutes the stills must span. */
   targetMinutes?: number;
@@ -96,15 +97,14 @@ export function tidyTask(task: DraftTask): DraftTask {
     slot: task.slot,
     title: task.title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE_LENGTH),
     points: clampTaskPoints(task.points),
-    // Every proof is a timelapse (the owner's call), between 5 minutes and an hour; a task with
-    // no length gets the app's default of 10.
-    // A Canvas task keeps its type so canvas.ts can still verify it from the grade.
-    proofType: task.proofType === "canvas" ? "canvas" : "timelapse",
-    targetMinutes: Math.min(
-      60,
-      Math.max(5, Number.isFinite(minutes) ? minutes : DEFAULT_TARGET_MINUTES),
-    ),
+    // Every proof is a survey video or a timelapse (the owner's call). A Canvas task keeps its
+    // type so canvas.ts can still verify it from the grade.
+    proofType: task.proofType === "canvas" || task.proofType === "survey_video" ? task.proofType : "timelapse",
   };
+  // A timelapse runs 5 minutes to an hour; one with no length gets the app's default of 10.
+  if (tidy.proofType !== "survey_video") {
+    tidy.targetMinutes = Math.min(60, Math.max(5, Number.isFinite(minutes) ? minutes : DEFAULT_TARGET_MINUTES));
+  }
   const place = task.place;
   if (!place || place.name.trim() === "" || !isValidLatLng(place)) return tidy;
   return {
