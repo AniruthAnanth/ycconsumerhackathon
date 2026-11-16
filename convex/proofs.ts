@@ -154,6 +154,7 @@ async function runVerification(
     };
     rules.location = {
       placeName: task.place.name,
+      radiusM: task.place.radiusM,
       distanceM: isValidLatLng(phone)
         ? distanceMeters(phone, task.place)
         : null,

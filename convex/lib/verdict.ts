@@ -68,6 +68,8 @@ export type ProofRules = {
   location?: {
     placeName: string;
     distanceM: number | null;
+    /** The task's own check-in circle; CHECK_IN_RADIUS_M when it has none. */
+    radiusM?: number;
     anyScene?: boolean;
   };
   /** A timelapse's or survey video's label for the post ("Timelapse 32 min") and how many stills the referee saw. */
@@ -85,8 +87,9 @@ export function locationProblem(
   if (location.distanceM === null) {
     return `Location is needed to check in at ${location.placeName}. Turn it on and retake the photo.`;
   }
-  if (location.distanceM > CHECK_IN_RADIUS_M) {
-    return `You're ${formatDistance(location.distanceM)} from ${location.placeName}. Check in within ${CHECK_IN_RADIUS_M} m.`;
+  const radiusM = location.radiusM ?? CHECK_IN_RADIUS_M;
+  if (location.distanceM > radiusM) {
+    return `You're ${formatDistance(location.distanceM)} from ${location.placeName}. Check in within ${radiusM} m.`;
   }
   return null;
 }
