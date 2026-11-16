@@ -68,7 +68,7 @@ export function formatElapsed(ms: number): string {
 export function howToProve(task: { proofType?: CaptureProofType; targetMinutes?: number; place?: { name: string } }): string {
   switch (task.proofType ?? "photo") {
     case "photo_location":
-      return task.place ? `Check in at ${task.place.name}.` : "Check in where it happens.";
+      return task.place ? `Check in at ${task.place.name}.` : "Pin the spot where you do it, then check in there.";
     case "timelapse":
       return `Record a ${targetMinutesFor(task.targetMinutes)}-min timelapse while you do it.`;
     case "before_after":

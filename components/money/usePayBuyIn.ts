@@ -4,12 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 
 import { notify } from "@/components/social/notify";
-import { Banner } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { colors } from "@/theme";
-
-type Props = { leagueId: Id<"leagues">; stakeUsd: number };
 
 type Checkout = { embedUrl: string; purchaseUrl: string };
 
@@ -17,19 +14,19 @@ type Checkout = { embedUrl: string; purchaseUrl: string };
 const WEBHOOK_GRACE_MS = 2_500;
 
 /**
- * Shown on Roster until the buy-in is paid. An unpaid member plays fully but
- * can't win the pot, so this is a nudge rather than a wall.
+ * Paying a league's buy-in. An unpaid member plays fully but can't win the pot,
+ * so the header's pay button is a nudge rather than a wall.
  *
  * Pay opens Whop's hosted checkout in the in-app browser (SFSafariViewController
- * on iOS) tinted our green. The checkout session is made as soon as the banner
- * shows, so the browser opens at once. The banner goes away when Whop's webhook
+ * on iOS) tinted our green. The checkout session is made as soon as the hook
+ * mounts, so the browser opens at once. The button goes away when Whop's webhook
  * marks the membership paid; closing the browser proves nothing, so the app only
  * says "You're in" when the webhook has already landed, and otherwise says nothing.
  */
-export function PayBanner({ leagueId, stakeUsd }: Props) {
+export function usePayBuyIn(leagueId: Id<"leagues">) {
   const convex = useConvex();
   const createCheckout = useAction(backend.whop.createCheckout);
-  const [state, setState] = useState<"idle" | "opening" | "failed" | "blocked">("idle");
+  const [opening, setOpening] = useState(false);
   const [prepared, setPrepared] = useState<Checkout | null>(null);
   const preparing = useRef(false);
   useEffect(() => {
@@ -44,12 +41,14 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
   }
 
   async function pay() {
-    setState("opening");
+    if (opening) return;
+    setOpening(true);
     // A browser only lets a tab open inside the tap that asked for it, and the checkout URL may arrive after
     // an await. So on the web the tab is opened first, blank, and pointed at Whop once the URL is here.
     const tab = Platform.OS === "web" ? window.open("", "_blank") : null;
     if (Platform.OS === "web" && !tab) {
-      setState("blocked");
+      setOpening(false);
+      notify("Checkout blocked", "Your browser blocked the checkout tab. Allow pop-ups, then tap again.");
       return;
     }
     let checkout: Checkout;
@@ -57,10 +56,11 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
       checkout = prepared ?? (await createCheckout({ leagueId }));
     } catch {
       tab?.close();
-      setState("failed");
+      setOpening(false);
+      notify("Checkout didn't open", "Tap the card to try again.");
       return;
     }
-    setState("idle");
+    setOpening(false);
     if (tab) {
       tab.location.href = checkout.purchaseUrl;
       return;
@@ -78,19 +78,5 @@ export function PayBanner({ leagueId, stakeUsd }: Props) {
     notify("You're in", "Your buy-in is in the pot.");
   }
 
-  return (
-    <Banner
-      icon="card-outline"
-      title={`Pay your $${stakeUsd} buy-in`}
-      subtitle={SUBTITLE[state]}
-      onPress={state === "opening" ? undefined : pay}
-    />
-  );
+  return { pay, opening };
 }
-
-const SUBTITLE = {
-  idle: undefined,
-  opening: "Opening checkout...",
-  failed: "Checkout didn't open. Tap to try again.",
-  blocked: "Your browser blocked the checkout tab. Allow pop-ups, then tap to try again.",
-} as const;

@@ -74,11 +74,11 @@ describe("shapeDraft", () => {
     expect(shaped[5]).toMatchObject({ slot: "flex", title: "Evening run" });
   });
 
-  it("never returns more than eight tasks or three flex tasks", () => {
+  it("never returns more than one flex task, or a task repeating another's title", () => {
     const extras = ["A", "B", "C", "D", "E"].map((title) => task("flex", title));
-    const shaped = shapeDraft([...fullLineup, ...extras]);
-    expect(shaped).toHaveLength(8);
-    expect(shaped.filter((t) => t.slot === "flex").map((t) => t.title)).toEqual(["A", "B", "C"]);
+    const shaped = shapeDraft([...fullLineup, task("flex", fullLineup[0].title.toUpperCase()), ...extras]);
+    expect(shaped).toHaveLength(6);
+    expect(shaped.filter((t) => t.slot === "flex").map((t) => t.title)).toEqual(["A"]);
   });
 
   it("clamps every task's points into 10 to 50", () => {
@@ -114,9 +114,9 @@ describe("lineupProblem", () => {
     expect(lineupProblem([...fullLineup, task("mind", "Ship a PR")])).toContain("Only one Mind task");
   });
 
-  it("refuses more than three flex tasks", () => {
-    const flex = ["A", "B", "C", "D"].map((title) => task("flex", title));
-    expect(lineupProblem([...fullLineup, ...flex])).toBe("A lineup holds at most 3 flex tasks.");
+  it("refuses more than one flex task", () => {
+    const flex = ["A", "B"].map((title) => task("flex", title));
+    expect(lineupProblem([...fullLineup, ...flex])).toBe("A lineup holds at most one flex task.");
   });
 
   it("refuses an empty title", () => {

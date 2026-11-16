@@ -6,6 +6,7 @@ import Animated from "react-native-reanimated";
 
 import { resetCoachMarks } from "@/components/coach";
 import { usePlayByText } from "@/components/keiki/usePlayByText";
+import { useTextSunny } from "@/components/keiki/useTextSunny";
 import { SilentBoundary } from "@/components/notifications/SilentBoundary";
 import { usePushSwitch } from "@/components/notifications/usePushSwitch";
 import { confirmAction, notify } from "@/components/social/notify";
@@ -35,6 +36,7 @@ export function SettingsScreen() {
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
   const push = usePushSwitch();
   const playByText = usePlayByText();
+  const sunny = useTextSunny();
   const deleteAccount = useMutation(api.users.deleteAccount);
   const { signOut } = useAuthActions();
   const app = useAppPrefs();
@@ -89,6 +91,13 @@ export function SettingsScreen() {
             onSwitch={(on) => void playByText.onValueChange(on)}
             disabled={!playByText.ready}
             testID="settings-play-by-text"
+          />
+          <SettingsRow
+            title="Text Sunny"
+            value={sunny.number}
+            onPress={() => void sunny.open()}
+            disabled={!sunny.ready}
+            testID="settings-text-sunny"
           />
           <SilentBoundary>
             <NudgesRow />

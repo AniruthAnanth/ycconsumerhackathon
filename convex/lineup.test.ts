@@ -217,10 +217,10 @@ describe("lineup.addFlexTask", () => {
     expect(await t.run((ctx) => ctx.db.get("tasks", taskId))).toMatchObject({ slot: "flex", source: "flex", title: "Run a half marathon", points: 45 });
   });
 
-  it("stops at three flex tasks a week", async () => {
+  it("stops at one flex task a week", async () => {
     const { as } = await signedIn();
-    for (const title of ["One", "Two", "Three"]) await as.mutation(api.lineup.addFlexTask, { title });
-    await expect(as.mutation(api.lineup.addFlexTask, { title: "Four" })).rejects.toThrow("already have 3 flex tasks");
+    await as.mutation(api.lineup.addFlexTask, { title: "One" });
+    await expect(as.mutation(api.lineup.addFlexTask, { title: "Two" })).rejects.toThrow("already have a flex task");
   });
 
   it("refuses a locked week", async () => {
@@ -279,6 +279,31 @@ describe("lineup.reclassifyOpenTasks", () => {
     expect(rows[1]).toMatchObject({ proofType: "timelapse", targetMinutes: 5 });
     expect(rows[2]).toMatchObject({ proofType: "timelapse", targetMinutes: 30 });
     expect(rows[3]).toMatchObject({ proofType: "timelapse", targetMinutes: 40 });
+  });
+});
+
+describe("lineup.trimFlexRows", () => {
+  it("drops filler, repeated and extra drafted flex rows from real players' open lineups", async () => {
+    const { t, userId } = await signedIn();
+    const ids = await t.run(async (ctx) => {
+      const seedId = await ctx.db.insert("users", { name: "Seed", isSeed: true });
+      const row = (title: string, slot: "body" | "flex", source: "draft" | "flex" = "draft", owner = userId) =>
+        ctx.db.insert("tasks", { userId: owner, weekStart: WEEK_START, slot, title, points: 30, proofType: "photo", status: "open", source });
+      return {
+        gym: await row("Leg day", "body"),
+        repeat: await row("leg day", "flex"),
+        filler: await row("Check in at the YC office", "flex"),
+        drafted: await row("Sunset walk", "flex"),
+        chosen: await row("Run a half marathon", "flex", "flex"),
+        seeded: await row("Check in at the YC office", "flex", "flex", seedId),
+      };
+    });
+
+    expect(await t.mutation(internal.lineup.trimFlexRows, {})).toEqual({ removed: 3 });
+
+    const order = [ids.gym, ids.repeat, ids.filler, ids.drafted, ids.chosen, ids.seeded];
+    const left = await t.run((ctx) => Promise.all(order.map((id) => ctx.db.get("tasks", id))));
+    expect(left.map((row) => row?.title ?? null)).toEqual(["Leg day", null, null, null, "Run a half marathon", "Check in at the YC office"]);
   });
 });
 

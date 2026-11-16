@@ -11,6 +11,7 @@ import { formatScore, taskPlaceLine, taskRowLabel, taskStatusLine } from "@/lib/
 import { colors, layout, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { howToProve } from "../proofKinds";
+import { PinPlaceButton } from "./PinPlaceButton";
 import { canSubmitProof, findTask, submitProofHref, toProofTarget } from "./taskSheetRules";
 
 // Where the task title starts: past the slot pill. The how-to line starts on the same edge.
@@ -60,7 +61,11 @@ export function TaskSheet({ taskId }: { taskId: string }) {
                 {howToProve(toProofTarget(task))}
               </Text>
               <View style={styles.action}>
-                <Button label="Submit Proof" haptic="medium" onPress={() => router.replace(submitProofHref(task))} />
+                {task.proofType === "photo_location" && !task.place ? (
+                  <PinPlaceButton taskId={task.taskId} name={task.title} />
+                ) : (
+                  <Button label="Submit Proof" haptic="medium" onPress={() => router.replace(submitProofHref(task))} />
+                )}
               </View>
             </>
           ) : null}

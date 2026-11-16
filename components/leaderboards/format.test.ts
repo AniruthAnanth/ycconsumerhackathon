@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BOARDS, isPrimaryBoard, MORE_BOARDS, parseBoardKey, PRIMARY_BOARDS } from "./boards";
-import { formatUsdWithCents, hasMovement, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, projectionDetail, rowSubtitle, tiedRanks } from "./format";
+import { formatUsdWithCents, hasMovement, hourStart, isProjectedGain, movementMark, ordinal, placeLabel, placeText, projectionDetail, rankText, rowSubtitle, tiedRanks } from "./format";
 import type { BoardRow } from "./types";
 
 const row = (overrides: Partial<BoardRow>): BoardRow => ({
@@ -23,6 +23,13 @@ describe("ordinal", () => {
 
   it("treats the teens as th", () => {
     expect([11, 12, 13, 111, 112].map(ordinal)).toEqual(["11th", "12th", "13th", "111th", "112th"]);
+  });
+});
+
+describe("rankText and placeText", () => {
+  it("prefix a shared rank with T- in the table and in the place", () => {
+    expect([rankText(2, true), rankText(5, false)]).toEqual(["T-2", "5"]);
+    expect([placeText(2, true), placeText(5, false)]).toEqual(["T-2nd", "5th"]);
   });
 });
 

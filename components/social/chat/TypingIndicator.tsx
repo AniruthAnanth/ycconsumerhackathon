@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
 import { colors, duration, radius, SCREEN_MARGIN, spacing } from "@/theme";
@@ -7,7 +7,7 @@ const DOT_COUNT = 3;
 const STEP_MS = duration.base;
 
 /** Three pulsing dots in the agent's bubble position while a reply is pending. */
-export function TypingIndicator() {
+export function TypingIndicator({ avatar }: { avatar?: ReactNode } = {}) {
   const dots = useRef(Array.from({ length: DOT_COUNT }, () => new Animated.Value(0.3))).current;
 
   useEffect(() => {
@@ -26,7 +26,8 @@ export function TypingIndicator() {
   }, [dots]);
 
   return (
-    <View style={styles.row} accessibilityLabel="League agent is typing">
+    <View style={[styles.row, avatar ? styles.withAvatar : null]} accessibilityLabel="League agent is typing">
+      {avatar}
       <View style={styles.bubble}>
         {dots.map((opacity, i) => (
           <Animated.View key={i} style={[styles.dot, { opacity }]} />
@@ -38,6 +39,7 @@ export function TypingIndicator() {
 
 const styles = StyleSheet.create({
   row: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.xs, alignItems: "flex-start" },
+  withAvatar: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm },
   bubble: {
     flexDirection: "row",
     gap: spacing.xs,

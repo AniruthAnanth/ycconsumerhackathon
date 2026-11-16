@@ -23,6 +23,8 @@ type Props = {
   right?: ReactNode;
   /** Sits beside a switchable title in the same row; the tabs put the week pill here, so the header is one row. */
   accessory?: ReactNode;
+  /** One more 44-pt action left of `right`, such as the pay button; the right side widens to fit it. */
+  rightAction?: ReactNode;
   /**
    * From useCollapsingHeader(): floats the bar over the scroll content, clear at rest, and fades
    * the title and a glass background in once the screen's <LargeTitle> scrolls away.
@@ -35,7 +37,7 @@ type Props = {
  * chevron on the left for a pushed screen (the tabs put the settings gear there), close cross
  * on the right for a sheet.
  */
-export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, accessory, scrollY }: Props) {
+export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, accessory, rightAction, scrollY }: Props) {
   const bar = (
     <View style={[styles.bar, scrollY && styles.barOverContent]}>
       <View style={styles.side}>
@@ -79,7 +81,9 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
           )}
         </View>
       )}
-      <View style={[styles.side, styles.right]}>
+      {/* Widened only on the right: on the tabs the title already shares its row with the week pill, so a matching left gap would squeeze the league name. */}
+      <View style={[styles.side, styles.right, rightAction !== undefined && styles.sideWide]}>
+        {rightAction}
         {right ??
           (onClose ? (
             <Pressable onPress={onClose} style={[styles.action, styles.actionEnd]} accessibilityRole="button" accessibilityLabel="Close">
@@ -110,6 +114,7 @@ const styles = StyleSheet.create({
   barOverContent: { backgroundColor: "transparent", borderBottomWidth: 0 },
   // Equal-width sides keep the title centred whichever actions are present.
   side: { width: layout.barSide, flexDirection: "row", alignItems: "center" },
+  sideWide: { width: layout.barSide + MIN_TARGET },
   right: { justifyContent: "flex-end" },
   // A real 44-pt target whose glyph still sits on the margin edge.
   action: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center" },

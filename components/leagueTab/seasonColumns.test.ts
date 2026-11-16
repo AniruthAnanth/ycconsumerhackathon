@@ -37,4 +37,24 @@ describe("season columns", () => {
       { userId: "c", rank: 3 },
     ]);
   });
+
+  test("players level on wins and points for share a rank and the next rank skips past them", () => {
+    const record = (rank: number, wins: number, pointsFor: number) => ({ rank, wins, losses: 0, ties: 0, pointsFor, pointsAgainst: 0 });
+    const records = new Map([
+      ["a", record(1, 3, 300)],
+      ["b", record(2, 2, 200)],
+      ["c", record(3, 2, 200)],
+      ["d", record(4, 2, 200)],
+      ["e", record(5, 1, 100)],
+    ]);
+    const rows = ["e", "d", "c", "b", "a", "f"].map((userId) => ({ userId, rank: 0 }));
+    expect(bySeasonRank(rows, records).map((row) => [row.userId, row.rank])).toEqual([
+      ["a", 1],
+      ["b", 2],
+      ["c", 2],
+      ["d", 2],
+      ["e", 5],
+      ["f", 6],
+    ]);
+  });
 });
