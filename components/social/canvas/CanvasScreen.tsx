@@ -13,7 +13,7 @@ import { leaveScreen } from "../leave";
 import { notify } from "../notify";
 import { ScreenState } from "../ScreenState";
 import { AssignmentRow } from "./AssignmentRow";
-import { flexCount, isFlexFull, isOnRoster, MAX_FLEX_TASKS } from "./canvasLogic";
+import { isFlexFull, isOnRoster } from "./canvasLogic";
 import { ConnectForm } from "./ConnectForm";
 
 const rowKey = ({ courseId, assignmentId }: CanvasAssignment) => `${courseId}:${assignmentId}`;
@@ -108,7 +108,7 @@ export function CanvasScreen() {
               <SectionLabel left="Upcoming" />
               {flexFull && rows ? (
                 <Text style={styles.full}>
-                  Flex is full: {flexCount(rows)} of {MAX_FLEX_TASKS} flex tasks this week.
+                  You already have a bonus task this week.
                 </Text>
               ) : null}
               {assignments.length === 0 ? (

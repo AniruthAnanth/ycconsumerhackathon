@@ -54,9 +54,9 @@ describe("flex limit", () => {
     expect(flexCount(two)).toBe(2);
   });
 
-  it("is full at three flex tasks and not before", () => {
-    expect(isFlexFull(two)).toBe(false);
-    expect(isFlexFull([...two, row("flex", "C")])).toBe(true);
+  it("is full at one flex task, the lineup's one optional bonus", () => {
+    expect(isFlexFull([row("body", "Gym")])).toBe(false);
+    expect(isFlexFull([row("body", "Gym"), row("flex", "A")])).toBe(true);
   });
 });
 
