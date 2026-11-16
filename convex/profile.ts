@@ -147,6 +147,8 @@ export const get = query({
     longestStreak: v.number(),
     bestWeek: v.number(),
     fastestQuickTimeSec: v.optional(v.number()),
+    /** Share of drafted tasks done, per slot the player has drafted. */
+    slotRates: v.optional(v.array(v.object({ slot, rate: v.number() }))),
   }),
   handler: async (ctx, { userId }) => {
     await requireUser(ctx);
@@ -171,6 +173,10 @@ export const get = query({
       longestStreak: longestStreak(days),
       bestWeek: Math.max(0, ...weekPoints),
       ...(fastestQuickTimeSec === undefined ? {} : { fastestQuickTimeSec }),
+      slotRates: [...new Set(tasks.map((task) => task.slot))].map((s) => ({
+        slot: s,
+        rate: completionRate(tasks.filter((task) => task.slot === s)),
+      })),
     };
   },
 });

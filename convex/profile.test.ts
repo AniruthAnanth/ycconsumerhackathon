@@ -165,6 +165,7 @@ describe("profile.get", () => {
       longestStreak: 3,
       bestWeek: 190,
       fastestQuickTimeSec: 42,
+      slotRates: [{ slot: "body", rate: 1 }, { slot: "mind", rate: 1 }, { slot: "chores", rate: 0 }],
     });
   });
 
@@ -176,7 +177,7 @@ describe("profile.get", () => {
       .query(api.profile.get, { userId: rookie });
     expect(profile).toEqual({
       name: "Player", totalPoints: 0, tasksCompleted: 0, completionRate: 0, bestSlot: null,
-      currentStreak: 0, longestStreak: 0, bestWeek: 0,
+      currentStreak: 0, longestStreak: 0, bestWeek: 0, slotRates: [],
     });
   });
 });
