@@ -25,7 +25,7 @@ export type DecreeStats = {
 };
 
 /** Bump when the prompt changes so every cached decree is rewritten in the new voice. */
-const PROMPT_VERSION = 2;
+const PROMPT_VERSION = 3;
 
 /** FNV-1a over the stats in a fixed key order: same numbers, same hash, so the cache holds. */
 export function statsHash(stats: DecreeStats): string {
@@ -58,7 +58,8 @@ export const DECREE_INSTRUCTIONS = [
   "Never mention a stat that is not listed and never invent numbers.",
   "Tease gently: never mean, never crude. Plain modern words with a light medieval flavour. No dashes.",
   "Then give a one line epithet in the form \"Sir <name> the <funny title>\" (or Dame if the name reads as feminine), drawn from the facts, such as \"Sir Vee the Unvetoed\". The epithet is required.",
-  "Do not repeat the epithet inside the proclamation.",
+  "Never write the player's name or the epithet inside the proclamation: the screen already shows both. Say \"this player\" or \"they\" instead.",
+  "If the only fact is that they are brand new, give that a single line about a fresh start and spend the rest on what the realm expects of them.",
 ].join("\n");
 
 export const DECREE_SCHEMA = {
@@ -102,7 +103,7 @@ export function decreeFacts(stats: DecreeStats): string[] {
 
 export function decreePrompt(stats: DecreeStats): string {
   const facts = decreeFacts(stats);
-  const lines = facts.length > 0 ? facts.map((fact) => `- ${fact}`) : ["- brand new, with no record yet"];
+  const lines = facts.length > 0 ? facts.map((fact) => `- ${fact}`) : ["- brand new: no games, points or proofs yet"];
   return [`Player: ${stats.name}`, "Facts:", ...lines].join("\n");
 }
 
