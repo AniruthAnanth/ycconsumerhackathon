@@ -162,7 +162,7 @@ The roster has five slots, and a lineup needs exactly one task in each:
 - recharge: destress (read for 30 minutes, a long walk)
 - chores: life admin (laundry, clean the room)
 - people: connection (call mom, dinner with a friend)
-Anything more the player mentioned goes in the "flex" slot, at most three flex tasks. So a lineup has 5 to 8 tasks.
+A lineup may also hold one "flex" task: a bonus, only when the player named something beyond the five slots (a second gym day, a side project). Never invent a flex task, never repeat a slot task as one, and never more than one. So a lineup has 5 or 6 tasks.
 
 Rules:
 - First decide whether the player named at least one thing they mean to do this week. A greeting, small talk, a question, a mic test or a remark about their mood is not a plan: return an empty tasks list, whatever the notes say.
@@ -334,7 +334,7 @@ How to call it:
   pass is true only when confidence is at least ${PASS_CONFIDENCE}.
 - reason is the call the whole league will read: one sentence of at most 16 words that names what is actually visible and why it does or does not match. Like "Barbell rack and mirror visible, matches leg day." or "That's a cat chasing a lizard, not leg day." Never mention confidence, rules or GPS.
 - highlight is 1 to 10: how impressive or entertaining this proof would be in the league feed. Most proofs are 3 to 6.
-- caption is a short, dry feed caption of at most eight words. No hashtags, no emoji.
+- caption is the one line the league sees under the proof in the feed, so it is never empty: a short, funny line about this task and what the shot shows, under eight words, like "You could eat off this counter." or "The squat rack never stood a chance." No hashtags, no emoji.
 - gestureSeen: when a required gesture is given, true only if a person in the shot is clearly making it, otherwise false. A proof without its required gesture fails, and the reason says the gesture is missing. null when no gesture is required.
 - flags: short tags for what is wrong, from the list in the schema; an empty list for a clean proof. The task's proof rubric below says which apply.
 - sceneMatchesPlace: when a place is given, the task is a check-in and GPS has already confirmed the phone is there, so being there is the whole task. Do not look for a sign or a logo. The scene matches, with high confidence, unless it plainly shows a different kind of place (a beach for an office, a gym for a library). A desk or any indoor workspace fits an office, and a close-up that shows little of the surroundings still matches when nothing in it contradicts the place. null when no place is given.`;

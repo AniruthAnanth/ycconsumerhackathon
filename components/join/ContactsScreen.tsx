@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { InviteButton, useInviteMessage } from "@/components/invite";
+import { TextSunnyCard } from "@/components/keiki/TextSunnyCard";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { StepContext } from "@/components/join/StepContext";
 import { PersonRow } from "@/components/join/PersonRow";
@@ -129,6 +130,7 @@ export function ContactsScreen() {
             </Pressable>
           </View>
         ) : null}
+        {justJoined ? <TextSunnyCard /> : null}
         {nothingToAdd ? <Text style={styles.empty}>No contacts to add</Text> : null}
         {state.status === "error" ? (
           <View style={styles.message}>

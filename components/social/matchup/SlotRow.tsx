@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import type { ReactNode } from "react";
+import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import { CoachTarget } from "@/components/coach";
 import { PositionPill, RowDivider, Score } from "@/components/ui";
@@ -7,6 +8,7 @@ import { colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } 
 
 import type { Matchup, TaskRow, TaskVeto } from "../contract";
 import { SwapEditor } from "../veto/SwapEditor";
+import { useVetoAction } from "../veto/useVetoAction";
 import { VetoChip } from "../veto/VetoChip";
 import { showsVeto } from "../veto/vetoLogic";
 import { slotLeader, statusLine } from "./matchupLogic";
@@ -49,8 +51,8 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
       </View>
     );
   }
-  return (
-    <View style={[styles.stack, leading && styles.leading]}>
+  const body = (
+    <>
       <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
         {task.title}
       </Text>
@@ -70,7 +72,27 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
           </CoachTarget>
         </View>
       ) : null}
-    </View>
+    </>
+  );
+  if (veto && vetoes && side === "theirs" && veto.canVote && !showsVeto(side, veto)) {
+    return <LongPressVeto veto={veto} leagueId={vetoes.leagueId} style={[styles.stack, leading && styles.leading]}>{body}</LongPressVeto>;
+  }
+  return <View style={[styles.stack, leading && styles.leading]}>{body}</View>;
+}
+
+/** The first veto on an opponent's task: a long-press (or the screen reader's Veto action) on it. */
+function LongPressVeto({ veto, leagueId, style, children }: { veto: TaskVeto; leagueId: Id<"leagues">; style: StyleProp<ViewStyle>; children: ReactNode }) {
+  const onVeto = useVetoAction(veto, leagueId);
+  return (
+    <Pressable
+      onLongPress={onVeto}
+      accessibilityHint="Long-press to veto"
+      accessibilityActions={[{ name: "veto", label: "Veto" }]}
+      onAccessibilityAction={(event) => event.nativeEvent.actionName === "veto" && onVeto()}
+      style={style}
+    >
+      {children}
+    </Pressable>
   );
 }
 

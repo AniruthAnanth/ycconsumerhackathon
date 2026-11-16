@@ -160,12 +160,12 @@ export function leagueTime(epochMs: number): string {
 }
 
 /**
- * The link that opens Messages with the join code typed. On Keiki's shared
- * number a player has to send that code once before the agent may text them.
- * The link code after it ties the number they text from to their account.
+ * The link that opens Messages with "Hi Sunny" and the join code typed. On Keiki's shared
+ * number a player has to send that code once before the agent may text them. The link code
+ * after it ties the number they text from to their account.
  */
 export function joinLink(lineNumber: string, joinCode: string, linkCode?: string): string {
-  const body = `Lineup, I'm in (${joinCode})${linkCode ? ` ${linkCode}` : ""}`;
+  const body = `Hi Sunny (${joinCode}${linkCode ? ` ${linkCode}` : ""})`;
   return `sms:${lineNumber}?&body=${encodeURIComponent(body)}`;
 }
 
@@ -287,8 +287,10 @@ export const reply = {
     return `Posted: ${session.title} at ${session.placeName}, ${session.when}. Your league has been told.`;
   },
 
-  welcome: "You're connected. Drops and verdicts land here. Send a photo to prove a task, or text STANDINGS.",
-  unknownNumber: "This number isn't linked to a Lineup account yet. In the app, tap Play by text and send the message it writes.",
+  welcome:
+    "Hi, I'm Sunny, your league's commissioner. You're linked: drops and verdicts land here. Text STANDINGS, send a photo to prove a task, or ask me anything about your league.",
+  unknownNumber:
+    "Hi, I'm Sunny, the Lineup commissioner. I don't know this number yet. Open Lineup, tap Text Sunny (in Settings) and send the message it writes: it carries your code and links this number to you. No app yet? Get Lineup, sign up, then do the same.",
   nothingToProve: "Nothing open to prove right now. Text STANDINGS for the table.",
   notMedia: "I can only judge a photo or a short video.",
   mediaFailed: "I couldn't read that file. Send it again as a photo.",

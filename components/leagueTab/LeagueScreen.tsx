@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
 import { useQuery } from "convex/react";
 import { useMemo, type ReactNode } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { CoachTarget, CoachTour } from "@/components/coach";
 import { SeasonLink } from "@/components/league/SeasonLink";
 import { ResetAndRestartRow } from "@/components/shell/ResetAndRestart";
-import { LeaderboardsStrip } from "@/components/leaderboards";
+import { LeaderboardsStrip, placeText, tiedRanks } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
@@ -17,14 +18,13 @@ import {
   playoffSpots,
   seasonRecords,
 } from "@/components/leagueTab/seasonColumns";
-import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { Entrance } from "@/components/motion";
-import { PayBanner } from "@/components/roster/PayBanner";
 import { useNow } from "@/lib/useNow";
-import { Screen, useTabBarInset } from "@/components/ui";
+import { Screen, SectionLabel, useTabBarInset } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend, type Pot } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
+import { spacing } from "@/theme";
 
 type Props = {
   /** Replaces the pot card. Mount point for <EscrowFlow/> (YCCO-7); defaults to PotSummary. */
@@ -39,7 +39,7 @@ type Props = {
  */
 export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   const router = useRouter();
-  const { me, leagueId, membership } = useCurrentLeague();
+  const { me, leagueId } = useCurrentLeague();
   const now = useNow(60_000);
   const bottomInset = useTabBarInset();
   const args = leagueId ? { leagueId } : "skip";
@@ -57,30 +57,32 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
     [table, records],
   );
 
-  const owesBuyIn =
-    membership !== undefined && !membership.paid && membership.stakeUsd > 0;
-
   // The season is waited for too, so the table first draws in season order instead of re-sorting.
   if (!leagueId || !pot || !seasonTable || !league || !me)
     return <Screen edges={[]}>{null}</Screen>;
 
+  // YOUR RANK reads the same rows as the table, so the two can never disagree.
+  const mine = seasonTable.find((row) => row.userId === me._id);
+  const place = mine ? placeText(mine.rank, tiedRanks(seasonTable).has(mine.rank)) : undefined;
+
   return (
     <CoachTour tour="league">
       <Screen edges={[]} scroll bottomInset={bottomInset}>
-        {owesBuyIn ? (
-          <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} />
-        ) : null}
-        <Entrance>
-          <CoachTarget id="pot">
-            {escrow ? (
-              escrow(pot, now)
-            ) : (
-              <PotSummary pot={pot} standings={table} now={now} />
-            )}
-          </CoachTarget>
-        </Entrance>
+        <View style={styles.first}>
+          <SectionLabel left="This week" />
+          <Entrance>
+            <CoachTarget id="pot">
+              {escrow ? (
+                escrow(pot, now)
+              ) : (
+                <PotSummary pot={pot} standings={table} now={now} />
+              )}
+            </CoachTarget>
+          </Entrance>
+        </View>
         <CoachTarget id="standings">
           <StandingsTable
+            style={styles.section}
             rows={seasonTable}
             records={records}
             playoffSpots={season ? playoffSpots(season) : null}
@@ -89,13 +91,16 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
           />
         </CoachTarget>
         <SunnyTextPrompt />
-        {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
-        <LeagueInfo>
+        {pot.payouts?.length ? (
+          <View style={styles.section}>
+            <PayoutRows payouts={pot.payouts} />
+          </View>
+        ) : null}
+        <LeagueInfo style={styles.section}>
           <LeagueDetails league={league} pot={pot} now={now} />
           <SeasonLink leagueId={leagueId} />
-          <NotificationSettings />
           {aboveStandings}
-          <LeaderboardsStrip leagueId={leagueId} />
+          <LeaderboardsStrip leagueId={leagueId} place={place} />
         </LeagueInfo>
         {/* Builds for development and the demo only: one tap back to a brand-new player. */}
         {__DEV__ || process.env.EXPO_PUBLIC_DEV_FLAGS === "1" ? (
@@ -105,3 +110,9 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
     </CoachTour>
   );
 }
+
+// One 32-pt gap between sections, each with its header on the canvas, so no block butts up against the last.
+const styles = StyleSheet.create({
+  first: { marginTop: spacing.lg },
+  section: { marginTop: spacing.xxl },
+});

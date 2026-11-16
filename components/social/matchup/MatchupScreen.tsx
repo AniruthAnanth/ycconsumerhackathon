@@ -75,7 +75,6 @@ export default function MatchupScreen() {
         {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
         <MatchupBody
           matchup={matchup}
-          bonus={false}
           vetoes={
             leagueId ? { byTask: boardByTask(board), leagueId } : undefined
           }

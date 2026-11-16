@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { scoreWeek } from "./lib/scoring";
-import { SEED_AVATARS, SEED_PHOTOS } from "./lib/seedPhotos";
+import { SEED_AVATARS } from "./lib/seedPhotos";
 import { pacificDay, weekEndOf, weekStartOf } from "./lib/week";
 import schema from "./schema";
 
@@ -200,18 +200,18 @@ describe("seed.reset", () => {
     expect(drop).toMatchObject({ kind: "quicktime", status: "closed", points: 40 });
   });
 
-  test("uploads each photo and avatar once, and attaches one to every proof and player", async () => {
+  test("uploads each avatar once, attaches one to every player, and gives no proof a stock photo", async () => {
     const t = convexTest(schema, modules);
     await reset(t);
 
-    const fileCount = Object.keys(SEED_PHOTOS).length + Object.keys(SEED_AVATARS).length;
+    const fileCount = Object.keys(SEED_AVATARS).length;
     const afterFirst = await t.run(async (ctx) => ({
       files: await ctx.db.system.query("_storage").collect(),
       proofs: await ctx.db.query("proofs").collect(),
       players: await ctx.db.query("users").collect(),
     }));
     expect(afterFirst.files).toHaveLength(fileCount);
-    expect(afterFirst.proofs.every((proof) => proof.storageId !== undefined)).toBe(true);
+    expect(afterFirst.proofs.every((proof) => proof.storageId === undefined)).toBe(true);
     expect(afterFirst.players).toHaveLength(6);
     expect(new Set(afterFirst.players.map((player) => player.avatarStorageId)).size).toBe(6);
     expect(afterFirst.players.every((player) => player.avatarStorageId !== undefined)).toBe(true);
@@ -224,7 +224,7 @@ describe("seed.reset", () => {
       players: await ctx.db.query("users").collect(),
     }));
     expect(afterSecond.files).toHaveLength(fileCount);
-    expect(afterSecond.proofs.every((proof) => proof.storageId !== undefined)).toBe(true);
+    expect(afterSecond.proofs.every((proof) => proof.storageId === undefined)).toBe(true);
     expect(afterSecond.players.map((player) => player.avatarStorageId)).toEqual(
       afterFirst.players.map((player) => player.avatarStorageId),
     );

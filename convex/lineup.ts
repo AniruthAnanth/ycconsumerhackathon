@@ -183,14 +183,14 @@ export const lock = mutation({
       throw new ConvexError("Next week's lineup is already locked.");
     }
 
-    // Flex tasks added before locking count towards the same limit of three.
+    // A flex task added before locking counts towards the same limit of one.
     const existing = await weekTasks(ctx, user._id, weekStart);
     const flexCount = [...existing, ...tasks].filter(
       (task) => task.slot === "flex",
     ).length;
     if (flexCount > MAX_FLEX_TASKS) {
       throw new ConvexError(
-        `A lineup holds at most ${MAX_FLEX_TASKS} flex tasks.`,
+        "A lineup holds at most one flex task.",
       );
     }
 
@@ -355,7 +355,7 @@ export const addFlexTask = mutation({
       existing.filter((other) => other.slot === "flex").length >= MAX_FLEX_TASKS
     ) {
       throw new ConvexError(
-        `You already have ${MAX_FLEX_TASKS} flex tasks this week.`,
+        "You already have a flex task this week.",
       );
     }
     const taskId = await ctx.db.insert("tasks", {
@@ -462,6 +462,50 @@ export const reclassifyOpenTasks = internalAction({
     return { lineups: lineups.length, tasks };
   },
 });
+
+// Flex rows the demo and older drafts added that no player chose.
+const FILLER_FLEX_TITLES = ["check in at the yc office", "meal prep for the week"];
+
+/**
+ * Brings real players' open lineups, this week and next, to the one-bonus rule: drops open flex
+ * rows that repeat a slot task or are demo filler, then drafted flex rows past the first. A row
+ * with a proof is never touched. Run once: npx convex run lineup:trimFlexRows
+ */
+export const trimFlexRows = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<{ removed: number }> => {
+    const weeks = [weekStartOf(Date.now()), weekStartOf(Date.now() + 7 * 24 * 60 * 60 * 1000)];
+    let removed = 0;
+    for (const user of await ctx.db.query("users").collect()) {
+      if (user.isSeed) continue;
+      for (const weekStart of weeks) {
+        const tasks = await weekTasks(ctx, user._id, weekStart);
+        const slotTitles = new Set(tasks.filter((task) => task.slot !== "flex").map((task) => task.title.trim().toLowerCase()));
+        let kept = 0;
+        // A player's own flex task (typed in, or from Canvas) is kept before a drafted one.
+        const flex = tasks
+          .filter((task) => task.slot === "flex")
+          .sort((a, b) => Number(a.source === "draft") - Number(b.source === "draft") || a._creationTime - b._creationTime);
+        for (const task of flex) {
+          const title = task.title.trim().toLowerCase();
+          const removable = task.status === "open" && !(await hasProof(ctx, task._id));
+          const unwanted = slotTitles.has(title) || FILLER_FLEX_TITLES.includes(title) || (kept >= MAX_FLEX_TASKS && task.source === "draft");
+          if (removable && unwanted) {
+            await ctx.db.delete("tasks", task._id);
+            removed++;
+          } else {
+            kept++;
+          }
+        }
+      }
+    }
+    return { removed };
+  },
+});
+
+async function hasProof(ctx: QueryCtx, taskId: Id<"tasks">): Promise<boolean> {
+  return (await ctx.db.query("proofs").withIndex("by_task", (q) => q.eq("taskId", taskId)).first()) !== null;
+}
 
 export const rateFlexTask = internalAction({
   args: { taskId: v.id("tasks"), title: v.string() },

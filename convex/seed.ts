@@ -1,7 +1,8 @@
 /**
  * The demo league. `seed.reset` (Reset Seed in the demo controls) puts "YC Hackathon" back into
  * the same late-week state every time: six players, a paid pot, head-to-head matchups, a week of
- * proofs with photos and one finished quick-time drop.
+ * proofs and one finished quick-time drop. Seeded proofs carry no photo: the feed shows only
+ * players' own shots, never stock images, so they read as photo-less proof cards.
  *
  * Two choices shape this file:
  * - Times are written as "days ago at a clock time" and resolved against the moment of the reset,
@@ -32,17 +33,14 @@ import { requireSignedInUser } from "./lib/auth";
 import { seedDemoReferrals } from "./referrals";
 import { scheduleFor } from "./lib/schedule";
 import { quickTimeScore, type Slot } from "./lib/scoring";
-import { SEED_AVATARS, SEED_PHOTOS, type SeedPhotoKey } from "./lib/seedPhotos";
+import { SEED_AVATARS } from "./lib/seedPhotos";
 import { HOUR_MS, pacificDay, startOfPacificDay, weekEndOf, weekStartOf } from "./lib/week";
 
 const MINUTE_MS = 60 * 1000;
 /** More rows than a demo league ever holds under one parent. It keeps every read bounded. */
 const SWEEP_LIMIT = 500;
-/**
- * Everything the seed keeps in file storage, by the name the seed looks it up under: a proof
- * photo by its key, a player's avatar by that player's phone number.
- */
-const SEED_FILES: Record<string, { sha256: string; jpegBase64: string }> = { ...SEED_PHOTOS, ...SEED_AVATARS };
+/** Everything the seed keeps in file storage: each player's avatar, by that player's phone number. */
+const SEED_FILES: Record<string, { sha256: string; jpegBase64: string }> = SEED_AVATARS;
 const FILE_NAMES = Object.keys(SEED_FILES);
 
 // Public with a $20 stake, so Quick Match at $20 also lands a new player in this full league.
@@ -86,7 +84,6 @@ type When = [daysAgo: number, clock: string];
 
 type SeedProof = {
   at: When;
-  photo: SeedPhotoKey;
   /** False for a proof the referee turned down. The task then stays open. */
   pass?: false;
   confidence: number;
@@ -137,7 +134,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 40,
         proof: {
           at: [6, "07:42"],
-          photo: "gym",
           confidence: 0.94,
           highlight: 7,
           reason: "Barbell on the squat rack and a gym mirror, matches leg day.",
@@ -151,7 +147,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 45,
         proof: {
           at: [4, "22:10"],
-          photo: "desk",
           confidence: 0.9,
           highlight: 6,
           reason: "Handwritten solutions beside an open laptop, matches a finished problem set.",
@@ -165,7 +160,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 20,
         proof: {
           at: [5, "21:30"],
-          photo: "book",
           confidence: 0.92,
           highlight: 5,
           reason: "Open paperback and a cup of tea on the couch, matches reading time.",
@@ -178,7 +172,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 25,
         proof: {
           at: [1, "11:05"],
-          photo: "laundry",
           confidence: 0.95,
           highlight: 4,
           reason: "A folded stack beside an empty basket, the laundry is done.",
@@ -191,7 +184,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 30,
         proof: {
           at: [2, "19:48"],
-          photo: "dinner",
           confidence: 0.97,
           highlight: 9,
           reason: "Two friends across a restaurant table with plates of pasta, matches dinner with friends.",
@@ -206,7 +198,6 @@ const PLAYERS: SeedPlayer[] = [
         source: "flex",
         proof: {
           at: [3, "17:40"],
-          photo: "walk",
           confidence: 0.91,
           highlight: 8,
           reason: "A park path at sunset with the skyline behind, matches a sunset walk.",
@@ -227,7 +218,6 @@ const PLAYERS: SeedPlayer[] = [
         place: { name: "Dolores Park", lat: 37.7596, lng: -122.4269 },
         proof: {
           at: [4, "07:20"],
-          photo: "run",
           confidence: 0.93,
           highlight: 7,
           reason: "A running watch showing a finished 5K on a park path, checked in at Dolores Park.",
@@ -241,7 +231,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 40,
         proof: {
           at: [2, "15:05"],
-          photo: "slides",
           confidence: 0.88,
           highlight: 6,
           reason: "A pitch deck open in a slide editor beside planning notes, matches drafting the deck.",
@@ -256,7 +245,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 25,
         proof: {
           at: [1, "10:40"],
-          photo: "coffee",
           confidence: 0.96,
           highlight: 8,
           reason: "Two lattes and a friend across the table, matches coffee with a friend.",
@@ -276,7 +264,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 30,
         proof: {
           at: [3, "18:30"],
-          photo: "basketball",
           // Between 0.6 and 0.75 the feed flags a proof as a close call.
           confidence: 0.68,
           highlight: 4,
@@ -292,7 +279,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 30,
         proof: {
           at: [1, "12:15"],
-          photo: "kitchen",
           confidence: 0.93,
           highlight: 5,
           reason: "Empty sink, wiped counters and dishes drying, the kitchen is clean.",
@@ -313,7 +299,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 35,
         proof: {
           at: [1, "20:10"],
-          photo: "couch",
           pass: false,
           confidence: 0.12,
           highlight: 2,
@@ -337,7 +322,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 30,
         proof: {
           at: [2, "18:00"],
-          photo: "yoga",
           confidence: 0.95,
           highlight: 6,
           reason: "A studio class holding warrior pose with a mat in the foreground, matches a yoga class.",
@@ -362,7 +346,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 30,
         proof: {
           at: [5, "08:10"],
-          photo: "bike",
           confidence: 0.9,
           highlight: 6,
           reason: "Handlebars on a city bike lane in morning traffic, matches a bike commute.",
@@ -375,7 +358,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 40,
         proof: {
           at: [3, "16:20"],
-          photo: "merged",
           confidence: 0.92,
           highlight: 7,
           reason: "A pull request page showing Merged on the monitor, matches shipping the PR.",
@@ -389,7 +371,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 15,
         proof: {
           at: [1, "21:40"],
-          photo: "journal",
           confidence: 0.9,
           highlight: 5,
           reason: "An open journal with a full page of handwriting by candlelight, matches journaling.",
@@ -402,7 +383,6 @@ const PLAYERS: SeedPlayer[] = [
         points: 25,
         proof: {
           at: [0, "10:30"],
-          photo: "room",
           confidence: 0.95,
           highlight: 5,
           reason: "Bed made, floor clear and a vacuum in the corner, the room is clean.",
@@ -422,7 +402,6 @@ const PLAYERS: SeedPlayer[] = [
         source: "drop",
         proof: {
           at: [1, "14:12"],
-          photo: "pushups",
           confidence: 0.91,
           highlight: 9,
           reason: "Mid push-up with three fingers raised, matches the drop and its gesture.",
@@ -447,7 +426,7 @@ function momentAt(now: number, [daysAgo, clock]: When): number {
 }
 
 /**
- * The seed photos and avatars already in file storage, found by content hash. They are never
+ * The seed avatars already in file storage, found by content hash. They are never
  * deleted on reset, so after the first upload every later reset reuses the same files.
  */
 async function storedPhotos(ctx: QueryCtx): Promise<Partial<Record<string, Id<"_storage">>>> {
@@ -812,12 +791,10 @@ async function restoreSeed(ctx: MutationCtx, rebuildOpenLeagues: boolean): Promi
       });
       if (!proof) continue;
 
-      const storageId = photos[proof.photo];
       const proofId = await ctx.db.insert("proofs", {
         taskId,
         userId,
         weekStart,
-        ...(storageId && { storageId }),
         mediaType: "photo",
         ...(task.place && { lat: task.place.lat, lng: task.place.lng }),
         pass: proof.pass !== false,

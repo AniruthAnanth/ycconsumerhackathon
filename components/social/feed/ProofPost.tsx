@@ -1,4 +1,5 @@
 import { useMutation } from "convex/react";
+import { Image } from "expo-image";
 import { PressScale } from "@/components/motion";
 import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,21 +7,23 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Id } from "@/convex/_generated/dataModel";
 import { type FeedItem, socialApi } from "@/components/social/contract";
 import { confirmAction, notify } from "@/components/social/notify";
-import { Avatar, PositionPill, Score } from "@/components/ui";
-import { colors, font, fontFamily, layout, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { Avatar, cardStyle, PositionPill, Score } from "@/components/ui";
+import { colors, font, fontFamily, layout, MIN_TARGET, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
 import { ProofMedia } from "@/components/social/ProofMedia";
 import { errorMessage } from "@/lib/errorMessage";
 import { haptics } from "@/lib/native/haptics";
 import { shareText } from "@/lib/native/share";
 
 import { ChallengeBar } from "./ChallengeBar";
-import { canChallenge, KIND_LABEL, proofShareText, REACTION_EMOJI, reactionButtons, timeAgo } from "./feedLogic";
+import { canChallenge, KIND_LABEL, postCaption, proofShareText, proofVisual, REACTION_EMOJI, reactionButtons, timeAgo } from "./feedLogic";
 import { ProofSwipeRow } from "./ProofSwipeRow";
 import { ReactionBar } from "./ReactionBar";
 
 /**
- * One verified proof in the feed: who did what for how many points, the photo
- * or video, what the referee said, and what the league makes of it.
+ * One verified proof in the feed: who did what for how many points, the photo or
+ * video, one short caption, and what the league makes of it. A proof with nothing of
+ * the player's own to show puts its caption on a card instead, so it never borrows a
+ * stock picture.
  */
 export function ProofPost({
   item,
@@ -43,6 +46,18 @@ export function ProofPost({
     react({ proofId: item.proofId, emoji }).catch((error) => notify(errorMessage(error)));
   };
   const kindLabel = KIND_LABEL[item.kind];
+  const visual = proofVisual(item);
+  const words = (
+    <>
+      {kindLabel || item.closeCall ? (
+        <View style={styles.flags}>
+          {kindLabel ? <Text style={styles.kind}>{kindLabel}</Text> : null}
+          {item.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : null}
+        </View>
+      ) : null}
+      <Text style={visual.kind === "none" ? styles.cardCaption : styles.caption}>{postCaption(item)}</Text>
+    </>
+  );
 
   // A failed challenge costs the challenger points, so it takes a second tap.
   const confirmChallenge = () =>
@@ -111,22 +126,21 @@ export function ProofPost({
         </Link>
       </ProofSwipeRow>
 
-      {item.mediaUrl && item.mediaType !== "canvas" ? (
-        <ProofMedia uri={item.mediaUrl} mediaType={item.mediaType} style={styles.media} />
+      {visual.kind === "media" && item.mediaType !== "canvas" ? (
+        <ProofMedia uri={visual.uri} mediaType={item.mediaType} style={styles.media} />
+      ) : null}
+      {visual.kind === "filmstrip" ? (
+        <View style={styles.filmstrip} accessibilityLabel={`Timelapse, ${visual.frames.length} frames`}>
+          {visual.frames.map((uri) => (
+            <Image key={uri} source={{ uri }} style={styles.frame} contentFit="cover" transition={150} />
+          ))}
+        </View>
       ) : null}
 
+      {visual.kind === "none" ? <View style={styles.card}>{words}</View> : null}
+
       <View style={styles.body}>
-        {kindLabel || item.closeCall ? (
-          <View style={styles.flags}>
-            {kindLabel ? <Text style={styles.kind}>{kindLabel}</Text> : null}
-            {item.closeCall ? <Text style={styles.closeCall}>CLOSE CALL</Text> : null}
-          </View>
-        ) : null}
-        {item.caption ? <Text style={styles.caption}>{item.caption}</Text> : null}
-        <Text style={styles.reason}>
-          <Text style={styles.referee}>REFEREE </Text>
-          {item.reason}
-        </Text>
+        {visual.kind === "none" ? null : words}
         <View style={styles.actions}>
           <ReactionBar proofId={item.proofId} reactions={item.reactions} />
           {challengeable ? (
@@ -150,13 +164,15 @@ const styles = StyleSheet.create({
   task: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   taskTitle: { flex: 1, color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.meta },
   media: { width: "100%", aspectRatio: 4 / 3 },
+  filmstrip: { flexDirection: "row", gap: spacing.xs, paddingHorizontal: SCREEN_MARGIN },
+  frame: { flex: 1, aspectRatio: 3 / 4, borderRadius: radius.sm, backgroundColor: colors.strip },
+  card: { ...cardStyle, marginHorizontal: SCREEN_MARGIN, padding: spacing.lg, gap: spacing.sm },
+  cardCaption: { color: colors.text, fontSize: font.header, fontFamily: fontFamily.bold },
   body: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.sm },
   flags: { flexDirection: "row", gap: spacing.md },
   kind: { color: colors.accent, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   closeCall: { color: colors.danger, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   caption: { color: colors.text, fontSize: font.body, fontFamily: fontFamily.semiBold },
-  reason: { color: colors.text, fontFamily: fontFamily.regular, fontSize: font.body, lineHeight: type.label.lineHeight },
-  referee: { color: colors.textMuted, fontSize: font.label, fontFamily: fontFamily.bold, letterSpacing: 0.6 },
   actions: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
   challengeHit: { minHeight: MIN_TARGET, justifyContent: "center" },
   challenge: { color: colors.accent, fontSize: font.body, fontFamily: fontFamily.semiBold },

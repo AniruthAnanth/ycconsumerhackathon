@@ -1,17 +1,19 @@
 import { useEffect, useRef } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
+import { rankText, tiedRanks } from "@/components/leaderboards";
 import { LiveRow } from "@/components/live/LiveRow";
 import { rankChanges, ranksOf } from "@/components/live/rankChanges";
-import { CountUp, Entrance, PressScale } from "@/components/motion";
+import { CountUp, Entrance, PressRow } from "@/components/motion";
 import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
 import { haptics } from "@/lib/native/haptics";
-import { accentSet, colors, font, fontFamily, hairline, HOT_STREAK, layout, radius, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { accentSet, BORDER, colors, font, fontFamily, hairline, HOT_STREAK, layout, radius, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { slotsText } from "./emptyState";
 import { rankMovement, withBaseline } from "./rankMovement";
+import { standingName } from "./standingName";
 import type { SeasonRecord } from "./seasonColumns";
 
 // Fixed widths keep every number in a column lined up whatever the names are. Four numbers at
@@ -30,6 +32,7 @@ type Props = {
   /** How many make the playoffs; the playoff line is drawn under that rank. Null without playoffs. */
   playoffSpots?: number | null;
   onPressPlayer: (userId: Id<"users">) => void;
+  style?: StyleProp<ViewStyle>;
 };
 
 function recordText(record: SeasonRecord | undefined): string {
@@ -42,7 +45,7 @@ function recordText(record: SeasonRecord | undefined): string {
  * type), PA (points against), STRK, the places gained or lost since the table was first shown,
  * and the playoff line when the format has one.
  */
-export function StandingsTable({ rows, viewerId, records, playoffSpots = null, onPressPlayer }: Props) {
+export function StandingsTable({ rows, viewerId, records, playoffSpots = null, onPressPlayer, style }: Props) {
   const baseline = useRef<Record<string, number>>({});
   baseline.current = withBaseline(baseline.current, rows);
   // Each rows result is compared once, so a re-render with the same data never re-flashes a row.
@@ -62,8 +65,10 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
     else if (live.current.moved > 0) haptics.tap();
   }, [rows]);
 
+  const tied = tiedRanks(rows);
+
   return (
-    <View>
+    <View style={style}>
       <View style={styles.header}>
         <Text style={[styles.heading, { width: COL.rank }]}>RK</Text>
         <Text style={[styles.heading, styles.playerCol, styles.playerHeading]}>PLAYER</Text>
@@ -72,22 +77,24 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
         <Text style={[styles.heading, styles.right, { width: COL.pointsAgainst }]} accessibilityLabel="Points against">PA</Text>
         <Text style={[styles.heading, styles.right, { width: COL.streak }]} accessibilityLabel="Streak">STRK</Text>
       </View>
+      {/* The rows are one white block on the paper, edged like every card. */}
+      <View style={styles.body}>
       {rows.map((row, index) => {
         const moved = rankMovement(baseline.current, row);
         const record = records?.get(row.userId);
-        const cutline = playoffSpots !== null && row.rank === playoffSpots && index < rows.length - 1;
+        const cutline = playoffSpots !== null && index + 1 === playoffSpots && index < rows.length - 1;
         return (
           // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
           <LiveRow key={row.userId} flash={live.current.flash[row.userId] ?? 0}>
             <Entrance index={index}>
-              <PressScale
+              <PressRow
                 style={[styles.row, row.userId === viewerId && styles.viewer]}
                 onPress={() => onPressPlayer(row.userId)}
                 accessibilityRole="button"
-                accessibilityLabel={`Rank ${row.rank}, ${row.name}${row.paid ? "" : ", unpaid"}, ${row.slotsCleared} of 5 slots, ${formatScore(row.points)} points, streak ${row.streak}`}
+                accessibilityLabel={`Rank ${rankText(row.rank, tied.has(row.rank))}, ${row.name}${row.paid ? "" : ", unpaid"}, ${row.slotsCleared} of 5 slots, ${formatScore(row.points)} points, streak ${row.streak}`}
               >
                 <View style={[styles.rankCell, { width: COL.rank }]}>
-                  <Text style={styles.rank}>{row.rank}</Text>
+                  <Text style={styles.rank}>{rankText(row.rank, tied.has(row.rank))}</Text>
                   {moved === 0 ? null : (
                     <Text style={[styles.move, { color: moved > 0 ? colors.accent : colors.danger }]}>
                       {`${moved > 0 ? "▲" : "▼"}${Math.abs(moved)}`}
@@ -100,7 +107,7 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
                       <Avatar uri={row.avatarUrl} name={row.name} size={layout.avatarCompact} />
                     </View>
                     <View style={styles.nameBlock}>
-                      <Text style={styles.name} numberOfLines={1}>{row.name}</Text>
+                      <Text style={styles.name} numberOfLines={2}>{standingName(row.name)}</Text>
                       <Text style={styles.sub}>{slotsText(row)}</Text>
                     </View>
                   </View>
@@ -118,7 +125,7 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
                     <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
                   </View>
                 </View>
-              </PressScale>
+              </PressRow>
               {cutline ? (
                 <View accessibilityLabel={`Playoff line, top ${playoffSpots} make the playoffs`}>
                   <Divider />
@@ -132,21 +139,22 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
           </LiveRow>
         );
       })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Same look as SectionLabel, which only has room for two labels.
+  // Same look as SectionLabel (on the canvas above its section), which only has room for two labels.
   header: {
     minHeight: 36,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     paddingHorizontal: SCREEN_MARGIN,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.strip,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.divider,
   },
+  body: { backgroundColor: colors.surface, borderTopWidth: BORDER, borderBottomWidth: BORDER, borderColor: colors.cardBorder },
   heading: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   right: { textAlign: "right" },
   row: { minHeight: ROW_HEIGHT_COMPACT, flexDirection: "row", alignItems: "center", paddingHorizontal: SCREEN_MARGIN },

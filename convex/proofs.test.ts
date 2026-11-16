@@ -340,7 +340,7 @@ describe("location check-in", () => {
     const { t, as, taskId } = await playerWithTask(checkIn);
     const near = { lat: YC_OFFICE.lat + 0.0003, lng: YC_OFFICE.lng }; // about 33 m north
     const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", ...near });
-    expect(verdict).toMatchObject({ pass: true, points: 30, reason: "Checked in at YC office, 33 m away" });
+    expect(verdict).toMatchObject({ pass: true, points: 30, reason: "Checked in at YC office, 33 m away", caption: "Showed up. That's half of it." });
     expect(judgeProof).not.toHaveBeenCalled();
   });
 

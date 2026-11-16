@@ -64,7 +64,10 @@ export type FeedItem = {
   /** The referee's one-line justification. Always shown. */
   reason: string;
   caption: string;
+  /** Absent when there is nothing of the player's own to show (no photo, or a stock one). */
   mediaUrl?: string;
+  /** A timelapse's stills in time order, when it kept more than one. */
+  frameUrls?: string[];
   mediaType: "photo" | "video" | "canvas";
   createdAt: number;
   /** Confidence between 0.6 and 0.75: passed, but worth a second look. */
@@ -130,6 +133,18 @@ export type CanvasAssignment = {
 
 export type Decree = { text: string; epithet: string | null };
 
+export type LeagueMessageId = Id<"leagueMessages">;
+
+export type ChatPost = {
+  _id: LeagueMessageId;
+  author: { kind: "member"; userId: Id<"users">; name: string; avatarUrl?: string } | { kind: "sunny" };
+  mine: boolean;
+  text: string;
+  createdAt: number;
+  replyTo?: { _id: LeagueMessageId; authorName: string; text: string };
+  reactions: FeedReaction[];
+};
+
 export const socialApi = {
   users: {
     me: backend.users.me,
@@ -179,6 +194,15 @@ export const socialApi = {
       Id<"drops">
     >("drops:createGroupSession"),
     rsvp: mutation<{ dropId: Id<"drops"> }, null>("drops:rsvp"),
+  },
+  leagueChat: {
+    /** The league's thread, oldest first, last 200, plus whether Sunny is writing a reply. */
+    list: query<{ leagueId: Id<"leagues"> }, { messages: ChatPost[]; sunnyTyping: boolean }>("leagueChat:list"),
+    send: mutation<{ leagueId: Id<"leagues">; text: string; replyToId?: LeagueMessageId }, LeagueMessageId>("leagueChat:send"),
+    /** Toggles my reaction. */
+    react: mutation<{ messageId: LeagueMessageId; emoji: string }, null>("leagueChat:react"),
+    markRead: mutation<{ leagueId: Id<"leagues"> }, null>("leagueChat:markRead"),
+    unread: query<{ leagueId: Id<"leagues"> }, number>("leagueChat:unread"),
   },
   keiki: {
     chat: action<{ leagueId: Id<"leagues">; text: string }, { reply: string }>("keiki:chat"),

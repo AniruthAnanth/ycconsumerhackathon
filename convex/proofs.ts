@@ -69,6 +69,8 @@ const proofArgs = {
   capturedAt: v.optional(v.number()),
   /** Timelapse: epoch ms of each still, in the order of frameStorageIds. */
   frameTimes: v.optional(v.array(v.number())),
+  /** A development sample stood in for the camera: the referee still judges it, the feed never shows it. */
+  stockMedia: v.optional(v.boolean()),
 };
 
 /** The app's entry point: verifies a proof for the signed-in player. */
@@ -114,6 +116,7 @@ type ProofSubmission = {
   durationSec?: number;
   capturedAt?: number;
   frameTimes?: number[];
+  stockMedia?: boolean;
   /** Omitted for the app, where the caller is the signed-in player. */
   userId?: Id<"users">;
   via: "app" | "keiki";
@@ -212,6 +215,8 @@ async function runVerification(
     lng: submission.lng,
     via: submission.via,
     beforeStorageId: submission.beforeStorageId,
+    ...(mode === "timelapse" && submission.mediaType === "photo" && imageIds.length > 1 && { frameStorageIds: imageIds }),
+    ...(submission.stockMedia && { stockMedia: true }),
     imageHashes,
     verdict,
   });
@@ -507,6 +512,8 @@ export const record = internalMutation({
     lng: v.optional(v.number()),
     via: v.union(v.literal("app"), v.literal("keiki")),
     beforeStorageId: v.optional(v.id("_storage")),
+    frameStorageIds: v.optional(v.array(v.id("_storage"))),
+    stockMedia: v.optional(v.boolean()),
     imageHashes: v.optional(v.array(v.string())),
     verdict: verdictFields,
   },
@@ -538,6 +545,8 @@ export const record = internalMutation({
       imageHashes: args.imageHashes,
       flags,
       ...(needsVote && { needsVote: true }),
+      ...(args.frameStorageIds && { frameStorageIds: args.frameStorageIds }),
+      ...(args.stockMedia && { stockMedia: true }),
     });
     if (needsVote) {
       // The referee wasn't sure, so the league decides. The task is held, scoring nothing, until

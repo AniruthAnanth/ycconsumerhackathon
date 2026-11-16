@@ -1,6 +1,7 @@
 export { CountUp } from "./CountUp";
 export { ease } from "./ease";
 export { Entrance } from "./Entrance";
+export { PressHighlight, PressRow } from "./PressRow";
 export { PressScale } from "./PressScale";
 export { ProgressFill } from "./ProgressFill";
 export { ReorderRow } from "./ReorderRow";

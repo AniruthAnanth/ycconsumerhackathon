@@ -39,6 +39,8 @@ export const capture = {
     /** Send the uploaded voice note, or a typed transcript; never both. */
     draft: action<{ audioStorageId?: Id<"_storage">; transcript?: string }, Draft>("lineup:draft"),
     lock: mutation<{ tasks: DraftTask[]; transcript?: string }, { weekStart: number }>("lineup:lock"),
+    /** Gives a check-in task drafted without coordinates its place; allowed on a locked week, once. */
+    pinPlace: mutation<{ taskId: Id<"tasks">; place: Place }, null>("lineup:pinPlace"),
     /** Applies a typed change to a lineup that isn't locked yet; untouched tasks come back as they were. */
     refine: action<{ previousLineup: DraftTask[]; instruction: string }, { tasks: DraftTask[] }>("lineup:refine"),
   },
@@ -68,6 +70,8 @@ export const capture = {
         capturedAt?: number;
         /** Epoch ms of each frame, in the order of frameStorageIds. */
         frameTimes?: number[];
+        /** A development sample stood in for the camera; the feed hides it. */
+        stockMedia?: boolean;
       },
       Verdict
     >("proofs:verify"),
