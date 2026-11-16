@@ -6,6 +6,7 @@ import Animated from "react-native-reanimated";
 import { confirmAction } from "@/components/social/notify";
 import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
 import { Artwork } from "@/components/art";
+import { SunnyBreathe } from "@/components/motion";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
@@ -84,9 +85,9 @@ export function VoiceDraftScreen() {
           scrollEventThrottle={16}
         >
           <LargeTitle title="Voice Draft" scrollY={scrollY} />
-          <View style={styles.sunny}>
+          <SunnyBreathe style={styles.sunny}>
             <Artwork name="sunny" size={80} />
-          </View>
+          </SunnyBreathe>
           {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
           {state.manual ? <Text style={styles.weekNote}>Pick one task for each slot. Tap a title to change it.</Text> : null}
           {showsLineup ? null : (
