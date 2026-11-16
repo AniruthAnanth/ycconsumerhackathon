@@ -25,6 +25,7 @@ import { draftLineup, rateTask, transcribe } from "./ai";
 import { challengerPointsByUser } from "./challenges";
 import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { isValidLatLng } from "./lib/geo";
 import {
   DEFAULT_TARGET_MINUTES,
   MAX_FLEX_TASKS,
@@ -347,6 +348,26 @@ export const addFlexTask = mutation({
   },
 });
 
+/**
+ * Pins the place of a check-in task drafted without coordinates ("the gym"): the app sends where
+ * the player stands. Allowed on a locked week, because it sets up the proof rather than changing
+ * the lineup, and only once, so a pin can't follow the player around.
+ */
+export const pinPlace = mutation({
+  args: { taskId: v.id("tasks"), place },
+  handler: async (ctx, args): Promise<null> => {
+    const user = await requireUser(ctx);
+    const task = await ctx.db.get("tasks", args.taskId);
+    if (task === null || task.userId !== user._id) throw new ConvexError("That task isn't on your lineup.");
+    if (task.proofType !== "photo_location") throw new ConvexError("Only a check-in task has a place.");
+    if (task.place) throw new ConvexError(`This task is already pinned to ${task.place.name}.`);
+    const name = args.place.name.trim();
+    if (name === "" || !isValidLatLng(args.place)) throw new ConvexError("That place has no usable location.");
+    await ctx.db.patch("tasks", task._id, { place: { name, lat: args.place.lat, lng: args.place.lng } });
+    return null;
+  },
+});
+
 export const rateFlexTask = internalAction({
   args: { taskId: v.id("tasks"), title: v.string() },
   handler: async (ctx, args): Promise<null> => {
@@ -580,10 +601,8 @@ async function toRow(
     slot: task.slot,
     title: task.title,
     points: task.points,
-    // Every proof is a survey video or a timelapse now; older tasks of other types read as timelapses.
-    ...(task.proofType === "survey_video"
-      ? { proofType: "survey_video" as const }
-      : { proofType: "timelapse" as const, targetMinutes: task.targetMinutes ?? DEFAULT_TARGET_MINUTES }),
+    proofType: task.proofType,
+    ...(task.proofType === "timelapse" && { targetMinutes: task.targetMinutes ?? DEFAULT_TARGET_MINUTES }),
     place: task.place,
     status: task.status,
     source: task.source,
