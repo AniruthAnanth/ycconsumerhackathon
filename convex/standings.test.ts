@@ -272,7 +272,7 @@ describe("standings.matchup", () => {
       ["flex", "20 push-ups", undefined],
     ]);
     expect(matchup.rows[4].mine?.score).toBeNull();
-    expect(matchup.rows[5].mine).toMatchObject({ proofType: "photo_location", place: { name: "YC office" }, score: null });
+    expect(matchup.rows[5].mine).toMatchObject({ proofType: "timelapse", place: { name: "YC office" }, score: null });
     expect(matchup.rows[6].mine?.score).toBe(50);
   });
 

@@ -10,7 +10,7 @@ describe("manualLineup", () => {
   it("offers one suggested row for each slot, in roster order, at the default points", () => {
     const tasks = manualLineup();
     expect(tasks.map((task) => task.slot)).toEqual(SLOT_ORDER);
-    expect(tasks.every((task) => task.points === MANUAL_TASK_POINTS && task.proofType === "photo")).toBe(true);
+    expect(tasks.every((task) => task.points === MANUAL_TASK_POINTS && task.proofType === "timelapse")).toBe(true);
   });
 
   it("keeps every suggestion short enough for the row's single line", () => {
