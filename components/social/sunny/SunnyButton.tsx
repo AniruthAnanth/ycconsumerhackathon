@@ -19,7 +19,7 @@ export function SunnyButton() {
       accessibilityLabel={unread ? `Chat with ${SUNNY.name}, new` : `Chat with ${SUNNY.name}`}
     >
       <View>
-        <SunnyAvatar size={30} />
+        <SunnyAvatar size={32} />
         {unread ? <View style={styles.dot} /> : null}
       </View>
     </Pressable>
