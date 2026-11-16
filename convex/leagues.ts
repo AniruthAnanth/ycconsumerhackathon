@@ -32,6 +32,8 @@ const INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const LEDGER_ROWS_PER_SETTLEMENT = 200;
 // Leagues looked at by one run of the week-end sweep. A longer table carries on in the next run.
 const SWEEP_PAGE = 200;
+// A player's leaderboard rows across every league and week, read when they leave one.
+const MAX_SCORE_ROWS_LEFT = 2000;
 
 const visibility = v.union(v.literal("private"), v.literal("public"));
 
@@ -304,6 +306,45 @@ export const create = mutation({
       visibility: args.visibility,
       ...args.settings,
     });
+  },
+});
+
+/**
+ * Settings' Leave league. The membership goes, with the player's leaderboard rows and check-in
+ * marks in this league, so they leave its table, boards and texts. Matchups, challenges and the
+ * ledger stay: they are the league's history, and other members' weeks were scored against them.
+ * A player who has paid into the week in play stays until it settles, so a stake is never
+ * stranded in a pot its owner can no longer win.
+ */
+export const leave = mutation({
+  args: { leagueId: v.id("leagues") },
+  returns: v.null(),
+  handler: async (ctx, { leagueId }) => {
+    const caller = await requireUser(ctx);
+    const league = await ctx.db.get("leagues", leagueId);
+    const membership = league === null ? null : await membershipOf(ctx, leagueId, caller._id);
+    if (league === null || membership === null) {
+      throw new ConvexError("You're not in that league");
+    }
+    const week = await currentWeek(ctx, leagueId);
+    if (league.stakeUsd > 0 && week !== null && week.status === "open" && (await paidInto(ctx, league, week))(caller._id)) {
+      throw new ConvexError("You've paid into this week. You can leave once it settles.");
+    }
+
+    const scores = await ctx.db
+      .query("scores")
+      .withIndex("by_user_week", (q) => q.eq("userId", caller._id))
+      .take(MAX_SCORE_ROWS_LEFT);
+    for (const score of scores) {
+      if (score.leagueId === leagueId) await ctx.db.delete("scores", score._id);
+    }
+    const marks = await ctx.db
+      .query("checkinMarks")
+      .withIndex("by_league_user", (q) => q.eq("leagueId", leagueId).eq("userId", caller._id))
+      .take(MAX_SCORE_ROWS_LEFT);
+    for (const mark of marks) await ctx.db.delete("checkinMarks", mark._id);
+    await ctx.db.delete("memberships", membership._id);
+    return null;
   },
 });
 

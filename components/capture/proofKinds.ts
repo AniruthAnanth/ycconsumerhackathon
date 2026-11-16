@@ -16,8 +16,16 @@ export function parseProofType(value: string | undefined): CaptureProofType {
   return KNOWN.find((known) => known === value) ?? "photo";
 }
 
-/** A task with no target from the draft asks for ten minutes, which suits the short tasks that lack one. */
-export const DEFAULT_TARGET_MINUTES = 10;
+/** A timelapse with no target from the draft asks for five minutes (the backend's default too). */
+export const DEFAULT_TARGET_MINUTES = 5;
+
+/** A timelapse never asks for more than ten minutes: longer is a chore to film, not a better proof. */
+export const MAX_TARGET_MINUTES = 10;
+
+/** The minutes a timelapse asks for, from the task's target. */
+export function targetMinutesFor(targetMinutes: number | undefined): number {
+  return Math.min(MAX_TARGET_MINUTES, Math.max(1, Math.round(targetMinutes ?? DEFAULT_TARGET_MINUTES)));
+}
 
 /** The referee is shown this many stills from a timelapse, spread evenly across it. */
 export const TIMELAPSE_FRAMES = 8;
@@ -56,12 +64,22 @@ export function formatElapsed(ms: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
-/**
- * The one line telling the player how to prove a task, on the task sheet and over the camera.
- * Every proof is a timelapse (owner's call, Nov 16), so it names the minutes and nothing else.
- */
-export function howToProve(task: { proofType?: CaptureProofType; targetMinutes?: number }): string {
-  // An outcome (a cleaned room, a cooked dinner) is shown once it's done; a stretch of effort is recorded while it happens.
-  if (task.proofType === "survey_video") return "Take a 5-second video showing it's done.";
-  return `Record a timelapse while you do it, at least ${task.targetMinutes ?? DEFAULT_TARGET_MINUTES} min.`;
+/** The one line telling the player how to prove a task, on the task sheet and over the camera. Each task opens the capture its type names. */
+export function howToProve(task: { proofType?: CaptureProofType; targetMinutes?: number; place?: { name: string } }): string {
+  switch (task.proofType ?? "photo") {
+    case "photo_location":
+      return task.place ? `Check in at ${task.place.name}.` : "Check in where it happens.";
+    case "timelapse":
+      return `Record a ${targetMinutesFor(task.targetMinutes)}-min timelapse while you do it.`;
+    case "before_after":
+      return "Snap a before photo, then an after from the same spot.";
+    case "screenshot":
+      return "Pick a screenshot that shows it's done.";
+    case "canvas":
+      return "Submit it on Canvas. The referee checks the submission.";
+    case "survey_video":
+      return "Take a 5-second video showing it's done.";
+    default:
+      return "Snap a photo that shows it's done.";
+  }
 }

@@ -10,9 +10,15 @@ import { Platform } from "react-native";
  * A haptic is never worth an error: every call swallows failures (a simulator has no Taptic Engine).
  */
 const enabled = Platform.OS === "ios" || Platform.OS === "android";
+/** Settings' Haptics switch (lib/appPrefs): off silences every call below. */
+let muted = false;
+
+export function setHapticsEnabled(on: boolean) {
+  muted = !on;
+}
 
 function fire(play: () => Promise<void>) {
-  if (!enabled) return;
+  if (!enabled || muted) return;
   play().catch(() => {});
 }
 

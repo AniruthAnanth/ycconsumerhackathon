@@ -2,6 +2,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fontFamily, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
+import type { CaptureProofType } from "../proofKinds";
 import type { CaptureMode } from "./useProofCapture";
 
 const RECORD_RED = colors.danger;
@@ -9,9 +10,15 @@ const RECORD_RED = colors.danger;
 // expo-camera cannot record on web: recordAsync only warns and returns an empty file.
 const RECORDS = Platform.OS !== "web";
 
-/** Every proof is a timelapse or a 5-second survey video; interval photos stand in for the timelapse where recording is impossible. */
-export function modesFor(): CaptureMode[] {
-  return RECORDS ? ["timelapse", "survey"] : ["interval", "survey"];
+/**
+ * The modes a task offers, first one selected: its own type first. A photo task may also be shown
+ * with a 5-second video instead; interval photos stand in for the timelapse where recording is impossible.
+ */
+export function modesFor(proofType: CaptureProofType): CaptureMode[] {
+  if (proofType === "timelapse") return [RECORDS ? "timelapse" : "interval"];
+  if (proofType === "survey_video") return ["survey"];
+  if (proofType === "photo") return ["photo", "survey"];
+  return ["photo"];
 }
 
 const MODE_LABEL: Record<CaptureMode, string> = {

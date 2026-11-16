@@ -29,13 +29,10 @@ import {
   type HistoryPoint,
   type ScoreProjection,
 } from "./lib/markets";
-import { projectPayout } from "./lib/projection";
-import { resolveSettings } from "./lib/schedule";
 import { clearedSlots, CORE_SLOTS, SLOT_CLEARED_BONUS, type ScorableTask } from "./lib/scoring";
 import { pacificDay, startOfPacificDay } from "./lib/week";
 import { leagueStandings, opponentInWeek, tasksCountingIn, type MemberStanding } from "./standings";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const PAST_TASKS = 200;
 const PROOFS_PER_WEEK = 500;
 const SPARKLINE_POINTS = 12;
@@ -176,6 +173,10 @@ export const week = query({
         lowNetUsd: v.number(),
         highNetUsd: v.number(),
         potChance: v.number(),
+        /** Your expected share of this week's pot, held in escrow until cash out. */
+        expectedShareUsd: v.number(),
+        /** What each paid member gets if everyone clears all five. */
+        everyoneShareUsd: v.number(),
         history: v.array(v.object({ at: v.number(), netUsd: v.number() })),
       }),
       odds: v.object({
@@ -183,8 +184,8 @@ export const week = query({
         kind: v.union(v.literal("pot"), v.literal("week")),
         /** Stakes in play from paid members, the pot's size. */
         potUsd: v.number(),
-        rows: v.array(v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), chance: v.number(), finishChance: v.number(), projected: v.number() })),
-        /** The chance nobody clears all five and every stake goes back; with the rows it sums to 1. */
+        rows: v.array(v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), chance: v.number(), shareUsd: v.number(), finishChance: v.number(), projected: v.number() })),
+        /** The chance no paid member clears a slot and the pot rolls over; with the rows' shares it sums to 1. */
         nobody: v.number(),
       }),
     }),
@@ -221,41 +222,28 @@ export const week = query({
       };
     }
 
-    // The payout runs the real settlement rule (lib/projection.ts), so the card can't promise a split settlement won't pay.
-    const payoutAt = (at: number) => {
+    // Each week the pot is split evenly among the paid members tied for the most slots cleared (lib/markets.ts).
+    const staked = league.stakeUsd > 0;
+    const paidCount = replays.filter((replay) => replay.standing.paid).length;
+    const potUsd = staked ? league.stakeUsd * paidCount : 0;
+    const simulateAt = (at: number, draws?: number) => {
       const states = at === asOf ? atNow : replays.map((replay) => stateAt(replay, at, week));
-      return projectPayout({
-        stakeUsd: league.stakeUsd,
-        userId: caller._id,
-        daysLeft: (week.endsAt - at) / DAY_MS,
-        members: replays.map((replay, i) => ({
-          userId: replay.standing.userId,
-          paid: replay.standing.paid,
-          points: states[i].projection.confirmed,
-          slotsCleared: states[i].slotsCleared,
+      return simulatePot(
+        states.map((state, i) => ({
+          inPot: !staked || replays[i].standing.paid,
+          confirmed: state.projection.confirmed,
+          clearedSlots: state.slotsCleared,
+          open: state.open,
+          chance: state.chance,
         })),
-      });
+        draws,
+      );
     };
-    const net = (cents: number, stakeCents: number) => (cents - stakeCents) / 100;
-    const payoutNow = payoutAt(asOf);
+    const sim = simulateAt(asOf);
+    const myIndex = replays.indexOf(mine);
     const sparkline = [...new Set(thin([week.startsAt, ...verifiedMoments(replays, asOf)], SPARKLINE_POINTS - 1).concat(asOf))];
-    const payoutHistory = sparkline.map((at) => {
-      const projection = payoutAt(at);
-      return { at, netUsd: projection.eligible ? net(projection.expectedCents, projection.stakeCents) : 0 };
-    });
-
-    // A season-payout league settles once, at the season's end, so this week has no pot of its own to price.
-    const staked = league.stakeUsd > 0 && resolveSettings(league).payout !== "season";
-    const sim = simulatePot(
-      atNow.map((state, i) => ({
-        inPot: replays[i].standing.paid,
-        confirmed: state.projection.confirmed,
-        clearedSlots: state.slotsCleared,
-        open: state.open,
-        chance: state.chance,
-      })),
-    );
-    const chances = staked ? sim.pot : sim.top;
+    // The trend is a sketch, so its earlier points take fewer draws than the headline number.
+    const payoutHistory = sparkline.map((at) => ({ at, netUsd: (at === asOf ? sim : simulateAt(at, 400)).share[myIndex] * potUsd - league.stakeUsd }));
     const odds = {
       kind: staked ? ("pot" as const) : ("week" as const),
       rows: replays
@@ -263,14 +251,16 @@ export const week = query({
           userId: replay.standing.userId,
           name: replay.standing.name,
           isMe: replay === mine,
-          chance: chances[i],
+          chance: sim.share[i],
+          shareUsd: sim.share[i] * potUsd,
           finishChance: sim.finish[i],
           projected: Math.round(atNow[i].projection.mean),
         }))
         .sort((a, b) => b.chance - a.chance || b.projected - a.projected || a.name.localeCompare(b.name)),
-      nobody: staked ? sim.nobody : 0,
-      potUsd: staked ? league.stakeUsd * replays.filter((replay) => replay.standing.paid).length : 0,
+      nobody: sim.rollover,
+      potUsd,
     };
+    const expectedShareUsd = sim.share[myIndex] * potUsd;
 
     return {
       asOf,
@@ -278,13 +268,15 @@ export const week = query({
       me: toRange(atNow[replays.indexOf(mine)].projection),
       matchup,
       payout: {
-        // Once settled the payout is a fact, not a projection; the leaderboards strip says "Won" or "Lost" instead.
-        eligible: staked && payoutNow.eligible && week.status !== "settled",
+        // Once settled the share is a fact in escrow, not a projection; the leaderboards strip says so instead.
+        eligible: staked && mine.standing.paid && week.status !== "settled",
         stakeUsd: league.stakeUsd,
-        expectedNetUsd: net(payoutNow.expectedCents, payoutNow.stakeCents),
-        lowNetUsd: net(payoutNow.lowCents, payoutNow.stakeCents),
-        highNetUsd: net(payoutNow.highCents, payoutNow.stakeCents),
-        potChance: sim.pot[replays.indexOf(mine)],
+        expectedNetUsd: expectedShareUsd - league.stakeUsd,
+        lowNetUsd: -league.stakeUsd,
+        highNetUsd: potUsd - league.stakeUsd,
+        potChance: sim.top[myIndex],
+        expectedShareUsd,
+        everyoneShareUsd: paidCount > 0 ? potUsd / paidCount : 0,
         history: payoutHistory,
       },
       odds,

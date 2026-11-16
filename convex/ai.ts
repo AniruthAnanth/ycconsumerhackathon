@@ -35,6 +35,9 @@ const REVIEW_MODEL = "gpt-6.1-sol";
 // the transcription endpoint first and the model only ever sees text.
 const TRANSCRIPTION_MODEL = "gpt-transcribe";
 
+// Voice Draft's live words while the player talks: a short segment back in well under a second.
+export const LIVE_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+
 // Built per call, not at module load: Convex evaluates modules at deploy time,
 // and a missing key must fail the one feature that needs it, not the deploy.
 function client(): OpenAI {
@@ -140,10 +143,10 @@ const AUDIO_EXTENSIONS: Record<string, string> = {
   "audio/ogg": "ogg",
 };
 
-export async function transcribe(audio: Blob): Promise<string> {
+export async function transcribe(audio: Blob, model: string = TRANSCRIPTION_MODEL): Promise<string> {
   const extension = AUDIO_EXTENSIONS[audio.type.split(";")[0]] ?? "m4a";
   const file = await toFile(audio, `voice-note.${extension}`, { type: audio.type });
-  const result = await client().audio.transcriptions.create({ file, model: TRANSCRIPTION_MODEL });
+  const result = await client().audio.transcriptions.create({ file, model });
   return withoutDashes(result.text.trim());
 }
 
@@ -164,14 +167,18 @@ Anything more the player mentioned goes in the "flex" slot, at most three flex t
 Rules:
 - First decide whether the player named at least one thing they mean to do this week. A greeting, small talk, a question, a mic test or a remark about their mood is not a plan: return an empty tasks list, whatever the notes say.
 - Use the player's own plans and wording wherever they gave them. When they said nothing for a slot, add an easy, specific task for it rather than leaving it empty.
-- Every task is one concrete thing the player proves on camera. Split "gym twice" into one body task and one flex task.
+- Every task is one concrete thing the player can prove. Split "gym twice" into one body task and one flex task.
 - title: at most six words, starts with a verb or names the activity, no day of the week unless the player gave one. Examples: "Leg day at the gym", "Finish OS problem set", "Call Mom".
 - points: 10 to 50 in steps of 5, by effort. 10 is trivial (take out the trash), 20 is light (call a friend), 30 is solid (a gym session, an hour of study), 40 is hard (a long run, a full problem set), 50 is a major push (a 10k race, finishing a big project).
-- place is set only when the task happens at a specific real-world place the player named and whose coordinates you know: a named park, landmark, campus building or company office. Then give its name as the player said it, with its latitude and longitude. "The YC office" is Y Combinator's San Francisco office at 580 20th Street in the Dogpatch, 37.7608, -122.3866.
-- proofType is how the task is proven:
-  - "survey_video" for an outcome task, where the result or the place is the proof: a cleaned room, folded laundry, a cooked meal, being at the gym, a check-in. The player films a 5-second clip panning the area. targetMinutes is null.
-  - "timelapse" for a duration task, defined by how long the player keeps at it: read for 30 minutes, study, meditate, practise an instrument, a run, a call. targetMinutes is how long it runs, 5 to 60: the length the player said when they gave one, else what the task honestly takes (5 for a quick call, 30 to 45 for a study session or a run, 60 at most).
-- Otherwise place is null. Generic places such as the gym, home, a café or "the library" are never "photo_location".
+- proofType is the easiest credible proof for the task, so proving it takes seconds:
+  - "photo_location" for a task done at a place: the gym, tennis, climbing, a class, the library, church, a run route, an office. A GPS check-in there is the proof.
+  - "timelapse" for a sit-still activity filmed where the player does it: reading, studying, practising an instrument, meditating, tidying a room. targetMinutes is 5 (at most 10, only when the player asked for a longer stretch).
+  - "photo" for a result shown in one moment: a cooked meal, meeting friends, a call with Mom, laundry done, a made bed.
+  - "screenshot" for a result that lives in an app: screen time, Duolingo, Strava, a grade, a step count.
+  - "before_after" only for a change to one place that a 5-minute timelapse can't show (deep-cleaning a whole room). Otherwise use a timelapse.
+  targetMinutes is null unless proofType is "timelapse".
+- place is set only on a photo_location task at a specific real-world place the player named and whose coordinates you know: a named park, landmark, campus building or company office. Then give its name as the player said it, with its latitude and longitude. A generic place such as "the gym" or "the library" gets place null, and the player pins it. "The YC office" is Y Combinator's San Francisco office at 580 20th Street in the Dogpatch, 37.7608, -122.3866.
+- Otherwise place is null.
 - Notes about past weeks are history, not this week's plan. Use them to set difficulty: when they show a slot was missed, make that slot's task easier and worth fewer points than the player's wording alone would suggest. Never add a task only because it appears in the notes; a slot the player did not mention gets a fresh easy task. Never mention the notes in a title.`;
 
 const DRAFT_SCHEMA = {
@@ -192,7 +199,7 @@ const DRAFT_SCHEMA = {
           },
           title: { type: "string" },
           points: { type: "integer" },
-          proofType: { type: "string", enum: ["survey_video", "timelapse"] },
+          proofType: { type: "string", enum: ["photo_location", "timelapse", "photo", "screenshot", "before_after"] },
           targetMinutes: { type: ["integer", "null"] },
           place: {
             anyOf: [
@@ -216,7 +223,7 @@ const DRAFT_SCHEMA = {
 };
 
 type DraftedTask = Omit<DraftTask, "place" | "proofType" | "targetMinutes"> & {
-  proofType: "survey_video" | "timelapse";
+  proofType: "photo_location" | "timelapse" | "photo" | "screenshot" | "before_after";
   place: DraftTask["place"] | null;
   targetMinutes: number | null;
 };
@@ -250,6 +257,38 @@ export async function draftLineup(input: {
   // 3 seconds instead of 5.5, just as well. Its one weakness is calling a thin plan ("I've got a
   // midterm Thursday") no plan at all, so an empty draft is asked again with reasoning before it
   // is believed.
+  let { tasks } = await ask("none");
+  if (tasks.length === 0) ({ tasks } = await ask("low"));
+  return tasks.map(({ place, targetMinutes, ...task }) => ({
+    ...task,
+    ...(place && { place }),
+    ...(targetMinutes !== null && { targetMinutes }),
+  }));
+}
+
+/**
+ * Applies a typed instruction ("swap chores for laundry", "make the gym task harder") to a
+ * drafted lineup. Same rules and shape as draftLineup; lineup.ts holds untouched tasks to what
+ * they were, so the model only has to get the changed ones right.
+ */
+export async function refineLineup(input: { previous: DraftTask[]; instruction: string }): Promise<DraftTask[]> {
+  const ask = (effort: "none" | "low") =>
+    askJson<{ tasks: DraftedTask[] }>({
+      name: "lineup_refine",
+      instructions: `${DRAFT_INSTRUCTIONS}
+
+You are refining a lineup the player already has. Apply their instruction and return the whole lineup. Copy every task the instruction does not touch exactly as given: same slot, title, points, proofType, place and targetMinutes. Give a changed or new task its points, proofType and targetMinutes by the rules above.`,
+      text: `Current lineup:
+${JSON.stringify(input.previous)}
+
+The player's instruction:
+"""
+${input.instruction}
+"""`,
+      schema: DRAFT_SCHEMA,
+      effort,
+    });
+  // As with the draft, no reasoning first; an empty answer is asked again with reasoning.
   let { tasks } = await ask("none");
   if (tasks.length === 0) ({ tasks } = await ask("low"));
   return tasks.map(({ place, targetMinutes, ...task }) => ({
@@ -302,12 +341,32 @@ How to call it:
 
 /** What the referee may flag. lib/verdict.ts and proofs.ts add their own rule flags beside these. */
 const JUDGEMENT_FLAGS = [
+  "different_place",
+  "no_change",
+  "not_a_screenshot",
+  "wrong_app",
+  "wrong_date",
   "scene_changed",
   "not_doing_task",
   "too_short",
   "static_frames",
   "looks_edited",
 ] as const;
+
+const BEFORE_AFTER_RUBRIC = [
+  "Proof type: before and after. The first image is BEFORE the task, the second is AFTER.",
+  'Pass only when both show the same place (the same room, furniture or fixtures; the angle may differ) and the after shows the real change the task asks for: a tidied room, folded laundry, an empty sink. Flag "different_place" when they are not the same place, and "no_change" when nothing the task asks for changed. Either one fails.',
+];
+
+function screenshotRubric(today: string): string[] {
+  return [
+    `Proof type: screenshot from the player's phone. Today is ${today}.`,
+    'Pass only when it is a real screenshot (not a photo of a screen) from an app that plausibly proves the task (Screen Time, Duolingo, Strava, a fitness app, a grade portal), the numbers shown meet the task, and any date shown falls this week. Flag "not_a_screenshot", "wrong_app" for an unrelated app, "wrong_date" for a date outside this week, and "looks_edited" only for clear signs of tampering on the numbers that matter (a digit in a different font or size, text pasted over the interface). Compression, odd rendering or a glitchy map label is not an edit. Any of these fails. If you cannot tell whether it was edited, give confidence between 0.3 and 0.6 so the league votes.',
+  ];
+}
+
+/** How a proof is judged: the task's type, or a survey video sent for a photo task. */
+export type ProofMode = "photo" | "before_after" | "timelapse" | "screenshot" | "survey";
 
 /**
  * A survey video: about 5 stills from a clip of about 5 seconds panning the place. proofs.ts has
@@ -397,7 +456,7 @@ const JUDGEMENT_SCHEMA = {
 export async function judgeProof(input: {
   taskTitle: string;
   slot: string;
-  /** The timelapse's stills, oldest first. */
+  /** The photo, the before then the after, or a timelapse's or clip's stills, oldest first. */
   imageUrls: string[];
   /** True when imageUrls are frames sampled from a short clip rather than one photo. */
   fromVideo: boolean;
@@ -406,11 +465,12 @@ export async function judgeProof(input: {
   placeName?: string;
   /** True for a group session's check-in, where the proof is the people who came. */
   groupSession?: boolean;
-  /** A survey video's stills rather than a timelapse's. */
-  survey: boolean;
+  mode: ProofMode;
   targetMinutes: number;
   durationSec?: number;
   frameTimes?: number[];
+  /** Today's date in words, for a screenshot's date check. */
+  today: string;
 }): Promise<Judgement | null> {
   const lines = [`Task: ${input.taskTitle}`, `Roster slot: ${input.slot}`];
   if (input.gesture) lines.push(`Required gesture: ${input.gesture}`);
@@ -421,11 +481,17 @@ export async function judgeProof(input: {
       "This is the check-in for a group session, a meet-up the league scheduled. GPS has already confirmed the phone is at the place, so the proof is the people who came. Pass when at least one person is in the shot, wherever it was taken, and fail a shot with nobody in it. Do not judge the scenery, or whether the activity in the title is visible.",
     );
   }
-  lines.push(
-    ...(input.survey
-      ? surveyRubric(input.imageUrls.length)
-      : timelapseRubric({ imageCount: input.imageUrls.length, ...input })),
-  );
+  if (input.fromVideo && input.mode === "photo") {
+    lines.push("These are stills from one clip of at most 10 seconds, in order. Judge them together as one proof.");
+  }
+  const rubric: Record<ProofMode, string[]> = {
+    photo: [],
+    before_after: BEFORE_AFTER_RUBRIC,
+    screenshot: screenshotRubric(input.today),
+    survey: surveyRubric(input.imageUrls.length),
+    timelapse: timelapseRubric({ imageCount: input.imageUrls.length, ...input }),
+  };
+  lines.push(...rubric[input.mode]);
   const ask = (model: string) =>
     askJson<Judgement>({
       name: "proof_judgement",

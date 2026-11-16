@@ -13,12 +13,16 @@ type Props = {
   onBack?: () => void;
   /** Makes the title a button with a caret; the tabs use it to switch league. */
   onTitlePress?: () => void;
+  /** Shows the settings gear on the left, opposite the chat icon; the tabs use it. */
+  onSettingsPress?: () => void;
   /** Shows the chat icon that opens the league agent. */
   onChatPress?: () => void;
   /** Shows the close cross on the right, for a sheet or modal; a pushed screen uses onBack instead. */
   onClose?: () => void;
   /** Replaces the chat icon. */
   right?: ReactNode;
+  /** Sits beside a switchable title in the same row; the tabs put the week pill here, so the header is one row. */
+  accessory?: ReactNode;
   /**
    * From useCollapsingHeader(): floats the bar over the scroll content, clear at rest, and fades
    * the title and a glass background in once the screen's <LargeTitle> scrolls away.
@@ -28,9 +32,10 @@ type Props = {
 
 /**
  * The bar at the top of every screen and sheet: 44 pt tall, centred title, back
- * chevron on the left for a pushed screen, close cross on the right for a sheet.
+ * chevron on the left for a pushed screen (the tabs put the settings gear there), close cross
+ * on the right for a sheet.
  */
-export function Header({ title, onBack, onTitlePress, onChatPress, onClose, right, scrollY }: Props) {
+export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, accessory, scrollY }: Props) {
   const bar = (
     <View style={[styles.bar, scrollY && styles.barOverContent]}>
       <View style={styles.side}>
@@ -38,10 +43,15 @@ export function Header({ title, onBack, onTitlePress, onChatPress, onClose, righ
           <Pressable onPress={onBack} style={styles.action} accessibilityRole="button" accessibilityLabel="Back">
             <Icon name="chevron-back" size={24} />
           </Pressable>
+        ) : onSettingsPress ? (
+          <Pressable onPress={onSettingsPress} style={styles.action} accessibilityRole="button" accessibilityLabel="Settings" testID="header-settings">
+            <Icon name="settings-outline" size={22} />
+          </Pressable>
         ) : null}
       </View>
       {onTitlePress ? (
-        <Pressable style={styles.center} onPress={onTitlePress} accessibilityRole="button" accessibilityLabel={`${title}, switch league`}>
+        <View style={styles.center}>
+        <Pressable style={styles.titleButton} onPress={onTitlePress} accessibilityRole="button" accessibilityLabel={`${title}, switch league`}>
           {scrollY ? (
             <CompactTitle scrollY={scrollY} style={styles.title}>
               {title}
@@ -53,6 +63,8 @@ export function Header({ title, onBack, onTitlePress, onChatPress, onClose, righ
           )}
           <Icon name="caret-down" size={12} />
         </Pressable>
+        {accessory}
+        </View>
       ) : (
         // A plain heading rather than a disabled button, which a screen reader would announce as dimmed.
         <View style={styles.center}>
@@ -103,5 +115,6 @@ const styles = StyleSheet.create({
   action: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center" },
   actionEnd: { alignItems: "flex-end" },
   center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
+  titleButton: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: layout.rowMin },
   title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },
 });

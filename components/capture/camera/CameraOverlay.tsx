@@ -23,11 +23,6 @@ export function CameraOverlay({ target, onClose }: Props) {
           <Text style={styles.title} numberOfLines={1}>
             {target.title}
           </Text>
-          {target.place ? (
-            <Text style={styles.place} numberOfLines={1}>
-              @ {target.place.name}
-            </Text>
-          ) : null}
         </View>
         <Text style={styles.points}>{target.points} PTS</Text>
       </View>
@@ -50,7 +45,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   titles: { flex: 1 },
   title: { color: colors.onAccent, fontSize: 17, fontFamily: fontFamily.bold },
-  place: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: 13, opacity: 0.85 },
   points: { color: colors.onAccent, fontSize: 15, fontFamily: fontFamily.bold },
   hint: { color: colors.onAccent, fontFamily: fontFamily.regular, fontSize: font.meta, opacity: 0.85 },
   gesture: { backgroundColor: "rgba(0,0,0,0.6)", paddingVertical: spacing.md, alignItems: "center" },
