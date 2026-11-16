@@ -72,7 +72,8 @@ export function VoiceDraftScreen() {
         onClose={state.phase === "locking" ? undefined : leave}
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        {/* Dragging the page puts the keyboard away, and the content insets itself so the typed box and Draft from text can scroll above the keyboard. */}
+        {/* Dragging the page puts the keyboard away. The KeyboardAvoidingView alone lifts the page above the keyboard:
+            automaticallyAdjustKeyboardInsets on top of it counted the keyboard twice and scrolled the typed box under the header (ANI-52). */}
         <Animated.ScrollView
           ref={scroll}
           style={styles.flex}
@@ -80,7 +81,6 @@ export function VoiceDraftScreen() {
           scrollIndicatorInsets={{ top: contentInsetTop }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets
           onScroll={onScroll}
           scrollEventThrottle={16}
         >

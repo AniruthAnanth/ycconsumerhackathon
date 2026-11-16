@@ -61,7 +61,7 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
               {title}
             </Text>
           )}
-          <Icon name="caret-down" size={12} />
+          <Icon name="chevron-down" size={18} color={colors.accent} />
         </Pressable>
         {accessory}
         </View>

@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { Easing, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { CoachTarget } from "@/components/coach";
 import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
 import { SunnyButton } from "@/components/social/sunny/SunnyButton";
@@ -16,10 +17,42 @@ import { systemTabBar } from "@/lib/native/nativeTabs";
 import { colors, easingCurve } from "@/theme";
 
 const TABS = [
-  { key: "index", label: "Roster", href: "/", icon: "home-outline", sf: "person.crop.rectangle.stack", sfSelected: "person.crop.rectangle.stack.fill", testID: "tab-roster" },
-  { key: "matchup", label: "Matchup", href: "/matchup", icon: "flash-outline", sf: "person.2", sfSelected: "person.2.fill", testID: "tab-matchup" },
-  { key: "feed", label: "Feed", href: "/feed", icon: "image-outline", sf: "photo.on.rectangle", sfSelected: "photo.fill.on.rectangle.fill", testID: "tab-feed" },
-  { key: "league", label: "League", href: "/league", icon: "trophy-outline", sf: "trophy", sfSelected: "trophy.fill", testID: "tab-league" },
+  {
+    key: "index",
+    label: "Roster",
+    href: "/",
+    icon: "home-outline",
+    sf: "person.crop.rectangle.stack",
+    sfSelected: "person.crop.rectangle.stack.fill",
+    testID: "tab-roster",
+  },
+  {
+    key: "matchup",
+    label: "Matchup",
+    href: "/matchup",
+    icon: "flash-outline",
+    sf: "person.2",
+    sfSelected: "person.2.fill",
+    testID: "tab-matchup",
+  },
+  {
+    key: "feed",
+    label: "Feed",
+    href: "/feed",
+    icon: "image-outline",
+    sf: "photo.on.rectangle",
+    sfSelected: "photo.fill.on.rectangle.fill",
+    testID: "tab-feed",
+  },
+  {
+    key: "league",
+    label: "League",
+    href: "/league",
+    icon: "trophy-outline",
+    sf: "trophy",
+    sfSelected: "trophy.fill",
+    testID: "tab-league",
+  },
 ] as const;
 
 /**
@@ -34,13 +67,15 @@ const TABS = [
  */
 export default function TabsLayout() {
   const router = useRouter();
-  const { me, membership, league, weekNumber, showPreviousWeek, showNextWeek } = useCurrentLeague();
+  const { me, membership, league, weekNumber, showPreviousWeek, showNextWeek } =
+    useCurrentLeague();
   // Segments are ["(tabs)"] on Roster and ["(tabs)", "matchup"] on the others. While a sheet
   // such as the league switcher sits over the tabs, the segments name the sheet instead, so the
   // last tab is kept rather than snapping the underline back to Roster behind it.
   const segments = useSegments() as string[];
   const lastTab = useRef<(typeof TABS)[number]>(TABS[0]);
-  if (segments[0] === "(tabs)") lastTab.current = TABS.find((tab) => tab.key === segments[1]) ?? TABS[0];
+  if (segments[0] === "(tabs)")
+    lastTab.current = TABS.find((tab) => tab.key === segments[1]) ?? TABS[0];
   const active = lastTab.current;
   usePaidHaptic(membership);
   const reduceMotion = useReduceMotion();
@@ -56,35 +91,43 @@ export default function TabsLayout() {
   // a player out of a week they are already playing.
   const playing = me !== null && me.leagues.length > 0;
   // A new player meets "How Lineup works" first; its Skip and its last card lead to sign-up.
-  if (!playing) return <Redirect href={me?.onboarded ? "/join" : "/how-it-works"} />;
+  if (!playing)
+    return <Redirect href={me?.onboarded ? "/join" : "/how-it-works"} />;
 
   return (
     <View style={styles.page}>
       <SafeAreaView edges={["top"]}>
-        <Header
-          title={membership?.name ?? "Lineup"}
-          onTitlePress={() => router.push("/league-switcher")}
-          onSettingsPress={() => router.push("/settings")}
-          right={<SunnyButton />}
-          // One header row: the week sits beside the league name instead of a second bar under it.
-          // The Feed is not week-scoped, so it has no week.
-          accessory={
-            active.key === "feed" ? undefined : (
-              <WeekSelector
-                compact
-                label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
-                arrows={browsable}
-                onPrev={withSelectHaptic(showPreviousWeek)}
-                onNext={withSelectHaptic(showNextWeek)}
-                onLongPress={() => router.push("/demo")}
-              />
-            )
-          }
-        />
+        {/* Roster's first-run tour starts here: the league name is the switcher. */}
+        <CoachTarget id="switcher">
+          <Header
+            title={membership?.name ?? "Lineup"}
+            onTitlePress={() => router.push("/league-switcher")}
+            onSettingsPress={() => router.push("/settings")}
+            right={<SunnyButton />}
+            // One header row: the week sits beside the league name instead of a second bar under it.
+            // The Feed is not week-scoped, so it has no week.
+            accessory={
+              active.key === "feed" ? undefined : (
+                <WeekSelector
+                  compact
+                  label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
+                  arrows={browsable}
+                  onPrev={withSelectHaptic(showPreviousWeek)}
+                  onNext={withSelectHaptic(showNextWeek)}
+                  onLongPress={() => router.push("/demo")}
+                />
+              )
+            }
+          />
+        </CoachTarget>
       </SafeAreaView>
       {systemTabBar ? (
         // The system bar: its own liquid glass and selection pill, accent tint only, and it shrinks while a tab scrolls down.
-        <NativeTabs tintColor={colors.accent} minimizeBehavior="onScrollDown" screenListeners={{ tabPress: () => haptics.select() }}>
+        <NativeTabs
+          tintColor={colors.accent}
+          minimizeBehavior="onScrollDown"
+          screenListeners={{ tabPress: () => haptics.select() }}
+        >
           {TABS.map((tab) => (
             <NativeTabs.Trigger
               key={tab.key}
@@ -94,7 +137,9 @@ export default function TabsLayout() {
               // Paper edge to edge, under the bar and the home indicator too, so a minimized bar leaves no grey gap.
               contentStyle={{ backgroundColor: colors.background }}
             >
-              <NativeTabs.Trigger.Icon sf={{ default: tab.sf, selected: tab.sfSelected }} />
+              <NativeTabs.Trigger.Icon
+                sf={{ default: tab.sf, selected: tab.sfSelected }}
+              />
               <NativeTabs.Trigger.Label>{tab.label}</NativeTabs.Trigger.Label>
             </NativeTabs.Trigger>
           ))}
@@ -109,7 +154,13 @@ export default function TabsLayout() {
               sceneStyle: styles.page,
               // A short cross-fade between tabs; Reduce Motion switches instantly.
               animation: reduceMotion ? "none" : "fade",
-              transitionSpec: { animation: "timing", config: { duration: FADE_MS, easing: Easing.bezier(...easingCurve.standard) } },
+              transitionSpec: {
+                animation: "timing",
+                config: {
+                  duration: FADE_MS,
+                  easing: Easing.bezier(...easingCurve.standard),
+                },
+              },
             }}
           >
             {TABS.map((tab) => (

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { CoachTarget } from "@/components/coach";
 import { PositionPill, RowDivider, Score } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
@@ -61,7 +62,9 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
       </View>
       {veto && vetoes && showsVeto(side, veto) ? (
         <View style={mirrored ? styles.chipRight : styles.chipLeft}>
-          <VetoChip veto={veto} leagueId={vetoes.leagueId} />
+          <CoachTarget id="veto">
+            <VetoChip veto={veto} leagueId={vetoes.leagueId} />
+          </CoachTarget>
         </View>
       ) : null}
     </View>

@@ -7,7 +7,7 @@ import { colors, fontFamily, radius, spacing, tabular, type } from "@/theme";
 type Side = { name: string; chance: number };
 
 /** The two colours of the head-to-head: our green for you, a neutral for the opponent. */
-export const ODDS_COLORS = { me: colors.green, them: colors.faint } as const;
+export const ODDS_COLORS = { me: colors.green, them: colors.textMuted } as const;
 
 /**
  * The head-to-head as one two-sided market row: your avatar and chance, a split bar, then the
@@ -17,7 +17,8 @@ export const ODDS_COLORS = { me: colors.green, them: colors.faint } as const;
  */
 export function MatchupOdds({ me, them, compact = false }: { me: Side; them: Side; compact?: boolean }) {
   const { mineShare, minePercent, theirsPercent } = winBarSplit(me.chance, them.chance);
-  const theirFirstName = them.name.split(" ")[0];
+  // A sliver under 2% draws as a stray glyph on the rounded end, so the bar shows it as all theirs (the number still says 1%).
+  const shown = mineShare < 0.02 ? 0 : mineShare > 0.98 ? 1 : mineShare;
   return (
     <View
       style={styles.wrap}
@@ -32,11 +33,11 @@ export function MatchupOdds({ me, them, compact = false }: { me: Side; them: Sid
           <Text style={[styles.figure, { color: ODDS_COLORS.me }]}>{`You ${minePercent}%`}</Text>
         </View>
         <View style={styles.bar}>
-          {mineShare > 0 ? <View style={{ flex: mineShare, backgroundColor: ODDS_COLORS.me }} /> : null}
-          {mineShare < 1 ? <View style={{ flex: 1 - mineShare, backgroundColor: ODDS_COLORS.them }} /> : null}
+          {shown > 0 ? <View style={{ flex: shown, backgroundColor: ODDS_COLORS.me }} /> : null}
+          {shown < 1 ? <View style={{ flex: 1 - shown, backgroundColor: ODDS_COLORS.them }} /> : null}
         </View>
         <View style={[styles.side, styles.sideEnd]}>
-          <Text style={[styles.figure, styles.theirs]} numberOfLines={1}>{`${theirsPercent}% ${theirFirstName}`}</Text>
+          <Text style={[styles.figure, styles.theirs]} numberOfLines={1} ellipsizeMode="tail">{`${theirsPercent}% ${them.name}`}</Text>
           <Avatar name={them.name} size={24} />
         </View>
       </View>
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
   question: { ...type.subheading, color: colors.text },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  side: { flexDirection: "row", alignItems: "center", gap: spacing.xs, maxWidth: "38%" },
+  side: { flexDirection: "row", alignItems: "center", gap: spacing.xs, maxWidth: "42%", flexShrink: 1 },
   sideEnd: { justifyContent: "flex-end" },
   figure: { fontFamily: fontFamily.extraBold, fontSize: type.label.fontSize, ...tabular },
   theirs: { color: colors.textMuted, flexShrink: 1 },

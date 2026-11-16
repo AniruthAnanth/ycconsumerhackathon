@@ -3,8 +3,6 @@
  * label. Each one calls the same backend function a real week would reach on its own schedule,
  * so what the audience sees is the product, only on demand.
  */
-import { useAuthActions } from "@convex-dev/auth/react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { useRef } from "react";
@@ -12,6 +10,7 @@ import { ScrollView } from "react-native";
 
 import { capture } from "@/components/capture/backend";
 import { resetCoachMarks } from "@/components/coach";
+import { useResetAndRestart } from "@/components/shell/ResetAndRestart";
 import { Header, Screen, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
@@ -34,7 +33,7 @@ const PHONE_GPS: PhoneGps = {
 
 export function DemoControls() {
   const router = useRouter();
-  const { signOut } = useAuthActions();
+  const resetAndRestart = useResetAndRestart();
   const { leagueId } = useCurrentLeague();
   const me = useQuery(backend.users.me);
   const players = useQuery(capture.seed.players);
@@ -123,18 +122,8 @@ export function DemoControls() {
             router.push({ pathname: "/how-it-works", params: { source: "replay" } });
           }}
         />
-        {/* A brand-new player on this phone: signing out drops the anonymous account, AuthGate signs in a fresh
-            one, and the tabs send a player with no name to the How Lineup works intro. Local storage goes too,
-            so every tip shows again. The old account stays in its leagues. */}
-        <ActionRow
-          label="Reset my account (demo)"
-          run={async () => {
-            await signOut();
-            await AsyncStorage.clear();
-            if (router.canDismiss()) router.dismissAll();
-            router.replace("/how-it-works");
-          }}
-        />
+        {/* A brand-new player on this phone: the account and its data, local storage and the session go, then the opening. */}
+        <ActionRow label="Reset my account (demo)" run={resetAndRestart} />
 
         <SectionLabel left="DEVELOPMENT" />
         <FlagRow label="Sample media" value={flags.sampleMedia} onChange={(on) => setDevFlag("sampleMedia", on)} />
