@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg from "react-native-svg";
 
-import { Icon } from "@/components/ui";
-import { BORDER, colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { cardStyle, Icon } from "@/components/ui";
+import { colors, fontFamily, hairline, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance, formatNet, sparkPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
@@ -89,14 +89,11 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     marginHorizontal: SCREEN_MARGIN,
     marginTop: spacing.lg,
     padding: spacing.lg,
     gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
   },
   money: { flexDirection: "row", gap: spacing.lg },
   cell: { flex: 1, gap: 2 },

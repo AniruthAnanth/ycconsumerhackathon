@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
 
-import { BORDER, colors, fontFamily, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { cardStyle } from "@/components/ui";
+import { colors, fontFamily, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { areaPath, deltaPoints, formatChance, stepPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
@@ -94,14 +95,11 @@ export function WinProbChart({ matchup }: { matchup: NonNullable<Market["matchup
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     marginHorizontal: SCREEN_MARGIN,
     marginTop: spacing.lg,
     padding: spacing.lg,
     gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
   },
   head: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   grow: { flex: 1, gap: 2 },

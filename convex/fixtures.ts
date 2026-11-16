@@ -161,8 +161,8 @@ export const remove = internalMutation({
 
 // ---- Deleting, children before the row they hang off ----------------------------------------------
 
-/** One run's allowance of deletions, shared by every step. */
-type Sweep = { ctx: MutationCtx; left: number };
+/** One run's allowance of deletions, shared by every step. users.deleteAccount runs removePlayer with its own. */
+export type Sweep = { ctx: MutationCtx; left: number };
 
 /**
  * Deletes one page of rows. True when all of them went and the page was not full, which is when
@@ -395,7 +395,7 @@ async function leaveLeague(sweep: Sweep, membership: Doc<"memberships">): Promis
 }
 
 /** A player, their week-by-week rows, their sign-in, and what they left in leagues that stay. */
-async function removePlayer(sweep: Sweep, player: Doc<"users">): Promise<boolean> {
+export async function removePlayer(sweep: Sweep, player: Doc<"users">): Promise<boolean> {
   const { db } = sweep.ctx;
   const userId = player._id;
   const removeSession = async (session: Doc<"authSessions">) => {

@@ -6,9 +6,10 @@ import Animated from "react-native-reanimated";
 import { confirmAction } from "@/components/social/notify";
 import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
 import { Artwork } from "@/components/art";
+import { SunnyBreathe } from "@/components/motion";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { hasUnsavedDraft } from "./draftState";
@@ -84,9 +85,9 @@ export function VoiceDraftScreen() {
           scrollEventThrottle={16}
         >
           <LargeTitle title="Voice Draft" scrollY={scrollY} />
-          <View style={styles.sunny}>
+          <SunnyBreathe style={styles.sunny}>
             <Artwork name="sunny" size={80} />
-          </View>
+          </SunnyBreathe>
           {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
           {state.manual ? <Text style={styles.weekNote}>Pick one task for each slot. Tap a title to change it.</Text> : null}
           {showsLineup ? null : (
@@ -179,15 +180,8 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
-  // Pinned over the scrolling lineup: the hairline and canvas fill mark where the list ends instead of cutting a row in half.
-  footer: {
-    paddingHorizontal: SCREEN_MARGIN,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
-  },
+  // A paper bar with a hairline, so the lineup visibly scrolls under it instead of being sliced.
+  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.background, borderTopWidth: hairline, borderTopColor: colors.divider },
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
   redo: { ...type.label, color: colors.accent },

@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Artwork } from "@/components/art";
 import { ShareChallenge } from "@/components/invite";
+import { SunnyHop } from "@/components/motion";
+import { SunnyVerdictLine } from "@/components/social/sunny/SunnyVerdictLine";
 import { Button, Divider } from "@/components/ui";
 import { BORDER, colors, font, fontFamily, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
 
@@ -85,7 +87,12 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
         </FadeIn>
       ) : null}
       <FadeIn delay={POINTS_DELAY_MS}>
-        {verdict.pass ? <Artwork name="sunny" size={104} style={styles.celebration} /> : null}
+        {verdict.pass ? (
+          <SunnyHop size={104} style={styles.celebration}>
+            <Artwork name="sunny" size={104} />
+          </SunnyHop>
+        ) : null}
+        {verdict.pass ? <SunnyVerdictLine points={verdict.points} /> : null}
         <Text style={[styles.reason, verdict.pass && styles.reasonPass]}>{verdict.reason}</Text>
         {verdict.pass && verdict.caption ? (
           <Text style={styles.caption}>

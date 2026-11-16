@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { AccessibilityInfo } from "react-native";
 
+import { useAppPrefs } from "@/lib/appPrefs";
+
 /**
- * True when the player turned on Reduce Motion. Every component in components/motion checks it
- * and lands on its final state at once instead of animating.
+ * True when the player turned on Reduce Motion, in the system or in Settings' App section. Every
+ * component in components/motion checks it and lands on its final state at once instead of
+ * animating.
  */
 export function useReduceMotion(): boolean {
   const [reduce, setReduce] = useState(false);
+  const { reduceMotion } = useAppPrefs();
   useEffect(() => {
     let live = true;
     AccessibilityInfo.isReduceMotionEnabled()
@@ -18,5 +22,5 @@ export function useReduceMotion(): boolean {
       subscription.remove();
     };
   }, []);
-  return reduce;
+  return reduce || reduceMotion === "on";
 }

@@ -35,7 +35,19 @@ function useBarBottom() {
 export function useTabBarInset() {
   const glassBottom = useBarBottom();
   const safeBottom = useSafeAreaInsets().bottom;
-  return systemTabBar ? safeBottom + layout.systemTabBar : glassBottom + layout.tabBar + spacing.md;
+  // iOS already insets a native tab's first scroll view past the system bar (automatic content
+  // insets), so adding the bar height again left about 60 pt of empty space: only the margin goes on top.
+  return systemTabBar ? spacing.md : glassBottom + layout.tabBar + spacing.md;
+}
+
+/**
+ * How far content pinned to a tab's bottom edge (outside any scroll view, so iOS doesn't inset it)
+ * must sit to clear the tab bar: the full system bar over the home indicator in the iOS build.
+ */
+export function usePinnedTabBarInset() {
+  const scrollInset = useTabBarInset();
+  const safeBottom = useSafeAreaInsets().bottom;
+  return systemTabBar ? safeBottom + layout.systemTabBar : scrollInset;
 }
 
 /**

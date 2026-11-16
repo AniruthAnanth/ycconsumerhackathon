@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { BORDER, colors, font, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { SunnyAvatar } from "../sunny/SunnyAvatar";
 import { parseReply, type SunnyAction } from "../sunny/sunnyLogic";
@@ -30,7 +30,7 @@ export function MessageBubble({
   if (!mine) {
     return (
       <View style={[styles.row, styles.agentRow]}>
-        <SunnyAvatar size={28} />
+        <SunnyAvatar size={32} />
         <View style={styles.agentBody}>
           {bubble}
           {action ? (
@@ -61,14 +61,15 @@ export function MessageBubble({
 const styles = StyleSheet.create({
   row: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.xs },
   mineRow: { alignItems: "flex-end" },
-  agentRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm },
+  // Sunny sits level with the top of the bubble, beside every reply.
+  agentRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   agentBody: { flex: 1, alignItems: "flex-start", gap: spacing.xs },
   action: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.accentTint },
   actionText: { color: colors.accent, fontFamily: fontFamily.semiBold, fontSize: font.meta },
   bubble: { maxWidth: "80%", paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.control },
   mine: { backgroundColor: colors.accent },
   // Sunny's replies sit on the card surface with the one outline, so they read as bubbles on the canvas.
-  agent: { backgroundColor: colors.surface, borderWidth: BORDER, borderColor: colors.divider },
+  agent: { backgroundColor: colors.accentTint },
   text: { color: colors.text, fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: type.body.lineHeight },
   mineText: { color: colors.onAccent },
   failed: { color: colors.danger, fontSize: font.meta, fontFamily: fontFamily.semiBold, marginTop: spacing.xs },

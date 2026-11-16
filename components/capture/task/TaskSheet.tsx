@@ -33,7 +33,10 @@ export function TaskSheet({ taskId }: { taskId: string }) {
   const task = roster ? findTask(roster.rows, taskId) : undefined;
   // Opened from a link or after a reload there is no screen underneath to go back to.
   const close = () => leaveScreen("/(tabs)");
-  const place = task ? taskPlaceLine(task) : undefined;
+  const provable = task !== undefined && canSubmitProof(task.status);
+  // An open task's how-to line names its proof type, target and place, so the row above it keeps only the due day.
+  const meta = task ? (provable ? task.dueLabel : taskStatusLine(task)) : undefined;
+  const place = task && !provable ? taskPlaceLine(task) : undefined;
 
   return (
     <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
@@ -46,12 +49,12 @@ export function TaskSheet({ taskId }: { taskId: string }) {
               <Text style={styles.title} numberOfLines={3}>
                 {task.title}
               </Text>
-              <Text style={styles.meta}>{taskStatusLine(task)}</Text>
+              {meta ? <Text style={styles.meta}>{meta}</Text> : null}
               {place ? <Text style={styles.meta}>{place}</Text> : null}
             </View>
             <Text style={styles.points}>{`${formatScore(task.score ?? task.points)} pts`}</Text>
           </View>
-          {canSubmitProof(task.status) ? (
+          {provable ? (
             <>
               <Text style={styles.howTo} testID="task-how-to-prove">
                 {howToProve(toProofTarget(task))}
