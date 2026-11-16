@@ -12,6 +12,7 @@ import { useMyUserId } from "@/components/social/useMyUserId";
 import { Header, Screen } from "@/components/ui";
 import { SUNNY, type SunnyAction } from "@/components/social/sunny/sunnyLogic";
 import { markSunnySeen, useSunny } from "@/components/social/sunny/useSunny";
+import { useTextSunny } from "@/components/keiki/useTextSunny";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
@@ -71,6 +72,7 @@ function PrivateChat() {
   const list = useRef<FlatList>(null);
   const router = useRouter();
   const { brief } = useSunny();
+  const textSunny = useTextSunny();
   const { ask: asked, draft: prefill } = useLocalSearchParams<{ ask?: string; draft?: string }>();
 
   const ask = (text: string) => chat({ leagueId: leagueId!, text });
@@ -131,6 +133,13 @@ function PrivateChat() {
             keyboardShouldPersistTaps="handled"
           />
           {/* Suggestions stay in one row above the composer, like iMessage, for the whole conversation. */}
+          {state.pending || !textSunny.ready ? null : (
+            <View style={styles.textSunny}>
+              <PressScale accessibilityRole="button" accessibilityLabel={`Text Sunny instead, at ${textSunny.number}`} onPress={() => void textSunny.open()} style={styles.chip}>
+                <Text style={styles.chipText}>Text Sunny instead</Text>
+              </PressScale>
+            </View>
+          )}
           {state.pending ? null : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
               {chips.map((chip) => (
@@ -174,5 +183,6 @@ const styles = StyleSheet.create({
   chipRow: { flexGrow: 0, flexShrink: 0 },
   chips: { alignItems: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
   chip: { height: CHIP_HEIGHT, alignSelf: "center", justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.lime },
+  textSunny: { flexDirection: "row", paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.sm },
   chipText: { color: colors.accent, fontFamily: fontFamily.bold, fontSize: font.meta },
 });

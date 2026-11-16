@@ -17,12 +17,9 @@ export function MatchupBody({
   matchup,
   belowHero,
   vetoes,
-  bonus = true,
 }: {
   matchup: Matchup;
   belowHero?: ReactNode;
-  /** The Matchup tab moves the bonus line into its More section; a versus keeps it under the rows. */
-  bonus?: boolean;
   vetoes?: { byTask: Map<Id<"tasks">, TaskVeto>; leagueId: Id<"leagues"> };
 }) {
   return (
@@ -41,7 +38,8 @@ export function MatchupBody({
           </Entrance>
         ))}
       </CoachTarget>
-      {bonus ? <BonusRow matchup={matchup} /> : null}
+      {/* Always under the rows: without it the totals in the hero don't add up to what is on screen. */}
+      <BonusRow matchup={matchup} />
     </>
   );
 }
