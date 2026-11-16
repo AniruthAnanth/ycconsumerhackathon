@@ -128,20 +128,27 @@ function GlassBackground({ scrollY }: { scrollY: SharedValue<number> }) {
   );
 }
 
-// For the same reason the blur's intensity, not its opacity, follows the scroll; the paper fill
-// over it is a plain view, so it fades.
+// On iOS the blur's intensity follows the scroll, for the same reason. Elsewhere the whole layer
+// fades instead, because web's blur keeps a saturate filter that tints the bar even at zero.
+const fadesByIntensity = Platform.OS === "ios";
+
 function BlurBackground({ scrollY }: { scrollY: SharedValue<number> }) {
   const animatedProps = useAnimatedProps(() => ({
     intensity: interpolate(scrollY.value, [FADE_START, LARGE_TITLE_HEIGHT], [0, BLUR_INTENSITY], Extrapolation.CLAMP),
   }));
-  const fill = useAnimatedStyle(() => ({
+  const fade = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [FADE_START, LARGE_TITLE_HEIGHT], [0, 1], Extrapolation.CLAMP),
   }));
   return (
-    <>
-      <AnimatedBlurView style={StyleSheet.absoluteFill} pointerEvents="none" tint="light" animatedProps={animatedProps} />
-      <Animated.View style={[StyleSheet.absoluteFill, styles.fill, fill]} pointerEvents="none" />
-    </>
+    <Animated.View style={[StyleSheet.absoluteFill, !fadesByIntensity && fade]} pointerEvents="none">
+      <AnimatedBlurView
+        style={StyleSheet.absoluteFill}
+        tint="light"
+        intensity={fadesByIntensity ? 0 : BLUR_INTENSITY}
+        animatedProps={fadesByIntensity ? animatedProps : undefined}
+      />
+      <Animated.View style={[StyleSheet.absoluteFill, styles.fill, fadesByIntensity && fade]} />
+    </Animated.View>
   );
 }
 
