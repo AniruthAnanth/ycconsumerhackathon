@@ -6,6 +6,8 @@ import { StyleSheet, View } from "react-native";
 import { SeasonLink } from "@/components/league/SeasonLink";
 import { LeaderboardsStrip } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
+import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
+import { MyRank } from "@/components/leagueTab/MyRank";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
@@ -23,11 +25,14 @@ import { SCREEN_MARGIN, spacing } from "@/theme";
 type Props = {
   /** Replaces the pot card. Mount point for <EscrowFlow/> (YCCO-7); defaults to PotSummary. */
   escrow?: (pot: Pot, now: number) => ReactNode;
-  /** Rendered directly above the standings table. Mount point for the markets odds (YCCO-30); nothing by default. */
+  /** Rendered inside League info. Mount point for the markets odds (YCCO-30); nothing by default. */
   aboveStandings?: ReactNode;
 };
 
-/** LEAGUE: the pot, the standings table, payouts once settled, and the invite code. */
+/**
+ * LEAGUE answers "where do I stand and what's the pot?": at most one banner, the pot, the standings
+ * and payouts once settled. Everything else sits behind the League info row.
+ */
 export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   const router = useRouter();
   const { me, leagueId, membership } = useCurrentLeague();
@@ -50,11 +55,8 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   return (
     <Screen edges={[]} scroll bottomInset={bottomInset}>
       {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
+      <MyRank rows={seasonTable} viewerId={me._id} />
       <Entrance>{escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />}</Entrance>
-      <Entrance index={1}>
-        <LeaderboardsStrip leagueId={leagueId} />
-      </Entrance>
-      {aboveStandings}
       <StandingsTable
         rows={seasonTable}
         records={records}
@@ -62,16 +64,20 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
         viewerId={me._id}
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
-      <SeasonLink leagueId={leagueId} />
       {pot.payouts?.length ? <PayoutRows payouts={pot.payouts} /> : null}
-      <NotificationSettings />
-      <LeagueDetails league={league} pot={pot} now={now} />
-      <View style={styles.actions}>
-        <OutlinedPillButton
-          label="Add friends from contacts"
-          onPress={() => router.push({ pathname: "/contacts", params: { leagueId } })}
-        />
-      </View>
+      <LeagueInfo hint={league.inviteCode}>
+        <LeagueDetails league={league} pot={pot} now={now} />
+        <View style={styles.actions}>
+          <OutlinedPillButton
+            label="Add friends from contacts"
+            onPress={() => router.push({ pathname: "/contacts", params: { leagueId } })}
+          />
+        </View>
+        <SeasonLink leagueId={leagueId} />
+        <NotificationSettings />
+        {aboveStandings}
+        <LeaderboardsStrip leagueId={leagueId} />
+      </LeagueInfo>
     </Screen>
   );
 }
