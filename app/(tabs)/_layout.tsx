@@ -6,6 +6,7 @@ import { Easing, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoachTarget } from "@/components/coach";
+import { PayBanner } from "@/components/money/PayBanner";
 import { PayButton } from "@/components/money/PayButton";
 import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
@@ -107,6 +108,7 @@ export default function TabsLayout() {
             right={<SunnyButton />}
           />
         </CoachTarget>
+        <PayBanner />
         {/* The week stepper is its own small row, so the league name keeps the header's width and centre line. */}
         {stepper ? (
           <View style={styles.weekRow}>
