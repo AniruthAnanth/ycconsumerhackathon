@@ -32,7 +32,7 @@ export default function MatchupScreen() {
   if (matchup === null)
     return (
       // One centred block, so the Invite button sits under the explanation instead of below the fold.
-      <View style={styles.empty}>
+      <View style={[styles.empty, { paddingBottom: bottomInset }]}>
         <Text style={styles.emptyTitle}>No matchup yet</Text>
         <Text style={styles.emptyText}>You'll face a friend each week once someone joins your league.</Text>
         <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
@@ -49,8 +49,8 @@ export default function MatchupScreen() {
       />
       <ChallengeButton />
       <View style={styles.invite}>
-          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
-        </View>
+        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+      </View>
     </ScrollView>
   );
 }

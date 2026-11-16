@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Avatar, PositionPill, RowDivider, Score, SLOT_NAME, type Slot } from "@/components/ui";
+import { PositionPill, RowDivider, Score, SLOT_NAME, type Slot } from "@/components/ui";
 import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, TASK_TEXT_INSET } from "@/theme";
 
 /**
@@ -12,7 +12,6 @@ export function EmptySlotRow({ slot, onPress }: { slot: Slot; onPress?: () => vo
   const columns = (
     <>
       <PositionPill slot={slot} />
-      <Avatar slot={slot} />
       <Text style={styles.empty}>Empty</Text>
       <Score value={null} />
       <RowDivider inset={TASK_TEXT_INSET} />

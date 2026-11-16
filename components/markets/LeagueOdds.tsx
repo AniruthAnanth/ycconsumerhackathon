@@ -12,7 +12,8 @@ export function LeagueOdds() {
   if (!market) return null;
   return (
     <Entrance index={1}>
-      {market.odds.rows.some((row) => row.projected > 0) ? <MarketsStrip market={market} /> : null}
+      {/* A one-member league has nothing to forecast: its only player is always the favourite. */}
+      {market.odds.rows.length >= 2 && market.odds.rows.some((row) => row.projected > 0) ? <MarketsStrip market={market} /> : null}
       <OddsList odds={market.odds} />
     </Entrance>
   );

@@ -15,6 +15,7 @@ import OpenAI, { APIError, toFile } from "openai";
 import { ConvexError } from "convex/values";
 
 import { env } from "./_generated/server";
+import { withoutDashes, withoutDashesDeep } from "./lib/dashes";
 import type { DraftTask } from "./lib/lineupRules";
 import { CLOSE_CALL_CONFIDENCE, PASS_CONFIDENCE, VOTE_CONFIDENCE, type Judgement } from "./lib/verdict";
 
@@ -60,6 +61,11 @@ export type JsonRequest = {
   model?: string;
 };
 
+// Players read what the models write, and the owner's rule is no em-dash or en-dash used as a
+// dash. The prompt asks for it, and withoutDashesDeep enforces it on whatever comes back.
+const NO_DASHES =
+  "Never write an em-dash or an en-dash. Use a period, a comma, a colon or parentheses instead, and write a range as \"10 to 20\".";
+
 /**
  * One call to the model that must come back as JSON matching a schema.
  * Strict structured output means the reply always parses, so callers get a
@@ -70,7 +76,7 @@ export async function askJson<T>(request: JsonRequest): Promise<T> {
     model: request.model ?? MODEL,
     // These are quick judgement calls, and low effort keeps them to a couple of seconds.
     reasoning: { effort: request.effort ?? "low" },
-    instructions: request.instructions,
+    instructions: `${request.instructions}\n\n${NO_DASHES}`,
     input: [
       {
         role: "user",
@@ -94,7 +100,7 @@ export async function askJson<T>(request: JsonRequest): Promise<T> {
   if (!response.output_text) {
     throw new Error(`The model returned no answer (status: ${response.status}).`);
   }
-  return JSON.parse(response.output_text) as T;
+  return withoutDashesDeep(JSON.parse(response.output_text) as T);
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +126,7 @@ export async function transcribe(audio: Blob): Promise<string> {
   const extension = AUDIO_EXTENSIONS[audio.type.split(";")[0]] ?? "m4a";
   const file = await toFile(audio, `voice-note.${extension}`, { type: audio.type });
   const result = await client().audio.transcriptions.create({ file, model: TRANSCRIPTION_MODEL });
-  return result.text.trim();
+  return withoutDashes(result.text.trim());
 }
 
 // ---------------------------------------------------------------------------

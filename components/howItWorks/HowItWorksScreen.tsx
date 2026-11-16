@@ -6,6 +6,7 @@ import { Button, Header, Screen } from "@/components/ui";
 import { colors, layout, radius, spacing, type } from "@/theme";
 
 import { CARDS, type CardKey, exitOf } from "./cards";
+import { Opening } from "./Opening";
 import { BeatGraphic } from "./graphics/BeatGraphic";
 import { DraftGraphic } from "./graphics/DraftGraphic";
 import { PotGraphic } from "./graphics/PotGraphic";
@@ -31,6 +32,8 @@ export function HowItWorksScreen() {
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
   const [page, setPage] = useState(0);
   const last = page === CARDS.length - 1;
+  // Every way in plays the opening first: first launch, Replay onboarding, and the Profile or Settings refresher.
+  const [opening, setOpening] = useState(true);
 
   function finish() {
     if (exit === "back") return router.canGoBack() ? router.back() : router.replace("/");
@@ -45,6 +48,8 @@ export function HowItWorksScreen() {
   function settle(event: NativeSyntheticEvent<NativeScrollEvent>) {
     if (width > 0) setPage(Math.round(event.nativeEvent.contentOffset.x / width));
   }
+
+  if (opening) return <Opening onDone={() => setOpening(false)} />;
 
   return (
     <Screen>

@@ -1,10 +1,8 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
-import { CheckInPrompt } from "@/components/checkin";
-import { ProjectionLine } from "@/components/leaderboards";
 import { HomeWidgetSync, LiveActivitySync } from "@/components/liveActivity";
 import { Entrance } from "@/components/motion";
 import { AddFlexTask } from "@/components/roster/AddFlexTask";
@@ -12,16 +10,17 @@ import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { RosterHero } from "@/components/roster/RosterHero";
-import { RosterTotal } from "@/components/roster/RosterTotal";
+import { RosterWeekDetails } from "@/components/roster/RosterWeekDetails";
 import { Button, EmptyState, OutlinedPillButton, Screen, SectionLabel, TaskRow, useTabBarInset } from "@/components/ui";
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { splitRoster, weekActions } from "@/lib/roster";
-import { SCREEN_MARGIN } from "@/theme";
+import { sharedDueLabel, splitRoster, weekActions } from "@/lib/roster";
+import { colors, SCREEN_MARGIN, spacing, TASK_TEXT_INSET } from "@/theme";
 
 /**
  * ROSTER, the screen the app opens on every day: this week's lineup as a team
- * sheet, the task to do next one tap from its camera, and the week's total.
+ * sheet, with the task to do next highlighted in place and its camera one tap away.
+ * Each fact shows once: the hero carries the score, the header the due day, the row the task.
  */
 export function RosterScreen() {
   const router = useRouter();
@@ -42,41 +41,40 @@ export function RosterScreen() {
     currentWeekStart: league?.week.startsAt,
   });
   const draft = canDraft ? () => router.push("/draft") : undefined;
-  // Once the lineup is locked, the next task is why the player opened the app,
-  // so it sits right under the hero, above the pills. Its row stays in
-  // the sheet below as an ordinary row, so the lineup keeps its five slots.
   // The lineup runs on the calendar week, so it still names a next task after the
   // selected league's week has settled (End Week Now settles one early). That
   // week's result is final, so Roster stops asking for a proof until the next opens.
   const settled = league?.week.status === "settled";
-  const lead = roster?.locked && !settled ? roster.rows.find((task) => task.upNext) : undefined;
+  const due = sharedDueLabel(roster?.rows ?? []);
 
-  const row = (task: Task, upNext: boolean) => (
-    <TaskRow
-      key={task.taskId}
-      task={task}
-      highlighted={upNext}
-      onPress={() => router.push(`/task/${task.taskId}`)}
-      // Up Next skips the task sheet: its camera is one tap from here. A Canvas
-      // task has no camera, so it keeps the score column and opens the sheet.
-      right={
-        upNext && task.proofType !== "canvas" ? (
-          <OutlinedPillButton label="Submit Proof" onPress={() => router.push(proofCameraHref(task))} />
-        ) : undefined
-      }
-    />
-  );
-  const listed = (task: Task) => row(task, task.upNext && !lead && !settled);
+  // The Up Next task is highlighted where it sits in the lineup rather than repeated above it,
+  // and its camera button sits under the row so the title keeps the row's full width.
+  const listed = (task: Task) => {
+    const upNext = task.upNext && !settled;
+    const canProve = upNext && roster?.locked && task.proofType !== "canvas";
+    return (
+      <View key={task.taskId}>
+        <TaskRow task={task} highlighted={upNext} onPress={() => router.push(`/task/${task.taskId}`)} />
+        {canProve ? (
+          <View style={styles.proof}>
+            <OutlinedPillButton label="Submit Proof" icon="camera" onPress={() => router.push(proofCameraHref(task))} />
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <Screen edges={[]}>
-      {/* One 44 pt line that asks for the check-in to do right now; nothing when there is none. */}
-      <CheckInPrompt leagueId={leagueId} />
       {/* Both render nothing: they keep the lock-screen Live Activity and the home-screen widget current, and are absent in Expo Go. */}
       <LiveActivitySync />
       <HomeWidgetSync />
-      {leagueId ? <DropBanner leagueId={leagueId} /> : null}
-      {leagueId && owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
+      {/* One banner at a time: the unpaid buy-in, else a live drop with its deadline. Submit Proof under the Up Next row covers the rest. */}
+      {leagueId && owesBuyIn ? (
+        <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} />
+      ) : leagueId ? (
+        <DropBanner leagueId={leagueId} />
+      ) : null}
       {/* The flex field sits low in the list: let a tap on Add land while the keyboard is up, and keep the field above it. */}
       {/* With the Draft button under the list, the button clears the tab bar and the list stops above it. */}
       <ScrollView
@@ -91,23 +89,17 @@ export function RosterScreen() {
             <RosterHero roster={roster} />
           </Entrance>
         ) : null}
-        {lead ? <Entrance index={1}>{row(lead, true)}</Entrance> : null}
         {noLineup ? (
           <EmptyState inline message="No lineup this week" />
         ) : (
-          <Entrance index={2}>
-            <SectionLabel left="Starters" right="Score" />
+          <Entrance index={1}>
+            <SectionLabel left="This week's tasks" right={due} />
             {starters.map(({ slot, task }) => (task ? listed(task) : <EmptySlotRow key={slot} slot={slot} onPress={draft} />))}
-            {extras.length > 0 || takesFlex ? <SectionLabel left="Flex and bonus" /> : null}
+            {extras.length > 0 || takesFlex ? <SectionLabel left="Extra" /> : null}
             {extras.map(listed)}
             {takesFlex ? <AddFlexTask /> : null}
-            {/* The hero already leads with the score, so the box-score total closes the sheet instead of pinning a footer over the starters. */}
-            {undrafted ? null : (
-              <>
-                {leagueId ? <ProjectionLine leagueId={leagueId} /> : null}
-                <RosterTotal total={roster?.total ?? null} bonusPoints={roster?.bonusPoints} bonusLabels={roster?.bonusLabels} />
-              </>
-            )}
+            {/* Odds, projection and bonuses wait behind one row: none of them is the next thing to do. */}
+            {undrafted || !roster ? null : <RosterWeekDetails roster={roster} />}
           </Entrance>
         )}
       </ScrollView>
@@ -119,4 +111,12 @@ export function RosterScreen() {
 
 const styles = StyleSheet.create({
   draft: { margin: SCREEN_MARGIN },
+  // The highlighted row's tint continues under the button, which starts on the row's text edge.
+  proof: {
+    alignItems: "flex-start",
+    paddingLeft: TASK_TEXT_INSET,
+    paddingRight: SCREEN_MARGIN,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.accentTint,
+  },
 });

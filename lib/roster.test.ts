@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Task } from "./backend";
-import { flexTasksLeft, pickBannerDrop, splitRoster, weekActions } from "./roster";
+import { flexTasksLeft, pickBannerDrop, sharedDueLabel, splitRoster, weekActions } from "./roster";
 
 function task(taskId: string, slot: Task["slot"], source: Task["source"] = "draft"): Task {
   return {
@@ -146,5 +146,15 @@ describe("pickBannerDrop", () => {
   it("ignores drops that have already closed", () => {
     expect(pickBannerDrop([{ kind: "quicktime" as const, closesAt: now }], now)).toBeUndefined();
     expect(pickBannerDrop([], now)).toBeUndefined();
+  });
+});
+
+describe("sharedDueLabel", () => {
+  it("names the due day once when every row shares it", () => {
+    expect(sharedDueLabel([task("gym", "body"), task("read", "recharge")])).toBe("Due Sun");
+  });
+  it("says nothing when the rows disagree or there are none", () => {
+    expect(sharedDueLabel([task("gym", "body"), { ...task("read", "recharge"), dueLabel: "Due Wed" }])).toBeUndefined();
+    expect(sharedDueLabel([])).toBeUndefined();
   });
 });
