@@ -101,6 +101,8 @@ export const layout = {
   pillHeight: 24,
   /** The floating glass tab bar at the bottom of the tabs. */
   tabBar: 60,
+  /** The iOS system tab bar's height above the home indicator (UITabBar, 49 pt), plus a little air for the last row. */
+  systemTabBar: 49 + 8,
 } as const;
 
 /** Where a task row's text starts; its inset divider starts here too, as in an iOS list. */

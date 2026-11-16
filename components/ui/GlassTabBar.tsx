@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, withSpring } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useReduceMotion } from "@/components/motion";
+import { systemTabBar } from "@/lib/native/nativeTabs";
 import { BORDER, colors, font, fontFamily, layout, radius, spacing, spring } from "@/theme";
 
 import { Icon, type IconName } from "./Icon";
@@ -27,11 +28,14 @@ function useBarBottom() {
 }
 
 /**
- * How far a tab's scroll content must reach past the bottom so its last row clears the floating bar.
+ * How far a tab's scroll content must reach past the bottom so its last row clears the tab bar:
+ * the system bar's height over the home indicator in the iOS build, the floating GlassTabBar elsewhere.
  * Tab screens pad their scroll content and scroll indicator by this.
  */
 export function useTabBarInset() {
-  return useBarBottom() + layout.tabBar + spacing.md;
+  const glassBottom = useBarBottom();
+  const safeBottom = useSafeAreaInsets().bottom;
+  return systemTabBar ? safeBottom + layout.systemTabBar : glassBottom + layout.tabBar + spacing.md;
 }
 
 /**
