@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type StyleProp, StyleSheet, Text, type TextStyle, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 
 import { haptics } from "@/lib/native/haptics";
 import { tickTimes } from "@/lib/taskDone";
@@ -79,26 +80,43 @@ type DigitProps = { to: number; rising: boolean; animate: boolean; delay: number
 function Digit({ to, rising, animate, delay, lineHeight, style }: DigitProps) {
   const position = useSharedValue(10 + to);
   const last = useRef(to);
-  useEffect(() => {
+  // At rest the digit is plain text: the column exists only while it rolls, so it can never show a clipped neighbour.
+  const [rolling, setRolling] = useState(false);
+  // A layout effect, so the column replaces the text before the new digit can paint.
+  useLayoutEffect(() => {
     const from = last.current;
     last.current = to;
     // Start in the middle run, then roll forward (or back) through the wrap rather than the long way round.
     const target = 10 + to + (rising && to < from ? 10 : !rising && to > from ? -10 : 0);
-    if (!animate || from === to) {
+    if (!animate || from === to || lineHeight <= 0) {
       position.value = 10 + to;
+      setRolling(false);
       return;
     }
     position.value = 10 + from;
-    position.value = withDelay(delay, withTiming(target, { duration: doneMoment.rollMs, easing: ease.standard }));
+    setRolling(true);
+    position.value = withDelay(
+      delay,
+      withTiming(target, { duration: doneMoment.rollMs, easing: ease.standard }, () => scheduleOnRN(setRolling, false)),
+    );
     // Only a new digit rolls; rising and the delay are read as they were when it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to]);
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -position.value * lineHeight }] }));
+  if (!rolling) {
+    return (
+      <Text style={style} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        {to}
+      </Text>
+    );
+  }
+  // Every cell exactly one line tall, so the column's offsets land on whole digits.
+  const cell = [style, { height: lineHeight, lineHeight }];
   return (
     <View style={[styles.window, { height: lineHeight }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       <Animated.View style={roll}>
         {COLUMN.map((digit, index) => (
-          <Text key={index} style={style}>
+          <Text key={index} style={cell}>
             {digit}
           </Text>
         ))}
