@@ -431,7 +431,7 @@ export const pot = query({
       if (row.weekId !== week._id) continue;
       if (row.kind === "buy_in") {
         potCents += Math.round(row.amountUsd * 100);
-      } else if (row.kind !== "fee" && row.userId !== undefined) {
+      } else if (row.kind !== "fee" && row.kind !== "rollover" && row.userId !== undefined) {
         payouts.push({
           userId: row.userId,
           name: await nameOf(row.userId),

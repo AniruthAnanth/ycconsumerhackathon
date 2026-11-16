@@ -258,6 +258,8 @@ type Member = {
   boughtIn?: boolean;
   /** Verified tasks in all five roster slots. */
   clearedFive?: boolean;
+  /** Slots cleared when not all five: Body alone unless set (0 clears none). */
+  slots?: number;
   points?: number;
   whopUserId?: string;
 };
@@ -324,10 +326,10 @@ async function playWeek(
   t: ReturnType<typeof convexTest>,
   userId: Id<"users">,
   weekStart: number,
-  { clearedFive = false, points = 0 }: Pick<Member, "clearedFive" | "points">,
+  { clearedFive = false, slots = 1, points = 0 }: Pick<Member, "clearedFive" | "slots" | "points">,
 ) {
   await t.run(async (ctx) => {
-    for (const slot of clearedFive ? CORE : CORE.slice(0, 1)) {
+    for (const slot of clearedFive ? CORE : CORE.slice(0, slots)) {
       await ctx.db.insert("tasks", {
         userId,
         weekStart,
@@ -373,45 +375,56 @@ const FOUR_PLAYERS: Member[] = [
 ];
 
 describe("closeWeek", () => {
-  test("writes refund, winnings and fee rows that sum to the buy-ins, and settles the week", async () => {
+  test("splits the whole pot evenly among the top performers into escrow, and settles the week", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS);
 
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Ana forfeits $5: 50c fee, and $4.50 split by week score. Both swept their five (+225),
-    // so that is 525 to 325 between Maya and Sam. Leo never bought in.
+    // Maya and Sam cleared all five, the most anyone cleared, so they split the $15 pot evenly
+    // whatever their points. Ana cleared one. Leo cleared five but never bought in.
     const rows = await settlementRows(t);
     expect(rows).toEqual([
-      { userId: userIds.maya, kind: "refund", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.maya}:refund` },
-      { userId: userIds.maya, kind: "winnings", amountUsd: 2.78, idempotencyKey: `${weekId}:${userIds.maya}:winnings` },
-      { userId: userIds.sam, kind: "refund", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.sam}:refund` },
-      { userId: userIds.sam, kind: "winnings", amountUsd: 1.72, idempotencyKey: `${weekId}:${userIds.sam}:winnings` },
-      { userId: undefined, kind: "fee", amountUsd: 0.5, idempotencyKey: `${weekId}:fee` },
+      { userId: userIds.maya, kind: "winnings", amountUsd: 7.5, idempotencyKey: `${weekId}:${userIds.maya}:winnings` },
+      { userId: userIds.sam, kind: "winnings", amountUsd: 7.5, idempotencyKey: `${weekId}:${userIds.sam}:winnings` },
     ]);
     expect(Math.round(rows.reduce((sum, row) => sum + row.amountUsd, 0) * 100)).toBe(1500);
     expect((await t.run((ctx) => ctx.db.get("weeks", weekId)))?.status).toBe("settled");
   });
 
-  test("splits the pot on final points: the week's matchup bonus counts", async () => {
+  test("when the most anyone cleared is four, those with four split the pot", async () => {
     const t = convexTest(schema, modules);
-    const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, [
-      { name: "maya", boughtIn: true, clearedFive: true, points: 300 },
-      { name: "sam", boughtIn: true, clearedFive: true, points: 110 },
-      { name: "ana", boughtIn: true, points: 500 },
+    const { leagueId, userIds } = await leagueAfterWeekOne(t, [
+      { name: "maya", boughtIn: true, slots: 4, points: 300 },
+      { name: "sam", boughtIn: true, slots: 4, points: 110 },
+      { name: "ana", boughtIn: true, slots: 3, points: 500 },
     ]);
-    await t.run((ctx) =>
-      ctx.db.insert("matchups", { weekId, userA: userIds.maya, userB: userIds.sam }),
-    );
 
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Maya beat Sam 525 to 335. Her +50 for the matchup makes it 575 to 335 of Ana's $4.50,
-    // where 525 to 335 would have paid $2.75 and $1.75.
     const winnings = (await settlementRows(t)).filter((row) => row.kind === "winnings");
     expect(winnings.map((row) => [row.userId, row.amountUsd])).toEqual([
-      [userIds.maya, 2.84],
-      [userIds.sam, 1.66],
+      [userIds.maya, 7.5],
+      [userIds.sam, 7.5],
+    ]);
+  });
+
+  test("everyone clearing all five splits the pot evenly, and an unpaid member shares nothing", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId, userIds } = await leagueAfterWeekOne(t, [
+      { name: "maya", boughtIn: true, clearedFive: true },
+      { name: "sam", boughtIn: true, clearedFive: true },
+      { name: "ana", boughtIn: true, clearedFive: true },
+      { name: "leo", clearedFive: true, points: 900 },
+    ]);
+
+    await t.mutation(internal.whop.closeWeek, { leagueId });
+
+    const rows = await settlementRows(t);
+    expect(rows.map((row) => [row.userId, row.kind, row.amountUsd])).toEqual([
+      [userIds.maya, "winnings", 5],
+      [userIds.sam, "winnings", 5],
+      [userIds.ana, "winnings", 5],
     ]);
   });
 
@@ -457,28 +470,33 @@ describe("closeWeek", () => {
     expect(addMemory).toHaveBeenCalled();
   });
 
-  test("owes each stake as a refund of its Whop payment and the winnings as one transfer, until Whop has accepted them", async () => {
+  test("keeps winnings in escrow before the season's last week: nothing is owed on Whop", async () => {
+    const t = convexTest(schema, modules);
+    const { leagueId } = await leagueAfterWeekOne(t, FOUR_PLAYERS, { whopCompanyId: "biz_league" });
+
+    expect(await t.mutation(internal.whop.closeWeek, { leagueId })).toEqual({
+      whopCompanyId: "biz_league",
+      refunds: [],
+      transfers: [],
+    });
+  });
+
+  test("cashes out the escrow as one transfer per member at the season's end, until Whop has accepted it", async () => {
     const t = convexTest(schema, modules);
     const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
+      seasonWeeks: 1,
     });
 
     const first = await t.mutation(internal.whop.closeWeek, { leagueId });
 
     expect(first.whopCompanyId).toBe("biz_league");
-    expect(first.refunds.map(({ ledgerId: _, ...refund }) => refund)).toEqual([
-      { whopPaymentId: "pay_maya", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.maya}:refund` },
-      { whopPaymentId: "pay_sam", amountUsd: 5, idempotencyKey: `${weekId}:${userIds.sam}:refund` },
-    ]);
-    // Sam is owed winnings too, but has no Whop user to send them to.
+    expect(first.refunds).toEqual([]);
+    // Sam is owed his share too, but has no Whop user to send it to.
     expect(first.transfers.map(({ ledgerIds: _, ...transfer }) => transfer)).toEqual([
-      { whopUserId: "user_maya", amountUsd: 2.78, idempotenceKey: `${weekId}:${userIds.maya}` },
+      { whopUserId: "user_maya", amountUsd: 7.5, idempotenceKey: `${weekId}:${userIds.maya}` },
     ]);
 
-    await t.mutation(internal.whop.recordPaid, {
-      ledgerIds: first.refunds.map((refund) => refund.ledgerId),
-      whopId: "pay_refunded",
-    });
     await t.mutation(internal.whop.recordPaid, {
       ledgerIds: first.transfers[0].ledgerIds,
       whopId: "ctt_1",
@@ -488,36 +506,34 @@ describe("closeWeek", () => {
     expect(second).toEqual({ whopCompanyId: "biz_league", refunds: [], transfers: [] });
   });
 
-  test("a stake bought in without a Whop payment rides in the member's transfer", async () => {
+  test("with nothing cleared by a paid member the pot rolls into next week, and the next winner takes it", async () => {
     const t = convexTest(schema, modules);
-    const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
-      whopCompanyId: "biz_league",
-    });
-    await t.run(async (ctx) => {
-      for (const row of await ctx.db.query("ledger").collect()) {
-        if (row.userId === userIds.maya) await ctx.db.patch("ledger", row._id, { whopId: undefined });
-      }
-    });
-
-    const owed = await t.mutation(internal.whop.closeWeek, { leagueId });
-
-    expect(owed.refunds.map((refund) => refund.whopPaymentId)).toEqual(["pay_sam"]);
-    expect(owed.transfers).toMatchObject([{ whopUserId: "user_maya", amountUsd: 7.78 }]);
-  });
-
-  test("with no finishers every buy-in is refunded and no fee is taken", async () => {
-    const t = convexTest(schema, modules);
-    const { leagueId } = await leagueAfterWeekOne(t, [
-      { name: "maya", boughtIn: true, points: 40 },
-      { name: "sam", boughtIn: true },
+    const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, [
+      { name: "maya", boughtIn: true, slots: 0, points: 40 },
+      { name: "sam", boughtIn: true, slots: 0 },
+      { name: "leo", clearedFive: true },
     ]);
 
     await t.mutation(internal.whop.closeWeek, { leagueId });
-
     expect((await settlementRows(t)).map(({ kind, amountUsd }) => ({ kind, amountUsd }))).toEqual([
-      { kind: "refund", amountUsd: 5 },
-      { kind: "refund", amountUsd: 5 },
+      { kind: "rollover", amountUsd: 10 },
     ]);
+
+    // Week 2: Maya buys in again and clears a slot, so she takes her $5 and the $10 carried in.
+    const nextWeekId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("weeks", { leagueId, number: 2, startsAt: WEEK_MS, endsAt: 2 * WEEK_MS, status: "open" });
+      await ctx.db.insert("ledger", { leagueId, weekId: id, userId: userIds.maya, kind: "buy_in", amountUsd: 5, idempotencyKey: "buy_in:w2", createdAt: 0 });
+      return id;
+    });
+    await playWeek(t, userIds.maya, WEEK_MS, { slots: 1 });
+    await t.mutation(internal.whop.closeWeek, { leagueId, weekId: nextWeekId });
+
+    const rows = (await settlementRows(t)).filter((row) => row.idempotencyKey.startsWith(nextWeekId));
+    expect(rows.map(({ userId, kind, amountUsd }) => [userId, kind, amountUsd])).toEqual([
+      [userIds.maya, "winnings", 15],
+      [undefined, "rollover", -10],
+    ]);
+    expect(weekId).not.toBe(nextWeekId);
   });
 
   test("a week nobody bought into settles with no money rows", async () => {
@@ -573,9 +589,9 @@ describe("closeWeek", () => {
 
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Level on 10 points each in this league, so Ana's $4.50 is split evenly.
+    // The drop's 500 points belong to the other league. Maya and Sam both cleared five, so they split $15.
     const winnings = (await settlementRows(t)).filter((row) => row.kind === "winnings");
-    expect(winnings.map((row) => row.amountUsd)).toEqual([2.25, 2.25]);
+    expect(winnings.map((row) => row.amountUsd)).toEqual([7.5, 7.5]);
   });
 });
 
@@ -643,14 +659,10 @@ describe("closeWeek in a season league", () => {
     await t.mutation(internal.whop.closeWeek, { leagueId });
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
-    // Ana's $5 is forfeited: 50c fee, $4.50 split by season totals, 750 to 350.
+    // Over the season Maya cleared ten slots, Sam six and Ana two: Maya alone takes the $15 pot.
     const season = `${leagueId}:season`;
     expect(await settlementRows(t)).toEqual([
-      { userId: userIds.maya, kind: "refund", amountUsd: 5, idempotencyKey: `${season}:${userIds.maya}:refund` },
-      { userId: userIds.maya, kind: "winnings", amountUsd: 3.07, idempotencyKey: `${season}:${userIds.maya}:winnings` },
-      { userId: userIds.sam, kind: "refund", amountUsd: 5, idempotencyKey: `${season}:${userIds.sam}:refund` },
-      { userId: userIds.sam, kind: "winnings", amountUsd: 1.43, idempotencyKey: `${season}:${userIds.sam}:winnings` },
-      { userId: undefined, kind: "fee", amountUsd: 0.5, idempotencyKey: `${season}:fee` },
+      { userId: userIds.maya, kind: "winnings", amountUsd: 15, idempotencyKey: `${season}:${userIds.maya}:winnings` },
     ]);
     expect((await t.run((ctx) => ctx.db.get("weeks", finalWeekId)))?.status).toBe("settled");
   });
@@ -694,42 +706,41 @@ describe("settleWeek", () => {
   const as = (t: ReturnType<typeof convexTest>, userId: Id<"users">) =>
     t.withIdentity({ subject: `${userId}|session` });
 
-  test("keeps the ledger rows when Whop refuses, and retries on the next call", async () => {
+  test("keeps the ledger rows when Whop refuses the cashout, and retries on the next call", async () => {
     const requests = whopAnswers(whopRefuses);
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
+      seasonWeeks: 1,
     });
 
     await as(t, userIds.maya).action(api.whop.settleWeek, { leagueId });
     await as(t, userIds.maya).action(api.whop.settleWeek, { leagueId });
 
     const rows = await settlementRows(t);
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.whopId === undefined)).toBe(true);
-    const attempt = ["POST /payments/pay_maya/refund", "POST /payments/pay_sam/refund", "POST /transfers"];
-    expect(requests).toEqual([...attempt, ...attempt]);
+    // Only Maya has a Whop user to cash out to.
+    expect(requests).toEqual(["POST /transfers", "POST /transfers"]);
   });
 
-  test("refunds each stake on its Whop payment, transfers the winnings, and does neither twice", async () => {
+  test("cashes out the escrow at the season's end once, and never twice", async () => {
     const requests = whopAnswers(whopAccepts);
     const t = convexTest(schema, modules);
     const { leagueId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
+      seasonWeeks: 1,
     });
 
     await as(t, userIds.maya).action(api.whop.settleWeek, { leagueId });
     await as(t, userIds.maya).action(api.whop.settleWeek, { leagueId });
 
-    // Sam has no Whop user, so his winnings stay a ledger row with nothing sent.
+    // Sam has no Whop user, so his share stays a ledger row with nothing sent.
     expect((await settlementRows(t)).map(({ userId, kind, whopId }) => ({ userId, kind, whopId }))).toEqual([
-      { userId: userIds.maya, kind: "refund", whopId: "pay_maya" },
       { userId: userIds.maya, kind: "winnings", whopId: "ctt_1" },
-      { userId: userIds.sam, kind: "refund", whopId: "pay_sam" },
       { userId: userIds.sam, kind: "winnings", whopId: undefined },
-      { userId: undefined, kind: "fee", whopId: undefined },
     ]);
-    expect(requests).toEqual(["POST /payments/pay_maya/refund", "POST /payments/pay_sam/refund", "POST /transfers"]);
+    expect(requests).toEqual(["POST /transfers"]);
   });
 
   test("refuses a caller who is not in the league", async () => {
@@ -813,10 +824,10 @@ describe("closeWeek after a league's first season", () => {
     await t.mutation(internal.whop.closeWeek, { leagueId });
 
     expect((await settlementRows(t)).map((row) => row.idempotencyKey)).toEqual([
-      `${leagueId}:season:${userIds.maya}:refund`,
-      `${leagueId}:season:${userIds.sam}:refund`,
-      `${leagueId}:season-2:${userIds.maya}:refund`,
-      `${leagueId}:season-2:${userIds.sam}:refund`,
+      `${leagueId}:season:${userIds.maya}:winnings`,
+      `${leagueId}:season:${userIds.sam}:winnings`,
+      `${leagueId}:season-2:${userIds.maya}:winnings`,
+      `${leagueId}:season-2:${userIds.sam}:winnings`,
     ]);
   });
 });
@@ -864,9 +875,9 @@ describe("endWeek", () => {
     // Four members make two pairs, and week 1 had no matchup rows in this league.
     expect(await t.run((ctx) => ctx.db.query("matchups").collect())).toHaveLength(2);
     expect(await paidFlags(t)).toEqual([false, false, false, false]);
-    expect(await settlementRows(t)).toHaveLength(5);
-    // The money moved once, with the call that closed the week.
-    expect(requests).toEqual(["POST /payments/pay_maya/refund", "POST /payments/pay_sam/refund", "POST /transfers"]);
+    expect(await settlementRows(t)).toHaveLength(2);
+    // Week 1 of 8: the shares wait in escrow, and nothing moves on Whop until the season ends.
+    expect(requests).toEqual([]);
   });
 
   test("a season league rolls on without paying, or asking for a new stake, until its last week", async () => {
@@ -897,7 +908,7 @@ describe("endWeek", () => {
       { number: 3, status: "open" },
     ]);
     const keys = (await settlementRows(t)).map((row) => row.idempotencyKey);
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(2);
     expect(keys.every((key) => key.startsWith(`${leagueId}:season:`))).toBe(true);
     expect(await paidFlags(t)).toEqual([false, false, false, false]);
   });
@@ -925,30 +936,28 @@ describe("endWeek", () => {
 describe("retryPayouts", () => {
   withWhopSandbox();
 
-  test("sends an earlier week's unsent payouts once the league has moved on, and sends nothing twice", async () => {
+  test("sends an earlier season's unsent cashout once the league has moved on, and sends nothing twice", async () => {
     let answer = whopRefuses;
     const requests = whopAnswers(() => answer());
     const t = convexTest(schema, modules);
     const { leagueId, weekId, userIds } = await leagueAfterWeekOne(t, FOUR_PLAYERS, {
       whopCompanyId: "biz_league",
+      seasonWeeks: 1,
     });
     await t.action(internal.whop.endWeek, { leagueId });
     answer = whopAccepts;
     // The league is in week 2 now, so the week's end no longer reaches week 1.
     await t.action(internal.whop.endWeek, { leagueId });
-    expect(requests).toHaveLength(3);
+    expect(requests).toHaveLength(1);
 
     await t.action(internal.whop.retryPayouts, { leagueId, weekId });
     await t.action(internal.whop.retryPayouts, { leagueId, weekId });
 
     expect((await settlementRows(t)).map(({ userId, kind, whopId }) => ({ userId, kind, whopId }))).toEqual([
-      { userId: userIds.maya, kind: "refund", whopId: "pay_maya" },
       { userId: userIds.maya, kind: "winnings", whopId: "ctt_1" },
-      { userId: userIds.sam, kind: "refund", whopId: "pay_sam" },
       { userId: userIds.sam, kind: "winnings", whopId: undefined },
-      { userId: undefined, kind: "fee", whopId: undefined },
     ]);
-    expect(requests).toHaveLength(6);
+    expect(requests).toHaveLength(2);
     const weeks = await t.run((ctx) => ctx.db.query("weeks").collect());
     expect(weeks.map((week) => week.status)).toEqual(["settled", "open"]);
   });

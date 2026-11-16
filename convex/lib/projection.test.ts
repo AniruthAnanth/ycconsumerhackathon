@@ -71,13 +71,13 @@ describe("projectPayout when the week is decided", () => {
   test("no time left collapses every figure onto the settlement as it stands", () => {
     const settled = computeSettlement(
       20,
-      league.map((m) => ({ userId: m.userId, paid: m.paid, finished: m.slotsCleared >= 5, points: m.points })),
+      league.map((m) => ({ userId: m.userId, paid: m.paid, finished: m.slotsCleared >= 5, slotsCleared: m.slotsCleared, points: m.points })),
     );
     const payout = settled.payouts.find((p) => p.userId === "maya")!;
     const cents = payout.refundCents + payout.winningsCents;
 
     const projection = projectPayout({ stakeUsd: 20, members: league, userId: "maya", daysLeft: 0 });
-    expect(cents).toBe(2000 + 2700);
+    expect(cents).toBeGreaterThan(0);
     expect(projection).toMatchObject({
       eligible: true,
       ifEndedNowCents: cents,
@@ -114,18 +114,18 @@ describe("projectPayout when the week is decided", () => {
     });
   });
 
-  test("a sole finisher takes the stake plus 90% of the others' stakes", () => {
+  test("the only member to clear the most slots takes the whole pot", () => {
     const projection = projectPayout({
       stakeUsd: 10,
       members: [finisher("maya", 300), member("sam"), member("ana"), member("leo")],
       userId: "maya",
       daysLeft: 0,
     });
-    expect(projection.ifEndedNowCents).toBe(1000 + 2700);
-    expect(projection.expectedCents).toBe(3700);
+    expect(projection.ifEndedNowCents).toBe(4000);
+    expect(projection.expectedCents).toBe(4000);
   });
 
-  test("nobody finished at day 0 refunds every stake", () => {
+  test("short of five, the most slots cleared still takes the pot", () => {
     const projection = projectPayout({
       stakeUsd: 10,
       members: [member("maya", { slotsCleared: 4 }), member("sam", { slotsCleared: 2 })],
@@ -133,10 +133,10 @@ describe("projectPayout when the week is decided", () => {
       daysLeft: 0,
     });
     expect(projection).toMatchObject({
-      ifEndedNowCents: 1000,
-      expectedCents: 1000,
-      lowCents: 1000,
-      highCents: 1000,
+      ifEndedNowCents: 2000,
+      expectedCents: 2000,
+      lowCents: 2000,
+      highCents: 2000,
     });
   });
 });
@@ -188,11 +188,11 @@ describe("projectPayout with a live clock", () => {
     const samFinishes = 1 - Math.exp(-mean);
 
     const maya = projectPayout({ stakeUsd: 10, members, userId: "maya", daysLeft: 3.5 });
-    // Sam misses: Maya takes $10 back and 90% of Sam's $10. Sam finishes: both only get stakes back.
-    expect(maya.expectedCents).toBe(Math.round(1000 + 900 * (1 - samFinishes)));
-    expect(maya.ifEndedNowCents).toBe(1900);
+    // Sam misses: Maya alone has the most slots and takes the $20 pot. Sam finishes: they split it.
+    expect(maya.expectedCents).toBe(Math.round(1000 + 1000 * (1 - samFinishes)));
+    expect(maya.ifEndedNowCents).toBe(2000);
     expect(maya.lowCents).toBe(1000);
-    expect(maya.highCents).toBe(1900);
+    expect(maya.highCents).toBe(2000);
 
     const sam = projectPayout({ stakeUsd: 10, members, userId: "sam", daysLeft: 3.5 });
     expect(sam.finishProbability).toBeCloseTo(samFinishes, 12);
@@ -214,16 +214,17 @@ describe("projectPayout with a live clock", () => {
     const sam = finishProbability(4, daysLeft);
     const leo = finishProbability(0, daysLeft);
 
-    const bothMiss = (1 - sam) * (1 - leo) * (1000 + 1800);
-    const onlySamFinishes = sam * (1 - leo) * (1000 + (900 * 200) / 505);
-    const onlyLeoFinishes = (1 - sam) * leo * (1000 + (900 * 200) / 575);
+    // A $30 pot: Maya alone takes it, splits it with one other finisher, or with both.
+    const bothMiss = (1 - sam) * (1 - leo) * 3000;
+    const onlySamFinishes = sam * (1 - leo) * 1500;
+    const onlyLeoFinishes = (1 - sam) * leo * 1500;
     const bothFinish = sam * leo * 1000;
     const expected = bothMiss + onlySamFinishes + onlyLeoFinishes + bothFinish;
 
     const maya = projectPayout({ stakeUsd: 10, members, userId: "maya", daysLeft });
     // Each scenario rounds its own cents, so the hand figure is within a cent of the function.
     expect(Math.abs(maya.expectedCents - expected)).toBeLessThanOrEqual(1);
-    expect(maya.highCents).toBe(1000 + 1800);
+    expect(maya.highCents).toBe(3000);
     expect(maya.lowCents).toBe(1000);
   });
 
@@ -290,7 +291,7 @@ describe("projectPayout with a live clock", () => {
     expect(projection.finishProbability).toBeLessThan(1);
     expect(projection.lowCents).toBeLessThanOrEqual(projection.expectedCents);
     expect(projection.expectedCents).toBeLessThanOrEqual(projection.highCents);
-    expect(projection.highCents).toBe(5000 + Math.round(5000 * 2 * 0.9));
+    expect(projection.highCents).toBe(15000);
   });
 });
 

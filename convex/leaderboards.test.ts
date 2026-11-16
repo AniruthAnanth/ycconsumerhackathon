@@ -120,13 +120,13 @@ describe("leaderboards.board", () => {
     const global = await viewer.query(api.leaderboards.board, { leagueId, board: "global" });
     expect(global.rows.map((row) => row.value)).toEqual([550, 285, 245, 170, 60, 0]);
 
-    // Maya was the only finisher: the other five stakes, less the 10% fee. The rest are down their stake.
+    // Maya alone cleared the most slots, so she takes the whole $120 pot. The rest are down their stake.
     const money = await viewer.query(api.leaderboards.board, { leagueId, board: "money", at: NOW });
-    expect(money.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "+$90.00", detail: "Won $90.00", isMe: true });
+    expect(money.rows[0]).toMatchObject({ name: "Maya Chen", valueLabel: "+$100.00", detail: "Won $120.00", isMe: true });
     expect(money.rows.slice(1).map((row) => row.valueLabel)).toEqual(Array(5).fill("-$20.00"));
     // With the week over there is nothing left to project: every case is the payout itself.
     const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });
-    expect(projection).toMatchObject({ ifEndedNowUsd: 110, expectedUsd: 110, lowUsd: 110, highUsd: 110, label: "Won $90.00" });
+    expect(projection).toMatchObject({ ifEndedNowUsd: 120, expectedUsd: 120, lowUsd: 120, highUsd: 120, label: "Won $100.00" });
     expect(await as("Leo").query(api.leaderboards.projection, { leagueId, at: NOW })).toMatchObject({ label: "Lost $20.00" });
   });
 
@@ -454,11 +454,11 @@ describe("keeping the stored rows current", () => {
 });
 
 describe("leaderboards.projection", () => {
-  test("pays the only finisher the forfeited stakes if the week ended now", async () => {
+  test("pays the only finisher the whole pot if the week ended now", async () => {
     const { leagueId, as } = await seededLeague();
     const projection = await as("Maya").query(api.leaderboards.projection, { leagueId, at: NOW });
     // Maya has cleared all five. The other five forfeit $20 each, less the 10% fee.
-    expect(projection).toMatchObject({ eligible: true, stakeUsd: 20, ifEndedNowUsd: 110, finishProbability: 1 });
+    expect(projection).toMatchObject({ eligible: true, stakeUsd: 20, ifEndedNowUsd: 120, finishProbability: 1 });
     expect(projection!.lowUsd).toBeLessThanOrEqual(projection!.expectedUsd);
     expect(projection!.expectedUsd).toBeLessThanOrEqual(projection!.highUsd);
     expect(projection!.label).toMatch(/^Projected: \+\$\d+\.\d\d$/);
