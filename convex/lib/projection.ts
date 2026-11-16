@@ -151,6 +151,9 @@ export function projectPayout<UserId>(input: {
       userId: member.userId,
       paid: member.paid,
       finished: finishes[i],
+      // The pot goes to the paid members with the most slots cleared, so a member who doesn't
+      // finish still counts with the slots they have.
+      slotsCleared: finishes[i] ? slotsNeeded : Math.min(member.slotsCleared, slotsNeeded - 1),
       points:
         finishes[i] && !finishedNow[i]
           ? pointsIfFinished(member)

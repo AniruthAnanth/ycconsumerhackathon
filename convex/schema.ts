@@ -323,6 +323,7 @@ export default defineSchema({
       v.literal("refund"),
       v.literal("winnings"),
       v.literal("fee"),
+      v.literal("rollover"),
     ),
     amountUsd: v.number(),
     whopId: v.optional(v.string()),

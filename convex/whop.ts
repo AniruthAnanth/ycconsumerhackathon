@@ -534,7 +534,8 @@ async function settleInLedger(ctx: MutationCtx, league: Doc<"leagues">, week: Do
       const entrants = await entrantsOver(ctx, leagueId, weeks);
       // A 1v1 versus pays the higher score; a league pays its finishers (convex/versus.ts).
       const settle = league.mode === "versus" ? computeVersusSettlement : computeSettlement;
-      const settlement = settle(league.stakeUsd, entrants);
+      const carriedInCents = league.mode === "versus" ? 0 : await rolledOverCents(ctx, leagueId);
+      const settlement = settle(league.stakeUsd, entrants, carriedInCents);
       for (const row of settlementLedgerRows(scope, settlement)) {
         if (await isInLedger(ctx, row.idempotencyKey)) continue;
         await ctx.db.insert("ledger", {
@@ -565,10 +566,22 @@ async function settleInLedger(ctx: MutationCtx, league: Doc<"leagues">, week: Do
     });
   }
 
+  // Winnings stay in the league's escrow until it cashes out, at the end of each season. A
+  // 1v1 versus is a season of one week, so it cashes out when it settles.
+  if (league.mode !== "versus" && !isFinalWeek(week.number, seasonWeeks)) {
+    return { whopCompanyId: league.whopCompanyId ?? null, refunds: [], transfers: [] };
+  }
+  const cashingOut = bySeason ? [scope] : (await weeksOfSeason(ctx, week, seasonWeeks)).map((played) => played._id as string);
   return {
     whopCompanyId: league.whopCompanyId ?? null,
-    ...(await unpaidOnWhop(ctx, leagueId, scope, weeks)),
+    ...(await unpaidOnWhop(ctx, leagueId, cashingOut, bySeason ? weeks : await weeksOfSeason(ctx, week, seasonWeeks))),
   };
+}
+
+/** What earlier weeks rolled over and nobody has won yet: the league's rollover rows summed. */
+async function rolledOverCents(ctx: QueryCtx, leagueId: Id<"leagues">): Promise<number> {
+  const ledger = await leagueLedger(ctx, leagueId);
+  return ledger.filter((row) => row.kind === "rollover").reduce((sum, row) => sum + Math.round(row.amountUsd * 100), 0);
 }
 
 /**
@@ -616,6 +629,8 @@ export async function entrantsOver(
       paid: mine.some((standing) => standing.paid),
       // In one week: cleared all five slots. Over a season: did so in at least half its weeks.
       finished: weeksCleared > 0 && weeksCleared * 2 >= weeks.length,
+      // The top performers are the paid members tied for the most slots cleared (lib/settlement.ts).
+      slotsCleared: mine.reduce((sum, standing) => sum + standing.slotsCleared, 0),
       points: mine.reduce((sum, standing) => sum + standing.points, 0),
     };
   });
@@ -643,7 +658,7 @@ async function weeksOfSeason(
 async function unpaidOnWhop(
   ctx: QueryCtx,
   leagueId: Id<"leagues">,
-  scope: string,
+  scopes: string[],
   weeks: Doc<"weeks">[],
 ): Promise<Pick<Owed, "refunds" | "transfers">> {
   const ledger = await leagueLedger(ctx, leagueId);
@@ -658,7 +673,8 @@ async function unpaidOnWhop(
   const byTransfer = new Map<Id<"users">, Doc<"ledger">[]>();
   for (const row of ledger) {
     if (row.userId === undefined || row.whopId !== undefined) continue;
-    if (!row.idempotencyKey.startsWith(`${scope}:`)) continue;
+    if (row.kind === "rollover" || row.kind === "fee") continue;
+    if (!scopes.some((scope) => row.idempotencyKey.startsWith(`${scope}:`))) continue;
     const whopPaymentId = buyInPayment.get(row.userId);
     if (row.kind === "refund" && whopPaymentId !== undefined) {
       refunds.push({
@@ -681,7 +697,8 @@ async function unpaidOnWhop(
       ledgerIds: rows.map((row) => row._id),
       whopUserId: user.whopUserId,
       amountUsd: cents / 100,
-      idempotenceKey: `${scope}:${userId}`,
+      // One cashout per member, keyed by the settlement it closes: the season's last week, or the season.
+      idempotenceKey: `${scopes[scopes.length - 1]}:${userId}`,
     });
   }
   return { refunds, transfers };
