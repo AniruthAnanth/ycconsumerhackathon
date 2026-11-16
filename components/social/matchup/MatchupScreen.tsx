@@ -11,6 +11,7 @@ import { colors, font, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme"
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
 import { boardByTask } from "../veto/vetoLogic";
+import { SunnyPrompt } from "../sunny/SunnyPrompt";
 import { MatchupBody } from "./MatchupBody";
 import { MatchupMore } from "./MatchupMore";
 import { MatchupTicker } from "./MatchupTicker";
@@ -43,6 +44,7 @@ export default function MatchupScreen() {
     <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
       {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
       <MatchupBody matchup={matchup} bonus={false} vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined} />
+      <SunnyPrompt screen="matchup" />
       <MatchupMore matchup={matchup} leagueId={leagueId} />
     </ScrollView>
   );
