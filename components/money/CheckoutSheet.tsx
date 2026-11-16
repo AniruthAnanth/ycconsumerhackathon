@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Keyboard, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { GestureDetector, GestureHandlerRootView, usePanGesture } from "react-native-gesture-handler";
 import Animated, { SlideInDown, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -136,7 +136,9 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
       {/* No KeyboardAvoidingView: the web view moves its own focused field above the keyboard, and
           shrinking the sheet under it as well left the form half a screen tall and sent taps on the
           card fields to the wrong field while it resized. */}
-      <View style={styles.scrim}>
+      {/* A Modal draws outside the app's GestureHandlerRootView on iOS, so the swipe-down on the
+          grabber and header only works with a root of its own in here. */}
+      <GestureHandlerRootView style={styles.scrim}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close checkout" />
         <Animated.View
           testID="checkout-sheet"
@@ -210,7 +212,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
             </View>
           )}
         </Animated.View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
