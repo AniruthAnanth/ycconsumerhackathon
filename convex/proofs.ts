@@ -159,8 +159,9 @@ async function runVerification(
     (await rejectionBeforeJudging(ctx, submission, rules, imageTypes)) ??
     antiCheatRejection(task, submission, imageIds, imageHashes, reusedImage);
   if (verdict === null) {
-    rules.timelapse = {
-      minutes: Math.round((timelapseSeconds(submission) ?? 0) / 60),
+    const seconds = timelapseSeconds(submission) ?? 0;
+    rules.footage = {
+      label: isSurvey(submission) ? `Survey video ${Math.round(seconds)} s` : `Timelapse ${Math.round(seconds / 60)} min`,
       frames: imageIds.length,
     };
     const judgement = await judgeProof({
@@ -171,6 +172,7 @@ async function runVerification(
       gesture,
       placeName: groupSession ? undefined : rules.location?.placeName,
       groupSession,
+      survey: isSurvey(submission),
       targetMinutes: targetMinutes(task),
       durationSec: timelapseSeconds(submission),
       frameTimes: submission.frameTimes,
@@ -203,8 +205,11 @@ async function runVerification(
   return verdict;
 }
 
-// Every proof is a timelapse (the owner's call): up to 8 stills taken across the task.
+// Every proof is a timelapse or a survey video (the owner's call): up to 8 stills from it.
 const MAX_TIMELAPSE_FRAMES = 8;
+// A survey video is a few seconds of panning; anything longer is judged as a timelapse.
+const SURVEY_MIN_SECONDS = 3;
+const SURVEY_MAX_SECONDS = 15;
 const MIN_TIMELAPSE_FRAMES = 3;
 // The app captures and submits within seconds; anything older was taken some other time.
 const STALE_CAPTURE_MS = 15 * 60 * 1000;
@@ -219,6 +224,15 @@ function timelapseFrames(submission: ProofSubmission): Id<"_storage">[] {
   return frames.length > 0
     ? frames.slice(0, MAX_TIMELAPSE_FRAMES)
     : [submission.storageId];
+}
+
+/**
+ * Judged by what was sent, not by the task's type: the capture screen offers both, so a short clip
+ * is a survey video even on a timelapse task.
+ */
+function isSurvey(submission: ProofSubmission): boolean {
+  const seconds = timelapseSeconds(submission);
+  return submission.mediaType === "video" && seconds !== undefined && seconds <= SURVEY_MAX_SECONDS;
 }
 
 /** A timelapse's elapsed seconds: as the app measured it, else from the first and last still's times. */
@@ -258,19 +272,24 @@ function antiCheatRejection(
   }
   if (new Set(imageHashes).size < imageHashes.length) {
     return rejectWithoutJudging(
-      "Some of those frames are the same image. Record the timelapse again.",
+      "Some of those frames are the same image. Record it again.",
       ["static_frames"],
     );
   }
   const firstFrame = submission.frameTimes?.[0];
   if (firstFrame !== undefined && firstFrame < task._creationTime) {
     return rejectWithoutJudging(
-      "That timelapse started before this task was on your lineup. Record a new one.",
+      "That was recorded before this task was on your lineup. Record a new one.",
       ["stale_capture"],
     );
   }
-  const target = targetMinutes(task);
   const seconds = timelapseSeconds(submission);
+  if (isSurvey(submission)) {
+    return seconds! < SURVEY_MIN_SECONDS
+      ? rejectWithoutJudging(`That clip is too short. Pan across the place for about 5 seconds.`, ["too_short"])
+      : null;
+  }
+  const target = targetMinutes(task);
   if (seconds === undefined || seconds < target * 60 * TIMELAPSE_COVERAGE) {
     const covered =
       seconds === undefined ? "no time" : `${Math.round(seconds / 60)} minutes`;
@@ -307,7 +326,7 @@ async function rejectionBeforeJudging(
   if (imageTypes.length < MIN_TIMELAPSE_FRAMES) {
     // One photo or a clip with no stills, which is everything texted to Keiki.
     return rejectWithoutJudging(
-      "Proofs are timelapses now. Record one in the app while you do the task.",
+      "Proofs are a timelapse or a survey video now. Record one in the app.",
       ["too_short"],
     );
   }

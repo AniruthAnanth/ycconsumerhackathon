@@ -20,6 +20,11 @@ export function movementMark(movement: number): MovementMark {
   return { text: "–", tone: "flat" };
 }
 
+/** True once any row has gained or lost a place; in week one every row is a dash, which says nothing. */
+export function hasMovement(rows: readonly Pick<BoardRow, "movement">[]): boolean {
+  return rows.some((row) => row.movement !== 0);
+}
+
 /** Ranks that more than one row holds: the table shows them as "T2", the way a league table marks a tie. */
 export function tiedRanks(rows: readonly Pick<BoardRow, "rank">[]): Set<number> {
   const seen = new Set<number>();

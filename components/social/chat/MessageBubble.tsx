@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, font, fontFamily, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { SunnyAvatar } from "../sunny/SunnyAvatar";
 import { parseReply, type SunnyAction } from "../sunny/sunnyLogic";
@@ -67,7 +67,8 @@ const styles = StyleSheet.create({
   actionText: { color: colors.accent, fontFamily: fontFamily.semiBold, fontSize: font.meta },
   bubble: { maxWidth: "80%", paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.control },
   mine: { backgroundColor: colors.accent },
-  agent: { backgroundColor: colors.strip },
+  // Sunny's replies sit on the card surface with the one outline, so they read as bubbles on the canvas.
+  agent: { backgroundColor: colors.surface, borderWidth: BORDER, borderColor: colors.divider },
   text: { color: colors.text, fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: type.body.lineHeight },
   mineText: { color: colors.onAccent },
   failed: { color: colors.danger, fontSize: font.meta, fontFamily: fontFamily.semiBold, marginTop: spacing.xs },

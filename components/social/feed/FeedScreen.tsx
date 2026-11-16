@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Entrance } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
-import { Divider, Icon, type IconName, Screen, useTabBarInset } from "@/components/ui";
+import { Divider, Icon, type IconName, OutlinedPillButton, Screen, useTabBarInset } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { useNow } from "@/lib/useNow";
@@ -23,7 +23,7 @@ const PostDivider = () => <Divider inset={SCREEN_MARGIN} />;
 /** One quiet text link in the shortcut row: the side features stay a tap away without leading the Feed. */
 function Shortcut({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={spacing.xs} style={styles.shortcut}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={spacing.xs} style={styles.shortcut}>
       <Icon name={icon} size={font.meta} color={colors.textMuted} />
       <Text style={styles.shortcutText}>{label}</Text>
     </Pressable>
@@ -32,7 +32,7 @@ function Shortcut({ icon, label, onPress }: { icon: IconName; label: string; onP
 
 /**
  * FEED tab: the league's verified proofs, newest first. It is also where the
- * side features start, from the shortcuts above the first post: the week's
+ * side features start, from the shortcuts under the last post: the week's
  * wrapped, Canvas and a group session.
  */
 export function FeedScreen() {
@@ -84,15 +84,23 @@ export function FeedScreen() {
         ListHeaderComponent={
           <>
           <SunnyCard />
-          <View style={styles.shortcuts}>
-            <Shortcut icon="sparkles-outline" label="Week Wrapped" onPress={() => router.push("/wrapped")} />
-            <Shortcut icon="school-outline" label="Connect Canvas" onPress={() => router.push("/canvas")} />
-            <Shortcut icon="people-outline" label="Group session" onPress={() => router.push("/group/new")} />
-          </View>
           <UpForVeto board={board} leagueId={leagueId} myUserId={myUserId} now={now} />
           </>
         }
-        ListEmptyComponent={<Text style={styles.empty}>No proofs yet</Text>}
+        ListEmptyComponent={
+          <View style={styles.emptyBlock}>
+            <Text style={styles.empty}>No proofs yet</Text>
+            <OutlinedPillButton label="Submit your first proof" onPress={() => router.navigate("/")} />
+          </View>
+        }
+        // The side features follow the posts: the Feed answers "what happened?" first.
+        ListFooterComponent={
+            <View style={styles.shortcuts}>
+              <Shortcut icon="sparkles-outline" label="Week Wrapped" onPress={() => router.push("/wrapped")} />
+              <Shortcut icon="school-outline" label="Connect Canvas" onPress={() => router.push("/canvas")} />
+              <Shortcut icon="people-outline" label="Group session" onPress={() => router.push("/group/new")} />
+            </View>
+        }
       />
     </Screen>
   );
@@ -108,5 +116,6 @@ const styles = StyleSheet.create({
   },
   shortcut: { minHeight: layout.rowMin, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   shortcutText: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.label },
-  empty: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center", paddingVertical: spacing.xxl },
+  emptyBlock: { alignItems: "center", gap: spacing.md, paddingVertical: spacing.xxl, paddingHorizontal: SCREEN_MARGIN },
+  empty: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, textAlign: "center" },
 });

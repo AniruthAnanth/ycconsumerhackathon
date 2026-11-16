@@ -4,7 +4,7 @@
  */
 export const TOURS = {
   roster: [
-    { target: "score", text: "Your score against your opponent's this week." },
+    { target: "score", text: "Your points this week, against your opponent's." },
     { target: "tasks", text: "These are your five tasks for the week." },
     { target: "task", text: "Tap a task to prove you did it." },
   ],

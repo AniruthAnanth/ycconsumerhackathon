@@ -154,7 +154,6 @@ const styles = StyleSheet.create({
   card: {
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
     borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.divider,
