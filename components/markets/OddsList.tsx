@@ -15,7 +15,8 @@ import type { Market } from "./useMarket";
  * no pot, so it ranks by the chance of the week's top score instead.
  */
 export function OddsList({ odds }: { odds: Market["odds"] }) {
-  if (odds.rows.length < 2) return null;
+  // Before anyone has drafted, every row is the same coin flip over nothing.
+  if (odds.rows.length < 2 || !odds.rows.some((row) => row.projected > 0)) return null;
   const pot = odds.kind === "pot";
   return (
     <View testID="odds-list">

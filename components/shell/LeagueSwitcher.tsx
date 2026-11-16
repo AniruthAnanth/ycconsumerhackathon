@@ -55,7 +55,7 @@ export function LeagueSwitcher() {
           accessibilityState={{ selected: league._id === leagueId }}
         >
           <View style={styles.text}>
-            <Text style={styles.name}>
+            <Text style={styles.name} numberOfLines={1}>
               {league.name}
             </Text>
             <Text style={styles.meta}>{stakeLine(league)}</Text>
@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: layout.columnGap,
     paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.sm,
   },
   text: { flex: 1 },
   name: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },

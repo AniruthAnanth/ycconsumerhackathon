@@ -80,3 +80,11 @@ export function formatNet(usd: number): string {
   if (dollars === 0) return "$0";
   return `${dollars > 0 ? "+" : "−"}$${Math.abs(dollars)}`;
 }
+
+/**
+ * Whether there is anything to price yet. Before anyone drafts a lineup every forecast is a flat
+ * 50% over zero points, which reads as broken, so the cards stay hidden until someone has a task.
+ */
+export function hasLineups(scores: readonly { high: number }[]): boolean {
+  return scores.some((score) => score.high > 0);
+}
