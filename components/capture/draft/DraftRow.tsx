@@ -21,6 +21,11 @@ export function DraftRow({ task, editable, suggested, onRename, onRemove, onTitl
   // Remembered on focus, so leaving the field re-rates only a title that actually changed.
   const titleOnFocus = useRef(task.title);
   const place = taskPlaceLine(task);
+  // Nearly every task is a plain photo, so the proof type is worth a line only when it asks for more.
+  // The flex row is the one optional bonus, which the line says before anything else.
+  const meta = [task.slot === "flex" ? "Bonus · optional" : null, task.proofType === "photo" ? null : taskStatusLine(task)]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <View style={styles.row} testID={`draft-row-${task.slot}`}>
       <PositionPill slot={task.slot} />
@@ -49,25 +54,25 @@ export function DraftRow({ task, editable, suggested, onRename, onRemove, onTitl
             if (task.title.trim() !== titleOnFocus.current.trim() && task.title.trim() !== "") onTitleDone?.(task.title);
           }}
         />
-        {/* Nearly every task is a plain photo, so the proof type is worth a line only when it asks for more. */}
-        {task.proofType === "photo" ? null : (
+        {meta ? (
           <Text style={styles.meta} numberOfLines={1}>
-            {taskStatusLine(task)}
+            {meta}
           </Text>
-        )}
+        ) : null}
         {place ? (
           <Text style={styles.meta} numberOfLines={1}>
             {place}
           </Text>
         ) : null}
       </View>
+      {/* Its own column, centred on the row like the points, rather than stacked under them. */}
+      {editable && canRemoveTask(task) ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${task.title}`} onPress={onRemove} style={styles.removeTarget}>
+          <Text style={styles.remove}>Remove</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.trailing}>
         <Score value={task.points} />
-        {editable && canRemoveTask(task) ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${task.title}`} onPress={onRemove} style={styles.removeTarget}>
-            <Text style={styles.remove}>Remove</Text>
-          </Pressable>
-        ) : null}
       </View>
       <RowDivider inset={TASK_TEXT_INSET} />
     </View>

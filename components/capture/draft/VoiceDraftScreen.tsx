@@ -39,7 +39,7 @@ export function VoiceDraftScreen() {
   const navigation = useNavigation();
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
 
-  // Close, Back from the first step, the hardware back button and the iOS swipe all remove the
+  // Back from the first step, the hardware back button and the iOS swipe all remove the
   // screen, so one guard asks before any of them throws away an unlocked lineup.
   usePreventRemove(hasUnsavedDraft(state, typedWeek), ({ data }) =>
     confirmAction({
@@ -70,7 +70,6 @@ export function VoiceDraftScreen() {
         title="Voice Draft"
         scrollY={scrollY}
         onBack={state.phase === "locking" ? undefined : back}
-        onClose={state.phase === "locking" ? undefined : leave}
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Dragging the page puts the keyboard away. The KeyboardAvoidingView alone lifts the page above the keyboard:
@@ -135,12 +134,6 @@ export function VoiceDraftScreen() {
                 refining={state.refining}
                 onTitleDone={(_, title) => void draft.rerate(title)}
               />
-              {/* Only before Lock: a locked lineup is fixed for the week. */}
-              {state.phase === "review" ? (
-                <View style={styles.refine}>
-                  <RefineField busy={state.refining} onSend={draft.refine} onFocus={revealTypedWeek} />
-                </View>
-              ) : null}
             </View>
           ) : null}
         </Animated.ScrollView>
@@ -156,6 +149,8 @@ export function VoiceDraftScreen() {
         {showsLineup || state.error ? (
           <View style={styles.footer}>
             {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
+            {/* Pinned above Lock so it is in view the moment the draft lands, whatever the lineup's length. Only before Lock: a locked lineup is fixed for the week. */}
+            {state.phase === "review" ? <RefineField busy={state.refining} onSend={draft.refine} /> : null}
             {showsLineup ? (
               <Button label="Lock Lineup" haptic="medium" onPress={draft.lockLineup} disabled={!draft.canLock} loading={state.phase === "locking"} />
             ) : null}
@@ -195,7 +190,6 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
-  refine: { paddingHorizontal: SCREEN_MARGIN },
   // A paper bar with a hairline, so the lineup visibly scrolls under it instead of being sliced.
   footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.background, borderTopWidth: hairline, borderTopColor: colors.divider },
   error: { ...type.body, color: colors.danger },
