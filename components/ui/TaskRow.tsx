@@ -38,9 +38,12 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
         <Text style={styles.title} numberOfLines={titleLines ?? 2}>
           {task.title}
         </Text>
-        <Text style={styles.meta} numberOfLines={2}>
-          {taskRowLine(task)}
-        </Text>
+        {/* No empty meta line: it pushed a one-line title above the row's centre. */}
+        {taskRowLine(task) ? (
+          <Text style={styles.meta} numberOfLines={2}>
+            {taskRowLine(task)}
+          </Text>
+        ) : null}
         {place ? (
           <Text style={styles.meta} numberOfLines={2}>
             {place}

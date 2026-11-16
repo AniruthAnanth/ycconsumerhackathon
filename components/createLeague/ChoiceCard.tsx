@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
-import { Icon } from "@/components/ui";
-import { BORDER, colors, layout, radius, spacing, type } from "@/theme";
+import { cardStyle, Icon } from "@/components/ui";
+import { colors, layout, spacing, type } from "@/theme";
 
 type Props = {
   label: string;
@@ -40,14 +40,11 @@ export function ChoiceCard({ label, explanation, example, selected, onPress, dis
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     flexDirection: "row",
     gap: layout.columnGap,
     minHeight: layout.rowMin,
     padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
   },
   selected: { borderColor: colors.accent, backgroundColor: colors.accentTint },
   text: { flex: 1, gap: spacing.xs },
