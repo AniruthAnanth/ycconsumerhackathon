@@ -16,6 +16,6 @@ export function RowDivider({ inset }: { inset: number }) {
 }
 
 const styles = StyleSheet.create({
-  line: { height: hairline, backgroundColor: colors.divider },
+  line: { height: hairline, backgroundColor: colors.listDivider },
   bottom: { position: "absolute", right: 0, bottom: 0 },
 });

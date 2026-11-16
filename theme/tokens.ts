@@ -12,6 +12,10 @@ export const palette = {
   muted: "#5B6E63",
   faint: "#829087",
   line: "#DDE4DA",
+  /** One step darker than line, so a white card's edge reads on paper. */
+  cardLine: "#C9D3C6",
+  /** Between line and cardLine: rows inside a section. */
+  listLine: "#D3DBD0",
   green: "#155C40",
   lime: "#D8F29A",
   greenSoft: "#E5EEDB",
@@ -31,13 +35,17 @@ export const colors = {
   ...palette,
   /** The page behind everything: warm paper rather than white. */
   background: palette.canvas,
-  /** Section label rows. Sections are open, so the strip is the canvas itself and a divider separates it. */
+  /** Section headers sit on the canvas above their white section, iOS inset-grouped style. */
   strip: palette.canvas,
   text: palette.ink,
   textMuted: palette.muted,
   /** Unscored dashes, placeholders and disabled chevrons. */
   textFaint: palette.faint,
   divider: palette.line,
+  /** The 1-pt (BORDER) edge of every white card and grouped section on the paper canvas. */
+  cardBorder: palette.cardLine,
+  /** Hairlines between rows inside a section. */
+  listDivider: palette.listLine,
   /** The one accent: links, outlined buttons and the primary button. */
   accent: palette.green,
   /** Behind the Up Next row and quiet banners. */
@@ -171,7 +179,7 @@ export const ROW_HEIGHT_COMPACT = 60;
 
 export const hairline = StyleSheet.hairlineWidth;
 
-/** The one outline weight for cards, fields and outlined controls (colour: colors.divider, or the accent when selected). Lists use hairline dividers instead. */
+/** The one outline weight for cards, fields and outlined controls (colour: colors.cardBorder on cards, colors.divider on fields, or the accent when selected). Lists use hairline dividers instead. */
 export const BORDER = 1;
 
 export const tabUnderlineHeight = 3;
