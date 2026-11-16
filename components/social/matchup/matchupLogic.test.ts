@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { possiblePoints, statusLine, winBarSplit } from "./matchupLogic";
+import { bonusPoints, possiblePoints, statusLine, winBarSplit } from "./matchupLogic";
 
 describe("winBarSplit", () => {
   it("sizes the bar by probability and rounds labels to sum to 100", () => {
@@ -53,5 +53,13 @@ describe("possiblePoints", () => {
 
   it("never reads below the banked total, even when bonuses push it past the rows", () => {
     expect(possiblePoints(rows, "mine", 150)).toBeGreaterThanOrEqual(150);
+  });
+});
+
+describe("bonusPoints", () => {
+  it("is what the total holds beyond the scores on the rows", () => {
+    const rows = [{ mine: { score: 30 }, theirs: { score: null } }, { mine: { score: 20 } }, { mine: { score: 20 } }];
+    expect(bonusPoints(rows, "mine", 150)).toBe(80);
+    expect(bonusPoints(rows, "theirs", 0)).toBe(0);
   });
 });

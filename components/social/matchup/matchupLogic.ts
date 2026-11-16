@@ -28,6 +28,14 @@ export function possiblePoints(rows: { mine?: PossibleRow; theirs?: PossibleRow 
   return rows.reduce((sum, row) => sum + (row[side]?.status === "open" ? row[side].points : 0), total);
 }
 
+/**
+ * Points in a side's total that no lineup row shows: slot-cleared and streak bonuses, challenge
+ * stakes and bench tasks. Shown as their own line so the rows and the bonus add up to the total.
+ */
+export function bonusPoints(rows: { mine?: Pick<TaskRow, "score">; theirs?: Pick<TaskRow, "score"> }[], side: "mine" | "theirs", total: number) {
+  return rows.reduce((rest, row) => rest - (row[side]?.score ?? 0), total);
+}
+
 /** The grey line under a task title. A held task has its points on hold while the league votes on a challenge. */
 export function statusLine(task: Pick<TaskRow, "status" | "dueLabel">) {
   switch (task.status) {
