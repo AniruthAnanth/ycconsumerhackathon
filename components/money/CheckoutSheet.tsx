@@ -173,7 +173,7 @@ export function CheckoutSheet({ leagueId, stakeUsd, checkout, onClose }: Props) 
                 <Icon name="checkmark" size={32} color={colors.onAccent} />
               </View>
               <Text style={styles.paidTitle}>You're in</Text>
-              <Text style={styles.muted}>{`${formatUsd(stakeUsd)} is on its way into the pot.`}</Text>
+              <Text style={styles.muted}>Your buy-in is on its way into the pot.</Text>
             </View>
           ) : (
             <View style={styles.form}>
