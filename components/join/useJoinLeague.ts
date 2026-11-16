@@ -34,7 +34,8 @@ export function useJoinLeague() {
       // counts as unlocked: Voice Draft copes with a locked week, whereas Roster
       // would hide the draft from a new player.
       const next = week?.locked ? "roster" : "draft";
-      router.replace({ pathname: "/contacts", params: { leagueId, next } });
+      // `created` tells Add Friends whether to say the league is ready or that the player is in it.
+      router.replace({ pathname: "/contacts", params: { leagueId, next, ...(section === "create" ? { created: "1" } : {}) } });
     } catch (error) {
       setFailure({ section, message: errorMessage(error) });
       setBusy(false);
