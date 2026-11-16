@@ -10,6 +10,9 @@ import { formatUsd } from "@/lib/leagueText";
 import { DrawLine } from "./DrawLine";
 import type { Market } from "./useMarket";
 
+/** "Dec 6", in the league's Pacific time. */
+const cashOutDate = (at: number) => new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Los_Angeles" });
+
 const SPARK = { width: 96, height: 36, padding: 3 };
 
 /**
@@ -42,7 +45,7 @@ export function ProjectionCard({ market }: { market: Market }) {
       ) : null}
       <Text style={styles.label}>
         {payout.eligible
-          ? "In escrow. Cash out at season end."
+          ? `In escrow. Cash out ${Number.isFinite(payout.cashOutAt) ? cashOutDate(payout.cashOutAt) : "at season end"}.`
           : payout.stakeUsd > 0
             ? `Pay your $${payout.stakeUsd} buy-in to play for the pot. The pot fills as players pay.`
             : "Free league: no money on this one, just bragging rights."}

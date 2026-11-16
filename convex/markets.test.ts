@@ -166,6 +166,7 @@ describe("markets.week", () => {
     const shares = market!.odds.rows.reduce((sum, row) => sum + row.shareUsd, 0);
     expect(shares + market!.odds.nobody * market!.odds.potUsd).toBeCloseTo(market!.odds.potUsd, 6);
     expect(market?.payout.everyoneShareUsd).toBe(market!.odds.potUsd / 2);
+    expect(market!.payout.cashOutAt).toBeGreaterThan(market!.asOf);
     // Ada has finished and Bo hasn't started, so she expects to win some of Bo's stake.
     expect(market?.payout.expectedNetUsd).toBeGreaterThan(0);
     expect(market?.payout.lowNetUsd).toBeLessThanOrEqual(market?.payout.expectedNetUsd ?? 0);

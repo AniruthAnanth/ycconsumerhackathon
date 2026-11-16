@@ -21,6 +21,7 @@ type DraftInput = { audioStorageId?: Id<"_storage">; transcript?: string };
 
 const DRAFT_FAILED = "Couldn't draft your week. Try again.";
 const LOCK_FAILED = "Couldn't lock your lineup. Try again.";
+const REFINE_FAILED = "Couldn't change your lineup. Try again.";
 const MIC_FAILED = "Couldn't record. Type your week instead.";
 
 /** Everything Voice Draft does: record, upload, draft (or skip to picking by hand), edit and lock. The screen only renders it. */
@@ -32,6 +33,7 @@ export function useVoiceDraft() {
   const transcribeWhole = useAction(capture.liveTranscribe.whole);
   const draft = useAction(capture.lineup.draft);
   const lock = useMutation(capture.lineup.lock);
+  const refineLineup = useAction(capture.lineup.refine);
   const starting = useRef(false);
   const thisWeek = useQuery(backend.lineup.roster, {});
   // The first answer holds for the whole visit. Our own lock flips the live one a moment before
@@ -99,6 +101,24 @@ export function useVoiceDraft() {
     }
   }, [lock, router, state.phase, state.tasks, state.transcript]);
 
+  /** Sends the lineup as it stands with a typed change; the reply replaces it, re-rated. */
+  const refine = useCallback(
+    async (instruction: string) => {
+      const said = instruction.trim();
+      if (state.phase !== "review" || state.refining || said === "") return false;
+      dispatch({ type: "refineRequested" });
+      try {
+        const { tasks } = await refineLineup({ previousLineup: tasksToLock(state.tasks), instruction: said });
+        dispatch({ type: "refineSucceeded", tasks });
+        return true;
+      } catch (error) {
+        dispatch({ type: "refineFailed", message: errorMessage(error, REFINE_FAILED) });
+        return false;
+      }
+    },
+    [refineLineup, state.phase, state.refining, state.tasks],
+  );
+
   useEffect(() => {
     if (state.phase === "recording" && hasReachedLimit(recorder.durationMillis)) void stopRecording();
   }, [state.phase, recorder.durationMillis, stopRecording]);
@@ -109,7 +129,10 @@ export function useVoiceDraft() {
     level: recorder.level,
     liveTranscript,
     weekNote: draftWeekNote(lockedOnArrival),
-    canLock: state.phase === "review" && canLock(state.tasks),
+    canLock: state.phase === "review" && !state.refining && canLock(state.tasks),
+    refine,
+    /** A title edited by hand gets its points re-rated once the player leaves the field. */
+    rerate: (title: string) => refine(`Re-rate the points for the edited task "${title.trim()}". Change nothing else.`),
     toggleRecording: state.phase === "recording" ? stopRecording : startRecording,
     draftFromText,
     lockLineup,

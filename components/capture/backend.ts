@@ -41,6 +41,8 @@ export const capture = {
     lock: mutation<{ tasks: DraftTask[]; transcript?: string }, { weekStart: number }>("lineup:lock"),
     /** Gives a check-in task drafted without coordinates its place; allowed on a locked week, once. */
     pinPlace: mutation<{ taskId: Id<"tasks">; place: Place }, null>("lineup:pinPlace"),
+    /** Applies a typed change to a lineup that isn't locked yet; untouched tasks come back as they were. */
+    refine: action<{ previousLineup: DraftTask[]; instruction: string }, { tasks: DraftTask[] }>("lineup:refine"),
   },
   liveTranscribe: {
     /** One recorded segment's words while the player talks; "" when it can't be read. */

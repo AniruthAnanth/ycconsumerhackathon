@@ -40,9 +40,7 @@ export function MatchupTicker({ leagueId }: { leagueId: Id<"leagues"> }) {
               { player: pairing.a, score: pairing.scoreA },
               { player: pairing.b, score: pairing.scoreB },
             ].map(({ player, score }) =>
-              mine ? (
-                <Avatar key={player.userId} uri={player.avatarUrl} name={player.name} size={AVATAR} />
-              ) : (
+              (
                 <View key={player.userId} style={styles.line}>
                   <Avatar uri={player.avatarUrl} name={player.name} size={AVATAR} />
                   <Text style={styles.name} numberOfLines={1}>

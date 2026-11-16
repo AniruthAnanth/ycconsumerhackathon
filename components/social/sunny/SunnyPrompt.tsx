@@ -27,12 +27,12 @@ function PromptRow({ line, cta, onPress }: { line: string; cta: string; onPress:
   );
 }
 
-/** Roster and Matchup: a question for Sunny, typed into the chat for the player to send. */
-export function SunnyPrompt({ screen }: { screen: "roster" | "matchup" }) {
+/** Matchup: a question for Sunny, typed into the chat for the player to send. */
+export function SunnyPrompt() {
   const router = useRouter();
   const { leagueId } = useCurrentLeague();
-  const matchup = useQuery(socialApi.standings.matchup, screen === "matchup" && leagueId ? { leagueId } : "skip");
-  const prompt = sunnyPrompt(screen, matchup);
+  const matchup = useQuery(socialApi.standings.matchup, leagueId ? { leagueId } : "skip");
+  const prompt = sunnyPrompt(matchup);
   return <PromptRow line={prompt.line} cta={prompt.cta} onPress={() => router.push({ pathname: "/chat", params: { draft: prompt.question } })} />;
 }
 

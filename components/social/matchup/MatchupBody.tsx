@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { CoachTarget } from "@/components/coach";
 import { Entrance } from "@/components/motion";
 import { SectionLabel } from "@/components/ui";
+import { sharedDueLabel } from "@/lib/roster";
 
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -31,7 +32,7 @@ export function MatchupBody({
       </Entrance>
       {/* Mount point right under the hero; empty unless a caller passes something. */}
       {belowHero}
-      <SectionLabel left="Matchup" />
+      <SectionLabel left="Matchup" right={sharedDueLabel(matchup.rows.flatMap((row) => [row.mine, row.theirs]).filter((task) => task !== undefined))} />
       {/* A player can have several flex rows, so the slot alone is not a unique key. */}
       <CoachTarget id="slots">
         {matchup.rows.map((row, index) => (
