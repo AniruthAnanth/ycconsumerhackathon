@@ -1,40 +1,33 @@
 import { useQuery } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
-import { RecruiterBadge } from "@/components/invite";
-import {
-  Avatar,
-  Divider,
-  Header,
-  LargeTitle,
-  OutlinedPillButton,
-  PositionPill,
-  Score,
-  Screen,
-  SectionLabel,
-  SLOT_NAME,
-  useCollapsingHeader,
-} from "@/components/ui";
+import { ErrorLine } from "@/components/join/ErrorLine";
+import { Header, LargeTitle, OutlinedPillButton, Screen, useCollapsingHeader } from "@/components/ui";
+import { unmentionedStats } from "@/convex/lib/decree";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { socialApi } from "../contract";
 import { leaveScreen } from "../leave";
 import { ScreenState } from "../ScreenState";
-import { formatDuration, formatPercent, formatPoints, formatStreak } from "./profileLogic";
-import { StatRow } from "./StatRow";
-
-const NO_VALUE = "\u2014";
+import { DecreeScroll } from "./DecreeScroll";
+import { ProfileIdentity } from "./ProfileIdentity";
+import { useDecree } from "./useDecree";
 
 export function ProfileScreen() {
-  const { userId } = useLocalSearchParams<{ userId: string }>();
-  const profile = useQuery(socialApi.profile.get, { userId: userId as Id<"users"> });
+  const { userId: rawUserId } = useLocalSearchParams<{ userId: string }>();
+  const userId = rawUserId as Id<"users">;
+  const profile = useQuery(socialApi.profile.get, { userId });
+  const { data, writing, error, reroll } = useDecree(userId);
   const router = useRouter();
   const { me } = useCurrentLeague();
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
+  const own = me?._id === userId;
+  const decree = data?.decree ?? null;
+  const footer = data && decree ? unmentionedStats(decree.text, data.stats) : [];
 
   return (
     <Screen edges={["bottom"]}>
@@ -49,44 +42,47 @@ export function ProfileScreen() {
         {profile === undefined ? (
           <ScreenState loading />
         ) : (
-          <>
-            <View style={styles.top}>
-              <Avatar uri={profile.avatarUrl} name={profile.name} size={spacing.xxl * 2} />
-              <View style={styles.nameBlock}>
-                <Text style={styles.name} numberOfLines={2}>
-                  {profile.name}
-                </Text>
-                <RecruiterBadge userId={userId as Id<"users">} />
-              </View>
-              <View style={styles.total}>
-                <Score value={profile.totalPoints} size="total" />
-                <Text style={styles.totalLabel}>TOTAL POINTS</Text>
-              </View>
-            </View>
-            <Divider />
-            <SectionLabel left="SEASON" />
-            <StatRow label="Tasks completed" value={String(profile.tasksCompleted)} />
-            <StatRow label="Completion rate" value={formatPercent(profile.completionRate)} />
-            <StatRow label="Best slot">
-              {profile.bestSlot ? (
-                <View style={styles.bestSlot}>
-                  <PositionPill slot={profile.bestSlot} />
-                  <Text style={styles.slotName}>{SLOT_NAME[profile.bestSlot]}</Text>
-                </View>
+          <View style={styles.body}>
+            <DecreeScroll>
+              <ProfileIdentity userId={userId} name={profile.name} avatarUrl={profile.avatarUrl} own={own} />
+              {decree ? (
+                <>
+                  <Text style={styles.decree}>{decree.text}</Text>
+                  {decree.epithet ? <Text style={styles.epithet}>{decree.epithet}</Text> : null}
+                </>
+              ) : error ? (
+                <ErrorLine message={error} />
               ) : (
-                <Text style={styles.slotName}>{NO_VALUE}</Text>
+                <View style={styles.writing}>
+                  <ActivityIndicator color={colors.textMuted} />
+                  <Text style={styles.writingLabel}>The herald is writing</Text>
+                </View>
               )}
-            </StatRow>
-            <StatRow label="Current streak" value={formatStreak(profile.currentStreak)} />
-            <StatRow label="Longest streak" value={formatStreak(profile.longestStreak)} />
-            <SectionLabel left="RECORDS" />
-            <StatRow label="Best week" value={profile.bestWeek > 0 ? formatPoints(profile.bestWeek) : NO_VALUE} />
-            <StatRow
-              label="Fastest quick-time"
-              value={profile.fastestQuickTimeSec === undefined ? NO_VALUE : formatDuration(profile.fastestQuickTimeSec)}
-            />
-            {me?._id === userId ? (
-              <View style={styles.help}>
+              {footer.length > 0 ? (
+                <View style={styles.footer}>
+                  <Text style={styles.footerTitle}>BY THE NUMBERS</Text>
+                  <View style={styles.footerGrid}>
+                    {footer.map((stat) => (
+                      <View key={stat.label} style={styles.footerStat}>
+                        <Text style={styles.footerValue}>{stat.value}</Text>
+                        <Text style={styles.footerLabel}>{stat.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </DecreeScroll>
+            <View style={styles.actions}>
+              {own && (decree || error) ? (
+                <OutlinedPillButton
+                  label={writing ? "Rerolling" : "Reroll"}
+                  icon="refresh"
+                  disabled={writing}
+                  haptic="none"
+                  onPress={() => void reroll()}
+                />
+              ) : null}
+              {own ? (
                 <OutlinedPillButton
                   label="How Lineup works"
                   icon="help-circle-outline"
@@ -97,9 +93,9 @@ export function ProfileScreen() {
                     })
                   }
                 />
-              </View>
-            ) : null}
-          </>
+              ) : null}
+            </View>
+          </View>
         )}
       </Animated.ScrollView>
     </Screen>
@@ -108,27 +104,16 @@ export function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1 },
-  top: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    paddingHorizontal: SCREEN_MARGIN,
-    paddingVertical: spacing.xl,
-  },
-  nameBlock: { flex: 1, gap: spacing.xs },
-  help: { padding: SCREEN_MARGIN },
-  name: { ...type.heading, flexShrink: 1, color: colors.text },
-  total: { alignItems: "flex-end", flexShrink: 0 },
-  totalLabel: {
-    fontSize: font.label,
-    fontFamily: fontFamily.semiBold,
-    letterSpacing: 0.6,
-    color: colors.textMuted,
-  },
-  bestSlot: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  slotName: {
-    fontSize: font.score,
-    fontFamily: fontFamily.bold,
-    color: colors.text,
-  },
+  body: { paddingHorizontal: SCREEN_MARGIN },
+  decree: { fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: font.title * 1.45, color: colors.text },
+  epithet: { ...type.heading, fontSize: font.title, color: colors.warning, textAlign: "center" },
+  writing: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
+  writingLabel: { fontFamily: fontFamily.semiBold, fontSize: font.title, color: colors.textMuted },
+  footer: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: spacing.md },
+  footerTitle: { fontSize: font.label, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textMuted },
+  footerGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: spacing.md },
+  footerStat: { width: "50%" },
+  footerValue: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text, ...tabular },
+  footerLabel: { fontFamily: fontFamily.regular, fontSize: font.label, color: colors.textMuted },
+  actions: { alignItems: "flex-start", gap: spacing.md, paddingBottom: spacing.xl },
 });
