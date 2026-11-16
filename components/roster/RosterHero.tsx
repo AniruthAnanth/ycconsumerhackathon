@@ -60,10 +60,9 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           <View style={styles.side}>
             <CountUp style={styles.myScore} value={matchup.me.total} format={formatScore} decimals={1} />
             <Text style={styles.name} numberOfLines={1}>
-              {matchup.me.name}
+              You
             </Text>
           </View>
-          <Text style={styles.vs}>vs</Text>
           <View style={[styles.side, styles.sideEnd]}>
             <CountUp style={styles.theirScore} value={matchup.opponent.total} format={formatScore} decimals={1} />
             <Text style={styles.name} numberOfLines={1}>
@@ -104,5 +103,4 @@ const styles = StyleSheet.create({
   myScore: { ...type.display, color: colors.text, fontVariant: ["tabular-nums"] },
   theirScore: { ...type.title, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   name: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
-  vs: { ...type.caption, color: colors.textFaint, paddingBottom: spacing.lg },
 });

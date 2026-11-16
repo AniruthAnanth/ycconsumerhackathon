@@ -9,7 +9,7 @@ import { Artwork } from "@/components/art";
 import { SunnyBreathe } from "@/components/motion";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { hasUnsavedDraft } from "./draftState";
@@ -180,7 +180,8 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
-  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
+  // A paper bar with a hairline, so the lineup visibly scrolls under it instead of being sliced.
+  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.background, borderTopWidth: hairline, borderTopColor: colors.divider },
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
   redo: { ...type.label, color: colors.accent },
