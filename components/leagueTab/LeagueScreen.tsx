@@ -9,6 +9,7 @@ import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
 import { PotSummary } from "@/components/leagueTab/PotSummary";
 import { StandingsTable } from "@/components/leagueTab/StandingsTable";
+import { bySeasonRank, playoffSpots, seasonRecords } from "@/components/leagueTab/seasonColumns";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { Entrance } from "@/components/motion";
 import { PayBanner } from "@/components/roster/PayBanner";
@@ -37,11 +38,14 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   const table = useQuery(backend.standings.table, args);
   const league = useQuery(backend.leagues.get, args);
   const season = useQuery(api.seasons.overview, args);
-  const records = useMemo(() => new Map(season?.table.map((row) => [row.userId, row])), [season]);
+  const records = useMemo(() => (season ? seasonRecords(season) : undefined), [season]);
+  // One array per result: the table compares rows by identity to decide what flashes and slides.
+  const seasonTable = useMemo(() => (table && records ? bySeasonRank(table, records) : undefined), [table, records]);
 
   const owesBuyIn = membership !== undefined && !membership.paid && membership.stakeUsd > 0;
 
-  if (!leagueId || !pot || !table || !league || !me) return <Screen edges={[]}>{null}</Screen>;
+  // The season is waited for too, so the table first draws in season order instead of re-sorting.
+  if (!leagueId || !pot || !seasonTable || !league || !me) return <Screen edges={[]}>{null}</Screen>;
 
   return (
     <Screen edges={[]} scroll bottomInset={bottomInset}>
@@ -52,8 +56,9 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
       </Entrance>
       {aboveStandings}
       <StandingsTable
-        rows={table}
+        rows={seasonTable}
         records={records}
+        playoffSpots={season ? playoffSpots(season) : null}
         viewerId={me._id}
         onPressPlayer={(userId) => router.push(`/profile/${userId}`)}
       />
