@@ -316,3 +316,124 @@ describe("users.matchContacts", () => {
     ).rejects.toMatchObject({ data: "Too many contacts to match at once" });
   });
 });
+
+/** One drafted week for a player: a lineup, a task and a passed proof with a stored photo. */
+async function addWeek(t: Harness, userId: Id<"users">) {
+  return await t.run(async (ctx) => {
+    const weekStart = Date.UTC(2026, 10, 16, 8);
+    const lineupId = await ctx.db.insert("lineups", { userId, weekStart, lockedAt: weekStart });
+    const taskId = await ctx.db.insert("tasks", {
+      userId,
+      weekStart,
+      slot: "body",
+      title: "Run 5k",
+      points: 30,
+      proofType: "photo",
+      status: "verified",
+      source: "draft",
+    });
+    const storageId = await ctx.storage.store(new Blob(["photo"], { type: "image/jpeg" }));
+    const proofId = await ctx.db.insert("proofs", {
+      taskId,
+      userId,
+      weekStart,
+      storageId,
+      mediaType: "photo",
+      pass: true,
+      confidence: 0.9,
+      reason: "A run",
+      highlight: 5,
+      caption: "5k done",
+      via: "app",
+      createdAt: Date.now(),
+    });
+    return { lineupId, taskId, proofId, storageId };
+  });
+}
+
+describe("users.deleteAccount", () => {
+  it("deletes the caller's account and everything under it, frees the phone and leaves others alone", async () => {
+    const t = newHarness();
+    const ava = await addUser(t, { name: "Ava", phone: "+14155550101" });
+    const ben = await addUser(t, { name: "Ben", phone: "+14155550102" });
+    const { leagueId } = await createLeague(t, ben, "Dorm 4");
+    await asUser(t, ava).mutation(api.leagues.joinByCode, {
+      inviteCode: (await t.run((ctx) => ctx.db.get("leagues", leagueId)))!.inviteCode,
+    });
+    const avas = await addWeek(t, ava);
+    const bens = await addWeek(t, ben);
+    await t.run(async (ctx) => {
+      const accountId = await ctx.db.insert("authAccounts", { userId: ava, provider: "anonymous", providerAccountId: ava });
+      await ctx.db.insert("authSessions", { userId: ava, expirationTime: Date.now() + 1000 });
+      return accountId;
+    });
+
+    await asUser(t, ava).mutation(api.users.deleteAccount, {});
+
+    const left = await t.run(async (ctx) => ({
+      user: await ctx.db.get("users", ava),
+      lineup: await ctx.db.get("lineups", avas.lineupId),
+      task: await ctx.db.get("tasks", avas.taskId),
+      proof: await ctx.db.get("proofs", avas.proofId),
+      photo: await ctx.db.system.get("_storage", avas.storageId),
+      sessions: (await ctx.db.query("authSessions").collect()).filter((row) => row.userId === ava),
+      accounts: (await ctx.db.query("authAccounts").collect()).filter((row) => row.userId === ava),
+      bensProof: await ctx.db.get("proofs", bens.proofId),
+      bensPhoto: await ctx.db.system.get("_storage", bens.storageId),
+      bensLineup: await ctx.db.get("lineups", bens.lineupId),
+    }));
+    expect(left.user).toBeNull();
+    expect(left.lineup).toBeNull();
+    expect(left.task).toBeNull();
+    expect(left.proof).toBeNull();
+    expect(left.photo).toBeNull();
+    expect(left.sessions).toEqual([]);
+    expect(left.accounts).toEqual([]);
+    expect(await memberIdsOf(t, leagueId)).toEqual([ben]);
+    expect(left.bensProof).not.toBeNull();
+    expect(left.bensPhoto).not.toBeNull();
+    expect(left.bensLineup).not.toBeNull();
+
+    // A fresh install signs up again with the same number.
+    const again = await addUser(t);
+    await asUser(t, again).mutation(api.users.createUser, { name: "Ava", phone: "+14155550101" });
+    const owners = await t.run((ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_phone", (q) => q.eq("phone", "+14155550101"))
+        .collect(),
+    );
+    expect(owners.map((owner) => owner._id)).toEqual([again]);
+  });
+
+  it("deletes the device's own account, never the seeded player it is playing as", async () => {
+    const t = newHarness();
+    const seeded = await t.run((ctx) => ctx.db.insert("users", { name: "Maya", phone: "+14155550199", isSeed: true }));
+    const device = await addUser(t, { name: "Sam", demoActAs: seeded });
+
+    await asUser(t, device).mutation(api.users.deleteAccount, {});
+
+    expect(await t.run((ctx) => ctx.db.get("users", device))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("users", seeded))).not.toBeNull();
+  });
+
+  it("refuses a seeded demo player", async () => {
+    const t = newHarness();
+    const seeded = await t.run((ctx) => ctx.db.insert("users", { name: "Maya", isSeed: true }));
+
+    await expect(asUser(t, seeded).mutation(api.users.deleteAccount, {})).rejects.toMatchObject({
+      data: "A demo player can't be deleted",
+    });
+  });
+});
+
+describe("users.setNudges", () => {
+  it("is on until turned off", async () => {
+    const t = newHarness();
+    const ava = await addUser(t, { name: "Ava" });
+
+    expect(await asUser(t, ava).query(api.users.preferences, {})).toEqual({ nudgesOn: true });
+    await asUser(t, ava).mutation(api.users.setNudges, { enabled: false });
+    expect(await asUser(t, ava).query(api.users.preferences, {})).toEqual({ nudgesOn: false });
+  });
+});

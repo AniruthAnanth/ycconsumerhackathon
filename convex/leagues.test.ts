@@ -705,3 +705,57 @@ describe("leagues.startWeek", () => {
     expect(await paidOf(t, leagueId)).toEqual([true, true]);
   });
 });
+
+describe("leagues.leave", () => {
+  it("takes the caller out of the league and keeps everyone else in", async () => {
+    const t = newHarness();
+    const ava = await addUser(t, { name: "Ava" });
+    const ben = await addUser(t, { name: "Ben" });
+    const { leagueId, inviteCode } = await asUser(t, ava).mutation(api.leagues.create, {
+      name: "Dorm 4",
+      stakeUsd: 0,
+      visibility: "private",
+    });
+    await asUser(t, ben).mutation(api.leagues.joinByCode, { inviteCode });
+
+    await asUser(t, ben).mutation(api.leagues.leave, { leagueId });
+
+    const members = await t.run((ctx) =>
+      ctx.db
+        .query("memberships")
+        .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+        .collect(),
+    );
+    expect(members.map((row) => row.userId)).toEqual([ava]);
+  });
+
+  it("refuses a player who is not in the league", async () => {
+    const t = newHarness();
+    const ava = await addUser(t, { name: "Ava" });
+    const zed = await addUser(t, { name: "Zed" });
+    const { leagueId } = await asUser(t, ava).mutation(api.leagues.create, {
+      name: "Dorm 4",
+      stakeUsd: 0,
+      visibility: "private",
+    });
+
+    await expect(asUser(t, zed).mutation(api.leagues.leave, { leagueId })).rejects.toMatchObject({
+      data: "You're not in that league",
+    });
+  });
+
+  it("keeps a player who has paid into the week in play", async () => {
+    const t = newHarness();
+    const ava = await addUser(t, { name: "Ava" });
+    const { leagueId } = await asUser(t, ava).mutation(api.leagues.create, {
+      name: "Dorm 4",
+      stakeUsd: 20,
+      visibility: "private",
+    });
+    await buyIn(t, leagueId, ava);
+
+    await expect(asUser(t, ava).mutation(api.leagues.leave, { leagueId })).rejects.toMatchObject({
+      data: "You've paid into this week. You can leave once it settles.",
+    });
+  });
+});

@@ -1,7 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { removePlayer } from "./fixtures";
 import { addMember, currentWeek, paidInto } from "./leagues";
 import { requireSignedInUser, requireUser, signedInUser } from "./lib/auth";
 import { UNNAMED_PLAYER } from "./lib/names";
@@ -11,6 +13,11 @@ const MAX_NAME_LENGTH = 40;
 const MAX_CONTACTS = 1000;
 const MAX_LEAGUES_LISTED = 50;
 const E164 = /^\+[1-9]\d{6,14}$/;
+// Bounds for Delete account. A player's whole history fits well inside them; removePlayer's own
+// allowance carries anything past DELETES_PER_RUN into finishDeleteAccount.
+const MAX_PROOFS_DELETED = 4000;
+const MAX_SOCIAL_ROWS_SCANNED = 4000;
+const DELETES_PER_RUN = 4000;
 
 export const me = query({
   args: {},
@@ -164,5 +171,115 @@ export const matchContacts = mutation({
       added.push({ userId: user._id, name: user.name ?? UNNAMED_PLAYER });
     }
     return { added, notOnLineup };
+  },
+});
+
+/** The Settings switches the account owns that no other module serves. Unset means on. */
+export const preferences = query({
+  args: {},
+  returns: v.object({ nudgesOn: v.boolean() }),
+  handler: async (ctx) => {
+    const account = await requireSignedInUser(ctx);
+    return { nudgesOn: account.nudgesEnabled !== false };
+  },
+});
+
+/** Settings' Nudges switch: the scheduled check-in texts and pushes (convex/checkins.ts). */
+export const setNudges = mutation({
+  args: { enabled: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { enabled }) => {
+    const account = await requireSignedInUser(ctx);
+    await ctx.db.patch("users", account._id, { nudgesEnabled: enabled });
+    return null;
+  },
+});
+
+/**
+ * Settings' avatar: a photo uploaded through proofs.generateUploadUrl. The old file is deleted,
+ * since only this row points at it (seeded players keep theirs: their photos are shared).
+ */
+export const setAvatar = mutation({
+  args: { storageId: v.id("_storage") },
+  returns: v.null(),
+  handler: async (ctx, { storageId }) => {
+    const account = await requireSignedInUser(ctx);
+    if (account.isSeed) {
+      throw new ConvexError("A demo player keeps their photo");
+    }
+    const previous = account.avatarStorageId;
+    await ctx.db.patch("users", account._id, { avatarStorageId: storageId });
+    if (previous !== undefined && previous !== storageId) {
+      await ctx.storage.delete(previous);
+    }
+    return null;
+  },
+});
+
+/**
+ * Settings' Delete account. Deletes the device's own account, never the seeded player Switch
+ * Player points at, with every row that hangs off it (fixtures.removePlayer: memberships, the
+ * matchups, drops, challenges and ledger rows it left in its leagues, lineups, tasks, proofs,
+ * scores, nudges, push tokens, referrals and the Convex Auth sessions and accounts, so the
+ * anonymous identity can't sign back in), plus its photos and its reactions and votes. Leagues
+ * it created stay for their other members.
+ *
+ * The phone number is given up first, so it is free to sign up again even when the rest needs
+ * a second run: a very long history carries on in finishDeleteAccount.
+ */
+export const deleteAccount = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const account = await requireSignedInUser(ctx);
+    if (account.isSeed) {
+      throw new ConvexError("A demo player can't be deleted");
+    }
+    await ctx.db.patch("users", account._id, { phone: undefined, demoActAs: undefined });
+
+    // Photos first, while the proofs that name them can still be read. A real player's proofs
+    // are their own uploads; only seeded players share files.
+    const proofs = await ctx.db
+      .query("proofs")
+      .withIndex("by_user_week", (q) => q.eq("userId", account._id))
+      .take(MAX_PROOFS_DELETED);
+    const files = new Set<Id<"_storage">>();
+    for (const proof of proofs) {
+      if (proof.storageId) files.add(proof.storageId);
+      if (proof.beforeStorageId) files.add(proof.beforeStorageId);
+    }
+    if (account.avatarStorageId) files.add(account.avatarStorageId);
+    for (const file of files) {
+      if ((await ctx.db.system.get("_storage", file)) !== null) await ctx.storage.delete(file);
+    }
+
+    // Reactions and votes have no index by player and both tables are small, as fixtures.remove reads them.
+    const reactions = await ctx.db.query("reactions").take(MAX_SOCIAL_ROWS_SCANNED);
+    const votes = await ctx.db.query("votes").take(MAX_SOCIAL_ROWS_SCANNED);
+    for (const reaction of reactions) {
+      if (reaction.userId === account._id) await ctx.db.delete("reactions", reaction._id);
+    }
+    for (const vote of votes) {
+      if (vote.userId === account._id) await ctx.db.delete("votes", vote._id);
+    }
+
+    if (!(await removePlayer({ ctx, left: DELETES_PER_RUN }, account))) {
+      await ctx.scheduler.runAfter(0, internal.users.finishDeleteAccount, { userId: account._id });
+    }
+    return null;
+  },
+});
+
+/** What deleteAccount could not fit in one transaction, one budget at a time. */
+export const finishDeleteAccount = internalMutation({
+  args: { userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, { userId }) => {
+    const account = await ctx.db.get("users", userId);
+    if (account === null) return null;
+    if (!(await removePlayer({ ctx, left: DELETES_PER_RUN }, account))) {
+      await ctx.scheduler.runAfter(0, internal.users.finishDeleteAccount, { userId });
+    }
+    return null;
   },
 });

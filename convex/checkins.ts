@@ -258,6 +258,8 @@ export const nudge = internalMutation({
   args: { userId: v.id("users") },
   returns: v.union(v.null(), v.string()),
   handler: async (ctx, { userId }) => {
+    // A player who turned Nudges off in Settings gets no scheduled check-ins at all.
+    if ((await ctx.db.get("users", userId))?.nudgesEnabled === false) return null;
     const now = Date.now();
     const clock = pacificClock(now);
     const home = await homeLeague(ctx, userId, now);

@@ -103,6 +103,9 @@ export default defineSchema({
     // permission prompt is the opt-in, so this only records a player who
     // turned pushes off afterwards.
     pushEnabled: v.optional(v.boolean()),
+    // The Nudges switch in Settings: the scheduled check-in texts and pushes
+    // (convex/checkins.ts). Unset means on; false stops them.
+    nudgesEnabled: v.optional(v.boolean()),
     createdAt: v.optional(v.number()),
   })
     .index("email", ["email"]) // looked up by Convex Auth under this exact name
