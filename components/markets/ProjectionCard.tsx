@@ -36,7 +36,11 @@ export function ProjectionCard({ market }: { market: Market }) {
           </View>
         </View>
       ) : (
-        <Text style={styles.label}>Free league: no money on this one, just bragging rights.</Text>
+        <Text style={styles.label}>
+          {payout.stakeUsd > 0
+            ? `Pay your ${payout.stakeUsd} buy-in to play for the pot. The pot fills as players pay.`
+            : "Free league: no money on this one, just bragging rights."}
+        </Text>
       )}
       <Pressable
         onPress={() => setOpen((value) => !value)}
