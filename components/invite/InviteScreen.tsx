@@ -36,7 +36,7 @@ export function InviteScreen() {
         <Header title="Invite" />
         <View style={styles.center}>
           <Text style={styles.muted}>This invite link is not valid</Text>
-          <OutlinedPillButton label="Join with a code" onPress={() => router.replace("/join")} />
+          <OutlinedPillButton label="Join with a code" onPress={() => router.replace({ pathname: "/join", params: { mode: "code" } })} />
         </View>
       </Screen>
     );

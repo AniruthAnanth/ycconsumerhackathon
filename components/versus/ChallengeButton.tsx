@@ -9,7 +9,7 @@ export function ChallengeButton() {
   const router = useRouter();
   return (
     <View style={styles.body}>
-      <OutlinedPillButton label="Challenge a friend" icon="flash-outline" onPress={() => router.push("/versus/new")} />
+      <OutlinedPillButton label="Challenge a friend" icon="flash-outline" onPress={() => router.push({ pathname: "/join", params: { mode: "versus" } })} />
     </View>
   );
 }
