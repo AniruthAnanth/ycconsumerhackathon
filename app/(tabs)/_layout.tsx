@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
+import { SunnyButton } from "@/components/social/sunny/SunnyButton";
 import { GlassTabBar, Header, WeekSelector } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { haptics } from "@/lib/native/haptics";
@@ -63,7 +64,7 @@ export default function TabsLayout() {
         <Header
           title={membership?.name ?? "Lineup"}
           onTitlePress={() => router.push("/league-switcher")}
-          onChatPress={() => router.push("/chat")}
+          right={<SunnyButton />}
         />
         <WeekSelector
           label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}

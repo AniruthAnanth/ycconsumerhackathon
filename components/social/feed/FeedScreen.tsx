@@ -13,6 +13,7 @@ import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN, spacing } fr
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
 
+import { SunnyCard } from "../sunny/SunnyCard";
 import { UpForVeto } from "../veto/UpForVeto";
 import { FocusFlash } from "./FocusFlash";
 import { ProofPost } from "./ProofPost";
@@ -82,6 +83,7 @@ export function FeedScreen() {
         }}
         ListHeaderComponent={
           <>
+          <SunnyCard />
           <View style={styles.shortcuts}>
             <Shortcut icon="sparkles-outline" label="Week Wrapped" onPress={() => router.push("/wrapped")} />
             <Shortcut icon="school-outline" label="Connect Canvas" onPress={() => router.push("/canvas")} />
