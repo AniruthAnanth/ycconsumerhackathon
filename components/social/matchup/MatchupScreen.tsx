@@ -44,7 +44,7 @@ export default function MatchupScreen() {
     <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
       {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
       <MatchupBody matchup={matchup} bonus={false} vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined} />
-      <SunnyPrompt screen="matchup" />
+      <SunnyPrompt />
       <MatchupMore matchup={matchup} leagueId={leagueId} />
     </ScrollView>
   );
