@@ -2,8 +2,10 @@ import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
+import Svg, { Path } from "react-native-svg";
 
 import { formatChance, useMarket } from "@/components/markets";
+import { areaPath, stepPath } from "@/components/markets/chartGeometry";
 import { cardStyle, Header, LargeTitle, Screen, SLOT_LABEL, useCollapsingHeader } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { SLOT_ORDER } from "@/lib/slots";
@@ -28,7 +30,10 @@ export function ProfileScreen() {
   const market = useMarket(leagueId);
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
   const own = me?._id === userId;
-  const finish = market?.odds.rows.find((row) => row.userId === userId)?.finishChance;
+  const row = market?.odds.rows.find((r) => r.userId === userId);
+  const finish = row?.finishChance;
+  const history = (row?.finishHistory ?? []).map(({ at, chance }) => ({ at, value: chance }));
+  const delta = history.length > 1 ? Math.round((history[history.length - 1].value - history[history.length - 2].value) * 100) : 0;
   const stats = record?.stats;
   const played = stats ? stats.wins + stats.losses > 0 : false;
   const slots = SLOT_ORDER.map((slot) => ({ slot, rate: profile?.slotRates?.find((s) => s.slot === slot)?.rate })).filter(
@@ -61,7 +66,21 @@ export function ProfileScreen() {
             {finish !== undefined ? (
               <View style={styles.card} testID="profile-clear-chance">
                 <Text style={styles.label}>Chance to clear 5/5 this week</Text>
-                <Text style={styles.big}>{formatChance(finish)}</Text>
+                <View style={styles.bigRow}>
+                  <Text style={styles.big}>{formatChance(finish)}</Text>
+                  {delta !== 0 ? (
+                    <Text style={[styles.delta, { color: delta > 0 ? colors.green : colors.danger }]}>
+                      {delta > 0 ? "▲" : "▼"} {Math.abs(delta)} pts
+                    </Text>
+                  ) : null}
+                </View>
+                {history.length > 1 ? <ClearChart points={history} /> : null}
+                {history.length > 1 ? (
+                  <View style={styles.axis}>
+                    <Text style={styles.label}>Week start</Text>
+                    <Text style={styles.label}>Now</Text>
+                  </View>
+                ) : null}
               </View>
             ) : null}
             <View style={styles.card}>
@@ -85,6 +104,19 @@ export function ProfileScreen() {
         )}
       </Animated.ScrollView>
     </Screen>
+  );
+}
+
+const CHART = { width: 300, height: 96, padding: 4 };
+
+/** The clear-5/5 chance after each verified proof this week, held flat until the next one like a market price. */
+function ClearChart({ points }: { points: { at: number; value: number }[] }) {
+  const line = stepPath(points, CHART);
+  return (
+    <Svg width="100%" height={CHART.height} viewBox={`0 0 ${CHART.width} ${CHART.height}`} preserveAspectRatio="none" accessible={false}>
+      <Path d={areaPath(line, CHART)} fill={colors.accent} fillOpacity={0.12} />
+      <Path d={line.d} stroke={colors.accent} strokeWidth={2.5} fill="none" />
+    </Svg>
   );
 }
 
@@ -114,6 +146,9 @@ const styles = StyleSheet.create({
   tile: { ...cardStyle, flexBasis: "47%", flexGrow: 1, padding: spacing.lg, gap: spacing.xs },
   tileValue: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text, ...tabular },
   label: { ...type.small, color: colors.textMuted },
+  bigRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.md },
+  delta: { ...type.label, ...tabular },
+  axis: { flexDirection: "row", justifyContent: "space-between" },
   big: { fontFamily: fontFamily.extraBold, fontSize: font.score * 1.6, color: colors.accent, ...tabular },
   slotRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 32 },
   slotName: { ...type.small, color: colors.text, width: 76 },

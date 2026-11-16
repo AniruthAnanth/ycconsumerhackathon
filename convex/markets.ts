@@ -187,7 +187,7 @@ export const week = query({
         kind: v.union(v.literal("pot"), v.literal("week")),
         /** Stakes in play from paid members, the pot's size. */
         potUsd: v.number(),
-        rows: v.array(v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), chance: v.number(), shareUsd: v.number(), finishChance: v.number(), projected: v.number() })),
+        rows: v.array(v.object({ userId: v.id("users"), name: v.string(), isMe: v.boolean(), chance: v.number(), shareUsd: v.number(), finishChance: v.number(), finishHistory: v.optional(v.array(v.object({ at: v.number(), chance: v.number() }))), projected: v.number() })),
         /** The chance no paid member clears a slot and the pot rolls over; with the rows' shares it sums to 1. */
         nobody: v.number(),
       }),
@@ -246,7 +246,8 @@ export const week = query({
     const myIndex = replays.indexOf(mine);
     const sparkline = [...new Set(thin([week.startsAt, ...verifiedMoments(replays, asOf)], SPARKLINE_POINTS - 1).concat(asOf))];
     // The trend is a sketch, so its earlier points take fewer draws than the headline number.
-    const payoutHistory = sparkline.map((at) => ({ at, netUsd: (at === asOf ? sim : simulateAt(at, 400)).share[myIndex] * potUsd - league.stakeUsd }));
+    const sims = sparkline.map((at) => ({ at, sim: at === asOf ? sim : simulateAt(at, 400) }));
+    const payoutHistory = sims.map(({ at, sim: s }) => ({ at, netUsd: s.share[myIndex] * potUsd - league.stakeUsd }));
     const odds = {
       kind: staked ? ("pot" as const) : ("week" as const),
       rows: replays
@@ -257,6 +258,7 @@ export const week = query({
           chance: sim.share[i],
           shareUsd: sim.share[i] * potUsd,
           finishChance: sim.finish[i],
+          finishHistory: sims.map(({ at, sim: s }) => ({ at, chance: s.finish[i] })),
           projected: Math.round(atNow[i].projection.mean),
         }))
         .sort((a, b) => b.chance - a.chance || b.projected - a.projected || a.name.localeCompare(b.name)),
