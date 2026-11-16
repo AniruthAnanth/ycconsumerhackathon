@@ -6,7 +6,7 @@ import { CoachTarget } from "@/components/coach";
 import { MatchupOdds } from "@/components/markets/MatchupOdds";
 import { CountUp, PressScale } from "@/components/motion";
 import { useMarket } from "@/components/markets/useMarket";
-import { Avatar } from "@/components/ui";
+import { Avatar, Card } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -40,7 +40,7 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
   };
   const opponentProjected = market?.matchup?.opponentId === opponent.userId ? market.matchup.opponent.projected : undefined;
   return (
-    <View style={styles.hero}>
+    <Card style={styles.hero}>
       <View style={styles.sides}>
         <HeroSide side={me} record={recordOf(me.userId)} caption={caption(market?.me.projected, minePossible)} align="flex-start" />
         <HeroSide side={opponent} record={recordOf(opponent.userId)} caption={caption(opponentProjected, theirsPossible)} align="flex-end" />
@@ -50,7 +50,7 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
           <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} compact />
         </CoachTarget>
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -75,7 +75,7 @@ function HeroSide({ side, record, caption, align }: { side: MatchupSide; record?
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg, gap: spacing.lg },
+  hero: { marginHorizontal: SCREEN_MARGIN, marginTop: spacing.md, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.lg, gap: spacing.lg },
   sides: { flexDirection: "row", gap: spacing.lg },
   side: { flex: 1, gap: spacing.xs },
   name: { ...type.label, color: colors.textMuted, maxWidth: "100%" },

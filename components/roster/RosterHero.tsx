@@ -4,12 +4,12 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { CountUp, PressScale } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
-import { formatScore } from "@/components/ui";
+import { cardStyle, formatScore } from "@/components/ui";
 import type { Roster } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { formatCountdown } from "@/lib/leagueText";
 import { useNow } from "@/lib/useNow";
-import { BORDER, colors, fontFamily, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, layout, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 /**
  * The top of Roster: the head-to-head score, compact, with the members and time left in small type above.
@@ -60,10 +60,9 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
           <View style={styles.side}>
             <CountUp style={styles.myScore} value={matchup.me.total} format={formatScore} decimals={1} />
             <Text style={styles.name} numberOfLines={1}>
-              {matchup.me.name}
+              You
             </Text>
           </View>
-          <Text style={styles.vs}>vs</Text>
           <View style={[styles.side, styles.sideEnd]}>
             <CountUp style={styles.theirScore} value={matchup.opponent.total} format={formatScore} decimals={1} />
             <Text style={styles.name} numberOfLines={1}>
@@ -83,16 +82,13 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     marginHorizontal: SCREEN_MARGIN,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
     paddingHorizontal: SCREEN_MARGIN,
     paddingVertical: spacing.md,
     gap: spacing.sm,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
   },
   loading: { minHeight: 120, alignItems: "center", justifyContent: "center" },
   meta: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
@@ -104,5 +100,4 @@ const styles = StyleSheet.create({
   myScore: { ...type.display, color: colors.text, fontVariant: ["tabular-nums"] },
   theirScore: { ...type.title, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   name: { ...type.small, fontFamily: fontFamily.semiBold, color: colors.textMuted },
-  vs: { ...type.caption, color: colors.textFaint, paddingBottom: spacing.lg },
 });

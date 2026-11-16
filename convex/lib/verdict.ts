@@ -109,6 +109,22 @@ export function rejectWithoutJudging(
   };
 }
 
+/** A check-in decided on GPS alone: the phone is at the place, which is the whole task. */
+export function checkInVerdict(rules: ProofRules): Verdict {
+  const { placeName, distanceM } = rules.location!;
+  return {
+    pass: true,
+    confidence: 1,
+    reason: `Checked in at ${placeName}${distanceM === null ? "" : `, ${formatDistance(distanceM)} away`}`,
+    highlight: 3,
+    caption: "",
+    points: rules.points,
+    closeCall: false,
+    flags: [],
+    needsVote: false,
+  };
+}
+
 /**
  * Applies the rules in order of how certain they are: GPS distance, the
  * required gesture, the scene check for a place, then the model's own call

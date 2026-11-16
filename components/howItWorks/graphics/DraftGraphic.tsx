@@ -4,6 +4,7 @@ import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyl
 import { Icon } from "@/components/ui/Icon";
 import { PositionPill } from "@/components/ui/PositionPill";
 import { SLOT_NAME, type Slot } from "@/lib/slots";
+import { cardStyle } from "@/components/ui";
 import { colors, duration, radius, spacing, type } from "@/theme";
 
 import { useBeat } from "./useBeat";
@@ -92,10 +93,7 @@ const styles = StyleSheet.create({
   bubble: { flex: 1, backgroundColor: colors.greenSoft, borderRadius: radius.control, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   bubbleText: { ...type.small, color: colors.text },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
+    ...cardStyle,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
   },

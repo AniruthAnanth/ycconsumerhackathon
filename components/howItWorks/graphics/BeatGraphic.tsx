@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 
 import { CountUp, ease, useReduceMotion } from "@/components/motion";
-import { Avatar, Icon } from "@/components/ui";
+import { Avatar, cardStyle, Icon } from "@/components/ui";
 import { colors, duration, font, fontFamily, radius, spacing, type } from "@/theme";
 
 const YOU_SCORE = 128;
@@ -66,15 +66,12 @@ const styles = StyleSheet.create({
   root: { height: 260, width: "100%", justifyContent: "center" },
   scene: { alignItems: "center", gap: spacing.md },
   card: {
+    ...cardStyle,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "stretch",
     justifyContent: "space-around",
     paddingVertical: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
   },
   side: { alignItems: "center", gap: spacing.xs, minWidth: 88 },
   name: { ...type.label, color: colors.text },

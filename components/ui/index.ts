@@ -8,6 +8,7 @@ export { formatClock, formatScore, taskPlaceLine, taskStatusLine, type TaskRowDa
 export { Avatar } from "./Avatar";
 export { Banner } from "./Banner";
 export { Button } from "./Button";
+export { Card, cardStyle } from "./Card";
 export { LARGE_TITLE_HEIGHT, LargeTitle, useCollapsingHeader } from "./CollapsingHeader";
 export { Divider, RowDivider } from "./Divider";
 export { EmptyState } from "./EmptyState";

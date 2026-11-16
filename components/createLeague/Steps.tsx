@@ -2,8 +2,8 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
-import { Icon, OutlinedPillButton, TextField } from "@/components/ui";
-import { BORDER, colors, hairline, layout, radius, spacing, tabular, type } from "@/theme";
+import { cardStyle, Icon, OutlinedPillButton, TextField } from "@/components/ui";
+import { colors, hairline, layout, spacing, tabular, type } from "@/theme";
 
 import { ChoiceCard } from "./ChoiceCard";
 import {
@@ -238,12 +238,9 @@ const styles = StyleSheet.create({
   choices: { gap: spacing.md },
   groupTitle: { ...type.caption, color: colors.textMuted, letterSpacing: 0.6 },
   panel: {
+    ...cardStyle,
     gap: spacing.sm,
     padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
   },
   panelButton: { marginTop: spacing.sm },
   figure: { ...type.subheading, color: colors.text },
@@ -256,11 +253,8 @@ const styles = StyleSheet.create({
   },
   expanderLabel: { ...type.label, color: colors.accent },
   review: {
+    ...cardStyle,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
   },
   reviewRow: {
     minHeight: layout.rowMin,
