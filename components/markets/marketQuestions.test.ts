@@ -29,7 +29,7 @@ describe("marketQuestions", () => {
 
 describe("potNeedsLine", () => {
   test("says how far from the pot you are", () => {
-    expect(potNeedsLine(2)).toBe("The pot needs all 5 slots cleared — you've cleared 2.");
+    expect(potNeedsLine(2)).toBe("The pot needs all 5 slots cleared. You've cleared 2.");
     expect(potNeedsLine(5)).toBe("You've cleared all 5 slots, so you're in the running for the pot.");
   });
 });
