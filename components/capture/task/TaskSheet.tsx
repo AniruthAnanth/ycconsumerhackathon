@@ -1,14 +1,16 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { DonePoints, StrikeThrough, useDoneDim, useDoneMoment } from "@/components/motion";
 import { Button, EmptyState, Header, PositionPill, sheetNeedsClose } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { leaveScreen } from "@/lib/leaveScreen";
 import { formatScore, taskPlaceLine, taskRowLabel, taskStatusLine } from "@/lib/taskText";
-import { colors, layout, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { colors, layout, SCREEN_MARGIN, slotTint, spacing, tabular, type } from "@/theme";
 
 import { howToProve } from "../proofKinds";
 import { PinPlaceButton } from "./PinPlaceButton";
@@ -38,6 +40,8 @@ export function TaskSheet({ taskId }: { taskId: string }) {
   // An open task's how-to line names its proof type, target and place, so the row above it keeps only the due day.
   const meta = task ? (provable ? task.dueLabel : taskStatusLine(task)) : undefined;
   const place = task && !provable ? taskPlaceLine(task) : undefined;
+  const { done, animate } = useDoneMoment(task?.status, { id: task?.taskId });
+  const dim = useDoneDim(done, animate);
 
   return (
     <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
@@ -45,15 +49,25 @@ export function TaskSheet({ taskId }: { taskId: string }) {
       {task ? (
         <>
           <View style={styles.row} accessible accessibilityLabel={taskRowLabel(task, false)}>
-            <PositionPill slot={task.slot} />
+            <Animated.View style={dim}>
+              <PositionPill slot={task.slot} />
+            </Animated.View>
             <View style={styles.text}>
-              <Text style={styles.title} numberOfLines={3}>
+              <StrikeThrough style={styles.title} numberOfLines={3} done={done} animate={animate}>
                 {task.title}
-              </Text>
-              {meta ? <Text style={styles.meta}>{meta}</Text> : null}
-              {place ? <Text style={styles.meta}>{place}</Text> : null}
+              </StrikeThrough>
+              {meta || place ? (
+                <Animated.View style={[styles.lines, dim]}>
+                  {meta ? <Text style={styles.meta}>{meta}</Text> : null}
+                  {place ? <Text style={styles.meta}>{place}</Text> : null}
+                </Animated.View>
+              ) : null}
             </View>
-            <Text style={styles.points}>{`${formatScore(task.score ?? task.points)} pts`}</Text>
+            {done ? (
+              <DonePoints points={task.score ?? task.points} animate={animate} color={slotTint[task.slot].fg} />
+            ) : (
+              <Text style={styles.points}>{`${formatScore(task.score ?? task.points)} pts`}</Text>
+            )}
           </View>
           {provable ? (
             <>
@@ -89,6 +103,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   text: { flex: 1, gap: spacing.xs },
+  lines: { gap: spacing.xs },
   title: { ...type.subheading, color: colors.text },
   meta: { ...type.small, color: colors.textMuted },
   // Never shrinks, so "40 pts" stays on one line at the trailing edge.

@@ -6,6 +6,8 @@ import { PROOF_LABEL, SLOT_NAME, type ProofType, type Slot } from "./slots";
  * Draft), so both can be passed straight in.
  */
 export type TaskRowData = {
+  /** Absent on a draft task, which has no row yet. */
+  taskId?: string;
   slot: Slot;
   title: string;
   points: number;
@@ -46,7 +48,8 @@ export function taskStatusLine(task: TaskRowData): string {
     case "verified":
       return task.verifiedAt == null ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
     case "held":
-      return "Up for veto · Points on hold";
+      // A league vote is reviewing the proof: the row stays as it was, only the label says so.
+      return "Reviewing · Points on hold";
     case "failed":
       // A rejected proof leaves a task open. Only a drop that closed with no
       // proof writes "failed", and that task can no longer be played.
@@ -80,6 +83,8 @@ export function taskRowLabel(task: TaskRowData, upNext = false): string {
   return [
     task.title,
     upNext ? "Up next" : SLOT_NAME[task.slot],
+    // The struck-through title says it on screen; the label says it in words.
+    task.status === "verified" ? "done" : undefined,
     taskStatusLine(task).replaceAll(" · ", ", "),
     task.place ? `at ${task.place.name}` : undefined,
     points,

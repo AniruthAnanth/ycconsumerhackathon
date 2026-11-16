@@ -46,7 +46,7 @@ export function statusLine(task: Pick<TaskRow, "status" | "dueLabel">) {
       // The due day is the same for every row, so the section header says it once.
       return undefined;
     case "held":
-      return "Up for veto";
+      return "Reviewing";
     case "failed":
       return "Not verified";
   }

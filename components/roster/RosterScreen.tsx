@@ -1,9 +1,11 @@
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { proofCameraHref } from "@/components/capture/proofRoute";
 import { CoachTarget, CoachTour } from "@/components/coach";
+import { showToast } from "@/components/live/localToast";
 import { HomeWidgetSync, LiveActivitySync } from "@/components/liveActivity";
 import { Entrance } from "@/components/motion";
 import { DropBanner } from "@/components/roster/DropBanner";
@@ -24,7 +26,8 @@ import {
 import { backend, type Task } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { sharedDueLabel, splitRoster, weekActions } from "@/lib/roster";
-import { SCREEN_MARGIN } from "@/theme";
+import { isPerfectWeek, PERFECT_WEEK_TOAST } from "@/lib/taskDone";
+import { doneMoment, SCREEN_MARGIN } from "@/theme";
 
 /**
  * ROSTER, the screen the app opens on every day: this week's lineup as a team
@@ -58,6 +61,19 @@ export function RosterScreen() {
   // selected league's week has settled (End Week Now settles one early). That
   // week's result is final, so Roster stops asking for a proof until the next opens.
   const settled = league?.week.status === "settled";
+  const perfect = roster ? isPerfectWeek(roster.rows) : false;
+  // The last week seen and whether it was perfect, so only the change into perfect toasts, never
+  // opening the app on a perfect week or browsing to one.
+  const seenPerfect = useRef<{ weekStart: number; perfect: boolean } | undefined>(undefined);
+  useEffect(() => {
+    if (!roster) return;
+    const before = seenPerfect.current;
+    seenPerfect.current = { weekStart: roster.weekStart, perfect };
+    if (!perfect || before?.weekStart !== roster.weekStart || before.perfect) return;
+    // The toast lands as the row's done sequence finishes, not on top of it.
+    const timer = setTimeout(() => showToast(PERFECT_WEEK_TOAST), doneMoment.perfectToastDelayMs);
+    return () => clearTimeout(timer);
+  }, [perfect, roster]);
   const due = sharedDueLabel(roster?.rows ?? []);
   // The tour's "tap a task" step points at the task to do next, else the first one in the lineup.
   const coachTaskId = (
@@ -74,6 +90,7 @@ export function RosterScreen() {
       <TaskRow
         task={task}
         highlighted={upNext}
+        perfectWeek={perfect && task.slot !== "flex"}
         onPress={() => router.push(`/task/${task.taskId}`)}
         right={
           canProve ? (

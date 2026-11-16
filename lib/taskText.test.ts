@@ -53,8 +53,8 @@ describe("taskStatusLine", () => {
     expect(taskStatusLine({ ...base, proofType: "photo", status: "failed" })).toBe("Missed");
   });
 
-  it("marks a challenged proof", () => {
-    expect(taskStatusLine({ ...base, status: "held" })).toBe("Up for veto · Points on hold");
+  it("marks a challenged proof as reviewing", () => {
+    expect(taskStatusLine({ ...base, status: "held" })).toBe("Reviewing · Points on hold");
   });
 });
 
@@ -76,7 +76,11 @@ describe("taskRowLabel", () => {
 
   it("says Up next in place of the slot, and the score once there is one", () => {
     expect(taskRowLabel({ ...base, status: "held", score: 40 }, true)).toBe(
-      "Leg day, Up next, Up for veto, Points on hold, 40 points",
+      "Leg day, Up next, Reviewing, Points on hold, 40 points",
     );
+  });
+
+  it("says done for a verified task", () => {
+    expect(taskRowLabel({ ...base, status: "verified", score: 40 })).toBe("Leg day, Body, done, Verified, 40 points");
   });
 });

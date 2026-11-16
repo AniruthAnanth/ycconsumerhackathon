@@ -1,30 +1,41 @@
 import type { ReactNode } from "react";
 import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { CoachTarget } from "@/components/coach";
+import { DonePoints, StrikeThrough, useDoneDim, useDoneMoment } from "@/components/motion";
 import { PositionPill, RowDivider, Score } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, spacing } from "@/theme";
+import type { Slot } from "@/lib/slots";
+import { isDone } from "@/lib/taskDone";
+import { colors, font, fontFamily, radius, ROW_HEIGHT, SCREEN_MARGIN, slotTint, spacing } from "@/theme";
 
 import type { Matchup, TaskRow, TaskVeto } from "../contract";
 import { SwapEditor } from "../veto/SwapEditor";
 import { useVetoAction } from "../veto/useVetoAction";
 import { VetoChip } from "../veto/VetoChip";
 import { showsVeto } from "../veto/vetoLogic";
-import { slotLeader, statusLine } from "./matchupLogic";
+import { statusLine } from "./matchupLogic";
 
 type Vetoes = { byTask: Map<Id<"tasks">, TaskVeto>; leagueId: Id<"leagues"> };
 
-/** One slot, mirrored the way a fantasy box score reads: my task | slot | their task, the leading half tinted. */
+/**
+ * One slot, mirrored the way a fantasy box score reads: my task | slot | their task. A done side
+ * is struck through with a check and +points, the one way the app says done; the slot pill they
+ * share dims once both sides are done.
+ */
 export function SlotRow({ row, vetoes }: { row: Matchup["rows"][number]; vetoes?: Vetoes }) {
   const mineVeto = row.mine ? vetoes?.byTask.get(row.mine.taskId) : undefined;
-  const leader = slotLeader(row);
+  const slotDone = useDoneMoment(isDone(row.mine?.status) && isDone(row.theirs?.status) ? "verified" : "open", { haptic: false });
+  const dim = useDoneDim(slotDone.done, slotDone.animate);
   return (
     <View>
       <View style={styles.row}>
-        <TaskSide task={row.mine} side="mine" leading={leader === "mine"} vetoes={vetoes} />
-        <PositionPill slot={row.slot} />
-        <TaskSide task={row.theirs} side="theirs" leading={leader === "theirs"} vetoes={vetoes} />
+        <TaskSide task={row.mine} slot={row.slot} side="mine" vetoes={vetoes} />
+        <Animated.View style={dim}>
+          <PositionPill slot={row.slot} />
+        </Animated.View>
+        <TaskSide task={row.theirs} slot={row.slot} side="theirs" vetoes={vetoes} />
       </View>
       {mineVeto?.struck ? (
         <View style={styles.swap}>
@@ -41,8 +52,10 @@ export function SlotRow({ row, vetoes }: { row: Matchup["rows"][number]; vetoes?
  * it puts the points on the outer edge, then the status word, reading in towards the pill. The word alone
  * carries the status; a dot beside it said the same thing twice.
  */
-function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine" | "theirs"; leading: boolean; vetoes?: Vetoes }) {
+function TaskSide({ task, slot, side, vetoes }: { task?: TaskRow; slot: Slot; side: "mine" | "theirs"; vetoes?: Vetoes }) {
   const mirrored = side === "theirs";
+  // The opponent's proof plays on their side too, but only the player's own buzzes their phone.
+  const { done, animate } = useDoneMoment(task?.status, { id: task?.taskId, haptic: side === "mine" });
   const veto = task ? vetoes?.byTask.get(task.taskId) : undefined;
   if (!task) {
     return (
@@ -53,11 +66,21 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
   }
   const body = (
     <>
-      <Text style={[styles.title, mirrored && styles.textRight]} numberOfLines={2}>
+      <StrikeThrough
+        style={[styles.title, mirrored && styles.textRight]}
+        numberOfLines={2}
+        done={done}
+        animate={animate}
+        accessibilityLabel={done ? `${task.title}, done` : undefined}
+      >
         {task.title}
-      </Text>
+      </StrikeThrough>
       {/* Nothing to say until there is a score or a status, so an open, unscored task is just its title. */}
-      {task.score != null || statusLine(task) ? (
+      {done ? (
+        <View style={[styles.meta, mirrored && styles.sideMirrored]}>
+          <DonePoints points={task.score ?? task.points} animate={animate} color={slotTint[slot].fg} />
+        </View>
+      ) : task.score != null || statusLine(task) ? (
         <View style={[styles.meta, mirrored && styles.sideMirrored]}>
           {task.score != null ? <Score value={task.score} /> : null}
           <Text style={[styles.status, mirrored && styles.textRight]} numberOfLines={1}>
@@ -75,9 +98,9 @@ function TaskSide({ task, side, leading, vetoes }: { task?: TaskRow; side: "mine
     </>
   );
   if (veto && vetoes && side === "theirs" && veto.canVote && !showsVeto(side, veto)) {
-    return <LongPressVeto veto={veto} leagueId={vetoes.leagueId} style={[styles.stack, leading && styles.leading]}>{body}</LongPressVeto>;
+    return <LongPressVeto veto={veto} leagueId={vetoes.leagueId} style={styles.stack}>{body}</LongPressVeto>;
   }
-  return <View style={[styles.stack, leading && styles.leading]}>{body}</View>;
+  return <View style={styles.stack}>{body}</View>;
 }
 
 /** The first veto on an opponent's task: a long-press (or the screen reader's Veto action) on it. */
@@ -108,7 +131,6 @@ const styles = StyleSheet.create({
   side: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   sideMirrored: { flexDirection: "row-reverse" },
   stack: { flex: 1, alignSelf: "stretch", justifyContent: "center", gap: spacing.xs, padding: spacing.xs, borderRadius: radius.sm },
-  leading: { backgroundColor: colors.accentTint },
   meta: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   swap: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.sm },
   chipLeft: { alignItems: "flex-start" },
