@@ -1,23 +1,24 @@
 import { useQuery } from "convex/react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { InviteButton } from "@/components/invite";
-import { useTabBarInset } from "@/components/ui";
-import { MatchupMarkets } from "@/components/markets";
-import { ChallengeButton } from "@/components/versus/ChallengeButton";
+import { usePinnedTabBarInset, useTabBarInset } from "@/components/ui";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
 import { api } from "@/convex/_generated/api";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { socialApi } from "../contract";
 import { ScreenState } from "../ScreenState";
 import { boardByTask } from "../veto/vetoLogic";
 import { MatchupBody } from "./MatchupBody";
+import { MatchupMore } from "./MatchupMore";
+import { MatchupTicker } from "./MatchupTicker";
 
 export default function MatchupScreen() {
   const { leagueId, league, weekStart } = useCurrentLeague();
   const bottomInset = useTabBarInset();
+  const pinnedInset = usePinnedTabBarInset();
   // standings.matchup takes no week, so it only ever answers for the current one; weekStart is set once the header steps away from it.
   const otherWeek = weekStart !== undefined;
   const matchup = useQuery(socialApi.standings.matchup, leagueId && !otherWeek ? { leagueId } : "skip");
@@ -30,30 +31,25 @@ export default function MatchupScreen() {
   if (matchup === undefined || versus === undefined) return <ScreenState loading />;
   if (matchup === null)
     return (
-      <>
-        <ScreenState message="No matchup this week" />
-        <View style={styles.invite}>
-          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
-        </View>
-      </>
+      // One centred block, so the Invite button sits under the explanation instead of below the fold.
+      <View style={[styles.empty, { paddingBottom: pinnedInset }]}>
+        <Text style={styles.emptyTitle}>No matchup yet</Text>
+        <Text style={styles.emptyText}>You'll face a friend each week once someone joins your league.</Text>
+        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+      </View>
     );
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
-      <MatchupBody
-        matchup={matchup}
-        belowHero={<MatchupMarkets />}
-        vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined}
-      />
-      <ChallengeButton />
-      <View style={styles.invite}>
-          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
-        </View>
+      {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
+      <MatchupBody matchup={matchup} bonus={false} vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined} />
+      <MatchupMore matchup={matchup} leagueId={leagueId} />
     </ScrollView>
   );
 }
 
-// The same inset as Challenge a friend above it, so the two secondary buttons share one width.
 const styles = StyleSheet.create({
-  invite: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: SCREEN_MARGIN },
+  emptyTitle: { color: colors.text, fontFamily: fontFamily.bold, fontSize: font.title },
+  emptyText: { color: colors.textMuted, fontFamily: fontFamily.regular, fontSize: font.body, lineHeight: type.body.lineHeight, textAlign: "center" },
 });

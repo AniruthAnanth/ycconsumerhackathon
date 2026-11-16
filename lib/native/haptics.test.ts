@@ -38,6 +38,17 @@ describe("haptics", () => {
     expect(calls).toEqual(["selection", "notify:success"]);
   });
 
+  it("is silent while Settings has haptics off, and plays again once back on", async () => {
+    const haptics = await load("ios");
+    const { setHapticsEnabled } = await import("./haptics");
+    setHapticsEnabled(false);
+    haptics.select();
+    setHapticsEnabled(true);
+    haptics.success();
+    await Promise.resolve();
+    expect(calls).toEqual(["notify:success"]);
+  });
+
   it("is silent on the web", async () => {
     const haptics = await load("web");
     haptics.stamp(true);

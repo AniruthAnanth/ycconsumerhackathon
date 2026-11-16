@@ -13,7 +13,7 @@ import { UNNAMED_PLAYER } from "./lib/names";
 import { DAY_MS } from "./lib/week";
 import { leagueStandings } from "./standings";
 
-const NO_STAT = "—";
+const NO_STAT = "0";
 
 // ---- Shapes -----------------------------------------------------------------------------------
 

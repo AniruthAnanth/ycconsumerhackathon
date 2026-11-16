@@ -1,6 +1,40 @@
 import { describe, expect, it } from "vitest";
 
-import { collectContactPhones, inviteesFrom, MAX_CONTACT_PHONES, MAX_INVITEES, phoneHint, toE164 } from "./phone";
+import {
+  collectContactPhones,
+  formatPhoneInput,
+  inviteesFrom,
+  MAX_CONTACT_PHONES,
+  MAX_INVITEES,
+  phoneHint,
+  toE164,
+} from "./phone";
+
+describe("formatPhoneInput", () => {
+  it("draws the number as it is typed", () => {
+    expect(formatPhoneInput("")).toBe("");
+    expect(formatPhoneInput("6")).toBe("(6");
+    expect(formatPhoneInput("650")).toBe("(650");
+    expect(formatPhoneInput("6505")).toBe("(650) 5");
+    expect(formatPhoneInput("6505557")).toBe("(650) 555-7");
+    expect(formatPhoneInput("6505557733")).toBe("(650) 555-7733");
+  });
+
+  it("drops the country code from an autofilled or pasted number and caps at ten digits", () => {
+    expect(formatPhoneInput("+1 (650) 555-7733")).toBe("(650) 555-7733");
+    expect(formatPhoneInput("650555773399")).toBe("(650) 555-7733");
+  });
+
+  it("deletes the digit before a bracket, space or dash the player backspaced over", () => {
+    expect(formatPhoneInput("(650) 555", "(650) 555-")).toBe("(650) 55");
+    expect(formatPhoneInput("(650 555", "(650) 555")).toBe("(650) 55");
+    expect(formatPhoneInput("(650) 55", "(650) 555")).toBe("(650) 55");
+  });
+
+  it("formats to a number toE164 accepts", () => {
+    expect(toE164(formatPhoneInput("6505557733"))).toBe("+16505557733");
+  });
+});
 
 describe("toE164", () => {
   it("adds the default country code to a ten-digit number", () => {

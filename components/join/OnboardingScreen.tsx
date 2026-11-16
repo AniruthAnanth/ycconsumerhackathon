@@ -7,9 +7,11 @@ import { Sunny } from "@/components/art";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
 import { FormBody } from "@/components/join/FormBody";
-import { Button, Header, Screen, TextField } from "@/components/ui";
+import { BackBar } from "@/components/join/BackBar";
+import { Button, Screen, TextField } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { phoneHint, toE164 } from "@/lib/phone";
+import { leaveScreen } from "@/lib/leaveScreen";
+import { formatPhoneInput, phoneHint, toE164 } from "@/lib/phone";
 import { colors, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { StepContext } from "./StepContext";
@@ -33,12 +35,15 @@ export function OnboardingScreen() {
 
   async function submit() {
     if (!trimmedName || !e164) return;
-    if (replaying) return router.replace({ pathname: "/join", params: { replay: "1" } });
+    // Pushed, not replaced: Back on Join returns here with the name and phone still typed in.
+    if (replaying) return router.push({ pathname: "/join", params: { replay: "1" } });
     setSaving(true);
     setError(null);
     try {
       await createUser({ name: trimmedName, phone: e164 });
-      router.replace(versusCode ? { pathname: "/versus/join", params: { code: versusCode } } : "/join");
+      setSaving(false);
+      if (versusCode) router.replace({ pathname: "/versus/join", params: { code: versusCode } });
+      else router.push("/join");
     } catch (failure) {
       setError(errorMessage(failure));
       setSaving(false);
@@ -47,15 +52,20 @@ export function OnboardingScreen() {
 
   return (
     <Screen>
-      <Header title="Lineup" />
-      <StepContext step={1} label="About you" />
-      <FormBody>
+      {/* Back to the intro's last card; a deep link with no history starts the intro over. */}
+      <BackBar onBack={() => leaveScreen("/how-it-works")} />
+      <StepContext step={1} />
+      <FormBody footer={<Button label="Join" onPress={submit} loading={saving} disabled={!trimmedName || !e164} />}>
+        <Text style={styles.title} accessibilityRole="header">
+          What should we call you?
+        </Text>
         <View style={styles.sunny}>
           <Sunny size={108} tappable />
         </View>
         <View style={styles.fields}>
           <TextField
             label="Name"
+            placeholder="Alex Rivera"
             value={name}
             onChangeText={(text) => {
               setName(text);
@@ -67,26 +77,26 @@ export function OnboardingScreen() {
             returnKeyType="next"
             editable={!saving}
           />
-          <TextField
-            label="Phone"
-            value={phone}
-            onChangeText={(text) => {
-              setPhone(text);
-              setError(null);
-            }}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            textContentType="telephoneNumber"
-            returnKeyType="done"
-            editable={!saving}
-            onSubmitEditing={submit}
-          />
+          <View style={styles.phone}>
+            <TextField
+              label="Phone"
+              value={phone}
+              onChangeText={(text) => {
+                setPhone(formatPhoneInput(text, phone));
+                setError(null);
+              }}
+              prefix="+1"
+              placeholder="(650) 555-7733"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              editable={!saving}
+            />
+            <Text style={styles.note}>For your league's texts. Never shown.</Text>
+          </View>
           {hint ? <ErrorLine message={hint} /> : null}
           {error ? <ErrorLine message={error} /> : null}
           {replaying ? <Text style={styles.note}>Replay: Join goes on to the next step without changing your account.</Text> : null}
-        </View>
-        <View style={styles.action}>
-          <Button label="Join" onPress={submit} loading={saving} disabled={!trimmedName || !e164} />
         </View>
       </FormBody>
     </Screen>
@@ -94,9 +104,10 @@ export function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
+  title: { ...type.title, color: colors.text, paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.sm },
   sunny: { alignItems: "center", paddingTop: spacing.xl },
   note: { ...type.small, color: colors.textMuted },
   fields: { padding: SCREEN_MARGIN, gap: spacing.lg },
-  // The action sits at the foot of the page; FormBody lifts it above the keyboard.
-  action: { flex: 1, justifyContent: "flex-end", padding: SCREEN_MARGIN },
+  // The footnote belongs to the Phone field, so it sits at the field's own label gap.
+  phone: { gap: spacing.xs },
 });

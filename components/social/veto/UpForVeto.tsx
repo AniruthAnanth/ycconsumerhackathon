@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Banner, PositionPill, RowDivider, SectionLabel } from "@/components/ui";
+import { Banner, Divider, Icon, PositionPill, RowDivider } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   colors,
@@ -36,9 +36,6 @@ export function UpForVeto({
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const open = upForVeto(board, myUserId, now);
-  // A locked league has dozens of open tasks, so the feed shows a few until asked and the
-  // proofs stay near the top.
-  const shown = expanded ? open : open.slice(0, FEED_VETO_ROWS);
   const struck = myStruck(board, myUserId)[0];
   if (!struck && open.length === 0) return null;
 
@@ -51,8 +48,21 @@ export function UpForVeto({
           onPress={() => router.navigate("/matchup")}
         />
       ) : null}
-      {open.length > 0 ? <SectionLabel left="Up for veto" /> : null}
-      {shown.map((veto) => (
+      {/* One compact row with the count, so the posts lead; the list opens in place. */}
+      {open.length > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Up for veto, ${open.length}`}
+          accessibilityState={{ expanded }}
+          onPress={() => setExpanded((value) => !value)}
+          style={styles.summary}
+        >
+          <Text style={styles.summaryText}>Up for veto</Text>
+          <Text style={styles.count}>{open.length}</Text>
+          <Icon name={expanded ? "chevron-down" : "chevron-forward"} size={font.body} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
+      {(expanded ? open : []).map((veto) => (
         <View key={veto.taskId} style={styles.row}>
           <PositionPill slot={veto.slot} />
           <View style={styles.text}>
@@ -70,16 +80,10 @@ export function UpForVeto({
           <RowDivider inset={TEXT_INSET} />
         </View>
       ))}
-      {open.length > shown.length ? (
-        <Pressable accessibilityRole="button" onPress={() => setExpanded(true)} style={styles.more}>
-          <Text style={styles.moreText}>{`Show ${open.length - shown.length} more`}</Text>
-        </Pressable>
-      ) : null}
+      {open.length > 0 ? <Divider /> : null}
     </View>
   );
 }
-
-const FEED_VETO_ROWS = 3;
 
 const styles = StyleSheet.create({
   row: {
@@ -92,8 +96,9 @@ const styles = StyleSheet.create({
   },
   text: { flex: 1, gap: spacing.xs },
   chip: { alignItems: "flex-start" },
-  more: { minHeight: layout.rowMin, justifyContent: "center", paddingLeft: TEXT_INSET, paddingRight: SCREEN_MARGIN },
-  moreText: { color: colors.accent, fontSize: font.meta, fontFamily: fontFamily.bold },
+  summary: { minHeight: layout.rowMin, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN },
+  summaryText: { flex: 1, color: colors.text, fontSize: font.body, fontFamily: fontFamily.semiBold },
+  count: { color: colors.textMuted, fontSize: font.body, fontFamily: fontFamily.semiBold, ...tabular },
   title: {
     color: colors.text,
     fontSize: font.title,

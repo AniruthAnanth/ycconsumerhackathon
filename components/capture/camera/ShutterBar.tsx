@@ -2,6 +2,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fontFamily, SCREEN_MARGIN, spacing, tabular } from "@/theme";
 
+import type { CaptureProofType } from "../proofKinds";
 import type { CaptureMode } from "./useProofCapture";
 
 const RECORD_RED = colors.danger;
@@ -9,11 +10,24 @@ const RECORD_RED = colors.danger;
 // expo-camera cannot record on web: recordAsync only warns and returns an empty file.
 const RECORDS = Platform.OS !== "web";
 
-/** The modes a task offers. A timelapse task offers only its own two; interval photos work everywhere. */
-export function modesFor(timelapse: boolean): CaptureMode[] {
-  if (timelapse) return RECORDS ? ["timelapse", "interval"] : ["interval"];
-  return RECORDS ? ["photo", "video"] : ["photo"];
+/**
+ * The modes a task offers, first one selected: its own type first. A photo task may also be shown
+ * with a 5-second video instead; interval photos stand in for the timelapse where recording is impossible.
+ */
+export function modesFor(proofType: CaptureProofType): CaptureMode[] {
+  if (proofType === "timelapse") return [RECORDS ? "timelapse" : "interval"];
+  if (proofType === "survey_video") return ["survey"];
+  if (proofType === "photo") return ["photo", "survey"];
+  return ["photo"];
 }
+
+const MODE_LABEL: Record<CaptureMode, string> = {
+  photo: "PHOTO",
+  video: "VIDEO",
+  timelapse: "TIMELAPSE",
+  interval: "TIMELAPSE",
+  survey: "QUICK VIDEO (5 S)",
+};
 
 type Props = {
   modes: CaptureMode[];
@@ -37,7 +51,7 @@ export function ShutterBar({ modes, mode, recording, counter, busy, onModeChange
         <View style={styles.side}>
           {modes.map((option) => (
             <Pressable key={option} disabled={!idle} onPress={() => onModeChange(option)} hitSlop={8} testID={`camera-mode-${option}`}>
-              <Text style={[styles.mode, mode === option && styles.modeActive]}>{option.toUpperCase()}</Text>
+              <Text style={[styles.mode, mode === option && styles.modeActive]}>{MODE_LABEL[option]}</Text>
             </Pressable>
           ))}
         </View>

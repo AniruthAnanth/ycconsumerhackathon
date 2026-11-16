@@ -144,7 +144,7 @@ describe("buildCards", () => {
     const empty = standings.map((s) => ({ ...s, points: 0, slotsCleared: 0 }));
     const cards = buildCards({ standings: empty, entries: [], viewerId: "lee", weekStart: WEEK });
     expect(cards).toHaveLength(5);
-    expect(cards.slice(0, 4).every((card) => card.stat === "—")).toBe(true);
+    expect(cards.slice(0, 4).every((card) => card.stat === "0")).toBe(true);
     expect(cards[4]).toMatchObject({ subtitle: "0/5 slots · 0 proofs", stat: "0 pts" });
   });
 });

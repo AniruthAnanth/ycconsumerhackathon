@@ -8,7 +8,7 @@ import { Avatar, Divider, formatScore, Icon } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Standing } from "@/lib/backend";
 import { haptics } from "@/lib/native/haptics";
-import { colors, font, fontFamily, hairline, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { accentSet, colors, font, fontFamily, hairline, HOT_STREAK, layout, radius, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { slotsText } from "./emptyState";
 import { rankMovement, withBaseline } from "./rankMovement";
@@ -62,9 +62,9 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
         <Text style={[styles.heading, { width: COL.rank }]}>RK</Text>
         <Text style={[styles.heading, styles.playerCol, styles.playerHeading]}>PLAYER</Text>
         <Text style={[styles.heading, styles.right, { width: COL.record }]}>W-L</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.pointsFor }]}>PF</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.pointsAgainst }]}>PA</Text>
-        <Text style={[styles.heading, styles.right, { width: COL.streak }]}>STRK</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.pointsFor }]} accessibilityLabel="Points for">PF</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.pointsAgainst }]} accessibilityLabel="Points against">PA</Text>
+        <Text style={[styles.heading, styles.right, { width: COL.streak }]} accessibilityLabel="Streak">STRK</Text>
       </View>
       {rows.map((row, index) => {
         const moved = rankMovement(baseline.current, row);
@@ -107,8 +107,10 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
                 )}
                 <Text style={[styles.record, { width: COL.pointsAgainst }]}>{record ? formatScore(record.pointsAgainst) : "–"}</Text>
                 <View style={[styles.streak, { width: COL.streak }]}>
-                  <Icon name="flame" size={14} color={row.streak > 0 ? colors.text : colors.textFaint} />
-                  <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
+                  <View style={[styles.streakChip, row.streak >= HOT_STREAK && styles.streakHot]}>
+                    <Icon name="flame" size={14} color={row.streak > 0 ? accentSet.streak.icon : colors.textFaint} />
+                    <Text style={[styles.streakText, row.streak === 0 && styles.faint]}>{row.streak}</Text>
+                  </View>
                 </View>
               </PressScale>
               {cutline ? (
@@ -159,7 +161,10 @@ const styles = StyleSheet.create({
   points: { ...type.label, color: colors.text, textAlign: "right", ...tabular },
   // The figure ends at the margin under the right-aligned STRK heading; the flame leads it.
   streak: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.xs },
-  streakText: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.text, ...tabular },
+  // A hot streak (three weeks or more) gets a soft orange chip; the padding is always there so figures stay aligned.
+  streakChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.xs, borderRadius: radius.pill },
+  streakHot: { backgroundColor: accentSet.streak.chip },
+  streakText: { fontFamily: fontFamily.bold, fontSize: font.meta, color: accentSet.streak.text, ...tabular },
   faint: { color: colors.textFaint },
   // Muted like the column headings, starting where the names do.
   cutlineLabel: { paddingLeft: NAME_INSET, paddingVertical: spacing.xs },

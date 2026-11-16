@@ -7,17 +7,25 @@
  */
 import type { ProofType } from "@/lib/slots";
 
-export type CaptureProofType = ProofType | "before_after" | "timelapse" | "screenshot";
+export type CaptureProofType = ProofType | "before_after" | "timelapse" | "screenshot" | "survey_video";
 
-const KNOWN: readonly CaptureProofType[] = ["photo", "photo_location", "canvas", "before_after", "timelapse", "screenshot"];
+const KNOWN: readonly CaptureProofType[] = ["photo", "photo_location", "canvas", "before_after", "timelapse", "screenshot", "survey_video"];
 
 /** An unknown or missing type opens the plain camera, which every task can fall back on. */
 export function parseProofType(value: string | undefined): CaptureProofType {
   return KNOWN.find((known) => known === value) ?? "photo";
 }
 
-/** A timelapse with no target from the draft asks for half an hour. */
-export const DEFAULT_TARGET_MINUTES = 30;
+/** A timelapse with no target from the draft asks for five minutes (the backend's default too). */
+export const DEFAULT_TARGET_MINUTES = 5;
+
+/** A timelapse never asks for more than ten minutes: longer is a chore to film, not a better proof. */
+export const MAX_TARGET_MINUTES = 10;
+
+/** The minutes a timelapse asks for, from the task's target. */
+export function targetMinutesFor(targetMinutes: number | undefined): number {
+  return Math.min(MAX_TARGET_MINUTES, Math.max(1, Math.round(targetMinutes ?? DEFAULT_TARGET_MINUTES)));
+}
 
 /** The referee is shown this many stills from a timelapse, spread evenly across it. */
 export const TIMELAPSE_FRAMES = 8;
@@ -26,6 +34,10 @@ export const TIMELAPSE_FRAMES = 8;
 export function timelapseCapSeconds(targetMinutes: number): number {
   return Math.min(60 * 60, targetMinutes * 60 * 2);
 }
+
+/** A survey video: five seconds panning over the result, sampled into this many stills. */
+export const SURVEY_SECONDS = 5;
+export const SURVEY_FRAMES = 5;
 
 /** In the interval fallback, one photo every this many milliseconds lands eight across the target. */
 export function intervalMs(targetMinutes: number): number {
@@ -52,21 +64,22 @@ export function formatElapsed(ms: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
-/** One line telling the player what proof this task takes, shown on the task sheet and over the camera. */
-export function howToProve(task: { proofType: CaptureProofType; title: string; targetMinutes?: number; place?: { name: string } }): string {
-  const minutes = task.targetMinutes ?? DEFAULT_TARGET_MINUTES;
-  switch (task.proofType) {
-    case "photo":
-      return "Take one photo that shows it done.";
+/** The one line telling the player how to prove a task, on the task sheet and over the camera. Each task opens the capture its type names. */
+export function howToProve(task: { proofType?: CaptureProofType; targetMinutes?: number; place?: { name: string } }): string {
+  switch (task.proofType ?? "photo") {
     case "photo_location":
-      return task.place ? `Take a photo at ${task.place.name}. Your location is checked.` : "Take a photo where it happens. Your location is checked.";
+      return task.place ? `Check in at ${task.place.name}.` : "Check in where it happens.";
+    case "timelapse":
+      return `Record a ${targetMinutesFor(task.targetMinutes)}-min timelapse while you do it.`;
+    case "before_after":
+      return "Snap a before photo, then an after from the same spot.";
+    case "screenshot":
+      return "Pick a screenshot that shows it's done.";
     case "canvas":
       return "Submit it on Canvas. The referee checks the submission.";
-    case "before_after":
-      return "Take a before photo, then an after photo from the same spot.";
-    case "timelapse":
-      return `Record a timelapse of yourself doing it, at least ${minutes} min.`;
-    case "screenshot":
-      return "Pick a screenshot that shows it done.";
+    case "survey_video":
+      return "Take a 5-second video showing it's done.";
+    default:
+      return "Snap a photo that shows it's done.";
   }
 }

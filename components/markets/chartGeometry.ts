@@ -88,3 +88,8 @@ export function formatNet(usd: number): string {
 export function hasLineups(scores: readonly { high: number }[]): boolean {
   return scores.some((score) => score.high > 0);
 }
+
+/** "▲ 14%" or "▼ 3%": the chart's move since yesterday, in percentage points. */
+export function deltaPoints(points: number): string {
+  return `${points >= 0 ? "▲" : "▼"} ${Math.abs(points)}%`;
+}

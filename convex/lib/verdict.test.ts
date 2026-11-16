@@ -19,6 +19,8 @@ function judgement(overrides: Partial<Judgement> = {}): Judgement {
     gestureSeen: null,
     sceneMatchesPlace: null,
     flags: [],
+    activityFrames: null,
+    scene: null,
     ...overrides,
   };
 }

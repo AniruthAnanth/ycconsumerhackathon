@@ -22,6 +22,23 @@ export function toE164(raw: string, defaultCountryCode = "1"): string | null {
 }
 
 /**
+ * The phone field's text as the player types: "(650) 555-7733". The field sits behind a fixed
+ * "+1", so a pasted or autofilled "+1 650…" loses its country code here. Deleting only a
+ * bracket, space or dash would leave the same digits and re-draw the same text, so it takes
+ * the digit before it instead.
+ */
+export function formatPhoneInput(next: string, previous = ""): string {
+  let digits = next.replace(/\D/g, "");
+  if (digits.length === NATIONAL_DIGITS + 1 && digits.startsWith("1")) digits = digits.slice(1);
+  if (next.length < previous.length && digits === previous.replace(/\D/g, "")) digits = digits.slice(0, -1);
+  digits = digits.slice(0, NATIONAL_DIGITS);
+  if (!digits) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+/**
  * The line to show under the phone field, or null. It stays quiet while the
  * field is empty (or holds no digit yet) so a new player isn't scolded before
  * they've typed anything, and speaks once there are digits that toE164 rejects.

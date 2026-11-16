@@ -3,11 +3,9 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { PressScale } from "@/components/motion";
 
-import { SLOT_NAME } from "@/lib/slots";
-import { taskPlaceLine, taskRowLabel, taskStatusLine, type TaskRowData } from "@/lib/taskText";
-import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET } from "@/theme";
+import { formatScore, taskPlaceLine, taskRowLabel, taskRowLine, type TaskRowData } from "@/lib/taskText";
+import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET, tabular } from "@/theme";
 
-import { Avatar } from "./Avatar";
 import { PositionPill } from "./PositionPill";
 import { RowDivider } from "./Divider";
 import { Score } from "./Score";
@@ -32,18 +30,20 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
   const label = taskRowLabel(task, highlighted);
   const lead = (
     <>
+      {/* The pill is the row's one slot cue: no slot icon and no slot name in the line under the title. */}
       <PositionPill slot={task.slot} />
-      <Avatar uri={task.thumbUrl} slot={task.slot} />
       <View style={styles.text}>
         {/* Up Next shares its row with a button, so its tag sits above the title and the title may wrap: beside the title, the two left a narrow phone one letter of it. */}
         {highlighted ? <Text style={[styles.tag, styles.tagUpNext]}>UP NEXT</Text> : null}
-        {/* The title gets the full width (a slot tag beside it cut long titles), and the slot name leads the line under it. */}
         <Text style={styles.title} numberOfLines={titleLines ?? 2}>
           {task.title}
         </Text>
-        <Text style={styles.meta} numberOfLines={2}>
-          {highlighted ? taskStatusLine(task) : `${SLOT_NAME[task.slot]} · ${taskStatusLine(task)}`}
-        </Text>
+        {/* No empty meta line: it pushed a one-line title above the row's centre. */}
+        {taskRowLine(task) ? (
+          <Text style={styles.meta} numberOfLines={2}>
+            {taskRowLine(task)}
+          </Text>
+        ) : null}
         {place ? (
           <Text style={styles.meta} numberOfLines={2}>
             {place}
@@ -62,7 +62,13 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
       ) : (
         lead
       )}
-      {right ?? <Score value={task.score} projected={task.points} animated />}
+      {right ??
+        (task.score == null ? (
+          // Unscored: the points on offer, once, in one muted line.
+          <Text style={styles.offer}>{`${formatScore(task.points)} pts`}</Text>
+        ) : (
+          <Score value={task.score} animated />
+        ))}
       <RowDivider inset={TASK_TEXT_INSET} />
     </View>
   );
@@ -94,4 +100,5 @@ const styles = StyleSheet.create({
   tag: { flexShrink: 0, fontFamily: fontFamily.regular, fontSize: font.label, color: colors.textMuted },
   tagUpNext: { color: colors.accent, fontFamily: fontFamily.bold, letterSpacing: 0.3 },
   meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
+  offer: { minWidth: layout.numericColumn, textAlign: "right", fontFamily: fontFamily.semiBold, fontSize: font.meta, color: colors.textMuted, ...tabular },
 });

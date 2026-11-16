@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg from "react-native-svg";
 
-import { Icon } from "@/components/ui";
-import { BORDER, colors, fontFamily, hairline, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { cardStyle, Icon } from "@/components/ui";
+import { colors, fontFamily, hairline, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance, formatNet, sparkPath } from "./chartGeometry";
 import { DrawLine } from "./DrawLine";
+import { potNeedsLine } from "./marketQuestions";
 import type { Market } from "./useMarket";
 
 const SPARK = { width: 96, height: 36, padding: 3 };
@@ -16,7 +17,7 @@ const SPARK = { width: 96, height: 36, padding: 3 };
  * you're on track for now. The ranges, the trend and the chance to clear all five sit behind
  * Details, so a first-time player reads one line.
  */
-export function ProjectionCard({ market }: { market: Market }) {
+export function ProjectionCard({ market, slotsCleared }: { market: Market; slotsCleared?: number }) {
   const [open, setOpen] = useState(false);
   const { payout, me } = market;
   const finish = market.odds.rows.find((row) => row.isMe)?.finishChance ?? 0;
@@ -35,8 +36,16 @@ export function ProjectionCard({ market }: { market: Market }) {
             <Text style={[styles.figure, { color: payout.expectedNetUsd < 0 ? colors.textMuted : colors.green }]}>{formatNet(payout.expectedNetUsd)}</Text>
           </View>
         </View>
+      ) : null}
+      {/* Winning the matchup and winning the pot are different races; this says why the money can lag a big win chance. */}
+      {payout.eligible ? (
+        slotsCleared !== undefined ? <Text style={styles.label}>{potNeedsLine(slotsCleared)}</Text> : null
       ) : (
-        <Text style={styles.label}>Free league: no money on this one, just bragging rights.</Text>
+        <Text style={styles.label}>
+          {payout.stakeUsd > 0
+            ? `Pay your $${payout.stakeUsd} buy-in to play for the pot. The pot fills as players pay.`
+            : "Free league: no money on this one, just bragging rights."}
+        </Text>
       )}
       <Pressable
         onPress={() => setOpen((value) => !value)}
@@ -50,12 +59,11 @@ export function ProjectionCard({ market }: { market: Market }) {
       </Pressable>
       {open ? (
         <View style={styles.details}>
-          <Row label="Your points by Sunday" value={`about ${me.projected}`} />
-          <Row label="Likely between" value={`${me.low} and ${me.high} pts`} />
+          <Row label="Your points by Sunday, likely" value={`${me.low} to ${me.high}`} />
           <Row label="Chance you clear all 5 slots" value={formatChance(finish)} />
           {payout.eligible ? (
             <>
-              <Row label="Money, worst to best case" value={`${formatNet(payout.lowNetUsd)} to ${formatNet(payout.highNetUsd)}`} />
+              <Row label="If it goes badly" value={formatNet(payout.lowNetUsd)} />
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>Money you're on track for, this week</Text>
                 <Svg width={SPARK.width} height={SPARK.height} accessible={false}>
@@ -81,14 +89,11 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   card: {
+    ...cardStyle,
     marginHorizontal: SCREEN_MARGIN,
     marginTop: spacing.lg,
     padding: spacing.lg,
     gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
   },
   money: { flexDirection: "row", gap: spacing.lg },
   cell: { flex: 1, gap: 2 },

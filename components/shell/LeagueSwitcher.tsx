@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Header, Icon, RowDivider } from "@/components/ui";
+import { Header, Icon, RowDivider, sheetNeedsClose } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { stakeLine } from "@/lib/leagueText";
@@ -44,7 +44,7 @@ export function LeagueSwitcher() {
 
   return (
     <View style={[styles.list, { paddingBottom: insets.bottom }]}>
-      <Header title="Your leagues" onClose={() => router.back()} />
+      <Header title="Your leagues" onClose={sheetNeedsClose ? () => router.back() : undefined} />
       {(me?.leagues ?? []).map((league) => (
         <Pressable
           key={league._id}

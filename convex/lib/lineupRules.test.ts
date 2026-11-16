@@ -27,11 +27,11 @@ describe("tidyTask", () => {
     });
   });
 
-  it("turns a location task with no usable place into a photo task", () => {
-    expect(tidyTask(task("mind", "Check in at YC", { proofType: "photo_location" })).proofType).toBe("photo");
+  it("keeps a check-in task with no usable place, for the player to pin", () => {
+    expect(tidyTask(task("mind", "Gym session", { proofType: "photo_location" })).proofType).toBe("photo_location");
     const badPlace = { name: "Nowhere", lat: 137, lng: 0 };
     const tidy = tidyTask(task("mind", "Check in", { proofType: "photo_location", place: badPlace }));
-    expect(tidy.proofType).toBe("photo");
+    expect(tidy).toMatchObject({ proofType: "photo_location" });
     expect(tidy.place).toBeUndefined();
   });
 
@@ -43,10 +43,10 @@ describe("tidyTask", () => {
 
 describe("tidyTask: verification types", () => {
   const base = { slot: "recharge" as const, title: "Read", points: 20 };
-  it("gives a timelapse 5 to 180 minutes, 30 when the model gave none", () => {
-    expect(tidyTask({ ...base, proofType: "timelapse" }).targetMinutes).toBe(30);
-    expect(tidyTask({ ...base, proofType: "timelapse", targetMinutes: 2 }).targetMinutes).toBe(5);
-    expect(tidyTask({ ...base, proofType: "timelapse", targetMinutes: 600 }).targetMinutes).toBe(180);
+  it("gives a timelapse 1 to 10 minutes, 5 when the model gave none", () => {
+    expect(tidyTask({ ...base, proofType: "timelapse" }).targetMinutes).toBe(5);
+    expect(tidyTask({ ...base, proofType: "timelapse", targetMinutes: 0 }).targetMinutes).toBe(1);
+    expect(tidyTask({ ...base, proofType: "timelapse", targetMinutes: 600 }).targetMinutes).toBe(10);
   });
   it("drops minutes from every other type", () => {
     expect(tidyTask({ ...base, proofType: "screenshot", targetMinutes: 30 })).toEqual({ ...base, proofType: "screenshot" });

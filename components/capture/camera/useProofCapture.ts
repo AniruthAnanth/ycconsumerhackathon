@@ -5,7 +5,7 @@ import type { CameraView } from "expo-camera";
 
 import { getDevFlags } from "@/lib/devFlags";
 
-import { DEFAULT_TARGET_MINUTES, frameTimesMs, intervalMs, pickEvenly, timelapseCapSeconds } from "../proofKinds";
+import { targetMinutesFor, frameTimesMs, intervalMs, pickEvenly, SURVEY_FRAMES, SURVEY_SECONDS, timelapseCapSeconds } from "../proofKinds";
 import { sampleUri, type SampleMedia } from "../samples";
 import { verdictHref, type Capture, type ProofTarget } from "../proofRoute";
 import { captureStill } from "../verdict/captureStill";
@@ -24,9 +24,15 @@ function releaseAwake(held: { current: boolean }) {
 }
 
 /** photo and video for every camera task; a timelapse task records with timelapse, or interval photos as the fallback. */
-export type CaptureMode = "photo" | "video" | "timelapse" | "interval";
+export type CaptureMode = "photo" | "video" | "timelapse" | "interval" | "survey";
 
 type Frame = { uri: string; at: number };
+
+/** A finished timelapse the player looks over before it is sent. */
+export type TimelapseReview = { frames: Frame[]; durationMs: number; /** A survey video's clip, which is sent along with its stills. */ videoUri?: string };
+
+/** With bundled samples instead of a camera, a stand-in "shot" every second makes the timelapse watchable in a demo. */
+const SAMPLE_SHOT_MS = 1000;
 
 /** Shutter, recording and hand-off to the verdict screen for one proof attempt. */
 export function useProofCapture(target: ProofTarget) {
@@ -43,7 +49,8 @@ export function useProofCapture(target: ProofTarget) {
   const [frameCount, setFrameCount] = useState(0);
   const [cameraFailed, setCameraFailed] = useState(false);
   const [before, setBefore] = useState<Frame | null>(null);
-  const targetMinutes = target.targetMinutes ?? DEFAULT_TARGET_MINUTES;
+  const [review, setReview] = useState<TimelapseReview | null>(null);
+  const targetMinutes = targetMinutesFor(target.targetMinutes);
 
   useEffect(
     () => () => {
@@ -138,28 +145,46 @@ export function useProofCapture(target: ProofTarget) {
       for (const time of frameTimesMs(durationMs)) {
         frames.push({ uri: await captureStill(video.uri, time), at: startedAt + time });
       }
-      const last = frames[frames.length - 1];
-      await finish({ mediaType: "photo", uri: last.uri, capturedAt: last.at, durationMs, frames });
+      setReview({ frames, durationMs });
+    });
+  }
+
+  /** A survey video: five seconds panning over the result. The clip is short enough to send, along with five stills from it. */
+  function startSurvey() {
+    if (busy || !camera.current) return;
+    return guarded(async () => {
+      recordingStartedAt.current = Date.now();
+      setRemaining(SURVEY_SECONDS);
+      ticker.current = setInterval(() => setRemaining(secondsLeft(Date.now() - recordingStartedAt.current, SURVEY_SECONDS)), 250);
+      const video = await camera.current!.recordAsync({ maxDuration: SURVEY_SECONDS });
+      if (!video?.uri) throw new Error("recording produced no file");
+      const durationMs = recordedDurationMs(recordingStartedAt.current, Date.now(), SURVEY_SECONDS);
+      stopTicker();
+      setReview(await surveyReview(video.uri, recordingStartedAt.current, durationMs));
     });
   }
 
   /** The fallback for phones that can't hold a long recording: one photo now and one every target/8. */
   function startInterval() {
     if (busy || !camera.current) return;
+    shootEvery(shoot, intervalMs(targetMinutes));
+  }
+
+  function shootEvery(take: () => Promise<Frame>, everyMs: number) {
     setBusy(true);
     intervalFrames.current = [];
     setFrameCount(0);
     startElapsed();
-    const take = async () => {
+    const capture = async () => {
       try {
-        intervalFrames.current.push(await shoot());
+        intervalFrames.current.push(await take());
         setFrameCount(intervalFrames.current.length);
       } catch {
         // One missed shot doesn't end the timelapse; the next one is due soon.
       }
     };
-    void take();
-    shooter.current = setInterval(() => void take(), intervalMs(targetMinutes));
+    void capture();
+    shooter.current = setInterval(() => void capture(), everyMs);
   }
 
   function stopInterval() {
@@ -168,9 +193,7 @@ export function useProofCapture(target: ProofTarget) {
     const durationMs = Date.now() - recordingStartedAt.current;
     const frames = pickEvenly(intervalFrames.current);
     return guarded(async () => {
-      if (frames.length === 0) return;
-      const last = frames[frames.length - 1];
-      await finish({ mediaType: "photo", uri: last.uri, capturedAt: last.at, durationMs, frames });
+      if (frames.length > 0) setReview({ frames, durationMs });
     });
   }
 
@@ -184,13 +207,35 @@ export function useProofCapture(target: ProofTarget) {
     return guarded(async () => {
       const uri = await sampleUri(sample);
       if (sample.mediaType === "photo" && target.proofType === "before_after") return finishPhoto({ uri, at: Date.now() });
-      if (sample.mediaType === "photo" && target.proofType === "timelapse") {
-        // Development only: a bundled photo stands in for a whole timelapse.
-        const at = Date.now();
-        return finish({ mediaType: "photo", uri, capturedAt: at, durationMs: targetMinutes * 60_000, frames: [{ uri, at }] });
-      }
       await finish({ mediaType: sample.mediaType, uri, durationMs: sample.durationMs });
     });
+  }
+
+  /** Development only: a bundled photo stands in for each shot of a timelapse, so the flow runs where there is no camera. */
+  function startSampleTimelapse(sample: SampleMedia) {
+    if (busy || sample.mediaType !== "photo") return;
+    void sampleUri(sample).then((uri) => shootEvery(async () => ({ uri, at: Date.now() }), SAMPLE_SHOT_MS));
+  }
+
+  /** Development only: the bundled clip stands in for a survey video recorded on the spot. */
+  function sampleSurvey(sample: SampleMedia) {
+    if (busy || sample.mediaType !== "video") return;
+    return guarded(async () => {
+      const uri = await sampleUri(sample);
+      setReview(await surveyReview(uri, Date.now(), sample.durationMs ?? SURVEY_SECONDS * 1000));
+    });
+  }
+
+  /** Every proof is looked over before it is sent. */
+  function submitReview() {
+    if (busy || !review) return;
+    const last = review.frames[review.frames.length - 1];
+    const { frames, durationMs, videoUri } = review;
+    return guarded(() =>
+      videoUri
+        ? finish({ mediaType: "video", uri: videoUri, capturedAt: last.at, durationMs, frames })
+        : finish({ mediaType: "photo", uri: last.uri, capturedAt: last.at, durationMs, frames }),
+    );
   }
 
   /** A screenshot proof is picked, not shot; it still goes through the same hand-off. */
@@ -219,5 +264,19 @@ export function useProofCapture(target: ProofTarget) {
     startInterval,
     stopRecording,
     submitSample,
+    startSampleTimelapse,
+    startSurvey,
+    sampleSurvey,
+    review,
+    submitReview,
+    retake: () => setReview(null),
   };
+}
+
+async function surveyReview(videoUri: string, startedAt: number, durationMs: number): Promise<TimelapseReview> {
+  const frames: Frame[] = [];
+  for (const time of frameTimesMs(durationMs, SURVEY_FRAMES)) {
+    frames.push({ uri: await captureStill(videoUri, time), at: startedAt + time });
+  }
+  return { frames, durationMs, videoUri };
 }

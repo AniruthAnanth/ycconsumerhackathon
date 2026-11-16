@@ -31,6 +31,8 @@ function sees(overrides: Partial<Judgement> = {}): Judgement {
     gestureSeen: null,
     sceneMatchesPlace: null,
     flags: [],
+    activityFrames: 8,
+    scene: "you reading",
     ...overrides,
   };
 }
@@ -49,6 +51,8 @@ afterEach(() => {
 /** A backend with one signed-in player who has one open task. */
 async function playerWithTask(task: Partial<Doc<"tasks">> = {}) {
   const t = convexTest(schema, modules);
+  // The task was on the lineup an hour before the tests' timelapses start.
+  vi.setSystemTime(NOW - 60 * 60_000);
   const { userId, taskId } = await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", { name: "Sam" });
     const taskId = await ctx.db.insert("tasks", {
@@ -64,6 +68,7 @@ async function playerWithTask(task: Partial<Doc<"tasks">> = {}) {
     });
     return { userId, taskId };
   });
+  vi.setSystemTime(NOW);
   return { t, userId, taskId, as: t.withIdentity({ subject: userId + "|session" }) };
 }
 
@@ -331,18 +336,23 @@ describe("location check-in", () => {
     expect(judgeProof).not.toHaveBeenCalled();
   });
 
-  it("needs the scene to match as well as the distance", async () => {
+  it("passes on GPS alone, without judging the photo", async () => {
     const { t, as, taskId } = await playerWithTask(checkIn);
     const near = { lat: YC_OFFICE.lat + 0.0003, lng: YC_OFFICE.lng }; // about 33 m north
-
-    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ pass: false, sceneMatchesPlace: false, reason: "That's a gym, not an office." }));
-    const wrongScene = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", ...near });
-    expect(wrongScene).toMatchObject({ pass: false, reason: "That's a gym, not an office." });
-
-    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ sceneMatchesPlace: true, reason: "Desks and monitors, an office." }));
     const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", ...near });
-    expect(verdict).toMatchObject({ pass: true, points: 30, reason: "Desks and monitors, an office. (33 m from YC office)" });
-    expect(vi.mocked(judgeProof).mock.calls[1][0].placeName).toBe("YC office");
+    expect(verdict).toMatchObject({ pass: true, points: 30, reason: "Checked in at YC office, 33 m away" });
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+
+  it("asks the player to pin a place a check-in task was drafted without", async () => {
+    const { t, as, taskId } = await playerWithTask({ proofType: "photo_location", title: "Gym session" });
+    const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", lat: 37.77, lng: -122.41 });
+    expect(verdict).toMatchObject({ pass: false, reason: "Pin the place for this task first, then check in there." });
+
+    await as.mutation(api.lineup.pinPlace, { taskId, place: { name: "Equinox", lat: 37.77, lng: -122.41 } });
+    await expect(as.mutation(api.lineup.pinPlace, { taskId, place: { name: "Elsewhere", lat: 37.7, lng: -122.4 } })).rejects.toThrow("already pinned");
+    const after = await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo", lat: 37.77, lng: -122.41 });
+    expect(after).toMatchObject({ pass: true, reason: "Checked in at Equinox, 0 m away" });
   });
 });
 
@@ -438,7 +448,7 @@ describe("verification types", () => {
 
     expect(verdict.pass).toBe(true);
     const call = vi.mocked(judgeProof).mock.calls[0][0];
-    expect(call).toMatchObject({ proofType: "before_after" });
+    expect(call).toMatchObject({ mode: "before_after" });
     expect(call.imageUrls).toHaveLength(2);
     expect(call.imageUrls[0]).toBe(beforeUrl);
     expect((await proofsOf(t))[0]).toMatchObject({ beforeStorageId: before });
@@ -468,7 +478,7 @@ describe("verification types", () => {
 
     expect(verdict.pass).toBe(true);
     const call = vi.mocked(judgeProof).mock.calls[0][0];
-    expect(call).toMatchObject({ proofType: "timelapse", targetMinutes: 30, durationSec: 1800 });
+    expect(call).toMatchObject({ mode: "timelapse", targetMinutes: 30, durationSec: 1800 });
     expect(call.imageUrls).toHaveLength(8);
   });
 
@@ -487,13 +497,61 @@ describe("verification types", () => {
     const verdict = await as.action(api.proofs.verify, { taskId, storageId: await upload(t, "image/png"), mediaType: "photo" });
 
     expect(verdict).toMatchObject({ pass: false, flags: ["wrong_date"] });
-    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ proofType: "screenshot", today: "Sunday, November 15" });
+    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ mode: "screenshot", today: "Sunday, November 15" });
   });
 
   it("plain photo: no rubric type beyond photo", async () => {
     const { t, as, taskId } = await playerWithTask();
     await as.action(api.proofs.verify, { taskId, storageId: await upload(t), mediaType: "photo" });
-    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ proofType: "photo" });
+    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ mode: "photo" });
+  });
+});
+
+describe("timelapse and survey video rules", () => {
+  const lapse = { proofType: "timelapse" as const, slot: "recharge" as const, title: "Read", targetMinutes: 5 };
+  async function stills(t: Backend, seconds: number, count = 5) {
+    const frameStorageIds = await Promise.all(Array.from({ length: count }, () => upload(t)));
+    const frameTimes = frameStorageIds.map((_, i) => NOW - Math.round(((count - 1 - i) / (count - 1)) * seconds * 1000));
+    return { storageId: frameStorageIds[count - 1], frameStorageIds, frameTimes, durationSec: seconds, capturedAt: NOW };
+  }
+
+  it("needs a 5-minute timelapse to span 80% of it, and says what it showed", async () => {
+    const { t, as, taskId } = await playerWithTask(lapse);
+    const short = await as.action(api.proofs.verify, { taskId, mediaType: "photo", ...(await stills(t, 180)) });
+    expect(short).toMatchObject({ pass: false, flags: ["too_short"], reason: "That timelapse covers 3 minutes; this task needs 5." });
+    expect(judgeProof).not.toHaveBeenCalled();
+
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ activityFrames: 5, scene: "you in the armchair reading" }));
+    const verdict = await as.action(api.proofs.verify, { taskId, mediaType: "photo", ...(await stills(t, 240)) });
+    expect(verdict).toMatchObject({ pass: true, reason: "Timelapse 4 min · you in the armchair reading in 5/5 frames" });
+  });
+
+  it("turns away a loop of one still, and stills from before the task existed", async () => {
+    const { t, as, taskId } = await playerWithTask(lapse);
+    const shot = await stills(t, 300);
+    shot.frameStorageIds[1] = await upload(t, "image/jpeg", "loop");
+    shot.frameStorageIds[2] = await upload(t, "image/jpeg", "loop");
+    expect(await as.action(api.proofs.verify, { taskId, mediaType: "photo", ...shot })).toMatchObject({ flags: ["static_frames"] });
+
+    const early = await stills(t, 300);
+    early.frameTimes[0] = NOW - 2 * 60 * 60_000;
+    expect(await as.action(api.proofs.verify, { taskId, mediaType: "photo", ...early })).toMatchObject({ flags: ["stale_capture"] });
+    expect(judgeProof).not.toHaveBeenCalled();
+  });
+
+  it("fails a timelapse when the activity shows in half the stills or fewer", async () => {
+    const { t, as, taskId } = await playerWithTask(lapse);
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ activityFrames: 2, scene: "an empty armchair" }));
+    const verdict = await as.action(api.proofs.verify, { taskId, mediaType: "photo", ...(await stills(t, 300)) });
+    expect(verdict).toMatchObject({ pass: false, flags: ["not_doing_task"] });
+  });
+
+  it("takes a 5-second survey video for a photo task", async () => {
+    const { t, as, taskId } = await playerWithTask({ slot: "chores", title: "Fold the laundry" });
+    vi.mocked(judgeProof).mockResolvedValueOnce(sees({ activityFrames: 5, scene: "your folded laundry" }));
+    const verdict = await as.action(api.proofs.verify, { taskId, mediaType: "video", ...(await stills(t, 5)), storageId: await upload(t, "video/quicktime") });
+    expect(verdict).toMatchObject({ pass: true, reason: "Survey video 5 s · your folded laundry in 5/5 frames" });
+    expect(vi.mocked(judgeProof).mock.calls[0][0]).toMatchObject({ mode: "survey" });
   });
 });
 

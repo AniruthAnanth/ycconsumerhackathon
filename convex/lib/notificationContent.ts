@@ -44,7 +44,7 @@ export type ProofTarget = {
   taskId: string;
   title: string;
   points: number;
-  proofType: "photo" | "photo_location" | "canvas" | "before_after" | "timelapse" | "screenshot";
+  proofType: "photo" | "photo_location" | "canvas" | "before_after" | "timelapse" | "screenshot" | "survey_video";
   place?: Place;
   gesture?: string;
 };

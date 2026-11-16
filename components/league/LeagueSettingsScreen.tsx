@@ -1,11 +1,12 @@
 import { useMutation } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { useJoinLeague } from "@/components/join/useJoinLeague";
-import { Button, Header, Screen } from "@/components/ui";
+import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { DEFAULT_SETTINGS } from "@/convex/lib/schedule";
 import { SCREEN_MARGIN, spacing } from "@/theme";
@@ -25,6 +26,7 @@ export function LeagueSettingsScreen() {
   const createLeague = useMutation(api.leagues.create);
   const { join, busy, failure } = useJoinLeague();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
 
   const create = () =>
     join("create", () =>
@@ -37,11 +39,17 @@ export function LeagueSettingsScreen() {
     );
 
   return (
-    <Screen>
-      <Header title="League Settings" onBack={router.back} />
-      <ScrollView>
+    <Screen edges={["bottom"]}>
+      <Header title="League Settings" onBack={router.back} scrollY={scrollY} />
+      <Animated.ScrollView
+        contentContainerStyle={{ paddingTop: contentInsetTop }}
+        scrollIndicatorInsets={{ top: contentInsetTop }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        <LargeTitle title="League Settings" scrollY={scrollY} />
         <SettingsPicker value={settings} onChange={setSettings} />
-      </ScrollView>
+      </Animated.ScrollView>
       <View style={styles.footer}>
         {failure ? <ErrorLine message={failure.message} /> : null}
         <Button label="Create League" onPress={create} loading={busy} />

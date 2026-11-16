@@ -1,15 +1,11 @@
-import { useMutation, useQuery } from "convex/react";
-import { Linking, StyleSheet, Switch, Text, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 
 import { PlayByTextRow } from "@/components/keiki/PlayByTextRow";
 import { RowDivider, SectionLabel } from "@/components/ui";
-import { api } from "@/convex/_generated/api";
-import { isAvailable, requestPermission } from "@/lib/notifications/native";
-import { usePermission } from "@/lib/notifications/usePermission";
 import { colors, font, fontFamily, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing } from "@/theme";
 
-import { pushCopy } from "./pushCopy";
 import { SilentBoundary } from "./SilentBoundary";
+import { usePushSwitch } from "./usePushSwitch";
 
 /**
  * The League tab's notification settings: texts (the Keiki opt-in, which owns its own row) and
@@ -28,42 +24,20 @@ export function NotificationSettings() {
   );
 }
 
-/**
- * The Push switch. It is on only when the player wants it and the system allows it. The
- * system's answer is the one the notifications host follows too (usePermission), so a grant
- * made here enables the device at once, and a change made in Settings shows here when the app
- * returns to the foreground. Renders nothing where there is no native notifications (the web).
- */
+/** The Push switch (usePushSwitch). Renders nothing where there is no native notifications (the web). */
 function PushRow() {
-  const available = isAvailable();
-  const settings = useQuery(api.push.settings, available ? {} : "skip");
-  const setEnabled = useMutation(api.push.setEnabled);
-  const permission = usePermission();
-
-  if (!available || !settings || !permission) return null;
-
-  async function onValueChange(on: boolean) {
-    try {
-      await setEnabled({ enabled: on });
-    } catch {
-      return;
-    }
-    if (!on) return;
-    // Nothing is done with the answer: requestPermission publishes it to this row and the host.
-    if (permission === "undetermined") await requestPermission();
-    // iOS shows its dialog only once, so a player who said no has to change it in Settings.
-    else if (permission === "denied") await Linking.openSettings().catch(() => {});
-  }
+  const push = usePushSwitch();
+  if (!push) return null;
 
   return (
     <View style={styles.row}>
       <View style={styles.text}>
         <Text style={styles.title}>Push notifications</Text>
-        <Text style={styles.copy}>{pushCopy({ permission, ...settings })}</Text>
+        <Text style={styles.copy}>{push.copy}</Text>
       </View>
       <Switch
-        value={settings.pushOn && permission === "granted"}
-        onValueChange={onValueChange}
+        value={push.value}
+        onValueChange={push.onValueChange}
         trackColor={{ true: colors.accent }}
         accessibilityLabel="Push notifications"
       />

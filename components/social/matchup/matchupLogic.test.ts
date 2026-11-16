@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bonusPoints, possiblePoints, statusLine, winBarSplit } from "./matchupLogic";
+import { bonusPoints, formatRecord, possiblePoints, shortName, slotLeader, statusDot, statusLine, winBarSplit } from "./matchupLogic";
 
 describe("winBarSplit", () => {
   it("sizes the bar by probability and rounds labels to sum to 100", () => {
@@ -61,5 +61,37 @@ describe("bonusPoints", () => {
     const rows = [{ mine: { score: 30 }, theirs: { score: null } }, { mine: { score: 20 } }, { mine: { score: 20 } }];
     expect(bonusPoints(rows, "mine", 150)).toBe(80);
     expect(bonusPoints(rows, "theirs", 0)).toBe(0);
+  });
+});
+
+describe("slotLeader", () => {
+  it("leads on the higher score and ties to nobody", () => {
+    expect(slotLeader({ mine: { score: 10 }, theirs: { score: 5 } })).toBe("mine");
+    expect(slotLeader({ mine: { score: null }, theirs: { score: 5 } })).toBe("theirs");
+    expect(slotLeader({ mine: { score: null }, theirs: undefined })).toBeNull();
+    expect(slotLeader({ mine: { score: 4 }, theirs: { score: 4 } })).toBeNull();
+  });
+});
+
+describe("statusDot", () => {
+  it("maps verified to done, held to pending and the rest to open", () => {
+    expect(statusDot("verified")).toBe("done");
+    expect(statusDot("held")).toBe("pending");
+    expect(statusDot("open")).toBe("open");
+    expect(statusDot("failed")).toBe("open");
+  });
+});
+
+describe("formatRecord", () => {
+  it("prints ties only when there are some", () => {
+    expect(formatRecord({ wins: 3, losses: 1, ties: 0 })).toBe("3-1");
+    expect(formatRecord({ wins: 2, losses: 1, ties: 1 })).toBe("2-1-1");
+  });
+});
+
+describe("shortName", () => {
+  it("keeps the first name", () => {
+    expect(shortName("Ada Lovelace")).toBe("Ada");
+    expect(shortName("Sunny")).toBe("Sunny");
   });
 });

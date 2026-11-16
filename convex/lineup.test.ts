@@ -199,7 +199,8 @@ describe("lineup.lock", () => {
     });
     const { rows } = await as.query(api.lineup.roster, {});
     expect(rows.map((row) => row.proofType)).toEqual(["photo", "photo", "timelapse", "before_after", "screenshot"]);
-    expect(rows[2].targetMinutes).toBe(45);
+    // Proving a task takes minutes at most, so a timelapse is capped at 10.
+    expect(rows[2].targetMinutes).toBe(10);
     // Minutes mean nothing on a before/after task, so they aren't kept.
     expect(rows[3].targetMinutes).toBeUndefined();
   });

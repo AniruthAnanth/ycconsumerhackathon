@@ -16,6 +16,8 @@ export type TaskRowData = {
   verifiedAt?: number;
   thumbUrl?: string;
   dueLabel?: string;
+  /** A timelapse's target length, which the status line names. */
+  targetMinutes?: number;
 };
 
 /** Scores always show one decimal, like a fantasy box score; unscored shows a dash. */
@@ -36,19 +38,32 @@ export function formatClock(ms: number): string {
 
 /** Line 2 of a row: how the task is proved and where it stands. */
 export function taskStatusLine(task: TaskRowData): string {
-  const proof = PROOF_LABEL[task.proofType];
+  const proof =
+    task.proofType === "timelapse" && task.targetMinutes !== undefined
+      ? `${PROOF_LABEL.timelapse} · ${task.targetMinutes} min`
+      : (PROOF_LABEL[task.proofType] as string | undefined);
   switch (task.status) {
     case "verified":
       return task.verifiedAt == null ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
     case "held":
-      return "Up for veto | Points on hold";
+      return "Up for veto · Points on hold";
     case "failed":
       // A rejected proof leaves a task open. Only a drop that closed with no
       // proof writes "failed", and that task can no longer be played.
       return "Missed";
     default:
-      return task.dueLabel ? `${proof} | ${task.dueLabel}` : proof;
+      // A proof type the app has no label for (or none) is left out, never read as "undefined".
+      return [proof, task.dueLabel].filter(Boolean).join(" · ");
   }
+}
+
+/**
+ * The line under a task title in a list. An open task shows only how it is proved: the due day is
+ * the same for the whole week, so the list says it once instead of on every row.
+ */
+export function taskRowLine(task: TaskRowData): string {
+  if (task.status === "verified" || task.status === "held" || task.status === "failed") return taskStatusLine(task);
+  return taskStatusLine({ ...task, dueLabel: undefined });
 }
 
 /** Line 3 of a row: where the task happens, when it is pinned to a place. */
@@ -65,7 +80,7 @@ export function taskRowLabel(task: TaskRowData, upNext = false): string {
   return [
     task.title,
     upNext ? "Up next" : SLOT_NAME[task.slot],
-    taskStatusLine(task).replace(" | ", ", "),
+    taskStatusLine(task).replaceAll(" · ", ", "),
     task.place ? `at ${task.place.name}` : undefined,
     points,
   ]

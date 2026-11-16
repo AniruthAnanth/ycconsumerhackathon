@@ -28,6 +28,7 @@ describe("timelapse sampling", () => {
 
   it("spaces interval photos so eight span the target, never closer than 5 s", () => {
     expect(intervalMs(30)).toBe(225_000);
+    expect(intervalMs(10)).toBe(75_000);
     expect(intervalMs(0.1)).toBe(5_000);
   });
 
@@ -46,18 +47,22 @@ describe("formatElapsed", () => {
 });
 
 describe("howToProve", () => {
-  it("names the target for a timelapse, defaulting to 30 min", () => {
-    expect(howToProve({ proofType: "timelapse", title: "Read", targetMinutes: 45 })).toBe("Record a timelapse of yourself doing it, at least 45 min.");
-    expect(howToProve({ proofType: "timelapse", title: "Read" })).toContain("at least 30 min");
+  it("asks a timelapse task for its target, five minutes by default and never more than ten", () => {
+    expect(howToProve({ proofType: "timelapse", targetMinutes: 7 })).toBe("Record a 7-min timelapse while you do it.");
+    expect(howToProve({ proofType: "timelapse" })).toBe("Record a 5-min timelapse while you do it.");
+    expect(howToProve({ proofType: "timelapse", targetMinutes: 45 })).toBe("Record a 10-min timelapse while you do it.");
   });
 
-  it("names the place for a location photo", () => {
-    expect(howToProve({ proofType: "photo_location", title: "Gym", place: { name: "Equinox" } })).toBe("Take a photo at Equinox. Your location is checked.");
+  it("gives each other type its own line", () => {
+    expect(howToProve({ proofType: "photo_location", place: { name: "the gym" } })).toBe("Check in at the gym.");
+    expect(howToProve({ proofType: "photo_location" })).toBe("Check in where it happens.");
+    expect(howToProve({ proofType: "photo" })).toBe("Snap a photo that shows it's done.");
+    expect(howToProve({})).toBe("Snap a photo that shows it's done.");
+    expect(howToProve({ proofType: "screenshot" })).toBe("Pick a screenshot that shows it's done.");
+    expect(howToProve({ proofType: "before_after" })).toBe("Snap a before photo, then an after from the same spot.");
   });
 
-  it("has one line for every type", () => {
-    for (const proofType of ["photo", "canvas", "before_after", "screenshot"] as const) {
-      expect(howToProve({ proofType, title: "x" }).length).toBeGreaterThan(10);
-    }
+  it("asks an outcome task for a 5-second survey video", () => {
+    expect(howToProve({ proofType: "survey_video", targetMinutes: 30 })).toBe("Take a 5-second video showing it's done.");
   });
 });

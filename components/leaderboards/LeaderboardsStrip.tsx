@@ -6,7 +6,7 @@ import { formatNet, useMarket } from "@/components/markets";
 import { Icon } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { colors, font, fontFamily, hairline, layout, SCREEN_MARGIN } from "@/theme";
+import { colors, font, fontFamily, hairline, layout, money, SCREEN_MARGIN } from "@/theme";
 
 import { isProjectedGain, placeLabel } from "./format";
 import { useProjection } from "./useProjection";
@@ -35,7 +35,7 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
       {live ? (
         <Text style={[styles.projection, live.expectedNetUsd >= 0.5 && styles.gain]}>{`Projected ${formatNet(live.expectedNetUsd)}`}</Text>
       ) : projection?.eligible ? (
-        <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]}>
+        <Text style={[styles.projection, isProjectedGain(projection) && styles.gain]} numberOfLines={2}>
           {projection.label}
         </Text>
       ) : null}
@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
   place: { flex: 1, fontSize: font.body, fontFamily: fontFamily.semiBold, color: colors.text },
-  projection: { flexShrink: 1, fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
-  gain: { color: colors.tabActive },
+  // A long label ("Pay $5 to play for the pot") wraps in its own column instead of squeezing the place into a sliver.
+  projection: { maxWidth: "45%", flexShrink: 1, textAlign: "right", fontSize: font.body, fontFamily: fontFamily.bold, color: colors.text },
+  gain: { color: money.text },
 });

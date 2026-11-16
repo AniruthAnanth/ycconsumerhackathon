@@ -51,10 +51,7 @@ describe("submitProofHref", () => {
     expect(submitProofHref(gym)).toMatchObject({ pathname: "/proof/[taskId]", params: { taskId: "t1" } });
   });
 
-  it("skips the camera for a Canvas task", () => {
-    expect(submitProofHref(essay)).toMatchObject({
-      pathname: "/proof/verdict",
-      params: { taskId: "t2", mediaType: "canvas" },
-    });
+  it("sends a Canvas task straight to the verdict, where the backend reads the submission", () => {
+    expect(submitProofHref(essay)).toMatchObject({ params: { taskId: "t2", mediaType: "canvas" } });
   });
 });

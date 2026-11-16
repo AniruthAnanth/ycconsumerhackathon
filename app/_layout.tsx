@@ -47,7 +47,8 @@ export default function RootLayout() {
               <Stack.Screen name="leaderboards/index" options={{ fullScreenGestureEnabled: false }} />
               <Stack.Screen name="league-settings/season" options={{ fullScreenGestureEnabled: false }} />
               {/* Every sheet shares one presentation (components/ui/Sheet), so the task sheet, switcher and group sheet look and move alike. */}
-              <Stack.Screen name="task/[taskId]" options={sheetOptions()} />
+              {/* The task sheet hugs its content (title, task, how-to, Submit Proof) instead of opening at half height. */}
+              <Stack.Screen name="task/[taskId]" options={sheetOptions("fitToContents")} />
               {/* The camera and the verdict photo fill the top of the screen, so their status bar is light, as on Wrapped. */}
               {/* Full screen for the camera, but it rises from the bottom like the task sheet it replaces, so the step reads as one motion. */}
               <Stack.Screen name="proof/[taskId]" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", statusBarStyle: "light" }} />
@@ -55,7 +56,8 @@ export default function RootLayout() {
               {/* Wrapped draws full-bleed photos and dark cards, so its status bar is light; the native modal owns that, not expo-status-bar. */}
               <Stack.Screen name="wrapped/index" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", statusBarStyle: "light" }} />
               <Stack.Screen name="league-switcher" options={sheetOptions()} />
-              <Stack.Screen name="group/new" options={sheetOptions()} />
+              {/* A form with unsaved input: its X (with a confirm) is the way out, so no grabber promising a swipe. */}
+              <Stack.Screen name="group/new" options={sheetOptions(undefined, { grabber: false })} />
             </Stack>
             <LiveToastHost />
           </CurrentLeagueProvider>

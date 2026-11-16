@@ -34,7 +34,7 @@ export function canSubmitProof(status: Task["status"]): boolean {
   return status === "open";
 }
 
-/** A Canvas task has nothing to photograph: the backend reads the submission itself. */
+/** A Canvas task has nothing to film: the backend reads the submission itself. Every other task opens the capture its type names. */
 export function submitProofHref(task: Task): Href {
   const target = toProofTarget(task);
   return task.proofType === "canvas" ? verdictHref(target, { mediaType: "canvas" }) : proofCameraHref(target);

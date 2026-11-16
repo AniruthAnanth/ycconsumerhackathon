@@ -1,13 +1,14 @@
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View, type ScrollViewInstance } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { confirmAction } from "@/components/social/notify";
-import { Button, Header, Screen } from "@/components/ui";
+import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
 import { Sunny, type SunnyMood } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
-import { colors, fontFamily, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
 
 import { DraftLineup } from "./DraftLineup";
 import { hasUnsavedDraft } from "./draftState";
@@ -23,10 +24,20 @@ export function VoiceDraftScreen() {
   const draft = useVoiceDraft();
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
+  const scroll = useRef<ScrollViewInstance>(null);
+  // The typed box and "Draft from text" are the last things on the page, so once the keyboard is
+  // up the page scrolls to its end to keep them above it (ANI-52).
+  const revealTypedWeek = () => {
+    const shown = Keyboard.addListener("keyboardDidShow", () => {
+      shown.remove();
+      scroll.current?.scrollToEnd({ animated: true });
+    });
+  };
   const prompt = useSpeakingPrompt(state.phase === "idle");
   const sunnyMood: SunnyMood =
     state.phase === "recording" ? "listening" : state.phase === "drafting" || state.phase === "locking" ? "thinking" : state.phase === "review" ? "success" : state.phase === "idle" ? "waiting" : "idle";
   const navigation = useNavigation();
+  const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
 
   // Close, Back from the first step, the hardware back button and the iOS swipe all remove the
   // screen, so one guard asks before any of them throws away an unlocked lineup.
@@ -54,21 +65,27 @@ export function VoiceDraftScreen() {
   const lockRefused = state.phase === "review" && state.error !== null;
 
   return (
-    <Screen>
+    <Screen edges={["bottom"]}>
       <Header
         title="Voice Draft"
+        scrollY={scrollY}
         onBack={state.phase === "locking" ? undefined : back}
         onClose={state.phase === "locking" ? undefined : leave}
       />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Dragging the page puts the keyboard away, and the content insets itself so the typed box and Draft from text can scroll above the keyboard. */}
-        <ScrollView
+        <Animated.ScrollView
+          ref={scroll}
           style={styles.flex}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingTop: contentInsetTop }]}
+          scrollIndicatorInsets={{ top: contentInsetTop }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         >
+          <LargeTitle title="Voice Draft" scrollY={scrollY} />
           <View style={styles.sunny}>
             <Sunny size={80} mood={sunnyMood} tappable />
           </View>
@@ -93,7 +110,12 @@ export function VoiceDraftScreen() {
           </View>
           {showsTyped ? (
             <View style={styles.transcript}>
-              <TypedDraft value={typedWeek} onChangeText={setTypedWeek} onSubmit={() => draft.draftFromText(typedWeek)} />
+              <TypedDraft
+                value={typedWeek}
+                onChangeText={setTypedWeek}
+                onSubmit={() => draft.draftFromText(typedWeek)}
+                onFocus={revealTypedWeek}
+              />
             </View>
           ) : null}
           {showsLineup ? (
@@ -107,14 +129,14 @@ export function VoiceDraftScreen() {
               />
             </View>
           ) : null}
-        </ScrollView>
+        </Animated.ScrollView>
         {/* One primary action at a time: Lock Lineup appears with the lineup it locks. Pinned while
             the player is still talking or typing, it covered "Draft from text" on a short phone. */}
         {/* Talking is the quick way in, not the only one: the same lineup can be picked by hand. A plain
             grey link at the foot of the screen, so the microphone stays the one obvious action. */}
         {state.phase === "idle" && !showsLineup ? (
           <Pressable accessibilityRole="button" onPress={draft.pickOwn} style={styles.skip} testID="draft-skip">
-            <Text style={styles.skipLabel}>Skip — I'll pick my own</Text>
+            <Text style={styles.skipLabel}>Skip, I'll pick my own</Text>
           </Pressable>
         ) : null}
         {showsLineup || state.error ? (
@@ -142,7 +164,7 @@ export function VoiceDraftScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: spacing.lg, paddingBottom: ROW_HEIGHT + spacing.xxl },
+  content: { paddingBottom: ROW_HEIGHT + spacing.xxl },
   sunny: { alignItems: "center", paddingBottom: spacing.md },
   weekNote: { paddingHorizontal: SCREEN_MARGIN, paddingBottom: spacing.md, textAlign: "center", ...type.small, color: colors.textMuted },
   recorder: { alignItems: "center" },
@@ -159,7 +181,8 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
-  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
+  // A paper bar with a hairline, so the lineup visibly scrolls under it instead of being sliced.
+  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.background, borderTopWidth: hairline, borderTopColor: colors.divider },
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
   redo: { ...type.label, color: colors.accent },
