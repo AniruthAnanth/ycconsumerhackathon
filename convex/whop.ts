@@ -178,7 +178,9 @@ async function openLeagueCompany(
   if (!platform.email) throw new ConvexError("The Whop platform account has no email");
   const company = await whop.accounts.create({
     email: platform.email,
-    title: `Lineup · ${leagueName}`,
+    // Whop refuses a second company with a title it has seen, and league names repeat ("Quick Match $5"),
+    // so the league's id suffix keeps it unique.
+    title: `Lineup · ${leagueName} ${leagueId.slice(-4).toUpperCase()}`,
     external_id: `league:${leagueId}`,
     metadata: { leagueId },
   });
