@@ -179,7 +179,15 @@ const styles = StyleSheet.create({
   skipLabel: { ...type.label, fontFamily: fontFamily.regular, color: colors.textMuted },
   transcript: { paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.lg },
   lineup: { paddingTop: spacing.md },
-  footer: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.sm },
+  // Pinned over the scrolling lineup: the hairline and canvas fill mark where the list ends instead of cutting a row in half.
+  footer: {
+    paddingHorizontal: SCREEN_MARGIN,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+  },
   error: { ...type.body, color: colors.danger },
   leave: { alignSelf: "center", minHeight: MIN_TARGET, justifyContent: "center" },
   redo: { ...type.label, color: colors.accent },
