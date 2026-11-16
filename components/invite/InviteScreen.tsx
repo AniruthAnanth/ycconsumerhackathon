@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { FormBody } from "@/components/join/FormBody";
 import { Button, Header, OutlinedPillButton, Screen, TextField } from "@/components/ui";
-import { phoneHint, toE164 } from "@/lib/phone";
+import { formatPhoneInput, phoneHint, toE164 } from "@/lib/phone";
 import { leaveScreen } from "@/components/social/leave";
 import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
@@ -75,9 +75,11 @@ export function InviteScreen() {
               label="Phone"
               value={phone}
               onChangeText={(text) => {
-                setPhone(text);
+                setPhone(formatPhoneInput(text, phone));
                 clearError();
               }}
+              prefix="+1"
+              placeholder="(650) 555-7733"
               keyboardType="phone-pad"
               autoComplete="tel"
               textContentType="telephoneNumber"
