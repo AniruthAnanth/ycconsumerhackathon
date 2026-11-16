@@ -46,14 +46,14 @@ describe("splitRoster", () => {
 });
 
 describe("flexTasksLeft", () => {
-  it("counts down from three as flex tasks are added, whatever their source", () => {
-    expect(flexTasksLeft([task("gym", "body")])).toBe(3);
-    expect(flexTasksLeft([task("stretch", "flex", "flex"), task("walk", "flex")])).toBe(1);
+  it("is one until a flex task is added, whatever its source", () => {
+    expect(flexTasksLeft([task("gym", "body")])).toBe(1);
+    expect(flexTasksLeft([task("walk", "flex")])).toBe(0);
   });
 
   it("is zero at the limit and never negative", () => {
     const flex = ["a", "b", "c", "d"].map((id) => task(id, "flex", "flex"));
-    expect(flexTasksLeft(flex.slice(0, 3))).toBe(0);
+    expect(flexTasksLeft(flex.slice(0, 1))).toBe(0);
     expect(flexTasksLeft(flex)).toBe(0);
   });
 });
@@ -69,10 +69,10 @@ describe("weekActions", () => {
     expect(actions).toEqual({ canDraft: true, noLineup: false, undrafted: true, takesFlex: false });
   });
 
-  it("offers flex tasks on a locked lineup in the week in play, until it holds three", () => {
+  it("offers a flex task on a locked lineup in the week in play, until it holds one", () => {
     const week = { shownWeekStart: undefined, currentWeekStart: thisWeek };
-    expect(weekActions({ ...week, roster: { locked: true, rows: drafted } }).takesFlex).toBe(true);
-    const full = ["a", "b", "c"].map((id) => task(id, "flex", "flex"));
+    expect(weekActions({ ...week, roster: { locked: true, rows: [task("gym", "body")] } }).takesFlex).toBe(true);
+    const full = drafted;
     expect(weekActions({ ...week, roster: { locked: true, rows: full } }).takesFlex).toBe(false);
     expect(weekActions({ ...week, roster: { locked: false, rows: drafted } }).takesFlex).toBe(false);
   });
