@@ -220,6 +220,12 @@ describe("SCORING_RULES", () => {
     expect(SCORING_RULES).toContain("the higher scorer of a pair gets 50 more; a tie pays nobody");
     expect(SCORING_RULES).toContain("Clearing a slot with its drafted task adds 25, and clearing all 5 adds 100 more");
   });
+
+  it("states the payout rule: an even split among the most slots cleared, kept in escrow", () => {
+    expect(SCORING_RULES).toContain("split evenly among the paid members tied for the most slots cleared that week");
+    expect(SCORING_RULES).toContain("stay in the league's escrow");
+    expect(SCORING_RULES).not.toContain("\u2014");
+  });
 });
 
 describe("withoutActionTag", () => {
