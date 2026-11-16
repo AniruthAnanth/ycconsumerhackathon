@@ -51,7 +51,7 @@ export const colors = {
   /** The light paper tint laid over the floating tab bar's liquid glass. */
   glassTint: "rgba(250, 248, 242, 0.55)",
   /** The blurred bar's fill where liquid glass is missing (older iOS, Android, web): near-opaque paper, so rows passing under it never collide with the tab labels (a browser without backdrop blur shows the fill alone). */
-  glassFill: "rgba(250, 248, 242, 0.94)",
+  glassFill: "rgba(250, 248, 242, 0.97)",
   /** The glass bar's hairline edge. */
   glassEdge: "rgba(23, 43, 35, 0.08)",
   /** The selected tab's pill: a faint wash of the green accent. */
