@@ -690,7 +690,7 @@ const UNRATED_POINTS = 20;
 
 /**
  * Adds a Canvas assignment to the caller's current week as a flex task: the
- * row lineup.addFlexTask would write (same week, limit of three and starting
+ * row lineup.addFlexTask would write (same week, the one-flex limit and starting
  * points), plus the Canvas ids.
  *
  * It is never placed in the Mind slot, even when that slot is empty. Locking
@@ -729,9 +729,7 @@ export const addTask = mutation({
     }
 
     if (tasks.filter((task) => task.slot === "flex").length >= MAX_FLEX_TASKS) {
-      throw new ConvexError(
-        `You already have ${MAX_FLEX_TASKS} flex tasks this week.`,
-      );
+      throw new ConvexError("You already have a bonus task this week.");
     }
 
     const task = tidyTask({
