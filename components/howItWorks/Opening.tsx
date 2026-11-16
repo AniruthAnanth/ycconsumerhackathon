@@ -105,7 +105,7 @@ export function Opening({ onDone }: { onDone: () => void }) {
     dropY.value = -stage.height;
     // A falling letter speeds up, so the drop eases in and the landing does the emphasis.
     dropY.value = withDelay(LOOK_END, withTiming(0, { duration: HOP, easing: Easing.in(Easing.cubic) }, (finished) => {
-      if (finished) runOnJS(haptics.select)();
+      if (finished) runOnJS(haptics.drop)();
     }));
     letterSquash.value = withDelay(DROP_END, withSequence(withTiming(0.82, { duration: LAND / 2 }), withSpring(1, spring.gentle)));
     dust.value = withDelay(DROP_END, withTiming(1, { duration: duration.slow * 2, easing: ease.emphasized }));

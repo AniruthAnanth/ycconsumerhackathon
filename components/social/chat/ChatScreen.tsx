@@ -12,6 +12,7 @@ import { useMyUserId } from "@/components/social/useMyUserId";
 import { Header, Screen } from "@/components/ui";
 import { SUNNY, type SunnyAction } from "@/components/social/sunny/sunnyLogic";
 import { markSunnySeen, useSunny } from "@/components/social/sunny/useSunny";
+import { useTextSunny } from "@/components/keiki/useTextSunny";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
@@ -30,6 +31,8 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 /** The chat tab: the league's group thread by default, or the 1:1 with Sunny. A chip that asks Sunny something opens on Private. */
+const CHIP_HEIGHT = 36;
+
 export function ChatScreen() {
   const { ask, draft } = useLocalSearchParams<{ ask?: string; draft?: string }>();
   const [tab, setTab] = useState<Tab>(ask || draft ? "private" : "league");
@@ -69,6 +72,7 @@ function PrivateChat() {
   const list = useRef<FlatList>(null);
   const router = useRouter();
   const { brief } = useSunny();
+  const textSunny = useTextSunny();
   const { ask: asked, draft: prefill } = useLocalSearchParams<{ ask?: string; draft?: string }>();
 
   const ask = (text: string) => chat({ leagueId: leagueId!, text });
@@ -129,8 +133,15 @@ function PrivateChat() {
             keyboardShouldPersistTaps="handled"
           />
           {/* Suggestions stay in one row above the composer, like iMessage, for the whole conversation. */}
+          {state.pending || !textSunny.ready ? null : (
+            <View style={styles.textSunny}>
+              <PressScale accessibilityRole="button" accessibilityLabel={`Text Sunny instead, at ${textSunny.number}`} onPress={() => void textSunny.open()} style={styles.chip}>
+                <Text style={styles.chipText}>Text Sunny instead</Text>
+              </PressScale>
+            </View>
+          )}
           {state.pending ? null : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
               {chips.map((chip) => (
                 <PressScale key={chip} accessibilityRole="button" onPress={() => send(chip)} style={styles.chip}>
                   <Text style={styles.chipText}>{chip}</Text>
@@ -167,7 +178,11 @@ const styles = StyleSheet.create({
   segmentText: { color: colors.textMuted, fontFamily: fontFamily.semiBold, fontSize: font.body },
   segmentTextOn: { color: colors.text },
   messages: { paddingVertical: spacing.sm },
-  chips: { gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
-  chip: { minHeight: layout.pillHeight, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.lime },
+  // A ScrollView grows to fill a column on iOS, which stretched the chips into tall pills: the row
+  // takes only its content's height, and each chip keeps a fixed height.
+  chipRow: { flexGrow: 0, flexShrink: 0 },
+  chips: { alignItems: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  chip: { height: CHIP_HEIGHT, alignSelf: "center", justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.lime },
+  textSunny: { flexDirection: "row", paddingHorizontal: SCREEN_MARGIN, paddingTop: spacing.sm },
   chipText: { color: colors.accent, fontFamily: fontFamily.bold, fontSize: font.meta },
 });

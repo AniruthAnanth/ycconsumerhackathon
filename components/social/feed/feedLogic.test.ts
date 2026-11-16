@@ -7,6 +7,9 @@ import {
   challengeStatus,
   legitShare,
   proofShareText,
+  postCaption,
+  proofVisual,
+  quipFor,
   reactionButtons,
   REACTION_EMOJI,
   timeAgo,
@@ -114,5 +117,51 @@ describe("proofShareText", () => {
       'Maya proved "Run 5k" for 12 pts on Lineup.\nhttps://x/p.jpg',
     );
     expect(proofShareText({ ...item, mediaUrl: "https://x/c", mediaType: "canvas" })).not.toContain("https");
+  });
+});
+
+describe("proofVisual", () => {
+  it("is nothing for a Canvas proof or one without media", () => {
+    expect(proofVisual({ mediaType: "canvas", mediaUrl: "https://x/a.jpg" })).toEqual({ kind: "none" });
+    expect(proofVisual({ mediaType: "photo" })).toEqual({ kind: "none" });
+  });
+  it("shows the player's own photo or clip", () => {
+    expect(proofVisual({ mediaType: "photo", mediaUrl: "https://x/a.jpg" })).toEqual({ kind: "media", uri: "https://x/a.jpg" });
+    expect(proofVisual({ mediaType: "video", mediaUrl: "https://x/a.mp4" })).toEqual({ kind: "media", uri: "https://x/a.mp4" });
+  });
+  it("shows a timelapse with several stills as a filmstrip, and one still as a photo", () => {
+    expect(proofVisual({ mediaType: "photo", mediaUrl: "c", frameUrls: ["a", "b", "c"] })).toEqual({ kind: "filmstrip", frames: ["a", "b", "c"] });
+    expect(proofVisual({ mediaType: "photo", mediaUrl: "c", frameUrls: ["c"] })).toEqual({ kind: "media", uri: "c" });
+  });
+});
+
+describe("quipFor", () => {
+  const slots = ["body", "mind", "recharge", "chores", "people", "flex"] as const;
+  it("is the same line every time for the same task", () => {
+    expect(quipFor("Clean my room", "chores")).toBe(quipFor("Clean my room", "chores"));
+  });
+  it("stays under eight words, with no em-dash, for every slot", () => {
+    for (const slot of slots) {
+      for (const title of ["Call mom", "Run a very long half marathon around the city", "x", ""]) {
+        const quip = quipFor(title, slot);
+        expect(quip.split(/\s+/).length).toBeLessThan(8);
+        expect(quip).not.toContain("\u2014");
+      }
+    }
+  });
+  it("varies across tasks in a slot", () => {
+    const quips = new Set(["Laundry", "Dishes", "Vacuum", "Clean my room", "Take out trash", "Mop floor"].map((t) => quipFor(t, "chores")));
+    expect(quips.size).toBeGreaterThan(1);
+  });
+});
+
+describe("postCaption", () => {
+  it("keeps a short caption", () => {
+    expect(postCaption({ caption: "You can see the floor again.", taskTitle: "Clean my room", slot: "chores" })).toBe("You can see the floor again.");
+  });
+  it("falls back to a quip for an empty or long caption", () => {
+    const quip = quipFor("Clean my room", "chores");
+    expect(postCaption({ caption: "  ", taskTitle: "Clean my room", slot: "chores" })).toBe(quip);
+    expect(postCaption({ caption: "one two three four five six seven eight nine", taskTitle: "Clean my room", slot: "chores" })).toBe(quip);
   });
 });

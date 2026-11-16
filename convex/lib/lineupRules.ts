@@ -15,7 +15,8 @@ import {
   type Slot,
 } from "./scoring";
 
-export const MAX_FLEX_TASKS = 3;
+/** One optional bonus task the player chose, beside the five slot tasks (the owner's call). */
+export const MAX_FLEX_TASKS = 1;
 export const MAX_TITLE_LENGTH = 60;
 
 export type Place = { name: string; lat: number; lng: number };
@@ -117,14 +118,18 @@ export function tidyTask(task: DraftTask): DraftTask {
 
 /**
  * Repairs a model's draft into a lockable lineup: exactly one task per core
- * slot in roster order, then up to three flex tasks. A second task for a slot
- * that is already filled moves to flex, and an empty slot gets an easy default.
+ * slot in roster order, then at most one flex task. A second task for a slot
+ * that is already filled moves to flex when flex is free, a task repeating another's title is
+ * dropped, and an empty slot gets an easy default.
  */
 export function shapeDraft(drafted: DraftTask[]): DraftTask[] {
   const core = new Map<CoreSlot, DraftTask>();
   const flex: DraftTask[] = [];
+  const titles = new Set<string>();
   for (const task of drafted.map(tidyTask)) {
-    if (task.title === "") continue;
+    const key = task.title.toLowerCase();
+    if (task.title === "" || titles.has(key)) continue;
+    titles.add(key);
     if (task.slot !== "flex" && !core.has(task.slot)) {
       core.set(task.slot, task);
     } else if (flex.length < MAX_FLEX_TASKS) {
@@ -152,7 +157,7 @@ export function lineupProblem(tasks: DraftTask[]): string | null {
       return `Only one ${SLOT_LABELS[slot]} task fits the lineup. Move the other to Flex.`;
   }
   if (tasks.filter((task) => task.slot === "flex").length > MAX_FLEX_TASKS) {
-    return `A lineup holds at most ${MAX_FLEX_TASKS} flex tasks.`;
+    return "A lineup holds at most one flex task.";
   }
   return null;
 }

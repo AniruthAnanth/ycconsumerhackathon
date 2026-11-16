@@ -217,6 +217,45 @@ export const setAvatar = mutation({
 });
 
 /**
+ * The Profile screen's own edits: a new name, a new photo (uploaded through
+ * proofs.generateUploadUrl) or null to remove the photo. It writes the player the device plays
+ * as, so the profile it was edited from is the one that changes. A replaced or removed photo is
+ * deleted unless the player is seeded, since seeded players share their photos.
+ */
+export const updateProfile = mutation({
+  args: {
+    name: v.optional(v.string()),
+    avatarStorageId: v.optional(v.union(v.id("_storage"), v.null())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const player = await requireUser(ctx);
+    const patch: { name?: string; avatarStorageId?: Id<"_storage"> | undefined } = {};
+    if (args.name !== undefined) {
+      const name = args.name.trim();
+      if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
+        throw new ConvexError(`Enter a name of 1 to ${MAX_NAME_LENGTH} characters`);
+      }
+      patch.name = name;
+    }
+    const previous = player.avatarStorageId;
+    if (args.avatarStorageId !== undefined) {
+      patch.avatarStorageId = args.avatarStorageId ?? undefined;
+    }
+    await ctx.db.patch("users", player._id, patch);
+    if (
+      args.avatarStorageId !== undefined &&
+      previous !== undefined &&
+      previous !== args.avatarStorageId &&
+      !player.isSeed
+    ) {
+      await ctx.storage.delete(previous);
+    }
+    return null;
+  },
+});
+
+/**
  * Settings' Delete account. Deletes the device's own account, never the seeded player Switch
  * Player points at, with every row that hangs off it (fixtures.removePlayer: memberships, the
  * matchups, drops, challenges and ledger rows it left in its leagues, lineups, tasks, proofs,

@@ -18,7 +18,14 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { colors, MIN_TARGET, status } from "@/theme";
 
+import { PostPaySheet } from "./PostPaySheet";
 import { usePayBuyIn } from "./usePayBuyIn";
+
+/**
+ * Leagues whose buy-in this app session has celebrated. Every screen's header mounts its own
+ * PayButton, so this keeps the post-pay sheet to one per payment.
+ */
+const celebrated = new Set<string>();
 
 /** One full breath of the badge dot. */
 const PULSE_MS = 2_000;
@@ -47,10 +54,24 @@ export function PayButton({ leagueId }: { leagueId?: Id<"leagues"> }) {
     if (justPaid && reduceMotion) setOwedId(null);
   }, [justPaid, reduceMotion]);
   const clear = useCallback(() => setOwedId(null), []);
+  // The webhook has just marked this league paid: celebrate, then ask for friends.
+  const [celebrating, setCelebrating] = useState<{ leagueId: Id<"leagues">; stakeUsd: number } | null>(null);
+  useEffect(() => {
+    if (!justPaid || !membership || celebrated.has(membership._id)) return;
+    celebrated.add(membership._id);
+    setCelebrating({ leagueId: membership._id, stakeUsd: membership.stakeUsd });
+  }, [justPaid, membership]);
 
+  const sheet = celebrating ? (
+    <PostPaySheet leagueId={celebrating.leagueId} stakeUsd={celebrating.stakeUsd} onClose={() => setCelebrating(null)} />
+  ) : null;
   if (owes) return <PayCard key={membership._id} leagueId={membership._id} stakeUsd={membership.stakeUsd} />;
-  if (justPaid && !reduceMotion) return <PaidCheck onDone={clear} />;
-  return null;
+  return (
+    <>
+      {justPaid && !reduceMotion ? <PaidCheck onDone={clear} /> : null}
+      {sheet}
+    </>
+  );
 }
 
 function PayCard({ leagueId, stakeUsd }: { leagueId: Id<"leagues">; stakeUsd: number }) {

@@ -412,7 +412,7 @@ describe("canvas functions", () => {
     expect(await proofsOf(unmatchedId)).toHaveLength(0);
   });
 
-  it("adds an assignment as a flex task, up to three a week, whether or not the lineup is locked", async () => {
+  it("adds an assignment as the week's one flex task, whether or not the lineup is locked", async () => {
     const { t, maya, signIn } = await setUp();
     const add = (as: typeof maya.as, assignmentId: string) =>
       as.mutation(api.canvas.addTask, { courseId: "c", assignmentId, title: "Assignment " + assignmentId });
@@ -430,9 +430,7 @@ describe("canvas functions", () => {
     expect((await t.run((ctx) => ctx.db.get("tasks", first)))?.points).toBe(35);
     // The same assignment again is the same task, not a second one.
     expect(await add(maya.as, "1")).toBe(first);
-    await add(maya.as, "2");
-    await add(maya.as, "3");
-    await expect(add(maya.as, "4")).rejects.toThrow(/already have 3 flex tasks/);
+    await expect(add(maya.as, "2")).rejects.toThrow(/already have a bonus task/);
 
     const sam = await signIn("Sam");
     await t.run((ctx) =>

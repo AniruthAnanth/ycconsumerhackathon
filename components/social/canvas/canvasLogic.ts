@@ -26,8 +26,8 @@ export function dueLabel(dueAt: number | undefined): string {
 
 type RosterRow = Pick<Task, "slot" | "title" | "proofType">;
 
-/** convex/canvas.ts addTask refuses a fourth flex task a week with "You already have 3 flex tasks this week." */
-export const MAX_FLEX_TASKS = 3;
+/** A lineup has at most one optional flex task (convex/lib/lineupRules.ts MAX_FLEX_TASKS); convex/canvas.ts addTask refuses a second. */
+export const MAX_FLEX_TASKS = 1;
 
 export const flexCount = (rows: readonly RosterRow[]): number => rows.filter((row) => row.slot === "flex").length;
 

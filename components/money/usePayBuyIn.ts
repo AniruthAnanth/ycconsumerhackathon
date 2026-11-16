@@ -1,4 +1,4 @@
-import { useAction, useConvex } from "convex/react";
+import { useAction } from "convex/react";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
@@ -10,9 +10,6 @@ import { colors } from "@/theme";
 
 type Checkout = { embedUrl: string; purchaseUrl: string };
 
-/** How long after the browser closes to look again for Whop's webhook, which can trail the payment. */
-const WEBHOOK_GRACE_MS = 2_500;
-
 /**
  * Paying a league's buy-in. An unpaid member plays fully but can't win the pot,
  * so the header's pay button is a nudge rather than a wall.
@@ -20,11 +17,10 @@ const WEBHOOK_GRACE_MS = 2_500;
  * Pay opens Whop's hosted checkout in the in-app browser (SFSafariViewController
  * on iOS) tinted our green. The checkout session is made as soon as the hook
  * mounts, so the browser opens at once. The button goes away when Whop's webhook
- * marks the membership paid; closing the browser proves nothing, so the app only
- * says "You're in" when the webhook has already landed, and otherwise says nothing.
+ * marks the membership paid; closing the browser proves nothing. That same flip is
+ * what opens the post-pay sheet (PayButton), so this hook says nothing after it closes.
  */
 export function usePayBuyIn(leagueId: Id<"leagues">) {
-  const convex = useConvex();
   const createCheckout = useAction(backend.whop.createCheckout);
   const [opening, setOpening] = useState(false);
   const [prepared, setPrepared] = useState<Checkout | null>(null);
@@ -34,11 +30,6 @@ export function usePayBuyIn(leagueId: Id<"leagues">) {
     preparing.current = true;
     createCheckout({ leagueId }).then(setPrepared, () => undefined);
   }, [createCheckout, leagueId]);
-
-  async function isPaid(): Promise<boolean> {
-    const me = await convex.query(backend.users.me, {});
-    return me?.leagues.some((league) => league._id === leagueId && league.paid) ?? false;
-  }
 
   async function pay() {
     if (opening) return;
@@ -71,11 +62,6 @@ export function usePayBuyIn(leagueId: Id<"leagues">) {
       toolbarColor: colors.background,
       dismissButtonStyle: "cancel",
     });
-    if (!(await isPaid())) {
-      await new Promise((resolve) => setTimeout(resolve, WEBHOOK_GRACE_MS));
-      if (!(await isPaid())) return;
-    }
-    notify("You're in", "Your buy-in is in the pot.");
   }
 
   return { pay, opening };

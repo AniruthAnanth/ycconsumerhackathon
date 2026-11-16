@@ -55,7 +55,7 @@ describe("howToProve", () => {
 
   it("gives each other type its own line", () => {
     expect(howToProve({ proofType: "photo_location", place: { name: "the gym" } })).toBe("Check in at the gym.");
-    expect(howToProve({ proofType: "photo_location" })).toBe("Check in where it happens.");
+    expect(howToProve({ proofType: "photo_location" })).toBe("Pin the spot where you do it, then check in there.");
     expect(howToProve({ proofType: "photo" })).toBe("Snap a photo that shows it's done.");
     expect(howToProve({})).toBe("Snap a photo that shows it's done.");
     expect(howToProve({ proofType: "screenshot" })).toBe("Pick a screenshot that shows it's done.");

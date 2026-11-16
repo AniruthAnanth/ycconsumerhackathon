@@ -238,6 +238,10 @@ export default defineSchema({
     flags: v.optional(v.array(v.string())),
     // True while a low-confidence proof waits for the league's vote; the task is held meanwhile.
     needsVote: v.optional(v.boolean()),
+    // True when the media is a bundled sample or a seed photo, not the player's own shot. The feed hides it.
+    stockMedia: v.optional(v.boolean()),
+    // A timelapse's stills in time order, the last being storageId, so the feed can show a filmstrip.
+    frameStorageIds: v.optional(v.array(v.id("_storage"))),
   })
     .index("by_user_week", ["userId", "weekStart"])
     .index("by_task", ["taskId"]),
@@ -303,7 +307,10 @@ export default defineSchema({
     taskId: v.id("tasks"),
     leagueId: v.id("leagues"),
     userId: v.id("users"),
-  }).index("by_task", ["taskId"]),
+  })
+    .index("by_task", ["taskId"])
+    // The profile decree counts the vetoes a player has cast.
+    .index("by_user", ["userId"]),
 
   votes: defineTable({
     challengeId: v.id("challenges"),
@@ -472,6 +479,16 @@ export default defineSchema({
   // One row per invited player, ever: by_invitee is what stops a second link from
   // counting the same friend twice. The reward is read from the friend's lineups,
   // so nothing here changes when they lock one.
+  // The profile decree (convex/decree.ts): one cached proclamation per player, rewritten when
+  // the hash of the stats it was written from changes or the player rerolls it.
+  decrees: defineTable({
+    userId: v.id("users"),
+    statsHash: v.string(),
+    text: v.string(),
+    epithet: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   referrals: defineTable({
     inviterId: v.id("users"),
     inviteeId: v.id("users"),

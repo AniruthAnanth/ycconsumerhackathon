@@ -54,6 +54,8 @@ export const colors = {
   tabActive: palette.green,
   /** Ink on a green or dark surface. */
   onAccent: palette.white,
+  /** Laid over a list row while a finger is on it: the native iOS highlight, darkening white and tinted rows alike. */
+  rowPressed: "rgba(23, 43, 35, 0.07)",
   /** Dims the page behind the league switcher. */
   scrim: "rgba(23, 43, 35, 0.4)",
   /** The light paper tint laid over the floating tab bar's liquid glass. */
