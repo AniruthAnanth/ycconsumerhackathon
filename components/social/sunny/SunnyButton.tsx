@@ -25,7 +25,7 @@ export function SunnyButton() {
       {unread ? (
         <BouncingFace key={brief?.line} />
       ) : (
-        <SunnyAvatar size={FACE} />
+        <SunnyAvatar size={FACE} face />
       )}
     </Pressable>
   );
@@ -35,13 +35,13 @@ function BouncingFace() {
   const hop = useSunnyHop(FACE);
   return (
     <Animated.View style={hop}>
-      <SunnyAvatar size={FACE} />
+      <SunnyAvatar size={FACE} face />
       <View style={styles.dot} />
     </Animated.View>
   );
 }
 
-const FACE = 32;
+const FACE = 36;
 const DOT = 10;
 
 const styles = StyleSheet.create({
@@ -53,7 +53,8 @@ const styles = StyleSheet.create({
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
-    backgroundColor: colors.danger,
+    // Green, not red: something new from Sunny is good news, not an error.
+    backgroundColor: colors.accent,
     borderWidth: 2,
     borderColor: colors.background,
   },

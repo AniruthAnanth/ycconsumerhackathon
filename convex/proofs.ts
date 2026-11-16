@@ -304,7 +304,7 @@ function antiCheatRejection(
   }
   if (mode !== "timelapse" && mode !== "survey") return null;
   if (imageIds.length < MIN_TIMELAPSE_FRAMES) {
-    return rejectWithoutJudging("That recording is too short to check. Record it again.", ["too_short"]);
+    return rejectWithoutJudging(mode === "timelapse" ? "This task needs a timelapse. Record one while you do it." : "That clip is too short to check. Record it again.", ["too_short"]);
   }
   if (new Set(imageHashes).size < imageHashes.length) {
     return rejectWithoutJudging(

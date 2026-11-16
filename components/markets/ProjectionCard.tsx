@@ -5,48 +5,48 @@ import Svg from "react-native-svg";
 import { cardStyle, Icon } from "@/components/ui";
 import { colors, fontFamily, hairline, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
-import { formatChance, formatNet, sparkPath } from "./chartGeometry";
+import { formatChance, sparkPath } from "./chartGeometry";
+import { formatUsd } from "@/lib/leagueText";
 import { DrawLine } from "./DrawLine";
-import { potNeedsLine } from "./marketQuestions";
 import type { Market } from "./useMarket";
 
 const SPARK = { width: 96, height: 36, padding: 3 };
 
 /**
- * Money first, the way a market quotes a payout: what you take home if you win the pot, and what
- * you're on track for now. The ranges, the trend and the chance to clear all five sit behind
- * Details, so a first-time player reads one line.
+ * Money first, the way a market quotes a payout: your expected share of this week's pot, which
+ * stays in league escrow until cash out, beside what everyone gets if everyone clears all five.
+ * The chances and the trend sit behind Details, so a first-time player reads one line.
  */
-export function ProjectionCard({ market, slotsCleared }: { market: Market; slotsCleared?: number }) {
+export function ProjectionCard({ market }: { market: Market }) {
   const [open, setOpen] = useState(false);
   const { payout, me } = market;
   const finish = market.odds.rows.find((row) => row.isMe)?.finishChance ?? 0;
   const spark = sparkPath(payout.history.map(({ at, netUsd }) => ({ at, value: netUsd })), SPARK);
+  // Guarded because a stale backend on the shared deployment may not send the new fields yet.
+  const share = Number.isFinite(payout.expectedShareUsd) ? payout.expectedShareUsd : payout.expectedNetUsd + payout.stakeUsd;
+  const everyone = Number.isFinite(payout.everyoneShareUsd) ? payout.everyoneShareUsd : payout.stakeUsd;
 
   return (
     <View style={styles.card} testID="projection-card">
       {payout.eligible ? (
-        <View style={styles.money} accessible accessibilityLabel={`If you win the pot: ${formatNet(payout.highNetUsd)}. On track for: ${formatNet(payout.expectedNetUsd)}`}>
+        <View style={styles.money} accessible accessibilityLabel={`Your expected share: ${formatUsd(Math.round(share))}, in escrow. If everyone clears all 5: ${formatUsd(Math.round(everyone))} each`}>
           <View style={styles.cell}>
-            <Text style={styles.label}>If you win the pot</Text>
-            <Text style={styles.figure}>{formatNet(payout.highNetUsd)}</Text>
+            <Text style={styles.label}>Your expected share</Text>
+            <Text style={[styles.figure, { color: share < payout.stakeUsd ? colors.textMuted : colors.green }]}>{formatUsd(Math.round(share))}</Text>
           </View>
           <View style={[styles.cell, styles.cellEnd]}>
-            <Text style={styles.label}>On track for</Text>
-            <Text style={[styles.figure, { color: payout.expectedNetUsd < 0 ? colors.textMuted : colors.green }]}>{formatNet(payout.expectedNetUsd)}</Text>
+            <Text style={styles.label}>If everyone clears all 5</Text>
+            <Text style={styles.figure}>{`${formatUsd(Math.round(everyone))} each`}</Text>
           </View>
         </View>
       ) : null}
-      {/* Winning the matchup and winning the pot are different races; this says why the money can lag a big win chance. */}
-      {payout.eligible ? (
-        slotsCleared !== undefined ? <Text style={styles.label}>{potNeedsLine(slotsCleared)}</Text> : null
-      ) : (
-        <Text style={styles.label}>
-          {payout.stakeUsd > 0
+      <Text style={styles.label}>
+        {payout.eligible
+          ? "In escrow. Cash out at season end."
+          : payout.stakeUsd > 0
             ? `Pay your $${payout.stakeUsd} buy-in to play for the pot. The pot fills as players pay.`
             : "Free league: no money on this one, just bragging rights."}
-        </Text>
-      )}
+      </Text>
       <Pressable
         onPress={() => setOpen((value) => !value)}
         style={styles.toggle}
@@ -63,9 +63,9 @@ export function ProjectionCard({ market, slotsCleared }: { market: Market; slots
           <Row label="Chance you clear all 5 slots" value={formatChance(finish)} />
           {payout.eligible ? (
             <>
-              <Row label="If it goes badly" value={formatNet(payout.lowNetUsd)} />
+              <Row label="Chance you share the pot" value={formatChance(payout.potChance)} />
               <View style={styles.row}>
-                <Text style={styles.rowLabel}>Money you're on track for, this week</Text>
+                <Text style={styles.rowLabel}>Your expected share less buy-in, this week</Text>
                 <Svg width={SPARK.width} height={SPARK.height} accessible={false}>
                   <DrawLine d={spark} length={SPARK.width * 2} color={colors.green} width={2} />
                 </Svg>

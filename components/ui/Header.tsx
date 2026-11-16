@@ -21,6 +21,8 @@ type Props = {
   onClose?: () => void;
   /** Replaces the chat icon. */
   right?: ReactNode;
+  /** Sits beside a switchable title in the same row; the tabs put the week pill here, so the header is one row. */
+  accessory?: ReactNode;
   /**
    * From useCollapsingHeader(): floats the bar over the scroll content, clear at rest, and fades
    * the title and a glass background in once the screen's <LargeTitle> scrolls away.
@@ -33,7 +35,7 @@ type Props = {
  * chevron on the left for a pushed screen (the tabs put the settings gear there), close cross
  * on the right for a sheet.
  */
-export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, scrollY }: Props) {
+export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPress, onClose, right, accessory, scrollY }: Props) {
   const bar = (
     <View style={[styles.bar, scrollY && styles.barOverContent]}>
       <View style={styles.side}>
@@ -48,7 +50,8 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
         ) : null}
       </View>
       {onTitlePress ? (
-        <Pressable style={styles.center} onPress={onTitlePress} accessibilityRole="button" accessibilityLabel={`${title}, switch league`}>
+        <View style={styles.center}>
+        <Pressable style={styles.titleButton} onPress={onTitlePress} accessibilityRole="button" accessibilityLabel={`${title}, switch league`}>
           {scrollY ? (
             <CompactTitle scrollY={scrollY} style={styles.title}>
               {title}
@@ -60,6 +63,8 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
           )}
           <Icon name="chevron-down" size={18} color={colors.accent} />
         </Pressable>
+        {accessory}
+        </View>
       ) : (
         // A plain heading rather than a disabled button, which a screen reader would announce as dimmed.
         <View style={styles.center}>
@@ -109,6 +114,7 @@ const styles = StyleSheet.create({
   // A real 44-pt target whose glyph still sits on the margin edge.
   action: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center" },
   actionEnd: { alignItems: "flex-end" },
-  center: { flex: 1, minHeight: MIN_TARGET, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
+  center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
+  titleButton: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: layout.rowMin },
   title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },
 });
