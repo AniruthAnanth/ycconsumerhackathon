@@ -40,7 +40,8 @@ describe("vetoLogic", () => {
   });
 
   it("shows the control on the opponent's side, and on mine only once struck", () => {
-    expect(showsVeto("theirs", veto())).toBe(true);
+    expect(showsVeto("theirs", veto({ votes: 1 }))).toBe(true);
+    expect(showsVeto("theirs", veto({ votes: 0 }))).toBe(false);
     expect(showsVeto("mine", veto())).toBe(false);
     expect(showsVeto("mine", veto({ struck: true }))).toBe(true);
     expect(showsVeto("theirs", undefined)).toBe(false);

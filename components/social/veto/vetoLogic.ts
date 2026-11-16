@@ -16,12 +16,13 @@ export function isQuiet(veto: Pick<TaskVeto, "votes" | "struck">): boolean {
 }
 
 /**
- * Whether a Matchup row shows the veto control. My own tasks can't be vetoed by me, so my side
- * shows it only once the league has struck one (with the Swap button); the opponent's side always.
+ * Whether a Matchup row shows the veto chip: only where there is a vote to show. My side shows it
+ * once the league has struck my task (with Swap); the opponent's side once someone has vetoed.
+ * Raising the first veto is a long-press on the opponent's task, so idle rows stay clean.
  */
-export function showsVeto(side: "mine" | "theirs", veto: Pick<TaskVeto, "struck"> | undefined): boolean {
+export function showsVeto(side: "mine" | "theirs", veto: Pick<TaskVeto, "struck" | "votes"> | undefined): boolean {
   if (veto === undefined) return false;
-  return side === "theirs" || veto.struck;
+  return veto.struck || (side === "theirs" && veto.votes > 0);
 }
 
 export function boardByTask(
