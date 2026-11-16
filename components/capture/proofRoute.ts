@@ -44,6 +44,8 @@ export type Capture =
       beforeUri?: string;
       /** Timelapse: up to eight stills in time order, with when each was taken. `uri` is the last. */
       frames?: { uri: string; at: number }[];
+      /** A development sample stood in for the camera, so the feed must not show it. */
+      stock?: boolean;
     }
   | { mediaType: "canvas" };
 
@@ -86,6 +88,7 @@ export function verdictHref(target: ProofTarget, capture: Capture): Href {
     if (capture.capturedAt !== undefined) params.capturedAt = String(capture.capturedAt);
     if (capture.beforeUri) params.beforeUri = capture.beforeUri;
     if (capture.frames?.length) params.frames = JSON.stringify(capture.frames);
+    if (capture.stock) params.stock = "1";
   }
   return { pathname: "/proof/verdict", params } as Href;
 }
@@ -134,6 +137,7 @@ export function parseCapture(params: RouteParams): Capture {
     capturedAt: number(params.capturedAt),
     beforeUri: text(params.beforeUri),
     frames: parseFrames(text(params.frames)),
+    ...(text(params.stock) === "1" && { stock: true }),
   };
 }
 
