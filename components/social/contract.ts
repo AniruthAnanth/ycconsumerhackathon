@@ -127,6 +127,19 @@ export type CanvasAssignment = {
   dueAt?: number;
 };
 
+/** Placeholder until the leagueMessages table is on main; then this becomes Id<"leagueMessages">. */
+export type LeagueMessageId = string & { __leagueMessage?: never };
+
+export type ChatPost = {
+  _id: LeagueMessageId;
+  author: { kind: "member"; userId: Id<"users">; name: string; avatarUrl?: string } | { kind: "sunny" };
+  mine: boolean;
+  text: string;
+  createdAt: number;
+  replyTo?: { _id: LeagueMessageId; authorName: string; text: string };
+  reactions: FeedReaction[];
+};
+
 export const socialApi = {
   users: {
     me: backend.users.me,
@@ -170,6 +183,15 @@ export const socialApi = {
       Id<"drops">
     >("drops:createGroupSession"),
     rsvp: mutation<{ dropId: Id<"drops"> }, null>("drops:rsvp"),
+  },
+  leagueChat: {
+    /** The league's thread, oldest first, last 200, plus whether Sunny is writing a reply. */
+    list: query<{ leagueId: Id<"leagues"> }, { messages: ChatPost[]; sunnyTyping: boolean }>("leagueChat:list"),
+    send: mutation<{ leagueId: Id<"leagues">; text: string; replyToId?: LeagueMessageId }, LeagueMessageId>("leagueChat:send"),
+    /** Toggles my reaction. */
+    react: mutation<{ messageId: LeagueMessageId; emoji: string }, null>("leagueChat:react"),
+    markRead: mutation<{ leagueId: Id<"leagues"> }, null>("leagueChat:markRead"),
+    unread: query<{ leagueId: Id<"leagues"> }, number>("leagueChat:unread"),
   },
   keiki: {
     chat: action<{ leagueId: Id<"leagues">; text: string }, { reply: string }>("keiki:chat"),
