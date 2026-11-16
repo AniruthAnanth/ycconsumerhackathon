@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { StampSlam } from "@/components/motion";
-import { fontFamily, palette } from "@/theme";
+import { fontFamily, status } from "@/theme";
 
 import { STAMP_DELAY_MS } from "./timing";
 
 
-const VERIFIED_GREEN = palette.green;
-const REJECTED_RED = palette.danger;
+const VERIFIED_GREEN = status.verified;
+const REJECTED_RED = status.danger;
 
 type Props = { pass: boolean; onLand: () => void };
 
