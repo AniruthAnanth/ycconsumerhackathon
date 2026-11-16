@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useConvex } from "convex/react";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 
@@ -17,8 +17,7 @@ export type JoinSection = "quickMatch" | "inviteCode" | "create";
 export function useJoinLeague() {
   const router = useRouter();
   const { setLeagueId } = useCurrentLeague();
-  // The player's own current week; it is the same in every league they are in.
-  const week = useQuery(backend.lineup.roster, {});
+  const convex = useConvex();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ section: JoinSection; message: string } | null>(null);
 
@@ -30,9 +29,11 @@ export function useJoinLeague() {
       setLeagueId(leagueId);
       // One lineup per week scores in every league, so a player whose week is
       // already locked has nothing to draft for the league they just joined and
-      // goes to Roster after the contacts step. A week that has not loaded yet
-      // counts as unlocked: Voice Draft copes with a locked week, whereas Roster
-      // would hide the draft from a new player.
+      // goes to Roster after the contacts step. The week is read after the join,
+      // because joining can lock it (Quick match drafts a lineup for a new player).
+      // A read that fails counts as unlocked: Voice Draft copes with a locked
+      // week, whereas Roster would hide the draft from a new player.
+      const week = await convex.query(backend.lineup.roster, {}).catch(() => null);
       const next = week?.locked ? "roster" : "draft";
       // `created` tells Add Friends whether to say the league is ready or that the player is in it.
       router.replace({ pathname: "/contacts", params: { leagueId, next, ...(section === "create" ? { created: "1" } : {}) } });

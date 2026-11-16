@@ -1,5 +1,5 @@
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View, type ScrollViewInstance } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -41,12 +41,18 @@ export function VoiceDraftScreen() {
 
   // Back from the first step, the hardware back button and the iOS swipe all remove the
   // screen, so one guard asks before any of them throws away an unlocked lineup.
-  usePreventRemove(hasUnsavedDraft(state, typedWeek), ({ data }) =>
+  // Discard lifts the guard first and leaves on the next render: dispatching the held action while
+  // the guard still stood was caught by it again, so the dialog came back on every Discard (ANI-72).
+  const [discarded, setDiscarded] = useState<{ action: Parameters<typeof navigation.dispatch>[0] } | null>(null);
+  useEffect(() => {
+    if (discarded) navigation.dispatch(discarded.action);
+  }, [discarded, navigation]);
+  usePreventRemove(discarded === null && hasUnsavedDraft(state, typedWeek), ({ data }) =>
     confirmAction({
       title: "Discard this draft?",
       message: "Your lineup isn't locked yet.",
       confirmLabel: "Discard",
-      onConfirm: () => navigation.dispatch(data.action),
+      onConfirm: () => setDiscarded({ action: data.action }),
     }),
   );
   const leave = () => leaveScreen("/(tabs)");
