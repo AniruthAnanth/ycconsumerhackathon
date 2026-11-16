@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -22,7 +22,6 @@ export function ProfileScreen() {
   const userId = rawUserId as Id<"users">;
   const profile = useQuery(socialApi.profile.get, { userId });
   const { data, writing, error, reroll } = useDecree(userId);
-  const router = useRouter();
   const { me } = useCurrentLeague();
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
   const own = me?._id === userId;
@@ -80,18 +79,6 @@ export function ProfileScreen() {
                   disabled={writing}
                   haptic="none"
                   onPress={() => void reroll()}
-                />
-              ) : null}
-              {own ? (
-                <OutlinedPillButton
-                  label="How Lineup works"
-                  icon="help-circle-outline"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/how-it-works",
-                      params: { source: "profile" },
-                    })
-                  }
                 />
               ) : null}
             </View>
