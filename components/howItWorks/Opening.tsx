@@ -239,7 +239,7 @@ export function Opening({ onDone }: { onDone: () => void }) {
   const promptStyle = useAnimatedStyle(() => ({ opacity: prompt.value }));
   const screenStyle = useAnimatedStyle(() => ({ opacity: leaving.value }));
   const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: shimmer.value > 0 && shimmer.value < 1 ? 0.35 : 0,
+    opacity: shimmer.value > 0 && shimmer.value < 1 ? 0.2 : 0,
     transform: [
       { translateX: (row?.width ?? 0) * (shimmer.value * 1.4 - 0.2) },
       { skewX: "-20deg" },
