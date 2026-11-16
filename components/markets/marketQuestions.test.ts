@@ -15,9 +15,9 @@ const market = (overrides: Partial<Market> = {}) =>
 
 describe("marketQuestions", () => {
   test("asks whether you beat your opponent and who is closest to clearing all 5, never the pot the board answers", () => {
-    expect(marketQuestions(market()).map(({ question, answer, chance }) => [question, answer, chance])).toEqual([
-      ["Will you beat Ava Kim?", "Yes", 0.62],
-      ["Will you clear all 5?", "Yes", 0.55],
+    expect(marketQuestions(market()).map(({ question, chance }) => [question, chance])).toEqual([
+      ["Will you beat Ava Kim?", 0.62],
+      ["Will you clear all 5?", 0.55],
     ]);
   });
 
