@@ -105,7 +105,13 @@ export function VoiceDraftScreen() {
             </View>
           )}
           <View style={styles.transcript}>
-            <TranscriptView phase={state.phase} transcript={state.transcript} onRevealFinished={draft.finishReveal} />
+            <TranscriptView
+              phase={state.phase}
+              transcript={state.transcript}
+              liveTranscript={draft.liveTranscript}
+              level={draft.level}
+              onRevealFinished={draft.finishReveal}
+            />
           </View>
           {showsTyped ? (
             <View style={styles.transcript}>

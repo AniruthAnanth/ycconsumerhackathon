@@ -35,6 +35,9 @@ const REVIEW_MODEL = "gpt-6.1-sol";
 // the transcription endpoint first and the model only ever sees text.
 const TRANSCRIPTION_MODEL = "gpt-transcribe";
 
+// Voice Draft's live words while the player talks: a short segment back in well under a second.
+export const LIVE_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+
 // Built per call, not at module load: Convex evaluates modules at deploy time,
 // and a missing key must fail the one feature that needs it, not the deploy.
 function client(): OpenAI {
@@ -140,10 +143,10 @@ const AUDIO_EXTENSIONS: Record<string, string> = {
   "audio/ogg": "ogg",
 };
 
-export async function transcribe(audio: Blob): Promise<string> {
+export async function transcribe(audio: Blob, model: string = TRANSCRIPTION_MODEL): Promise<string> {
   const extension = AUDIO_EXTENSIONS[audio.type.split(";")[0]] ?? "m4a";
   const file = await toFile(audio, `voice-note.${extension}`, { type: audio.type });
-  const result = await client().audio.transcriptions.create({ file, model: TRANSCRIPTION_MODEL });
+  const result = await client().audio.transcriptions.create({ file, model });
   return withoutDashes(result.text.trim());
 }
 

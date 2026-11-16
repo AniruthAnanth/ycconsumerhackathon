@@ -10,6 +10,11 @@ export function meterLevel(decibels: number | undefined): number {
   return Math.min(1, Math.max(0, level));
 }
 
+/** The newest level at the end of a fixed-length history, for the live waveform's bars. */
+export function pushLevel(history: readonly number[], level: number, length: number): number[] {
+  return [...history, level].slice(-length);
+}
+
 export function formatElapsed(durationMillis: number): string {
   const totalSeconds = Math.floor(durationMillis / 1000);
   const seconds = String(totalSeconds % 60).padStart(2, "0");
