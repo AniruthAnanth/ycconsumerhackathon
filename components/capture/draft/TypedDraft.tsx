@@ -13,7 +13,18 @@ type Props = {
 export function TypedDraft({ value, onChangeText, onSubmit }: Props) {
   return (
     <View style={styles.container}>
-      <TextField label="Your week" value={value} onChangeText={onChangeText} multiline numberOfLines={5} style={styles.input} />
+      {/* Return closes the keyboard: a week is one paragraph, and without it nothing on the screen let go of the keyboard (ANI-52). */}
+      <TextField
+        label="Your week"
+        value={value}
+        onChangeText={onChangeText}
+        multiline
+        numberOfLines={5}
+        style={styles.input}
+        returnKeyType="done"
+        submitBehavior="blurAndSubmit"
+        testID="draft-typed-week"
+      />
       <OutlinedPillButton label="Draft from text" onPress={onSubmit} disabled={value.trim().length === 0} />
     </View>
   );
