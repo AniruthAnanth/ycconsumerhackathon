@@ -24,6 +24,7 @@ import type * as keiki from "../keiki.js";
 import type * as keikiMedia from "../keikiMedia.js";
 import type * as leadChange from "../leadChange.js";
 import type * as leaderboards from "../leaderboards.js";
+import type * as leagueChat from "../leagueChat.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_checkinRules from "../lib/checkinRules.js";
@@ -89,6 +90,7 @@ declare const fullApi: ApiFromModules<{
   keikiMedia: typeof keikiMedia;
   leadChange: typeof leadChange;
   leaderboards: typeof leaderboards;
+  leagueChat: typeof leagueChat;
   leagues: typeof leagues;
   "lib/auth": typeof lib_auth;
   "lib/checkinRules": typeof lib_checkinRules;
