@@ -103,8 +103,8 @@ function PrivateChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill]);
 
-  // Sunny opens every conversation with this week's line, as the first message of the thread.
-  const greeting: ChatMessage = { id: "greeting", role: "agent", text: brief?.line ?? `I'm ${SUNNY.name}, your league's commissioner. Ask me anything about the week.` };
+  // A question, never the Feed card's line word for word: the card already said what's happening.
+  const greeting: ChatMessage = { id: "greeting", role: "agent", text: "What do you want to know? I've got the table, your matchup and every open task." };
   const chips = brief?.chips ?? ["Who's on top of the league?"];
 
   const act = (action: SunnyAction) => router.navigate(action.kind === "swap" ? "/" : action.kind === "veto" ? "/feed" : "/matchup");

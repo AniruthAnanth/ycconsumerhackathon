@@ -617,6 +617,11 @@ export const send = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // A league-wide announcement also lands in the league's group chat as Sunny's message, for
+    // members who play in the app. A text to one player stays private.
+    if (args.leagueId !== undefined && args.userId === undefined) {
+      await ctx.runMutation(internal.leagueChat.postEvent, { leagueId: args.leagueId, text: args.text });
+    }
     const apiKey = env.KEIKI_API_KEY;
     const agentId = env.KEIKI_AGENT_ID;
     if (!apiKey || !agentId) {

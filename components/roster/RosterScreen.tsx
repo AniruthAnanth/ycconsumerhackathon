@@ -11,7 +11,7 @@ import { DropBanner } from "@/components/roster/DropBanner";
 import { EmptySlotRow } from "@/components/roster/EmptySlotRow";
 import { PayBanner } from "@/components/roster/PayBanner";
 import { RosterHero } from "@/components/roster/RosterHero";
-import { SunnyPrompt } from "@/components/social/sunny/SunnyPrompt";
+import { SunnyCard } from "@/components/social/sunny/SunnyCard";
 import { RosterWeekDetails } from "@/components/roster/RosterWeekDetails";
 import {
   Button,
@@ -130,6 +130,7 @@ export function RosterScreen() {
               <CoachTarget id="score">
                 <RosterHero roster={roster} />
               </CoachTarget>
+              <SunnyCard />
             </Entrance>
           ) : null}
           {noLineup ? (
@@ -146,7 +147,6 @@ export function RosterScreen() {
                   ),
                 )}
               </CoachTarget>
-              <SunnyPrompt screen="roster" />
               {extras.length > 0 || takesFlex ? (
                 <SectionLabel left="Extra" />
               ) : null}

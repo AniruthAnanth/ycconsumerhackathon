@@ -80,7 +80,7 @@ export default function MatchupScreen() {
             leagueId ? { byTask: boardByTask(board), leagueId } : undefined
           }
         />
-        <SunnyPrompt screen="matchup" />
+        <SunnyPrompt />
         <MatchupMore matchup={matchup} leagueId={leagueId} />
       </ScrollView>
     </CoachTour>

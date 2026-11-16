@@ -176,3 +176,28 @@ describe("keiki.linkPhone", () => {
     expect(await playerOn(t, PHONE)).toBeNull();
   });
 });
+
+describe("keiki.send", () => {
+  it("posts a league-wide text into the league's group chat, and keeps a text to one player out of it", async () => {
+    vi.stubEnv("KEIKI_AGENT_ID", "");
+    const t = convexTest(schema, modules);
+    const { leagueId, me } = await t.run(async (ctx) => {
+      const me = await ctx.db.insert("users", { name: "Me" });
+      const leagueId = await ctx.db.insert("leagues", {
+        name: "Send check",
+        inviteCode: "SENDCK",
+        stakeUsd: 0,
+        visibility: "private",
+        maxMembers: 12,
+        createdBy: me,
+      });
+      return { leagueId, me };
+    });
+
+    await t.action(internal.keiki.send, { leagueId, text: "Quick-time drop: 20 push-ups." });
+    await t.action(internal.keiki.send, { userId: me, text: "Just for you." });
+
+    const posted = await t.run((ctx) => ctx.db.query("leagueMessages").collect());
+    expect(posted.map((message) => message.text)).toEqual(["Quick-time drop: 20 push-ups."]);
+  });
+});
