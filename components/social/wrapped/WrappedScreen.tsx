@@ -3,9 +3,12 @@ import { useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { type ComponentRef, useRef, useState } from "react";
 import { FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 
+import { useSwipeDownToClose } from "@/components/motion/useSwipeDownToClose";
 import { Header, Icon, Screen } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCurrentLeague } from "@/lib/currentLeague";
@@ -29,10 +32,7 @@ export function WrappedScreen() {
   const currentLeague = useCurrentLeague();
   const leagueId = (params.leagueId as Id<"leagues"> | undefined) ?? currentLeague.leagueId;
   const weekNumber = params.weekNumber ? Number(params.weekNumber) : undefined;
-  const wrapped = useQuery(
-    socialApi.wrapped.get,
-    leagueId ? { leagueId, ...(weekNumber === undefined ? {} : { weekNumber }) } : "skip",
-  );
+  const wrapped = useQuery(socialApi.wrapped.get, leagueId ? { leagueId, ...(weekNumber === undefined ? {} : { weekNumber }) } : "skip");
 
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -40,6 +40,8 @@ export function WrappedScreen() {
   // One wrapper view per card, so Share captures just the card without the segments and buttons on top.
   const cardViews = useRef<(ComponentRef<typeof View> | null)[]>([]);
   const [index, setIndex] = useState(0);
+  // Stories close with a swipe down; cards page sideways underneath it.
+  const swipe = useSwipeDownToClose(leaveScreen);
 
   if (!wrapped || wrapped.cards.length === 0) {
     return (
@@ -74,49 +76,47 @@ export function WrappedScreen() {
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
-      <FlatList
-        ref={list}
-        data={cards}
-        keyExtractor={(card) => card.kind}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        getItemLayout={(_, position) => ({ length: width, offset: width * position, index: position })}
-        onMomentumScrollEnd={(event) =>
-          settle(pageIndexFromOffset(event.nativeEvent.contentOffset.x, width, cards.length))
-        }
-        renderItem={({ item, index: position }) => (
-          <View ref={(view) => void (cardViews.current[position] = view)} collapsable={false}>
-            <WrappedCard
-              card={item}
-              width={width}
-              height={height}
-              topInset={insets.top}
-              onTap={(tapX) =>
-                tapClosesStory(tapX, width, index, cards.length)
-                  ? leaveScreen()
-                  : goTo(indexAfterTap(tapX, width, index, cards.length))
-              }
-            />
+    <GestureDetector gesture={swipe.gesture}>
+      <Animated.View style={[styles.root, swipe.style]}>
+        <StatusBar style="light" />
+        <FlatList
+          ref={list}
+          data={cards}
+          keyExtractor={(card) => card.kind}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          getItemLayout={(_, position) => ({ length: width, offset: width * position, index: position })}
+          onMomentumScrollEnd={(event) => settle(pageIndexFromOffset(event.nativeEvent.contentOffset.x, width, cards.length))}
+          renderItem={({ item, index: position }) => (
+            <View ref={(view) => void (cardViews.current[position] = view)} collapsable={false}>
+              <WrappedCard
+                card={item}
+                width={width}
+                height={height}
+                topInset={insets.top}
+                onTap={(tapX) =>
+                  tapClosesStory(tapX, width, index, cards.length) ? leaveScreen() : goTo(indexAfterTap(tapX, width, index, cards.length))
+                }
+              />
+            </View>
+          )}
+        />
+        <View style={[styles.top, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
+          <View style={styles.segments} pointerEvents="none">
+            {cards.map((card, position) => (
+              <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
+            ))}
           </View>
-        )}
-      />
-      <View style={[styles.top, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <View style={styles.segments} pointerEvents="none">
-          {cards.map((card, position) => (
-            <View key={card.kind} style={[styles.segment, position <= index && styles.segmentFilled]} />
-          ))}
+          <Pressable accessibilityRole="button" accessibilityLabel="Share card" onPress={share} hitSlop={6} style={styles.control}>
+            <Icon name="share-outline" size={18} color={WHITE} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leaveScreen} hitSlop={6} style={styles.control}>
+            <Text style={styles.close}>{"\u2715"}</Text>
+          </Pressable>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Share card" onPress={share} hitSlop={6} style={styles.control}>
-          <Icon name="share-outline" size={18} color={WHITE} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={leaveScreen} hitSlop={6} style={styles.control}>
-          <Text style={styles.close}>{"\u2715"}</Text>
-        </Pressable>
-      </View>
-    </View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
