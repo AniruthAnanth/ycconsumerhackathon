@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Payout, Pot, Standing } from "./backend";
-import { escrowFlowData, escrowMembers, escrowPayout, largestPayoutUsd, winnerTakesUsd } from "./escrow";
+import { escrowFlowData, escrowMembers, escrowPayout, shareEachUsd } from "./escrow";
 
 type UserId = Pot["paid"][number]["userId"];
 const id = (value: string) => value as UserId;
@@ -18,52 +18,31 @@ const openPot: Pot = {
   settlesAt: NOW + 60_000,
 };
 
-describe("winnerTakesUsd", () => {
-  it("is the winner's stake back plus the other stakes less the 10% fee", () => {
-    expect(winnerTakesUsd(20, 120)).toBe(110);
-    expect(winnerTakesUsd(5, 15)).toBe(14);
+describe("shareEachUsd", () => {
+  it("is the share each top finisher was credited", () => {
+    expect(shareEachUsd([payout("a", "winnings", 20), payout("b", "winnings", 20)])).toBe(20);
   });
 
-  it("is the stake alone when only one member has paid", () => {
-    expect(winnerTakesUsd(20, 20)).toBe(20);
-  });
-
-  it("is nothing while the pot is empty", () => {
-    expect(winnerTakesUsd(20, 0)).toBe(0);
-  });
-
-  it("rounds to cents", () => {
-    expect(winnerTakesUsd(5, 12.55)).toBe(11.8);
-  });
-});
-
-describe("largestPayoutUsd", () => {
-  it("adds a member's refund and winnings before comparing", () => {
-    const payouts = [payout("a", "refund", 20), payout("a", "winnings", 54), payout("b", "refund", 20), payout("b", "winnings", 36)];
-    expect(largestPayoutUsd(payouts)).toBe(74);
-  });
-
-  it("is nothing when nobody was paid", () => {
-    expect(largestPayoutUsd([])).toBe(0);
+  it("is nothing when nobody won", () => {
+    expect(shareEachUsd([])).toBe(0);
   });
 });
 
 describe("escrowPayout", () => {
-  it("shows the most a single finisher can take while the week is open", () => {
-    expect(escrowPayout(openPot, NOW)).toEqual({ label: "Winner takes up to", amountUsd: 56 });
-    expect(escrowPayout({ ...openPot, potUsd: 0 }, NOW)).toEqual({ label: "Winner takes up to", amountUsd: 0 });
+  it("names the split while the week is open, leaving the figure to the pot", () => {
+    expect(escrowPayout(openPot, NOW)).toEqual({ label: "Split among top finishers" });
   });
 
-  it("shows the largest real payout once the week has settled, even before its scheduled end", () => {
-    const settled = { ...openPot, payouts: [payout("u1", "refund", 20), payout("u1", "winnings", 36)] };
-    expect(escrowPayout(settled, NOW)).toEqual({ label: "Paid out", amountUsd: 56 });
+  it("shows each share in escrow once the week has settled, even before its scheduled end", () => {
+    const settled = { ...openPot, payouts: [payout("u1", "winnings", 30), payout("u2", "winnings", 30)] };
+    expect(escrowPayout(settled, NOW)).toEqual({ label: "In escrow: $30 each" });
   });
 
-  it("says nobody was paid rather than paying out $0", () => {
-    expect(escrowPayout({ ...openPot, payouts: [] }, NOW)).toEqual({ label: "No payout" });
+  it("says the pot rolls over when nobody won it", () => {
+    expect(escrowPayout({ ...openPot, payouts: [] }, NOW)).toEqual({ label: "Rolls into next week" });
   });
 
-  it("waits for the payouts when the clock has run out before the settlement has", () => {
+  it("waits for the settlement when the clock has run out before it", () => {
     expect(escrowPayout({ ...openPot, settlesAt: NOW - 1 }, NOW)).toEqual({ label: "Settling up" });
   });
 });
@@ -93,7 +72,7 @@ describe("escrowMembers", () => {
 describe("escrowFlowData", () => {
   it("carries the stake and the pot through unchanged", () => {
     const data = escrowFlowData(openPot, [], NOW);
-    expect(data).toMatchObject({ stakeUsd: 20, potUsd: 60, payout: { label: "Winner takes up to", amountUsd: 56 } });
+    expect(data).toMatchObject({ stakeUsd: 20, potUsd: 60, payout: { label: "Split among top finishers" } });
     expect(data.members).toHaveLength(4);
   });
 });
