@@ -1,32 +1,39 @@
 import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
-import { ErrorLine } from "@/components/join/ErrorLine";
-import { Header, LargeTitle, OutlinedPillButton, Screen, useCollapsingHeader } from "@/components/ui";
-import { unmentionedStats } from "@/convex/lib/decree";
+import { formatChance, useMarket } from "@/components/markets";
+import { cardStyle, Header, LargeTitle, Screen, SLOT_LABEL, useCollapsingHeader } from "@/components/ui";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { SLOT_ORDER } from "@/lib/slots";
+import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { socialApi } from "../contract";
 import { leaveScreen } from "../leave";
 import { ScreenState } from "../ScreenState";
-import { DecreeScroll } from "./DecreeScroll";
 import { ProfileIdentity } from "./ProfileIdentity";
-import { useDecree } from "./useDecree";
 
+const NONE = "None yet";
+const percent = (rate: number) => `${Math.round(rate * 100)}%`;
+
+/** A player's numbers at a glance: four tiles, this week's chance to clear every slot, and each slot's completion. */
 export function ProfileScreen() {
   const { userId: rawUserId } = useLocalSearchParams<{ userId: string }>();
   const userId = rawUserId as Id<"users">;
   const profile = useQuery(socialApi.profile.get, { userId });
-  const { data, writing, error, reroll } = useDecree(userId);
-  const { me } = useCurrentLeague();
+  const record = useQuery(socialApi.decree.get, { userId });
+  const { me, leagueId } = useCurrentLeague();
+  const market = useMarket(leagueId);
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
   const own = me?._id === userId;
-  const decree = data?.decree ?? null;
-  const footer = data && decree ? unmentionedStats(decree.text, data.stats) : [];
+  const finish = market?.odds.rows.find((row) => row.userId === userId)?.finishChance;
+  const stats = record?.stats;
+  const played = stats ? stats.wins + stats.losses > 0 : false;
+  const slots = SLOT_ORDER.map((slot) => ({ slot, rate: profile?.slotRates?.find((s) => s.slot === slot)?.rate })).filter(
+    (row): row is { slot: (typeof SLOT_ORDER)[number]; rate: number } => row.rate !== undefined,
+  );
 
   return (
     <Screen edges={["bottom"]}>
@@ -42,45 +49,37 @@ export function ProfileScreen() {
           <ScreenState loading />
         ) : (
           <View style={styles.body}>
-            <DecreeScroll>
+            <View style={styles.card}>
               <ProfileIdentity userId={userId} name={profile.name} avatarUrl={profile.avatarUrl} own={own} />
-              {decree ? (
-                <>
-                  <Text style={styles.decree}>{decree.text}</Text>
-                  {decree.epithet ? <Text style={styles.epithet}>{decree.epithet}</Text> : null}
-                </>
-              ) : error ? (
-                <ErrorLine message={error} />
+            </View>
+            <View style={styles.grid}>
+              <Tile label="Season points" value={profile.totalPoints > 0 ? String(Math.round(profile.totalPoints)) : NONE} />
+              <Tile label="Win-loss" value={stats && played ? `${stats.wins}-${stats.losses}` : NONE} />
+              <Tile label="Current streak" value={profile.currentStreak > 0 ? `${profile.currentStreak} ${profile.currentStreak === 1 ? "day" : "days"}` : NONE} />
+              <Tile label="Completion rate" value={profile.tasksCompleted > 0 ? percent(profile.completionRate) : NONE} />
+            </View>
+            {finish !== undefined ? (
+              <View style={styles.card} testID="profile-clear-chance">
+                <Text style={styles.label}>Chance to clear 5/5 this week</Text>
+                <Text style={styles.big}>{formatChance(finish)}</Text>
+              </View>
+            ) : null}
+            <View style={styles.card}>
+              {slots.length === 0 ? (
+                <Text style={styles.label}>Slot completion: {NONE}</Text>
               ) : (
-                <View style={styles.writing}>
-                  <ActivityIndicator color={colors.textMuted} />
-                  <Text style={styles.writingLabel}>The herald is writing</Text>
-                </View>
-              )}
-              {footer.length > 0 ? (
-                <View style={styles.footer}>
-                  <Text style={styles.footerTitle}>BY THE NUMBERS</Text>
-                  <View style={styles.footerGrid}>
-                    {footer.map((stat) => (
-                      <View key={stat.label} style={styles.footerStat}>
-                        <Text style={styles.footerValue}>{stat.value}</Text>
-                        <Text style={styles.footerLabel}>{stat.label}</Text>
-                      </View>
-                    ))}
+                slots.map(({ slot, rate }) => (
+                  <View key={slot} style={styles.slotRow}>
+                    <Text style={styles.slotName}>{SLOT_LABEL[slot]}</Text>
+                    <View style={styles.track}>
+                      <View style={[styles.fill, { width: `${Math.round(rate * 100)}%` }]} />
+                    </View>
+                    <Text style={styles.slotValue}>{percent(rate)}</Text>
                   </View>
-                </View>
-              ) : null}
-            </DecreeScroll>
-            <View style={styles.actions}>
-              {own && (decree || error) ? (
-                <OutlinedPillButton
-                  label={writing ? "Rerolling" : "Reroll"}
-                  icon="refresh"
-                  disabled={writing}
-                  haptic="none"
-                  onPress={() => void reroll()}
-                />
-              ) : null}
+                ))
+              )}
+              <Row label="Best slot" value={profile.bestSlot ? SLOT_LABEL[profile.bestSlot] : NONE} />
+              <Row label="Best week" value={profile.bestWeek > 0 ? `${Math.round(profile.bestWeek)} pts` : NONE} />
             </View>
           </View>
         )}
@@ -89,18 +88,39 @@ export function ProfileScreen() {
   );
 }
 
+function Tile({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.tile}>
+      <Text style={styles.tileValue}>{value}</Text>
+      <Text style={styles.label}>{label}</Text>
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { flexGrow: 1 },
-  body: { paddingHorizontal: SCREEN_MARGIN },
-  decree: { fontFamily: fontFamily.regular, fontSize: font.title, lineHeight: font.title * 1.45, color: colors.text },
-  epithet: { ...type.heading, fontSize: font.title, color: colors.warning, textAlign: "center" },
-  writing: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
-  writingLabel: { fontFamily: fontFamily.semiBold, fontSize: font.title, color: colors.textMuted },
-  footer: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: spacing.md },
-  footerTitle: { fontSize: font.label, fontFamily: fontFamily.semiBold, letterSpacing: 0.6, color: colors.textMuted },
-  footerGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: spacing.md },
-  footerStat: { width: "50%" },
-  footerValue: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text, ...tabular },
-  footerLabel: { fontFamily: fontFamily.regular, fontSize: font.label, color: colors.textMuted },
-  actions: { alignItems: "flex-start", gap: spacing.md, paddingBottom: spacing.xl },
+  body: { paddingHorizontal: SCREEN_MARGIN, gap: spacing.md, paddingBottom: spacing.xl },
+  card: { ...cardStyle, padding: spacing.lg, gap: spacing.sm },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  tile: { ...cardStyle, flexBasis: "47%", flexGrow: 1, padding: spacing.lg, gap: spacing.xs },
+  tileValue: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text, ...tabular },
+  label: { ...type.small, color: colors.textMuted },
+  big: { fontFamily: fontFamily.extraBold, fontSize: font.score * 1.6, color: colors.accent, ...tabular },
+  slotRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 32 },
+  slotName: { ...type.small, color: colors.text, width: 76 },
+  track: { flex: 1, height: 4, borderRadius: radius.pill, backgroundColor: colors.strip, overflow: "hidden" },
+  fill: { height: 4, backgroundColor: colors.accent },
+  slotValue: { ...type.small, color: colors.textMuted, width: 40, textAlign: "right", ...tabular },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 36 },
+  rowLabel: { ...type.small, color: colors.textMuted },
+  rowValue: { fontFamily: fontFamily.bold, fontSize: type.small.fontSize, color: colors.text, ...tabular },
 });

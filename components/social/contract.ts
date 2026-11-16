@@ -111,6 +111,7 @@ export type Profile = {
   /** Highest single-week points total. */
   bestWeek: number;
   fastestQuickTimeSec?: number;
+  slotRates?: { slot: Slot; rate: number }[];
 };
 
 export type WrappedCard = {
