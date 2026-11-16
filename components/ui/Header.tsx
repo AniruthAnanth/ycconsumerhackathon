@@ -58,7 +58,7 @@ export function Header({ title, onBack, onTitlePress, onSettingsPress, onChatPre
               {title}
             </Text>
           )}
-          <Icon name="caret-down" size={12} />
+          <Icon name="chevron-down" size={18} color={colors.accent} />
         </Pressable>
       ) : (
         // A plain heading rather than a disabled button, which a screen reader would announce as dimmed.
@@ -109,6 +109,6 @@ const styles = StyleSheet.create({
   // A real 44-pt target whose glyph still sits on the margin edge.
   action: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center" },
   actionEnd: { alignItems: "flex-end" },
-  center: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
+  center: { flex: 1, minHeight: MIN_TARGET, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
   title: { flexShrink: 1, fontSize: font.header, fontFamily: fontFamily.extraBold, color: colors.text },
 });

@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import { CoachTarget } from "@/components/coach";
 import { MatchupOdds } from "@/components/markets/MatchupOdds";
 import { CountUp, PressScale } from "@/components/motion";
 import { useMarket } from "@/components/markets/useMarket";
@@ -44,7 +45,11 @@ export function MatchupHero({ matchup }: { matchup: Matchup }) {
         <HeroSide side={me} record={recordOf(me.userId)} caption={caption(market?.me.projected, minePossible)} align="flex-start" />
         <HeroSide side={opponent} record={recordOf(opponent.userId)} caption={caption(opponentProjected, theirsPossible)} align="flex-end" />
       </View>
-      {undrafted ? null : <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} compact />}
+      {undrafted ? null : (
+        <CoachTarget id="winChance">
+          <MatchupOdds me={{ name: me.name, chance: me.winProbability }} them={{ name: opponent.name, chance: opponent.winProbability }} compact />
+        </CoachTarget>
+      )}
     </View>
   );
 }

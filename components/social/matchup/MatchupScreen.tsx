@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { CoachTour } from "@/components/coach";
 import { InviteButton } from "@/components/invite";
 import { usePinnedTabBarInset, useTabBarInset } from "@/components/ui";
 import { VersusMatchup } from "@/components/versus/VersusMatchup";
@@ -40,11 +41,13 @@ export default function MatchupScreen() {
     );
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
-      {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
-      <MatchupBody matchup={matchup} bonus={false} vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined} />
-      <MatchupMore matchup={matchup} leagueId={leagueId} />
-    </ScrollView>
+    <CoachTour tour="matchup">
+      <ScrollView contentContainerStyle={{ paddingBottom: bottomInset + spacing.xl }} scrollIndicatorInsets={{ bottom: bottomInset }}>
+        {leagueId ? <MatchupTicker leagueId={leagueId} /> : null}
+        <MatchupBody matchup={matchup} bonus={false} vetoes={leagueId ? { byTask: boardByTask(board), leagueId } : undefined} />
+        <MatchupMore matchup={matchup} leagueId={leagueId} />
+      </ScrollView>
+    </CoachTour>
   );
 }
 

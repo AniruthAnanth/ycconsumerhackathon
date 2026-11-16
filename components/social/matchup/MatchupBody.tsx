@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { CoachTarget } from "@/components/coach";
 import { Entrance } from "@/components/motion";
 import { SectionLabel } from "@/components/ui";
 
@@ -32,11 +33,13 @@ export function MatchupBody({
       {belowHero}
       <SectionLabel left="Matchup" />
       {/* A player can have several flex rows, so the slot alone is not a unique key. */}
-      {matchup.rows.map((row, index) => (
-        <Entrance key={`${row.slot}-${index}`} index={index + 1}>
-          <SlotRow row={row} vetoes={vetoes} />
-        </Entrance>
-      ))}
+      <CoachTarget id="slots">
+        {matchup.rows.map((row, index) => (
+          <Entrance key={`${row.slot}-${index}`} index={index + 1}>
+            <SlotRow row={row} vetoes={vetoes} />
+          </Entrance>
+        ))}
+      </CoachTarget>
       {bonus ? <BonusRow matchup={matchup} /> : null}
     </>
   );

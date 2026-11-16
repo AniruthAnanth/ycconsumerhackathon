@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { Easing, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { CoachTarget } from "@/components/coach";
 import { useReduceMotion } from "@/components/motion";
 import { usePaidHaptic } from "@/components/shell/usePaidHaptic";
 import { SunnyButton } from "@/components/social/sunny/SunnyButton";
@@ -61,12 +62,15 @@ export default function TabsLayout() {
   return (
     <View style={styles.page}>
       <SafeAreaView edges={["top"]}>
-        <Header
-          title={membership?.name ?? "Lineup"}
-          onTitlePress={() => router.push("/league-switcher")}
-          onSettingsPress={() => router.push("/settings")}
-          right={<SunnyButton />}
-        />
+        {/* Roster's first-run tour starts here: the league name is the switcher. */}
+        <CoachTarget id="switcher">
+          <Header
+            title={membership?.name ?? "Lineup"}
+            onTitlePress={() => router.push("/league-switcher")}
+            onSettingsPress={() => router.push("/settings")}
+            right={<SunnyButton />}
+          />
+        </CoachTarget>
         {/* The Feed is not week-scoped, so it has no week bar. */}
         {active.key === "feed" ? null : <WeekSelector
           label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
