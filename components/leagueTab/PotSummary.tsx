@@ -6,7 +6,7 @@ import type { Pot, Standing } from "@/lib/backend";
 import { escrowFlowData } from "@/lib/escrow";
 import { formatCountdown, formatUsd, isSettled } from "@/lib/leagueText";
 import { potEmptyText } from "./emptyState";
-import { colors, font, fontFamily, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { colors, font, fontFamily, money, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 type Props = {
   pot: Pot;
@@ -37,7 +37,7 @@ export function PotSummary({ pot, standings = [], now }: Props) {
     <View>
       <View style={styles.card}>
         <View style={styles.top}>
-          <Text style={styles.muted}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>
+          <Text style={[styles.muted, styles.money]}>{`${formatUsd(pot.stakeUsd)} buy-in`}</Text>
           <Text style={styles.muted}>
             {isSettled(pot, now) ? "Settled" : `Settles in ${formatCountdown(pot.settlesAt - now)}`}
           </Text>
@@ -63,5 +63,6 @@ const styles = StyleSheet.create({
   empty: { marginHorizontal: SCREEN_MARGIN, marginVertical: spacing.lg, fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
   top: { flexDirection: "row", justifyContent: "space-between" },
   muted: { fontFamily: fontFamily.regular, fontSize: font.body, color: colors.textMuted },
+  money: { fontFamily: fontFamily.bold, color: money.text },
   count: { textAlign: "center", fontSize: font.label, fontFamily: fontFamily.bold, color: colors.textMuted, letterSpacing: 0.6 },
 });
