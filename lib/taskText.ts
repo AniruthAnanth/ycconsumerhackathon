@@ -41,7 +41,7 @@ export function taskStatusLine(task: TaskRowData): string {
   const proof =
     task.proofType === "timelapse" && task.targetMinutes !== undefined
       ? `${PROOF_LABEL.timelapse} · ${task.targetMinutes} min`
-      : PROOF_LABEL[task.proofType];
+      : (PROOF_LABEL[task.proofType] as string | undefined);
   switch (task.status) {
     case "verified":
       return task.verifiedAt == null ? "Verified" : `Verified ${formatClock(task.verifiedAt)}`;
@@ -52,7 +52,8 @@ export function taskStatusLine(task: TaskRowData): string {
       // proof writes "failed", and that task can no longer be played.
       return "Missed";
     default:
-      return task.dueLabel ? `${proof} · ${task.dueLabel}` : proof;
+      // A proof type the app has no label for (or none) is left out, never read as "undefined".
+      return [proof, task.dueLabel].filter(Boolean).join(" · ");
   }
 }
 

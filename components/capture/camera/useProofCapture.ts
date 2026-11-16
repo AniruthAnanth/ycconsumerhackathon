@@ -5,7 +5,7 @@ import type { CameraView } from "expo-camera";
 
 import { getDevFlags } from "@/lib/devFlags";
 
-import { DEFAULT_TARGET_MINUTES, frameTimesMs, intervalMs, pickEvenly, SURVEY_FRAMES, SURVEY_SECONDS, timelapseCapSeconds } from "../proofKinds";
+import { targetMinutesFor, frameTimesMs, intervalMs, pickEvenly, SURVEY_FRAMES, SURVEY_SECONDS, timelapseCapSeconds } from "../proofKinds";
 import { sampleUri, type SampleMedia } from "../samples";
 import { verdictHref, type Capture, type ProofTarget } from "../proofRoute";
 import { captureStill } from "../verdict/captureStill";
@@ -50,7 +50,7 @@ export function useProofCapture(target: ProofTarget) {
   const [cameraFailed, setCameraFailed] = useState(false);
   const [before, setBefore] = useState<Frame | null>(null);
   const [review, setReview] = useState<TimelapseReview | null>(null);
-  const targetMinutes = target.targetMinutes ?? DEFAULT_TARGET_MINUTES;
+  const targetMinutes = targetMinutesFor(target.targetMinutes);
 
   useEffect(
     () => () => {

@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ProgressFill } from "@/components/motion";
-import { BORDER, colors, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { cardStyle } from "@/components/ui";
+import { colors, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 import { formatChance } from "./chartGeometry";
 import { marketQuestions } from "./marketQuestions";
@@ -44,13 +45,10 @@ const styles = StyleSheet.create({
   heading: { ...type.subheading, color: colors.text, marginHorizontal: SCREEN_MARGIN, marginTop: spacing.lg },
   track: { paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.md, gap: spacing.md },
   card: {
+    ...cardStyle,
     width: CARD_WIDTH,
     padding: spacing.lg,
     gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
   },
   question: { ...type.label, color: colors.text, minHeight: 40 },
   answerRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },

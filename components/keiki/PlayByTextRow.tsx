@@ -1,49 +1,29 @@
-import { useMutation, useQuery } from "convex/react";
-import { Linking, StyleSheet, Switch, Text, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 
-import { api } from "@/convex/_generated/api";
 import { RowDivider } from "@/components/ui";
 import { colors, font, fontFamily, layout, ROW_HEIGHT_COMPACT, SCREEN_MARGIN, spacing } from "@/theme";
 
-import { formatLineNumber } from "./formatLineNumber";
+import { usePlayByText } from "./usePlayByText";
 
 /**
- * Opt in to playing over iMessage. Turning it on also opens Messages with the join text typed:
- * on the shared number, sending that text is what lets the agent text the player back.
+ * Opt in to playing over iMessage (usePlayByText holds the switch's behaviour).
  *
  * The row always renders. While the line loads, or where no number is configured, the switch
  * waits instead of the row vanishing, so its section is never a header with nothing under it.
  */
 export function PlayByTextRow() {
-  const line = useQuery(api.keiki.line);
-  const setOptIn = useMutation(api.keiki.setOptIn);
-
-  async function onValueChange(optIn: boolean) {
-    try {
-      await setOptIn({ optIn });
-    } catch {
-      return;
-    }
-    if (!optIn || !line) return;
-    try {
-      await Linking.openURL(line.smsUrl);
-    } catch {}
-  }
+  const playByText = usePlayByText();
 
   return (
     <View style={styles.row}>
       <View style={styles.text}>
         <Text style={styles.title}>Play by text</Text>
-        <Text style={styles.copy}>
-          {line
-            ? `Get drops and send proofs by text at ${formatLineNumber(line.number)}.`
-            : "Get drops and send proofs by text."}
-        </Text>
+        <Text style={styles.copy}>{playByText.copy}</Text>
       </View>
       <Switch
-        value={line?.optedIn ?? false}
-        disabled={!line}
-        onValueChange={onValueChange}
+        value={playByText.value}
+        disabled={!playByText.ready}
+        onValueChange={playByText.onValueChange}
         trackColor={{ true: colors.accent }}
         accessibilityLabel="Play by text"
       />

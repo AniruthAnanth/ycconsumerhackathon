@@ -47,9 +47,19 @@ describe("formatElapsed", () => {
 });
 
 describe("howToProve", () => {
-  it("asks every task for a timelapse of its target length, ten minutes by default", () => {
-    expect(howToProve({ targetMinutes: 45 })).toBe("Record a timelapse while you do it, at least 45 min.");
-    expect(howToProve({})).toBe("Record a timelapse while you do it, at least 10 min.");
+  it("asks a timelapse task for its target, five minutes by default and never more than ten", () => {
+    expect(howToProve({ proofType: "timelapse", targetMinutes: 7 })).toBe("Record a 7-min timelapse while you do it.");
+    expect(howToProve({ proofType: "timelapse" })).toBe("Record a 5-min timelapse while you do it.");
+    expect(howToProve({ proofType: "timelapse", targetMinutes: 45 })).toBe("Record a 10-min timelapse while you do it.");
+  });
+
+  it("gives each other type its own line", () => {
+    expect(howToProve({ proofType: "photo_location", place: { name: "the gym" } })).toBe("Check in at the gym.");
+    expect(howToProve({ proofType: "photo_location" })).toBe("Check in where it happens.");
+    expect(howToProve({ proofType: "photo" })).toBe("Snap a photo that shows it's done.");
+    expect(howToProve({})).toBe("Snap a photo that shows it's done.");
+    expect(howToProve({ proofType: "screenshot" })).toBe("Pick a screenshot that shows it's done.");
+    expect(howToProve({ proofType: "before_after" })).toBe("Snap a before photo, then an after from the same spot.");
   });
 
   it("asks an outcome task for a 5-second survey video", () => {
