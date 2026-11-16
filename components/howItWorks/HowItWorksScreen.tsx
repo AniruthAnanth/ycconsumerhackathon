@@ -1,9 +1,10 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
 
-import { Button, Header, Screen } from "@/components/ui";
-import { colors, layout, radius, spacing, type } from "@/theme";
+import { BackBar } from "@/components/join/BackBar";
+import { Button, Screen } from "@/components/ui";
+import { colors, layout, MIN_TARGET, radius, spacing, type } from "@/theme";
 
 import { CARDS, type CardKey, exitOf } from "./cards";
 import { Opening } from "./Opening";
@@ -35,9 +36,19 @@ export function HowItWorksScreen() {
   // Every way in plays the opening first: first launch, Replay onboarding, and the Profile or Settings refresher.
   const [opening, setOpening] = useState(true);
 
+  // Coming Back from sign-up lands on the card that was left: the web drops a hidden pager's scroll position.
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  useFocusEffect(
+    useCallback(() => {
+      if (width > 0) pager.current?.scrollTo({ x: pageRef.current * width, animated: false });
+    }, [width]),
+  );
+
   function finish() {
     if (exit === "back") return router.canGoBack() ? router.back() : router.replace("/");
-    router.replace(exit === "replay" ? { pathname: "/onboarding", params: { replay: "1" } } : "/onboarding");
+    // Pushed, not replaced: Back on sign-up returns to this card.
+    router.push(exit === "replay" ? { pathname: "/onboarding", params: { replay: "1" } } : "/onboarding");
   }
 
   function goTo(index: number) {
@@ -53,12 +64,18 @@ export function HowItWorksScreen() {
 
   return (
     <Screen>
-      <Header
-        title="How Lineup works"
-        onBack={exit === "back" ? finish : undefined}
+      {/* Back steps to the previous card; on card 1 it only shows when opened from Profile, to return there. */}
+      <BackBar
+        onBack={page > 0 ? () => goTo(page - 1) : exit === "back" ? finish : undefined}
         right={
           exit === "back" ? undefined : (
-            <Pressable style={styles.skip} onPress={finish} testID="how-it-works-skip" accessibilityRole="button" accessibilityLabel="Skip">
+            <Pressable
+              style={styles.skip}
+              onPress={finish}
+              testID="how-it-works-skip"
+              accessibilityRole="button"
+              accessibilityLabel="Skip"
+            >
               <Text style={styles.skipLabel}>Skip</Text>
             </Pressable>
           )
@@ -118,20 +135,20 @@ const GRAPHIC_HEIGHT = 260;
 const GRAPHIC_MIN_WIDTH = 260;
 
 /**
- * The card takes about half the page and the graphic is scaled to fill it inside a 16-point inset,
- * no wider than its narrowest design width allows, so nothing reaches the card's edge.
+ * The graphic is scaled up to the card's width inside a 16-point inset, no wider than its narrowest
+ * design width allows and no taller than about half the page, and the card is exactly the scaled
+ * graphic plus that inset, so every page has the same card with no empty band under the picture.
  */
 function artFrame(pageWidth: number, pageHeight: number) {
-  const cardWidth = pageWidth - 2 * layout.margin;
-  const cardHeight = Math.max(GRAPHIC_HEIGHT + 2 * spacing.lg, Math.round(pageHeight * 0.55));
-  const innerWidth = cardWidth - 2 * spacing.lg;
-  const scale = Math.max(1, Math.min((cardHeight - 2 * spacing.lg) / GRAPHIC_HEIGHT, innerWidth / GRAPHIC_MIN_WIDTH));
-  return { cardHeight, scale, drawWidth: innerWidth / scale };
+  const innerWidth = pageWidth - 2 * layout.margin - 2 * spacing.lg;
+  const scale = Math.max(1, Math.min(innerWidth / GRAPHIC_MIN_WIDTH, (pageHeight * 0.55 - 2 * spacing.lg) / GRAPHIC_HEIGHT));
+  return { cardHeight: Math.round(GRAPHIC_HEIGHT * scale + 2 * spacing.lg), scale, drawWidth: innerWidth / scale };
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  skip: { minHeight: layout.rowMin, justifyContent: "center" },
+  // A 44 x 44 target, right-aligned so the word still sits on the margin edge.
+  skip: { minWidth: MIN_TARGET, minHeight: MIN_TARGET, justifyContent: "center", alignItems: "flex-end" },
   skipLabel: { ...type.label, color: colors.accent },
   page: { paddingHorizontal: layout.margin, paddingTop: spacing.lg },
   card: {
@@ -143,8 +160,8 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     backgroundColor: colors.surface,
   },
-  // The words sit centred in the space left under the card.
-  words: { flex: 1, justifyContent: "center", gap: spacing.sm, paddingHorizontal: spacing.sm },
+  // The words follow the card directly, at the same distance on every page.
+  words: { paddingTop: spacing.xl, gap: spacing.sm, paddingHorizontal: spacing.sm },
   title: { ...type.title, color: colors.text, textAlign: "center" },
   line: { ...type.body, color: colors.textMuted, textAlign: "center" },
   footer: { paddingHorizontal: layout.margin, paddingBottom: spacing.lg, gap: spacing.lg },
