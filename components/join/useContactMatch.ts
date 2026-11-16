@@ -10,8 +10,10 @@ import { collectContactPhones, inviteesFrom, type Invitee } from "@/lib/phone";
 export type ContactMatchState =
   | { status: "idle" }
   | { status: "loading" }
-  /** Permission denied, no contacts with numbers, or no address book at all (web). */
+  /** No contacts with numbers, or no address book at all (web). */
   | { status: "empty" }
+  /** The player turned contacts access off; only Settings can turn it back on. */
+  | { status: "denied" }
   | { status: "error"; message: string }
   | { status: "done"; added: { userId: Id<"users">; name: string }[]; invitees: Invitee[] };
 
@@ -29,7 +31,7 @@ export function useContactMatch(leagueId: Id<"leagues"> | undefined) {
     setState({ status: "loading" });
     try {
       const permission = await Contacts.requestPermissionsAsync();
-      if (!permission.granted) return setState({ status: "empty" });
+      if (!permission.granted) return setState({ status: "denied" });
       const details = await Contacts.Contact.getAllDetails([Contacts.ContactField.FULL_NAME, Contacts.ContactField.PHONES]);
       const { phones, people } = collectContactPhones(details);
       if (phones.length === 0) return setState({ status: "empty" });

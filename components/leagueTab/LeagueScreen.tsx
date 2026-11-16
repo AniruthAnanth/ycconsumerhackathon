@@ -60,17 +60,14 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   if (!leagueId || !pot || !seasonTable || !league || !me)
     return <Screen edges={[]}>{null}</Screen>;
 
+  const potCard = escrow ? escrow(pot, now) : <PotSummary pot={pot} standings={table} now={now} />;
+
   return (
     <CoachTour tour="league">
       <Screen edges={[]} scroll bottomInset={bottomInset}>
         <Entrance>
-          <CoachTarget id="pot">
-            {escrow ? (
-              escrow(pot, now)
-            ) : (
-              <PotSummary pot={pot} standings={table} now={now} />
-            )}
-          </CoachTarget>
+          {/* A free league has no pot, so the tour's pot step finds no target and skips itself. */}
+          {pot.stakeUsd > 0 ? <CoachTarget id="pot">{potCard}</CoachTarget> : potCard}
         </Entrance>
         <CoachTarget id="standings">
           <StandingsTable
