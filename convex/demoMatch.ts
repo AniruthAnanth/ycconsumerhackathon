@@ -153,7 +153,9 @@ export async function demoQuickMatch(
   caller: Doc<"users">,
   stakeUsd: number,
 ): Promise<Id<"leagues">> {
-  const inviteCode = `QM${caller._id.slice(-4).toUpperCase()}`;
+  let hash = 0;
+  for (const char of caller._id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const inviteCode = `QM${hash.toString(36).toUpperCase().padStart(7, "0").slice(-6)}`;
   const existing = await ctx.db
     .query("leagues")
     .withIndex("by_inviteCode", (q) => q.eq("inviteCode", inviteCode))

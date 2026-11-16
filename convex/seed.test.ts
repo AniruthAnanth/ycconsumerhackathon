@@ -261,8 +261,8 @@ describe("seed.reset", () => {
     const guestId = await t.run((ctx) => ctx.db.insert("users", { name: "Guest", phone: "+14155550199" }));
     const guest = await signedInAs(t, guestId);
 
-    const twenty = await guest.mutation(api.leagues.quickMatch, { stakeUsd: 20 });
-    const five = await guest.mutation(api.leagues.quickMatch, { stakeUsd: 5 });
+    const twenty = await guest.mutation(api.leagues.joinByCode, { inviteCode: "MATCHA" });
+    const five = await guest.mutation(api.leagues.joinByCode, { inviteCode: "MATCHB" });
 
     const membersOf = (leagueId: Id<"leagues">) =>
       t.run((ctx) =>
@@ -312,7 +312,7 @@ describe("seed.reset", () => {
     await reset(t);
     const guestId = await t.run((ctx) => ctx.db.insert("users", { name: "Guest", phone: "+14155550199" }));
     const guest = await signedInAs(t, guestId);
-    const { leagueId } = await guest.mutation(api.leagues.quickMatch, { stakeUsd: 5 });
+    const { leagueId } = await guest.mutation(api.leagues.joinByCode, { inviteCode: "MATCHB" });
     await guest.mutation(api.leagues.joinByCode, { inviteCode: "YCHACK" });
     const fiveDollarLeague = () =>
       t.run(async (ctx) => {
