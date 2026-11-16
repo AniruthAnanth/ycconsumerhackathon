@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
-import { canVoteOn, feedKind, isCloseCall, isReactionEmoji, isStockMedia, summariseReactions, tallyVotes } from "./feed";
+import { canVoteOn, feedKind, isCloseCall, isReactionEmoji, summariseReactions, tallyVotes } from "./feed";
 import { SEED_PHOTOS } from "./lib/seedPhotos";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -229,21 +229,6 @@ describe("feed.list and feed.react", () => {
   });
 });
 
-describe("isStockMedia", () => {
-  const seedHash = SEED_PHOTOS.gym.sha256;
-  it("is stock when the proof says so", () => {
-    expect(isStockMedia({ stockMedia: true }, {}, undefined)).toBe(true);
-  });
-  it("is stock when a seeded player's photo is a seed image", () => {
-    expect(isStockMedia({}, { isSeed: true }, seedHash)).toBe(true);
-  });
-  it("is the player's own otherwise", () => {
-    expect(isStockMedia({}, { isSeed: true }, "other-hash")).toBe(false);
-    expect(isStockMedia({}, {}, seedHash)).toBe(false);
-    expect(isStockMedia({}, { isSeed: true }, undefined)).toBe(false);
-  });
-});
-
 describe("feed.list media", () => {
   const NOW = Date.UTC(2026, 10, 15, 20);
   const WEEK = Date.UTC(2026, 10, 9, 8);
@@ -288,12 +273,12 @@ describe("feed.list media", () => {
     return { t, ...ids };
   }
 
-  it("leaves out stock media and keeps the player's own photos and timelapse stills", async () => {
+  it("shows every photo, seeded and sample tray included, and timelapse stills", async () => {
     const { t, sam, leagueId } = await setup();
     const feed = await t.withIdentity({ subject: sam + "|test-session" }).query(api.feed.list, { leagueId });
     const byTitle = Object.fromEntries(feed.map((item) => [item.taskTitle, item]));
-    expect(byTitle["Seeded gym"].mediaUrl).toBeUndefined();
-    expect(byTitle["Sample tray"].mediaUrl).toBeUndefined();
+    expect(byTitle["Seeded gym"].mediaUrl).toEqual(expect.any(String));
+    expect(byTitle["Sample tray"].mediaUrl).toEqual(expect.any(String));
     expect(byTitle["Own photo"].mediaUrl).toEqual(expect.any(String));
     expect(byTitle["Own seeded-player photo"].mediaUrl).toEqual(expect.any(String));
     expect(byTitle["Own photo"].frameUrls).toBeUndefined();
