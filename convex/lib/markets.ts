@@ -1,4 +1,4 @@
-import { CORE_SLOTS, SWEEP_BONUS } from "./scoring";
+import { CORE_SLOTS } from "./scoring";
 
 /**
  * Market-style odds for a league week, as pure functions: the chance to win a matchup, a
@@ -7,7 +7,7 @@ import { CORE_SLOTS, SWEEP_BONUS } from "./scoring";
  * The model is deliberately small enough to explain on one screen. Each open task finishes
  * independently with a chance that comes from the player's own history and the time left in the
  * week; a player's final score is then confirmed points plus a sum of those coin flips, which we
- * treat as normal. Two normals give a matchup chance in closed form, and the chance to win the
+ * treat as normal. Two normals give a matchup chance in closed form, and each player's share of the
  * pot comes from a seeded simulation of the rest of the week, so a query returns the same numbers every
  * time it runs.
  */
@@ -99,67 +99,52 @@ export type PotEntrant = {
 };
 
 export type PotOdds = {
-  /** Each entrant's chance to win the pot: to finish the week as the top-scoring player who cleared all five slots. */
-  pot: number[];
-  /** The chance nobody in the pot clears all five, so every stake goes back. pot plus nobody sums to exactly 1. */
-  nobody: number;
-  /** Each entrant's chance of the week's top score, finished or not; sums to 1. Free leagues rank by this. */
+  /** Each entrant's expected fraction of the pot. With rollover, sums to exactly 1. */
+  share: number[];
+  /** Each entrant's chance to be among the week's top performers (tied for the most slots cleared). */
   top: number[];
+  /** The chance no member in the pot clears a single slot, so the pot rolls into next week. */
+  rollover: number;
   /** Each entrant's chance to clear all five slots. */
   finish: number[];
 };
 
 /**
- * The week played out POT_DRAWS times. In each draw every open task lands or doesn't with its
- * chance, which settles who clears all five slots and what everyone scores; the pot goes to the
- * top-scoring finisher (ties split). Finishing and scoring come from the same draw, so a player who
- * needs every task to finish also scores more when they do. A fixed seed keeps the query
- * deterministic, which Convex requires and which keeps the numbers from flickering.
+ * The week played out POT_DRAWS times under the pot rule: the pot is split evenly among the paid
+ * members tied for the most slots cleared, even if that's fewer than five, so if everyone clears
+ * all five everyone splits it. In each draw every open task lands or doesn't with its chance. If no
+ * paid member cleared anything the pot rolls over. A fixed seed keeps the query deterministic,
+ * which Convex requires and which keeps the numbers from flickering.
  */
 export function simulatePot(entrants: readonly PotEntrant[], draws = POT_DRAWS, seed = 0x5eed): PotOdds {
   const random = mulberry32(seed);
-  const pot = entrants.map(() => 0);
+  const share = entrants.map(() => 0);
   const top = entrants.map(() => 0);
   const finish = entrants.map(() => 0);
-  let nobody = 0;
-  const scores = entrants.map(() => 0);
-  const finished = entrants.map(() => false);
+  let rollover = 0;
+  const slots = entrants.map(() => 0);
   for (let draw = 0; draw < draws; draw++) {
     entrants.forEach((entrant, i) => {
-      const slots = new Set<string>();
-      let score = entrant.confirmed;
+      const cleared = new Set<string>();
       for (const task of entrant.open) {
-        if (random() >= entrant.chance) continue;
-        score += task.value;
-        if (task.clearsSlot !== undefined) slots.add(task.clearsSlot);
+        if (random() < entrant.chance && task.clearsSlot !== undefined) cleared.add(task.clearsSlot);
       }
-      const done = entrant.clearedSlots + slots.size >= CORE_SLOTS.length;
-      // The sweep bonus lands with the fifth slot; a player who had already swept has it in confirmed.
-      scores[i] = score + (done && entrant.clearedSlots < CORE_SLOTS.length ? SWEEP_BONUS : 0);
-      finished[i] = done;
-      if (done) finish[i] += 1;
+      slots[i] = Math.min(CORE_SLOTS.length, entrant.clearedSlots + cleared.size);
+      if (slots[i] >= CORE_SLOTS.length) finish[i] += 1;
     });
-    shareTop(scores, () => true, top);
-    if (!shareTop(scores, (i) => finished[i] && entrants[i].inPot, pot)) nobody += 1;
-  }
-  const share = (counts: number[]) => counts.map((count) => count / draws);
-  return { pot: share(pot), nobody: nobody / draws, top: share(top), finish: share(finish) };
-}
-
-/** Adds one draw's win to the highest score among `eligible` entrants, split on a tie. False when nobody was eligible. */
-function shareTop(scores: readonly number[], eligible: (i: number) => boolean, into: number[]): boolean {
-  let best = -Infinity;
-  const leaders: number[] = [];
-  scores.forEach((score, i) => {
-    if (!eligible(i)) return;
-    if (score > best) {
-      best = score;
-      leaders.length = 0;
+    const best = Math.max(0, ...entrants.map((entrant, i) => (entrant.inPot ? slots[i] : 0)));
+    if (best === 0) {
+      rollover += 1;
+      continue;
     }
-    if (score === best) leaders.push(i);
-  });
-  for (const i of leaders) into[i] += 1 / leaders.length;
-  return leaders.length > 0;
+    const winners = entrants.flatMap((entrant, i) => (entrant.inPot && slots[i] === best ? [i] : []));
+    for (const i of winners) {
+      share[i] += 1 / winners.length;
+      top[i] += 1;
+    }
+  }
+  const per = (counts: number[]) => counts.map((count) => count / draws);
+  return { share: per(share), top: per(top), rollover: rollover / draws, finish: per(finish) };
 }
 
 /** A small seeded PRNG (mulberry32): the same seed always gives the same stream. */
