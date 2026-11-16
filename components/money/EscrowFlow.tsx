@@ -71,8 +71,10 @@ export function EscrowFlow({ members, stakeUsd, potUsd, payout, compact = false,
           <>
             <Svg width={width} height={layout.height} style={StyleSheet.absoluteFill}>
               {members.map((member, index) => (
+                // Keyed on paid too: react-native-svg keeps a strokeDasharray after the prop is removed,
+                // so a member who pays mid-view would keep the unpaid dashed line until a remount.
                 <Path
-                  key={member.userId}
+                  key={`${member.userId}-${member.paid ? "paid" : "unpaid"}`}
                   d={layout.lanes[index]!.path}
                   fill="none"
                   strokeLinecap="round"
