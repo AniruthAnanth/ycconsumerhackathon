@@ -1,21 +1,22 @@
 import { useAction } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi } from "@/components/social/contract";
+import { PressScale } from "@/components/motion";
 import { leaveScreen } from "@/components/social/leave";
 import { ScreenState } from "@/components/social/ScreenState";
 import { useMyUserId } from "@/components/social/useMyUserId";
-import { Header, OutlinedPillButton, Screen } from "@/components/ui";
-import { SunnyAvatar } from "@/components/social/sunny/SunnyAvatar";
+import { Header, Screen } from "@/components/ui";
 import { SUNNY, type SunnyAction } from "@/components/social/sunny/sunnyLogic";
 import { markSunnySeen, useSunny } from "@/components/social/sunny/useSunny";
 import { useCurrentLeague } from "@/lib/currentLeague";
-import { colors, font, fontFamily, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { ChatInputBar } from "./ChatInputBar";
+import type { ChatMessage } from "./chatLogic";
 import { chatKey, chatStore, retryMessage, sendMessage } from "./chatStore";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
@@ -31,7 +32,7 @@ export function ChatScreen() {
   const list = useRef<FlatList>(null);
   const router = useRouter();
   const { brief } = useSunny();
-  const { ask: asked } = useLocalSearchParams<{ ask?: string }>();
+  const { ask: asked, draft: prefill } = useLocalSearchParams<{ ask?: string; draft?: string }>();
 
   const ask = (text: string) => chat({ leagueId: leagueId!, text });
 
@@ -57,6 +58,18 @@ export function ChatScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, asked]);
 
+  // A prompt row between sections types its question for the player to send or edit.
+  useEffect(() => {
+    if (!prefill) return;
+    router.setParams({ draft: undefined });
+    setDraft(prefill);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
+
+  // Sunny opens every conversation with this week's line, as the first message of the thread.
+  const greeting: ChatMessage = { id: "greeting", role: "agent", text: brief?.line ?? `I'm ${SUNNY.name}, your league's commissioner. Ask me anything about the week.` };
+  const chips = brief?.chips ?? ["Who's on top of the league?"];
+
   const act = (action: SunnyAction) => router.navigate(action.kind === "swap" ? "/" : action.kind === "veto" ? "/feed" : "/matchup");
 
   return (
@@ -68,26 +81,26 @@ export function ChatScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={insets.top}
         >
-          {state.messages.length === 0 ? (
-            <View style={styles.suggestions}>
-              <SunnyAvatar size={72} />
-              <Text style={styles.intro}>{brief?.line ?? `${SUNNY.name}, your league's commissioner. Ask me anything about the week.`}</Text>
-              {(brief?.chips ?? ["Who's on top of the league?"]).map((suggestion) => (
-                <OutlinedPillButton key={suggestion} label={suggestion} onPress={() => send(suggestion)} />
+          <FlatList
+            ref={list}
+            style={styles.body}
+            contentContainerStyle={styles.messages}
+            data={[greeting, ...state.messages]}
+            keyExtractor={(m) => m.id}
+            renderItem={({ item }) => <MessageBubble message={item} onRetry={retry} onAction={act} />}
+            ListFooterComponent={state.pending ? <TypingIndicator /> : undefined}
+            onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+            keyboardShouldPersistTaps="handled"
+          />
+          {/* Suggestions stay in one row above the composer, like iMessage, for the whole conversation. */}
+          {state.pending ? null : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+              {chips.map((chip) => (
+                <PressScale key={chip} accessibilityRole="button" onPress={() => send(chip)} style={styles.chip}>
+                  <Text style={styles.chipText}>{chip}</Text>
+                </PressScale>
               ))}
-            </View>
-          ) : (
-            <FlatList
-              ref={list}
-              style={styles.body}
-              contentContainerStyle={styles.messages}
-              data={state.messages}
-              keyExtractor={(m) => m.id}
-              renderItem={({ item }) => <MessageBubble message={item} onRetry={retry} onAction={act} />}
-              ListFooterComponent={state.pending ? <TypingIndicator /> : undefined}
-              onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
-              keyboardShouldPersistTaps="handled"
-            />
+            </ScrollView>
           )}
           <ChatInputBar text={draft} pending={state.pending} onChangeText={setDraft} onSend={submitDraft} />
         </KeyboardAvoidingView>
@@ -101,6 +114,7 @@ export function ChatScreen() {
 const styles = StyleSheet.create({
   body: { flex: 1 },
   messages: { paddingVertical: spacing.sm },
-  suggestions: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN },
-  intro: { color: colors.text, fontFamily: fontFamily.semiBold, fontSize: font.title, lineHeight: type.body.lineHeight, textAlign: "center", marginVertical: spacing.sm },
+  chips: { gap: spacing.sm, paddingHorizontal: SCREEN_MARGIN, paddingVertical: spacing.sm },
+  chip: { minHeight: layout.pillHeight, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.lime },
+  chipText: { color: colors.accent, fontFamily: fontFamily.bold, fontSize: font.meta },
 });

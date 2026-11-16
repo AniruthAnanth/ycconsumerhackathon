@@ -9,12 +9,12 @@ import { haptics } from "@/lib/native/haptics";
 import { announceLineupLocked } from "@/lib/notifications/lineupLock";
 
 import { capture } from "../backend";
-import { uploadToConvex } from "../uploadToConvex";
 import { draftReducer, initialDraftState } from "./draftState";
 import { draftWeekNote } from "./draftWeek";
 import { canLock, tasksToLock } from "./lineupEdit";
 import { manualLineup } from "./manualLineup";
 import { hasReachedLimit } from "./recordingMeter";
+import { useLiveTranscript } from "./useLiveTranscript";
 import { useVoiceRecorder } from "./useVoiceRecorder";
 
 type DraftInput = { audioStorageId?: Id<"_storage">; transcript?: string };
@@ -29,7 +29,8 @@ export function useVoiceDraft() {
   const router = useRouter();
   const [state, dispatch] = useReducer(draftReducer, initialDraftState);
   const recorder = useVoiceRecorder();
-  const generateUploadUrl = useMutation(capture.proofs.generateUploadUrl);
+  const { text: liveTranscript, reset: resetLive, finish: finishLive } = useLiveTranscript(recorder, state.phase === "recording");
+  const transcribeWhole = useAction(capture.liveTranscribe.whole);
   const draft = useAction(capture.lineup.draft);
   const lock = useMutation(capture.lineup.lock);
   const refineLineup = useAction(capture.lineup.refine);
@@ -57,6 +58,7 @@ export function useVoiceDraft() {
     if (starting.current) return;
     starting.current = true;
     try {
+      resetLive();
       await recorder.start();
       dispatch({ type: "recordingStarted" });
     } catch {
@@ -64,18 +66,19 @@ export function useVoiceDraft() {
     } finally {
       starting.current = false;
     }
-  }, [recorder]);
+  }, [recorder, resetLive]);
 
   const stopRecording = useCallback(
     () =>
       requestDraft(async () => {
-        const recording = await recorder.stop();
-        if (!recording) throw new Error("Nothing was recorded");
-        const uploadUrl = await generateUploadUrl({});
-        const storageId = await uploadToConvex(uploadUrl, recording.uri, recording.contentType);
-        return { audioStorageId: storageId as Id<"_storage"> };
+        const segments = await finishLive();
+        if (segments.length === 0) throw new Error("Nothing was recorded");
+        // A short take is one segment and goes to the draft as it is; a longer one is
+        // transcribed whole first, so the draft never reads the fast model's live words.
+        if (segments.length === 1) return { audioStorageId: segments[0] };
+        return { transcript: await transcribeWhole({ storageIds: segments }) };
       }),
-    [generateUploadUrl, recorder, requestDraft],
+    [finishLive, requestDraft, transcribeWhole],
   );
 
   const draftFromText = useCallback(
@@ -124,6 +127,7 @@ export function useVoiceDraft() {
     state,
     durationMillis: recorder.durationMillis,
     level: recorder.level,
+    liveTranscript,
     weekNote: draftWeekNote(lockedOnArrival),
     canLock: state.phase === "review" && !state.refining && canLock(state.tasks),
     refine,

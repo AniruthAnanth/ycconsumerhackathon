@@ -92,50 +92,43 @@ describe("winChance", () => {
 });
 
 describe("simulatePot", () => {
-  const finished = (confirmed: number) => ({ inPot: true, confirmed, clearedSlots: 5, open: [], chance: 0 });
-  const chasing = (confirmed: number, slotsLeft: number, chance: number) => ({
-    inPot: true,
-    confirmed,
-    clearedSlots: 5 - slotsLeft,
-    open: ["body", "mind", "recharge", "chores", "people"].slice(0, slotsLeft).map((slot) => ({ value: 55, clearsSlot: slot })),
+  const swept = { inPot: true, confirmed: 0, clearedSlots: 5, open: [], chance: 0 };
+  const chasing = (cleared: number, chance: number, inPot = true) => ({
+    inPot,
+    confirmed: 0,
+    clearedSlots: cleared,
+    open: ["body", "mind", "recharge", "chores", "people"].slice(cleared).map((slot) => ({ value: 55, clearsSlot: slot })),
     chance,
   });
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
-  test("the pot chances and nobody-finishes always add up to exactly 1", () => {
-    const fields = [
-      [finished(500), chasing(285, 1, 0.3), chasing(195, 2, 0.2), chasing(0, 5, 0.1)],
-      [chasing(100, 3, 0.5), chasing(120, 2, 0.5), chasing(90, 4, 0.9)],
-      [chasing(0, 5, 0), chasing(0, 5, 0)],
-      [finished(200), finished(200)],
-    ];
-    for (const field of fields) {
+  test("shares plus rollover always add up to exactly 1", () => {
+    for (const field of [
+      [swept, chasing(4, 0.3), chasing(3, 0.2), chasing(0, 0.1)],
+      [chasing(2, 0.5), chasing(3, 0.5), chasing(1, 0.9)],
+      [chasing(0, 0), chasing(0, 0)],
+      [swept, swept],
+    ]) {
       const odds = simulatePot(field);
-      expect(sum(odds.pot) + odds.nobody).toBeCloseTo(1, 9);
-      expect(sum(odds.top)).toBeCloseTo(1, 9);
+      expect(sum(odds.share) + odds.rollover).toBeCloseTo(1, 9);
     }
   });
 
-  test("a finished leader no chaser can catch takes the whole pot", () => {
-    const odds = simulatePot([finished(500), chasing(285, 1, 0.9), chasing(60, 4, 0.9)]);
-    expect(odds.pot[0]).toBe(1);
-    expect(odds.nobody).toBe(0);
-    expect(odds.finish[0]).toBe(1);
-    expect(odds.finish[1]).toBeGreaterThan(0.85);
+  test("everyone tied for the most slots splits evenly, even short of five", () => {
+    expect(simulatePot([swept, swept, swept]).share.map((value) => value.toFixed(4))).toEqual(["0.3333", "0.3333", "0.3333"]);
+    expect(simulatePot([chasing(3, 0), chasing(3, 0), chasing(1, 0)]).share).toEqual([0.5, 0.5, 0]);
   });
 
-  test("nobody finishing returns the stakes, and an unpaid member never takes the pot", () => {
-    expect(simulatePot([chasing(10, 5, 0), chasing(20, 5, 0)]).nobody).toBe(1);
-    const odds = simulatePot([{ ...finished(500), inPot: false }, finished(100)]);
-    expect(odds.pot).toEqual([0, 1]);
-    expect(odds.top).toEqual([1, 0]);
+  test("an unpaid member never shares, and the pot rolls over when no paid member cleared anything", () => {
+    expect(simulatePot([{ ...swept, inPot: false }, chasing(2, 0)]).share).toEqual([0, 1]);
+    const empty = simulatePot([chasing(0, 0), chasing(0, 0)]);
+    expect(empty.rollover).toBe(1);
+    expect(empty.share).toEqual([0, 0]);
   });
 
-  test("ties split, and the same seed gives the same answer", () => {
-    expect(simulatePot([finished(200), finished(200)]).pot).toEqual([0.5, 0.5]);
-    const field = [chasing(100, 2, 0.6), chasing(110, 3, 0.7)];
+  test("is deterministic, and finish chances follow each task's chance", () => {
+    const field = [chasing(3, 0.6), chasing(2, 0.7)];
     expect(simulatePot(field)).toEqual(simulatePot(field));
-    // Each open task lands about `chance` of the time: finishing two slots at 0.6 is about 0.36.
     expect(simulatePot(field).finish[0]).toBeCloseTo(0.36, 1);
   });
 });

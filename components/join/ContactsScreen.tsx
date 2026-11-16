@@ -9,13 +9,13 @@ import { ErrorLine } from "@/components/join/ErrorLine";
 import { StepContext } from "@/components/join/StepContext";
 import { PersonRow } from "@/components/join/PersonRow";
 import { useContactMatch } from "@/components/join/useContactMatch";
-import { Button, Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
+import { Button, cardStyle, Header, OutlinedPillButton, Screen, SectionLabel } from "@/components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { backend } from "@/lib/backend";
 import { useCurrentLeague } from "@/lib/currentLeague";
 import { inviteMessage } from "@/lib/leagueText";
 import { shareText } from "@/lib/native/share";
-import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
+import { colors, font, fontFamily, layout, SCREEN_MARGIN, spacing, tabular, type } from "@/theme";
 
 /**
  * After joining or creating a league: the league is ready, here is its code, now bring friends.
@@ -106,7 +106,7 @@ export function ContactsScreen() {
     <Screen>
       <Stack.Screen options={{ gestureEnabled: !justJoined }} />
       <Header title="Add Friends" onBack={justJoined ? undefined : leave} />
-      {justJoined && (me?.leagues.length ?? 0) <= 1 ? <StepContext step={3} label="Invite friends" /> : null}
+      {justJoined && (me?.leagues.length ?? 0) <= 1 ? <StepContext step={3} /> : null}
       <ScrollView style={styles.list}>
         {league ? (
           <View style={styles.hero}>
@@ -191,14 +191,11 @@ const styles = StyleSheet.create({
   ready: { ...type.title, color: colors.text },
   line: { ...type.body, color: colors.textMuted },
   codeCard: {
+    ...cardStyle,
     marginTop: spacing.sm,
     alignItems: "center",
     gap: spacing.xs,
     padding: spacing.xl,
-    borderRadius: radius.card,
-    borderWidth: BORDER,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
   },
   codeLabel: { ...type.caption, color: colors.textMuted, letterSpacing: 0.6 },
   code: { ...type.display, color: colors.text, letterSpacing: 4 },

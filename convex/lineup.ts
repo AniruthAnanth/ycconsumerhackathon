@@ -21,10 +21,11 @@ import {
   type ActionCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { draftLineup, rateTask, transcribe } from "./ai";
+import { draftLineup, rateTask, refineLineup, transcribe } from "./ai";
 import { challengerPointsByUser } from "./challenges";
 import { membersInJoinOrder, membershipOf } from "./leagues";
 import { requireUser } from "./lib/auth";
+import { isValidLatLng } from "./lib/geo";
 import {
   DEFAULT_TARGET_MINUTES,
   MAX_FLEX_TASKS,
@@ -255,6 +256,27 @@ const weekName = (weekStart: number) =>
 // ---------------------------------------------------------------------------
 
 /**
+ * A typed instruction applied to a drafted lineup, before it is locked. Tasks the instruction
+ * didn't touch come back exactly as they were, points included, whatever the model wrote for
+ * them: a re-rate is only for what the player changed.
+ */
+export const refine = action({
+  args: { previousLineup: v.array(draftTask), instruction: v.string() },
+  handler: async (ctx, args): Promise<{ tasks: DraftTask[] }> => {
+    await ctx.runQuery(internal.lineup.callerId, {});
+    const instruction = args.instruction.trim();
+    if (instruction === "") throw new ConvexError("Say what to change.");
+    const refined = await refineLineup({ previous: args.previousLineup, instruction }).catch((error) => {
+      console.error("refineLineup failed:", error instanceof Error ? error.message : error);
+      throw new ConvexError("The draft desk is busy. Try again in a moment.");
+    });
+    if (refined.length === 0) return { tasks: args.previousLineup };
+    const untouched = new Map(args.previousLineup.map((task) => [`${task.slot}|${task.title.trim()}`, task]));
+    return { tasks: shapeDraft(refined.map((task) => untouched.get(`${task.slot}|${task.title.trim()}`) ?? task)) };
+  },
+});
+
+/**
  * Writes each league member's result for a finished week into their memory,
  * so the next draft can react to it ("you skipped Body twice, so here's an
  * easy one"). Settlement schedules this once per league week.
@@ -306,6 +328,9 @@ export const weekOutcomes = internalQuery({
 // Flex tasks
 // ---------------------------------------------------------------------------
 
+// The owner's rule: a locked lineup stays as it is all week. Only a league veto swaps a task.
+const LOCKED_WEEK = "Your lineup is locked for this week. You can change it when the next week opens.";
+
 // A typed-in task starts mid-range so it is playable at once; the model then
 // rates it on the same scale as drafted tasks a moment later.
 const UNRATED_FLEX_POINTS = 20;
@@ -315,6 +340,7 @@ export const addFlexTask = mutation({
   args: { title: v.string() },
   handler: async (ctx, args): Promise<Id<"tasks">> => {
     const user = await requireUser(ctx);
+    if (await isLocked(ctx, user._id, weekStartOf(Date.now()))) throw new ConvexError(LOCKED_WEEK);
     const task = tidyTask({
       slot: "flex",
       title: args.title,
@@ -344,6 +370,26 @@ export const addFlexTask = mutation({
       title: task.title,
     });
     return taskId;
+  },
+});
+
+/**
+ * Pins the place of a check-in task drafted without coordinates ("the gym"): the app sends where
+ * the player stands. Allowed on a locked week, because it sets up the proof rather than changing
+ * the lineup, and only once, so a pin can't follow the player around.
+ */
+export const pinPlace = mutation({
+  args: { taskId: v.id("tasks"), place },
+  handler: async (ctx, args): Promise<null> => {
+    const user = await requireUser(ctx);
+    const task = await ctx.db.get("tasks", args.taskId);
+    if (task === null || task.userId !== user._id) throw new ConvexError("That task isn't on your lineup.");
+    if (task.proofType !== "photo_location") throw new ConvexError("Only a check-in task has a place.");
+    if (task.place) throw new ConvexError(`This task is already pinned to ${task.place.name}.`);
+    const name = args.place.name.trim();
+    if (name === "" || !isValidLatLng(args.place)) throw new ConvexError("That place has no usable location.");
+    await ctx.db.patch("tasks", task._id, { place: { name, lat: args.place.lat, lng: args.place.lng } });
+    return null;
   },
 });
 
@@ -580,10 +626,9 @@ async function toRow(
     slot: task.slot,
     title: task.title,
     points: task.points,
-    // Every proof is a timelapse now, whatever older tasks stored, so the app opens the recorder.
-    proofType: "timelapse",
+    proofType: task.proofType,
+    ...(task.proofType === "timelapse" && { targetMinutes: task.targetMinutes ?? DEFAULT_TARGET_MINUTES }),
     place: task.place,
-    targetMinutes: task.targetMinutes ?? DEFAULT_TARGET_MINUTES,
     status: task.status,
     source: task.source,
     score: taskScore(task),

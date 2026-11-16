@@ -35,7 +35,19 @@ function useBarBottom() {
 export function useTabBarInset() {
   const glassBottom = useBarBottom();
   const safeBottom = useSafeAreaInsets().bottom;
-  return systemTabBar ? safeBottom + layout.systemTabBar : glassBottom + layout.tabBar + spacing.md;
+  // iOS already insets a native tab's first scroll view past the system bar (automatic content
+  // insets), so adding the bar height again left about 60 pt of empty space: only the margin goes on top.
+  return systemTabBar ? spacing.md : glassBottom + layout.tabBar + spacing.md;
+}
+
+/**
+ * How far content pinned to a tab's bottom edge (outside any scroll view, so iOS doesn't inset it)
+ * must sit to clear the tab bar: the full system bar over the home indicator in the iOS build.
+ */
+export function usePinnedTabBarInset() {
+  const scrollInset = useTabBarInset();
+  const safeBottom = useSafeAreaInsets().bottom;
+  return systemTabBar ? safeBottom + layout.systemTabBar : scrollInset;
 }
 
 /**
@@ -59,7 +71,12 @@ export function GlassTabBar<Key extends string>({ tabs, active, onChange }: Prop
         {liquidGlass ? (
           <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" tintColor={colors.glassTint} />
         ) : (
-          <BlurView style={[StyleSheet.absoluteFill, styles.fill]} tint="light" intensity={40} />
+          // The paper fill is its own layer over the blur: a background colour on BlurView itself is dropped on some
+          // devices, and Android draws no blur at all without the experimental method, so the fill alone must hide the rows.
+          <>
+            <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={90} />
+            <View style={[StyleSheet.absoluteFill, styles.fill]} pointerEvents="none" />
+          </>
         )}
         {width > 0 ? <Animated.View style={[styles.pill, pill]} pointerEvents="none" /> : null}
         {tabs.map((tab) => {
@@ -71,7 +88,8 @@ export function GlassTabBar<Key extends string>({ tabs, active, onChange }: Prop
               testID={tab.testID}
               style={styles.tab}
               onPress={() => onChange(tab.key)}
-              accessibilityRole="tab"
+              // "button" rather than "tab": iOS has no tab trait, so VoiceOver and the device scripts only see a button.
+              accessibilityRole="button"
               accessibilityState={{ selected }}
               accessibilityLabel={tab.label}
             >

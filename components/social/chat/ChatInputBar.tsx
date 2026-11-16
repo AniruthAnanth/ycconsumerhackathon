@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import { colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
+import { Icon } from "@/components/ui";
+import { BORDER, colors, font, fontFamily, layout, radius, SCREEN_MARGIN, spacing } from "@/theme";
 
 import { canSend } from "./chatLogic";
 
 const MAX_INPUT_HEIGHT = 100;
+const SEND = 34;
 
 export function ChatInputBar({
   text,
@@ -36,7 +38,7 @@ export function ChatInputBar({
         onPress={onSend}
         style={[styles.send, !enabled && styles.sendDisabled]}
       >
-        <Text style={styles.sendText}>Send</Text>
+        <Icon name="arrow-up-circle" size={SEND} color={colors.accent} />
       </Pressable>
     </View>
   );
@@ -60,20 +62,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
-    borderRadius: radius.control,
-    backgroundColor: colors.strip,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: BORDER,
+    borderColor: colors.divider,
     color: colors.text,
     fontFamily: fontFamily.regular,
     fontSize: font.title,
   },
-  send: {
-    minHeight: layout.rowMin,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.control,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  send: { minWidth: layout.rowMin, minHeight: layout.rowMin, alignItems: "center", justifyContent: "center" },
   sendDisabled: { opacity: 0.4 },
-  sendText: { color: colors.onAccent, fontSize: font.body, fontFamily: fontFamily.bold },
 });

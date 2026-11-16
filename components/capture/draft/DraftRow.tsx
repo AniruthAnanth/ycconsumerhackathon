@@ -85,7 +85,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   text: { flex: 1 },
-  title: { ...type.subheading, minHeight: 28, color: colors.text, padding: 0, textAlignVertical: "top" },
+  // No minHeight: a one-line title is exactly its line height, so the row's centring lines it up with the pill and points.
+  title: { ...type.subheading, color: colors.text, padding: 0, textAlignVertical: "center" },
   meta: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
   trailing: { width: layout.numericColumn, flexShrink: 0, alignItems: "flex-end", justifyContent: "center", gap: spacing.xs },
   removeTarget: { minHeight: MIN_TARGET, minWidth: MIN_TARGET, alignItems: "flex-end", justifyContent: "center" },

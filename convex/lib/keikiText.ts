@@ -234,7 +234,9 @@ export function weekFacts(leagueName: string, rows: WeekRow[], userId: string, o
  */
 export const SCORING_RULES = [
   `A verified task pays its points, ${TASK_POINTS_MIN} to ${TASK_POINTS_MAX}.`,
-  `A roster has ${CORE_SLOTS.length} slots (${CORE_SLOTS.join(", ")}). Clearing a slot with its drafted task adds ${SLOT_CLEARED_BONUS}, and clearing all ${CORE_SLOTS.length} adds ${SWEEP_BONUS} more and keeps the player's stake.`,
+  `A roster has ${CORE_SLOTS.length} slots (${CORE_SLOTS.join(", ")}). Clearing a slot with its drafted task adds ${SLOT_CLEARED_BONUS}, and clearing all ${CORE_SLOTS.length} adds ${SWEEP_BONUS} more.`,
+  "The pot: each week it is split evenly among the paid members tied for the most slots cleared that week, even if that is fewer than 5, so if everyone clears all 5 everyone splits it. If no paid member cleared a slot, the pot rolls into next week.",
+  "Winnings are not paid out weekly: they stay in the league's escrow as each member's balance and are cashed out on the league's payout schedule, at the end of the season unless the league chose another.",
   `Streak: day n of an unbroken run of days with a verified proof adds ${STREAK_BONUS_PER_DAY} times n, at most ${STREAK_BONUS_DAILY_CAP} a day.`,
   `Each week pairs the players head to head. When the week settles, the higher scorer of a pair gets ${MATCHUP_WIN_BONUS} more; a tie pays nobody.`,
   `A quick-time drop pays its own points, plus ${FIRST_FINISHER_BONUS} to whoever finishes first.`,

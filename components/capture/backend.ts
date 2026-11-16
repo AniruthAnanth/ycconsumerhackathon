@@ -42,6 +42,12 @@ export const capture = {
     /** Applies a typed change to a lineup that isn't locked yet; untouched tasks come back as they were. */
     refine: action<{ previousLineup: DraftTask[]; instruction: string }, { tasks: DraftTask[] }>("lineup:refine"),
   },
+  liveTranscribe: {
+    /** One recorded segment's words while the player talks; "" when it can't be read. */
+    chunk: action<{ storageId: Id<"_storage"> }, string>("liveTranscribe:chunk"),
+    /** Every segment in recording order, transcribed at full quality into the draft's text. */
+    whole: action<{ storageIds: Id<"_storage">[] }, string>("liveTranscribe:whole"),
+  },
   proofs: {
     /** Also used for the Voice Draft recording: it is the app's one upload path. */
     generateUploadUrl: mutation<NoArgs, string>("proofs:generateUploadUrl"),

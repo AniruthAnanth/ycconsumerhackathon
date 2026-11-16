@@ -1,7 +1,4 @@
-import { useQuery } from "convex/react";
-
 import { Entrance } from "@/components/motion";
-import { socialApi } from "@/components/social/contract";
 import { useCurrentLeague } from "@/lib/currentLeague";
 
 import { hasLineups } from "./chartGeometry";
@@ -13,12 +10,10 @@ import { WinProbChart } from "./WinProbChart";
 export function MatchupMarkets() {
   const { leagueId } = useCurrentLeague();
   const market = useMarket(leagueId);
-  // The same subscription the hero already holds, so this costs no extra query.
-  const matchup = useQuery(socialApi.standings.matchup, leagueId ? { leagueId } : "skip");
   if (!market || !hasLineups([market.me, ...(market.matchup ? [market.matchup.opponent] : [])])) return null;
   return (
     <Entrance index={1}>
-      <ProjectionCard market={market} slotsCleared={matchup?.me.slotsCleared} />
+      <ProjectionCard market={market} />
       {market.matchup ? <WinProbChart matchup={market.matchup} /> : null}
     </Entrance>
   );

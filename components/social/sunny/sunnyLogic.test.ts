@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Matchup } from "../contract";
-import { parseReply, sunnyBrief, timeLeft } from "./sunnyLogic";
+import { parseReply, sunnyBrief, sunnyPrompt, timeLeft, verdictLine } from "./sunnyLogic";
 
 const HOUR = 60 * 60 * 1000;
 const task = (slot: "body" | "mind" | "chores", points: number, status: "open" | "verified") =>
@@ -24,17 +24,17 @@ describe("sunnyBrief", () => {
 
   it("names the gap, the time left and my biggest open slot when I'm behind", () => {
     const brief = sunnyBrief(matchup(60, 100), open, now);
-    expect(brief?.line).toBe("Sam's 40 up with 2 days left. Your Mind slot is the swing: 30 pts.");
-    expect(brief?.chips).toEqual(["How do I catch Sam?", "Swap my Mind task", "Trash talk Sam"]);
+    expect(brief?.line).toBe("Sam Ortiz is 40 ahead with 2 days left. Your Mind slot is the swing: 30 pts.");
+    expect(brief?.chips).toEqual(["How do I catch up?", "Swap that task", "Trash talk"]);
   });
 
   it("talks about holding on when I lead", () => {
-    expect(sunnyBrief(matchup(100, 60), open, now)?.chips[0]).toBe("How do I hold off Sam?");
+    expect(sunnyBrief(matchup(100, 60), open, now)?.chips[0]).toBe("How do I hold on?");
   });
 
   it("calls a finished week", () => {
     const brief = sunnyBrief(matchup(100, 60), { status: "settled", endsAt: now - 1 }, now);
-    expect(brief?.line).toBe("Week's done. You beat Sam, 100–60.");
+    expect(brief?.line).toBe("Week's done. You beat Sam Ortiz, 100–60.");
   });
 
   it("is nothing without a matchup", () => {
@@ -44,6 +44,25 @@ describe("sunnyBrief", () => {
   it("rounds time coarsely", () => {
     expect(timeLeft(5 * HOUR)).toBe("5h left");
     expect(timeLeft(10 * 60 * 1000)).toBe("under an hour left");
+  });
+});
+
+describe("verdictLine", () => {
+  it("says what the proof earned and where the matchup stands", () => {
+    expect(verdictLine(40, matchup(175, 100))).toBe("Clean proof. +40, you're up 75 on Sam Ortiz.");
+    expect(verdictLine(40, matchup(60, 100))).toBe("Clean proof. +40, Sam Ortiz's lead is down to 40.");
+    expect(verdictLine(40, null)).toBe("Clean proof. +40.");
+  });
+});
+
+describe("sunnyPrompt", () => {
+  it("offers a plan against the opponent on Matchup, worded by who leads", () => {
+    expect(sunnyPrompt("matchup", matchup(60, 100)).line).toBe("Want a plan to catch Sam Ortiz?");
+    expect(sunnyPrompt("matchup", matchup(100, 60)).line).toBe("Want to stay ahead of Sam Ortiz?");
+  });
+
+  it("asks about a stuck task on Roster", () => {
+    expect(sunnyPrompt("roster", null).cta).toBe("Ask Sunny");
   });
 });
 

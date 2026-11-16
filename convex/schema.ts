@@ -25,7 +25,8 @@ export const slot = v.union(
 /**
  * How a task is proven. "photo" is the default: rows written before the other kinds existed
  * keep working. before_after is two photos of the same place, timelapse a series of stills
- * spread over the task's duration, screenshot an image from the phone's library.
+ * spread over the task's duration, screenshot an image from the phone's library, survey_video a
+ * 5-second clip panning the place that shows the result.
  */
 export const proofType = v.union(
   v.literal("photo"),
@@ -34,6 +35,7 @@ export const proofType = v.union(
   v.literal("before_after"),
   v.literal("timelapse"),
   v.literal("screenshot"),
+  v.literal("survey_video"),
 );
 
 export const place = v.object({
@@ -103,6 +105,9 @@ export default defineSchema({
     // permission prompt is the opt-in, so this only records a player who
     // turned pushes off afterwards.
     pushEnabled: v.optional(v.boolean()),
+    // The Nudges switch in Settings: the scheduled check-in texts and pushes
+    // (convex/checkins.ts). Unset means on; false stops them.
+    nudgesEnabled: v.optional(v.boolean()),
     createdAt: v.optional(v.number()),
   })
     .index("email", ["email"]) // looked up by Convex Auth under this exact name
@@ -264,6 +269,36 @@ export default defineSchema({
     .index("by_league", ["leagueId", "closesAt"]),
 
   // One row per league member who called a locked task too easy (vetoes.ts).
+  // The league group chat: one thread per league, members and Sunny. A Sunny message has no userId.
+  leagueMessages: defineTable({
+    leagueId: v.id("leagues"),
+    userId: v.optional(v.id("users")),
+    text: v.string(),
+    replyToId: v.optional(v.id("leagueMessages")),
+    createdAt: v.number(),
+  }).index("by_league_created", ["leagueId", "createdAt"]),
+
+  leagueMessageReactions: defineTable({
+    messageId: v.id("leagueMessages"),
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+    emoji: v.string(),
+  })
+    .index("by_message", ["messageId"])
+    .index("by_league", ["leagueId"]),
+
+  // Per member: when they last opened the thread (the unread count), and per league whether Sunny is typing.
+  leagueChatReads: defineTable({
+    leagueId: v.id("leagues"),
+    userId: v.id("users"),
+    lastReadAt: v.number(),
+  }).index("by_league_user", ["leagueId", "userId"]),
+
+  leagueChatSunny: defineTable({
+    leagueId: v.id("leagues"),
+    typing: v.boolean(),
+  }).index("by_league", ["leagueId"]),
+
   taskVetoes: defineTable({
     taskId: v.id("tasks"),
     leagueId: v.id("leagues"),

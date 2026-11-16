@@ -19,7 +19,7 @@ import {
   mutation,
   type ActionCtx,
 } from "./_generated/server";
-import { judgeProof } from "./ai";
+import { judgeProof, type ProofMode } from "./ai";
 import { requireUser } from "./lib/auth";
 import { MAX_CLIP_SECONDS, clipSeconds, isClipTooLong } from "./lib/clip";
 import { distanceMeters, isValidLatLng } from "./lib/geo";
@@ -28,6 +28,7 @@ import { verdictReached } from "./lib/notificationContent";
 import {
   decideVerdict,
   locationProblem,
+  checkInVerdict,
   rejectWithoutJudging,
   type ProofRules,
   type Verdict,
@@ -122,7 +123,9 @@ async function runVerification(
   ctx: ActionCtx,
   submission: ProofSubmission,
 ): Promise<Verdict> {
-  const imageIds = timelapseFrames(submission);
+  const { proofType } = await ctx.runQuery(internal.proofs.proofTypeOf, { taskId: submission.taskId });
+  const mode = proofMode(proofType, submission);
+  const imageIds = proofImages(mode, submission);
 
   const {
     userId,
@@ -156,13 +159,23 @@ async function runVerification(
   }
 
   let verdict =
-    (await rejectionBeforeJudging(ctx, submission, rules, imageTypes)) ??
-    antiCheatRejection(task, submission, imageIds, imageHashes, reusedImage);
+    mode === "location" && !task.place
+      ? rejectWithoutJudging("Pin the place for this task first, then check in there.")
+      : ((await rejectionBeforeJudging(ctx, submission, rules, imageTypes)) ??
+        antiCheatRejection(task, mode, submission, imageIds, imageHashes, reusedImage));
+  // At the place is enough for a check-in: the photo is a keepsake, not evidence. A group session
+  // (who came) and a drop's gesture still need the referee to look.
+  if (verdict === null && mode === "location" && rules.location && !groupSession && !gesture) {
+    verdict = checkInVerdict(rules);
+  }
   if (verdict === null) {
-    rules.timelapse = {
-      minutes: Math.round((timelapseSeconds(submission) ?? 0) / 60),
-      frames: imageIds.length,
-    };
+    const seconds = timelapseSeconds(submission) ?? 0;
+    if (mode === "timelapse" || mode === "survey") {
+      rules.footage = {
+        label: mode === "survey" ? `Survey video ${Math.round(seconds)} s` : `Timelapse ${Math.round(seconds / 60)} min`,
+        frames: imageIds.length,
+      };
+    }
     const judgement = await judgeProof({
       taskTitle: task.title,
       slot: task.slot,
@@ -171,9 +184,11 @@ async function runVerification(
       gesture,
       placeName: groupSession ? undefined : rules.location?.placeName,
       groupSession,
+      mode: mode === "location" ? "photo" : mode,
       targetMinutes: targetMinutes(task),
       durationSec: timelapseSeconds(submission),
       frameTimes: submission.frameTimes,
+      today: new Date().toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", weekday: "long", month: "long", day: "numeric" }),
     }).catch((error) => {
       console.error(
         "judgeProof failed:",
@@ -203,8 +218,12 @@ async function runVerification(
   return verdict;
 }
 
-// Every proof is a timelapse (the owner's call): up to 8 stills taken across the task.
+// A timelapse or survey video is up to 8 stills; a plain video clip up to 3.
 const MAX_TIMELAPSE_FRAMES = 8;
+const MAX_VIDEO_FRAMES = 3;
+// A survey video is a few seconds of panning; anything longer is judged as a timelapse.
+const SURVEY_MIN_SECONDS = 3;
+const SURVEY_MAX_SECONDS = 15;
 const MIN_TIMELAPSE_FRAMES = 3;
 // The app captures and submits within seconds; anything older was taken some other time.
 const STALE_CAPTURE_MS = 15 * 60 * 1000;
@@ -213,12 +232,35 @@ const TIMELAPSE_COVERAGE = 0.8;
 const targetMinutes = (task: Doc<"tasks">): number =>
   task.targetMinutes ?? DEFAULT_TARGET_MINUTES;
 
-/** What the model looks at: the timelapse's stills, or the one image sent when there are none. */
-function timelapseFrames(submission: ProofSubmission): Id<"_storage">[] {
+/**
+ * How a proof is judged: by the task's type, except that a photo task (or a survey_video one)
+ * also takes a short survey clip, which the capture screen offers beside the photo.
+ */
+function proofMode(proofType: Doc<"tasks">["proofType"], submission: ProofSubmission): ProofMode | "location" {
+  if (proofType === "photo_location") return "location";
+  if (proofType === "timelapse" || proofType === "before_after" || proofType === "screenshot") return proofType;
+  return isSurvey(submission) ? "survey" : "photo";
+}
+
+/** What the model looks at, by how the proof is judged. */
+function proofImages(mode: ProofMode | "location", submission: ProofSubmission): Id<"_storage">[] {
   const frames = submission.frameStorageIds ?? [];
-  return frames.length > 0
-    ? frames.slice(0, MAX_TIMELAPSE_FRAMES)
-    : [submission.storageId];
+  if (mode === "before_after") {
+    return submission.beforeStorageId ? [submission.beforeStorageId, submission.storageId] : [submission.storageId];
+  }
+  if (mode === "timelapse" || mode === "survey") {
+    return frames.length > 0 ? frames.slice(0, MAX_TIMELAPSE_FRAMES) : [submission.storageId];
+  }
+  return submission.mediaType === "photo" ? [submission.storageId] : frames.slice(0, MAX_VIDEO_FRAMES);
+}
+
+/**
+ * Judged by what was sent, not by the task's type: the capture screen offers both, so a short clip
+ * is a survey video even on a timelapse task.
+ */
+function isSurvey(submission: ProofSubmission): boolean {
+  const seconds = timelapseSeconds(submission);
+  return submission.mediaType === "video" && seconds !== undefined && seconds <= SURVEY_MAX_SECONDS;
 }
 
 /** A timelapse's elapsed seconds: as the app measured it, else from the first and last still's times. */
@@ -236,6 +278,7 @@ function timelapseSeconds(submission: ProofSubmission): number | undefined {
  */
 function antiCheatRejection(
   task: Doc<"tasks">,
+  mode: ProofMode | "location",
   submission: ProofSubmission,
   imageIds: Id<"_storage">[],
   imageHashes: string[],
@@ -256,21 +299,33 @@ function antiCheatRejection(
       ["stale_capture"],
     );
   }
+  if (mode === "before_after" && (!submission.beforeStorageId || submission.beforeStorageId === submission.storageId)) {
+    return rejectWithoutJudging("This task needs a before photo and an after photo.", ["no_change"]);
+  }
+  if (mode !== "timelapse" && mode !== "survey") return null;
+  if (imageIds.length < MIN_TIMELAPSE_FRAMES) {
+    return rejectWithoutJudging(mode === "timelapse" ? "This task needs a timelapse. Record one while you do it." : "That clip is too short to check. Record it again.", ["too_short"]);
+  }
   if (new Set(imageHashes).size < imageHashes.length) {
     return rejectWithoutJudging(
-      "Some of those frames are the same image. Record the timelapse again.",
+      "Some of those frames are the same image. Record it again.",
       ["static_frames"],
     );
   }
   const firstFrame = submission.frameTimes?.[0];
   if (firstFrame !== undefined && firstFrame < task._creationTime) {
     return rejectWithoutJudging(
-      "That timelapse started before this task was on your lineup. Record a new one.",
+      "That was recorded before this task was on your lineup. Record a new one.",
       ["stale_capture"],
     );
   }
-  const target = targetMinutes(task);
   const seconds = timelapseSeconds(submission);
+  if (mode === "survey") {
+    return seconds! < SURVEY_MIN_SECONDS
+      ? rejectWithoutJudging(`That clip is too short. Pan across the place for about 5 seconds.`, ["too_short"])
+      : null;
+  }
+  const target = targetMinutes(task);
   if (seconds === undefined || seconds < target * 60 * TIMELAPSE_COVERAGE) {
     const covered =
       seconds === undefined ? "no time" : `${Math.round(seconds / 60)} minutes`;
@@ -304,11 +359,12 @@ async function rejectionBeforeJudging(
     const problem = locationProblem(rules.location);
     if (problem) return rejectWithoutJudging(problem);
   }
-  if (imageTypes.length < MIN_TIMELAPSE_FRAMES) {
-    // One photo or a clip with no stills, which is everything texted to Keiki.
+  if (imageTypes.length === 0) {
+    // A video that arrived without stills, which is every texted video.
     return rejectWithoutJudging(
-      "Proofs are timelapses now. Record one in the app while you do the task.",
-      ["too_short"],
+      submission.via === "keiki"
+        ? "Videos can't be checked from a text yet. Send a photo instead."
+        : "That video couldn't be read. Record it again, or send a photo instead.",
     );
   }
   if (imageTypes.some((type) => type === null)) {
@@ -364,6 +420,15 @@ type ProofContext = {
   /** One of the images is byte for byte an image from one of the player's earlier proofs. */
   reusedImage: boolean;
 };
+
+/** The task's proof type, which decides which uploads the referee looks at. */
+export const proofTypeOf = internalQuery({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args): Promise<{ proofType: Doc<"tasks">["proofType"] }> => {
+    const task = await ctx.db.get("tasks", args.taskId);
+    return { proofType: task?.proofType ?? "photo" };
+  },
+});
 
 const NOT_OPEN: Record<Exclude<Doc<"tasks">["status"], "open">, string> = {
   verified: "This task is already verified.",

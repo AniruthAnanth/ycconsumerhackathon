@@ -16,10 +16,10 @@ import { systemTabBar } from "@/lib/native/nativeTabs";
 import { colors, easingCurve } from "@/theme";
 
 const TABS = [
-  { key: "index", label: "Roster", href: "/", icon: "home-outline", sf: "person.crop.rectangle.stack", testID: "tab-roster" },
-  { key: "matchup", label: "Matchup", href: "/matchup", icon: "flash-outline", sf: "sportscourt", testID: "tab-matchup" },
-  { key: "feed", label: "Feed", href: "/feed", icon: "image-outline", sf: "bubble.left.and.bubble.right", testID: "tab-feed" },
-  { key: "league", label: "League", href: "/league", icon: "trophy-outline", sf: "trophy", testID: "tab-league" },
+  { key: "index", label: "Roster", href: "/", icon: "home-outline", sf: "person.crop.rectangle.stack", sfSelected: "person.crop.rectangle.stack.fill", testID: "tab-roster" },
+  { key: "matchup", label: "Matchup", href: "/matchup", icon: "flash-outline", sf: "person.2", sfSelected: "person.2.fill", testID: "tab-matchup" },
+  { key: "feed", label: "Feed", href: "/feed", icon: "image-outline", sf: "photo.on.rectangle", sfSelected: "photo.fill.on.rectangle.fill", testID: "tab-feed" },
+  { key: "league", label: "League", href: "/league", icon: "trophy-outline", sf: "trophy", sfSelected: "trophy.fill", testID: "tab-league" },
 ] as const;
 
 /**
@@ -64,6 +64,7 @@ export default function TabsLayout() {
         <Header
           title={membership?.name ?? "Lineup"}
           onTitlePress={() => router.push("/league-switcher")}
+          onSettingsPress={() => router.push("/settings")}
           right={<SunnyButton />}
         />
         {/* The Feed is not week-scoped, so it has no week bar. */}
@@ -79,8 +80,15 @@ export default function TabsLayout() {
         // The system bar: its own liquid glass and selection pill, accent tint only, and it shrinks while a tab scrolls down.
         <NativeTabs tintColor={colors.accent} minimizeBehavior="onScrollDown" screenListeners={{ tabPress: () => haptics.select() }}>
           {TABS.map((tab) => (
-            <NativeTabs.Trigger key={tab.key} name={tab.key} testID={tab.testID} accessibilityLabel={tab.label}>
-              <NativeTabs.Trigger.Icon sf={{ default: tab.sf, selected: `${tab.sf}.fill` }} />
+            <NativeTabs.Trigger
+              key={tab.key}
+              name={tab.key}
+              testID={tab.testID}
+              accessibilityLabel={tab.label}
+              // Paper edge to edge, under the bar and the home indicator too, so a minimized bar leaves no grey gap.
+              contentStyle={{ backgroundColor: colors.background }}
+            >
+              <NativeTabs.Trigger.Icon sf={{ default: tab.sf, selected: tab.sfSelected }} />
               <NativeTabs.Trigger.Label>{tab.label}</NativeTabs.Trigger.Label>
             </NativeTabs.Trigger>
           ))}

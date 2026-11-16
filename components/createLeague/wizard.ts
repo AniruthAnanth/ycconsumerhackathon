@@ -29,7 +29,7 @@ export const MAX_NAME_LENGTH = 40;
 export const MAX_STAKE_USD = 1000;
 
 /** The season the walkthrough recommends; the Season step offers it as one tap. */
-export const RECOMMENDED_SETTINGS: LeagueSettings = { payout: "weekly", seasonWeeks: 8, format: "double_round_robin" };
+export const RECOMMENDED_SETTINGS: LeagueSettings = { payout: "season", seasonWeeks: 8, format: "double_round_robin" };
 
 /** Every step starts with an answer, so Next works from the first screen to the last. */
 export function defaultDraft(playerName: string | undefined): Draft {
@@ -125,10 +125,13 @@ function usd(dollars: number): string {
 /** The fourth stake choice: it opens a field for any other amount. */
 export const CUSTOM_STAKE_CHOICE = { label: "Custom", explanation: `Any whole-dollar buy-in from $1 to ${usd(MAX_STAKE_USD)}.` };
 
-/** Where the money goes, in one sentence; who takes the pot follows the payout the league picked. */
+/**
+ * Where the money goes, in one sentence. Each week the pot splits evenly among everyone tied for the
+ * most slots cleared; winnings stay in league escrow and cash out on the payout the league picked.
+ */
 export function potExplanation(payout: Payout): string {
-  const winner = payout === "season" ? "the season's winner takes it at the end" : "the weekly winner takes it";
-  return `Everyone pays in, the money is held in the league pot, and ${winner}.`;
+  const cashout = payout === "season" ? "at the end of the season" : "after each week";
+  return `Everyone pays in. Each week, whoever clears the most of their week splits the pot, held in escrow until cashout ${cashout}.`;
 }
 
 /** The live example under the stake choices: "6 players × $20 = $120 pot". */
@@ -161,12 +164,12 @@ export const FORMAT_CHOICES: readonly Choice<LeagueFormat>[] = [
 ];
 
 export const PAYOUT_CHOICES: readonly Choice<Payout>[] = [
-  { value: "weekly", label: "Weekly", explanation: "The pot pays out every week, to that week's winner.", example: "Win week 3, get paid after week 3." },
+  { value: "weekly", label: "Weekly", explanation: "Winnings cash out after each week.", example: "Split week 3's pot, cash out after week 3." },
   {
     value: "season",
     label: "End of season",
-    explanation: "The pot is held until the last week, then paid on season totals.",
-    example: "The best total over the whole season takes the pot.",
+    explanation: "Winnings stay in escrow until the last week, then cash out.",
+    example: "Split three weekly pots, cash out all of it when the season ends.",
   },
 ];
 

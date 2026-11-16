@@ -18,7 +18,8 @@ type Week = { endsAt: number; status: "open" | "settled" };
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-const firstName = (name: string) => name.split(" ")[0] || name;
+/** Sunny names a player in full: a first word alone can read as a typo ("zz's 60 up"). */
+const playerName = (name: string) => name;
 
 /** "2 days left", "8h left", "under an hour left": coarse on purpose, Sunny talks like a person. */
 export function timeLeft(ms: number): string {
@@ -34,7 +35,7 @@ export function timeLeft(ms: number): string {
  */
 export function sunnyBrief(matchup: Matchup | null | undefined, week: Week | undefined, now: number): SunnyBrief | null {
   if (!matchup || !week) return null;
-  const opponent = firstName(matchup.opponent.name);
+  const opponent = playerName(matchup.opponent.name);
   const gap = matchup.me.total - matchup.opponent.total;
 
   if (week.status === "settled" || week.endsAt <= now) {
@@ -48,7 +49,7 @@ export function sunnyBrief(matchup: Matchup | null | undefined, week: Week | und
   const left = timeLeft(week.endsAt - now);
   const lead =
     gap < 0
-      ? `${opponent}'s ${formatScore(-gap)} up with ${left}.`
+      ? `${opponent} is ${formatScore(-gap)} ahead with ${left}.`
       : gap > 0
         ? `You're ${formatScore(gap)} up on ${opponent} with ${left}.`
         : `Dead even with ${opponent}, ${left}.`;
@@ -60,10 +61,40 @@ export function sunnyBrief(matchup: Matchup | null | undefined, week: Week | und
   const slot = swing ? SLOT_NAME[swing.slot] : undefined;
   const swingLine = swing && slot ? ` Your ${slot} slot is the swing: ${formatScore(swing.points)} pts.` : " Every slot of yours is played.";
 
-  const chips = [gap < 0 ? `How do I catch ${opponent}?` : `How do I hold off ${opponent}?`];
-  if (slot) chips.push(`Swap my ${slot} task`);
-  chips.push(`Trash talk ${opponent}`);
+  // The line already names the opponent and the slot, so the chips stay short verbs instead of repeating them.
+  const chips = [gap < 0 ? "How do I catch up?" : "How do I hold on?"];
+  if (slot) chips.push("Swap that task");
+  chips.push("Trash talk");
   return { line: lead + swingLine, chips };
+}
+
+/** Sunny's one line on a passed proof: what it earned and where that leaves my matchup. */
+export function verdictLine(points: number, matchup: Matchup | null | undefined): string {
+  const earned = `Clean proof. +${formatScore(points)}`;
+  if (!matchup) return `${earned}.`;
+  const opponent = playerName(matchup.opponent.name);
+  const gap = matchup.me.total - matchup.opponent.total;
+  if (gap > 0) return `${earned}, you're up ${formatScore(gap)} on ${opponent}.`;
+  if (gap < 0) return `${earned}, ${opponent}'s lead is down to ${formatScore(-gap)}.`;
+  return `${earned}, you're level with ${opponent}.`;
+}
+
+export type SunnyPrompt = { line: string; cta: string; question: string };
+
+/**
+ * The slim row between sections that invites a question for Sunny, varied by screen and by the
+ * live matchup so it never repeats what the screen above it already shows.
+ */
+export function sunnyPrompt(screen: "roster" | "matchup", matchup: Matchup | null | undefined): SunnyPrompt {
+  if (screen === "roster") {
+    return { line: "Stuck on a task?", cta: "Ask Sunny", question: "I'm stuck on a task. What's the easiest one to prove today?" };
+  }
+  if (!matchup) return { line: "Want a plan for this week?", cta: "Text Sunny", question: "What's my plan for this week?" };
+  const opponent = playerName(matchup.opponent.name);
+  const behind = matchup.me.total < matchup.opponent.total;
+  return behind
+    ? { line: `Want a plan to catch ${opponent}?`, cta: "Text Sunny", question: `Give me a plan to catch ${opponent}.` }
+    : { line: `Want to stay ahead of ${opponent}?`, cta: "Text Sunny", question: `How do I stay ahead of ${opponent}?` };
 }
 
 /** A tag Sunny may end a reply with to offer one action, rendered as a button under the reply. */

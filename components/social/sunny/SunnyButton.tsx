@@ -1,5 +1,8 @@
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
+
+import { useSunnyHop } from "@/components/motion";
 
 import { colors, MIN_TARGET } from "@/theme";
 
@@ -10,7 +13,7 @@ import { useSunny } from "./useSunny";
 /** The header's way into the chat: Sunny's face, with a dot when Sunny has a line the player hasn't opened. */
 export function SunnyButton() {
   const router = useRouter();
-  const { unread } = useSunny();
+  const { unread, brief } = useSunny();
   return (
     <Pressable
       onPress={() => router.push("/chat")}
@@ -18,14 +21,27 @@ export function SunnyButton() {
       accessibilityRole="button"
       accessibilityLabel={unread ? `Chat with ${SUNNY.name}, new` : `Chat with ${SUNNY.name}`}
     >
-      <View>
-        <SunnyAvatar size={30} />
-        {unread ? <View style={styles.dot} /> : null}
-      </View>
+      {/* Each new unread line mounts a fresh face, which bounces once; once read, Sunny stays still. */}
+      {unread ? (
+        <BouncingFace key={brief?.line} />
+      ) : (
+        <SunnyAvatar size={FACE} face />
+      )}
     </Pressable>
   );
 }
 
+function BouncingFace() {
+  const hop = useSunnyHop(FACE);
+  return (
+    <Animated.View style={hop}>
+      <SunnyAvatar size={FACE} face />
+      <View style={styles.dot} />
+    </Animated.View>
+  );
+}
+
+const FACE = 36;
 const DOT = 10;
 
 const styles = StyleSheet.create({
@@ -37,7 +53,8 @@ const styles = StyleSheet.create({
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
-    backgroundColor: colors.danger,
+    // Green, not red: something new from Sunny is good news, not an error.
+    backgroundColor: colors.accent,
     borderWidth: 2,
     borderColor: colors.background,
   },

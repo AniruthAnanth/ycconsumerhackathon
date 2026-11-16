@@ -26,6 +26,10 @@ describe("formatClock", () => {
 });
 
 describe("taskStatusLine", () => {
+  it("leaves out a proof type it has no label for instead of saying undefined", () => {
+    expect(taskStatusLine({ ...base, proofType: "unknown" as never, status: "open", dueLabel: "Due Sun" })).toBe("Due Sun");
+  });
+
   it("names a timelapse's target length from the task, not a fixed proof word", () => {
     expect(taskStatusLine({ ...base, proofType: "timelapse", targetMinutes: 10, status: "open", dueLabel: "Due Sun" })).toBe(
       "Timelapse · 10 min · Due Sun",
