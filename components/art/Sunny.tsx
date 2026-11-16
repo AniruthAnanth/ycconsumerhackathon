@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -32,6 +32,8 @@ type Props = {
   entrance?: boolean;
   /** React to a tap with a squash, a hop and an ear flick. Leave off inside another pressable. */
   tappable?: boolean;
+  /** Bump this number to make Sunny turn around, as a tap does. */
+  turnSignal?: number;
   /** Delay before the entrance (and a success hop) starts, in ms. */
   delay?: number;
 };
@@ -80,14 +82,16 @@ function Ear({ xml, size, flick, lift, droop, side, origin }: { xml: string; siz
  * as its own reanimated worklet on the UI thread with its own randomly timed steps. Reduce Motion
  * leaves the plain drawing.
  */
-export function Sunny({ size, mood = "idle", entrance = true, tappable = false, delay = 0 }: Props) {
+export function Sunny({ size, mood = "idle", entrance = true, tappable = false, delay = 0, turnSignal = 0 }: Props) {
   const reduceMotion = useReduceMotion();
   const k = size / 400;
 
   const plan = useMemo(
     () => ({
-      shift: wander(Math.random, 9, 1, 1800, 4200),
-      tilt: wander(Math.random, 11, 1, 1400, 3600),
+      shift: wander(Math.random, 9, 1, 1400, 3400),
+      tilt: wander(Math.random, 11, 1, 1100, 3000),
+      bounce: Array.from({ length: 6 }, () => ({ wait: between(Math.random, 2200, 7000), height: between(Math.random, 0.4, 1) })),
+      turns: Array.from({ length: 6 }, () => ({ wait: between(Math.random, 5000, 13000), change: Math.random() < 0.7 })),
       blink: blinkPlan(Math.random, 8),
       leftFlick: flickPlan(Math.random, 6),
       rightFlick: flickPlan(Math.random, 6),
@@ -104,6 +108,10 @@ export function Sunny({ size, mood = "idle", entrance = true, tappable = false, 
   const leftEar = useSharedValue(0);
   const rightEar = useSharedValue(0);
   const hop = useSharedValue(0);
+  const bounce = useSharedValue(0);
+  const turn = useSharedValue(1);
+  const tapFace = useSharedValue(1);
+  const facing = useRef(1);
   const squash = useSharedValue(0);
   const energy = useSharedValue(1);
   const lean = useSharedValue(0);
@@ -117,10 +125,45 @@ export function Sunny({ size, mood = "idle", entrance = true, tappable = false, 
     shift.value = loop(plan.shift, true);
     tilt.value = loop(plan.tilt, true);
     lid.value = blinkLoop(plan.blink);
+    bounce.value = withRepeat(
+      withSequence(
+        ...plan.bounce.map((b) =>
+          withDelay(b.wait, withSequence(withTiming(b.height, { duration: 150, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 6, stiffness: 190, mass: 0.7 }))),
+        ),
+      ),
+      -1,
+      false,
+    );
+    let side = 1;
+    turn.value = withRepeat(
+      withSequence(
+        ...plan.turns.map((t) => {
+          const prev = side;
+          if (t.change) side = -side;
+          return withDelay(
+            t.wait,
+            t.change
+              ? withSequence(withTiming(prev * 0.88, { duration: 140, easing: Easing.out(Easing.quad) }), withSpring(side, { damping: 11, stiffness: 150, mass: 0.9 }))
+              : withTiming(side, { duration: 1 }),
+          );
+        }),
+      ),
+      -1,
+      false,
+    );
     leftEar.value = flickLoop(plan.leftFlick);
     rightEar.value = flickLoop(plan.rightFlick);
-    return () => [intro, breath, shift, tilt, lid, leftEar, rightEar].forEach(cancelAnimation);
-  }, [reduceMotion, entrance, delay, plan, intro, breath, shift, tilt, lid, leftEar, rightEar]);
+    return () => [intro, breath, shift, tilt, lid, leftEar, rightEar, bounce, turn].forEach(cancelAnimation);
+  }, [reduceMotion, entrance, delay, plan, intro, breath, shift, tilt, lid, leftEar, rightEar, bounce, turn]);
+
+  const turnAround = () => {
+    if (reduceMotion) return;
+    facing.current = -facing.current;
+    tapFace.value = withSequence(withTiming(-facing.current * 0.88, { duration: 130, easing: Easing.out(Easing.quad) }), withSpring(facing.current, { damping: 11, stiffness: 150, mass: 0.9 }));
+  };
+  useEffect(() => {
+    if (turnSignal > 0) turnAround();
+  }, [turnSignal]);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -146,17 +189,18 @@ export function Sunny({ size, mood = "idle", entrance = true, tappable = false, 
 
   const rootStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, intro.value * 2),
-    transform: [{ translateY: (1 - intro.value) * size * 0.12 - hop.value * size * 0.18 }, { scale: 0.6 + 0.4 * intro.value }],
+    transform: [{ translateY: (1 - intro.value) * size * 0.12 - (hop.value + bounce.value * 0.5) * size * 0.18 }, { scale: 0.6 + 0.4 * intro.value }],
   }));
 
   const bodyStyle = useAnimatedStyle(() => {
     const b = breath.value * energy.value;
-    const sy = 1 + 0.016 * b - 0.05 * squash.value - 0.02 * droop.value + 0.04 * hop.value;
-    const sx = 1 - 0.007 * b + 0.04 * squash.value - 0.02 * hop.value;
+    const flipDip = 1 - Math.abs(turn.value * tapFace.value);
+    const sy = 1 + 0.03 * b - 0.04 * flipDip - 0.05 * squash.value - 0.02 * droop.value + 0.04 * hop.value;
+    const sx = (1 - 0.012 * b + 0.04 * squash.value - 0.02 * hop.value) * turn.value * tapFace.value;
     return {
       transform: [
-        { translateX: shift.value * size * 0.012 },
-        { rotate: `${shift.value * 1.1 + tilt.value * 1.6 * energy.value + lean.value * 5 + droop.value * 3}deg` },
+        { translateX: shift.value * size * 0.03 },
+        { rotate: `${shift.value * 2.4 + tilt.value * 3.4 * energy.value + lean.value * 5 + droop.value * 3}deg` },
         { scaleX: sx },
         { scaleY: sy },
       ],
@@ -168,6 +212,7 @@ export function Sunny({ size, mood = "idle", entrance = true, tappable = false, 
   const flick = () => {
     if (reduceMotion) return;
     hop.value = withSequence(withTiming(0.5, { duration: 110, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 8, stiffness: 200, mass: 0.8 }));
+    turnAround();
     squash.value = withSequence(withTiming(0.8, { duration: 70 }), withSpring(0, { damping: 6, stiffness: 220, mass: 0.7 }));
     leftEar.value = withSequence(withTiming(-12, { duration: 80 }), withSpring(0, { damping: 5, stiffness: 240, mass: 0.5 }));
     rightEar.value = withSequence(withTiming(12, { duration: 80 }), withSpring(0, { damping: 5, stiffness: 240, mass: 0.5 }));
