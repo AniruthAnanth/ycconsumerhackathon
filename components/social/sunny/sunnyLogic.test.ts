@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Matchup } from "../contract";
-import { parseReply, sunnyBrief, timeLeft } from "./sunnyLogic";
+import { parseReply, sunnyBrief, timeLeft, verdictLine } from "./sunnyLogic";
 
 const HOUR = 60 * 60 * 1000;
 const task = (slot: "body" | "mind" | "chores", points: number, status: "open" | "verified") =>
@@ -44,6 +44,14 @@ describe("sunnyBrief", () => {
   it("rounds time coarsely", () => {
     expect(timeLeft(5 * HOUR)).toBe("5h left");
     expect(timeLeft(10 * 60 * 1000)).toBe("under an hour left");
+  });
+});
+
+describe("verdictLine", () => {
+  it("says what the proof earned and where the matchup stands", () => {
+    expect(verdictLine(40, matchup(175, 100))).toBe("Clean proof. +40, you're up 75 on Sam.");
+    expect(verdictLine(40, matchup(60, 100))).toBe("Clean proof. +40, Sam's lead is down to 40.");
+    expect(verdictLine(40, null)).toBe("Clean proof. +40.");
   });
 });
 
