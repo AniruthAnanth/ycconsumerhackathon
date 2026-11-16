@@ -196,13 +196,14 @@ describe("seasonTable", () => {
     ]);
   });
 
-  it("leaves out a week that is still being played", () => {
+  it("adds a week still being played to points for, and to nothing else", () => {
     const table = seasonTable(
       ["a", "b"],
       [{ week: 1, a: "a", b: "b", scoreA: 10, scoreB: 50, live: true }],
     );
-    expect(table.map((row) => row.wins + row.losses + row.pointsFor)).toEqual([
-      0, 0,
+    expect(table.map((row) => [row.id, row.wins + row.losses + row.ties, row.pointsFor, row.pointsAgainst])).toEqual([
+      ["b", 0, 50, 0],
+      ["a", 0, 10, 0],
     ]);
   });
 

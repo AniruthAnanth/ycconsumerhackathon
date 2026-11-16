@@ -200,7 +200,12 @@ export function seasonTable<Id extends string>(
     rows.set(id, { id, wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0 });
   }
   for (const result of results) {
+    // The week in play adds to points for at once; its win, loss and points against wait for the result.
     if (result.live === true) {
+      for (const [id, scored] of [[result.a, result.scoreA], [result.b, result.scoreB]] as const) {
+        const row = rows.get(id);
+        if (row !== undefined) row.pointsFor += scored;
+      }
       continue;
     }
     const winner = winnerOf(result);

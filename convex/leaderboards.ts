@@ -39,6 +39,7 @@ import { NO_STATS, tallyWeek, totalStats, type ScoreStats, type WeekFacts, type 
 import { entrantsOver } from "./whop";
 import { syncRanks, type Metric } from "./boardRanks";
 import { recruiterTally } from "./referrals";
+import { leagueStandings } from "./standings";
 
 type UserId = Id<"users">;
 /** The reads below work the same from a query and from a mutation. */
@@ -228,10 +229,7 @@ export const board = query({
     const open = args.board === "global" || args.board === "globalAllTime";
     const allowed = league !== null && (open || league.members.some((member) => member.userId === me._id));
     const entries = allowed ? await entriesFor(ctx, league, args.board, args.at) : [];
-    // The League tab's table numbers level players straight through (6, 7, 8, by name). This Week
-    // is that table, and the strip above it quotes its place, so it numbers them the same way.
-    const splitTies = args.board === "week";
-    return { board: args.board, title, valueHeader, ...rankBoard(entries, format, me._id, { splitTies }) };
+    return { board: args.board, title, valueHeader, ...rankBoard(entries, format, me._id) };
   },
 });
 
@@ -298,9 +296,15 @@ async function rankedEntries(ctx: ReadCtx, league: League, spec: StatBoard): Pro
   return entries;
 }
 
-async function statEntries(ctx: ReadCtx, league: League, spec: StatBoard): Promise<Entry<UserId>[]> {
+async function statEntries(ctx: QueryCtx, league: League, spec: StatBoard): Promise<Entry<UserId>[]> {
   const from = { week: league.current!.startsAt, season: seasonStart(league), allTime: FIRST_WEEK }[spec.span];
   const weeks = await history(ctx, league, from);
+  // This Week is the League table, so its tie-break is the table's: slots cleared, then the
+  // streak the table shows (the current one, where the stats hold the longest).
+  const streaks =
+    spec.span === "week"
+      ? new Map((await leagueStandings(ctx, league.doc._id)).map((standing) => [standing.userId, standing.streak]))
+      : null;
   const entries: Entry<UserId>[] = [];
   for (const member of league.members) {
     const views = weeks.get(member.userId) ?? [];
@@ -313,8 +317,8 @@ async function statEntries(ctx: ReadCtx, league: League, spec: StatBoard): Promi
       ...identity(member),
       value,
       previous: spec.value(yesterday) ?? null,
-      // As in the standings table: level players are split by slots cleared.
-      tiebreak: now.slotsCleared,
+      // As in the standings table: level players are split by slots cleared, then streak.
+      tiebreak: now.slotsCleared * 1000 + (streaks?.get(member.userId) ?? 0),
       ...(detail ? { detail } : {}),
     });
   }

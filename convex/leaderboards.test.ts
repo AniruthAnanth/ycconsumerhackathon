@@ -130,7 +130,7 @@ describe("leaderboards.board", () => {
     expect(await as("Leo").query(api.leaderboards.projection, { leagueId, at: NOW })).toMatchObject({ label: "Lost $20.00" });
   });
 
-  test("This Week numbers level players as the standings table does, and an unpaid member is told to pay", async () => {
+  test("This Week shares a place between level players, as the standings table does, and an unpaid member is told to pay", async () => {
     const { t, leagueId } = await seededLeague();
     const newcomers = await t.run(async (ctx) => {
       const ids: Id<"users">[] = [];
@@ -144,12 +144,12 @@ describe("leaderboards.board", () => {
     const viewer = t.withIdentity({ subject: `${newcomers[0]}|session` });
     const table = await viewer.query(api.standings.table, { leagueId });
     const { rows } = await viewer.query(api.leaderboards.board, { leagueId, board: "week" });
-    // Leo and the two newcomers are level on nothing: 6, 7, 8 by name, in both places.
+    // Leo and the two newcomers are level on nothing, so they share 6th in both places.
     expect(rows.map((row) => [row.rank, row.name])).toEqual(table.map((row) => [row.rank, row.name]));
     expect(rows.slice(5).map((row) => [row.rank, row.name])).toEqual([
       [6, "Abe Zero"],
-      [7, "Leo Martinez"],
-      [8, "Zed Zero"],
+      [6, "Leo Martinez"],
+      [6, "Zed Zero"],
     ]);
 
     const projection = await viewer.query(api.leaderboards.projection, { leagueId, at: NOW });

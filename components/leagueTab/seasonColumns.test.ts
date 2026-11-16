@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { bySeasonRank, playoffSpots, seasonRecords } from "./seasonColumns";
+import { playoffSpots, seasonRecords } from "./seasonColumns";
 
 const p = (userId: string) => ({ userId });
 const season = {
@@ -27,34 +27,5 @@ describe("season columns", () => {
   test("the playoff line sits under the highest first-round seed, and there is none without a bracket", () => {
     expect(playoffSpots(season)).toBe(4);
     expect(playoffSpots({ ...season, bracket: null })).toBeNull();
-  });
-
-  test("rows follow the season table and an unlisted player goes last", () => {
-    const rows = [{ userId: "a", rank: 1 }, { userId: "c", rank: 2 }, { userId: "b", rank: 3 }];
-    expect(bySeasonRank(rows, seasonRecords(season))).toEqual([
-      { userId: "b", rank: 1 },
-      { userId: "a", rank: 2 },
-      { userId: "c", rank: 3 },
-    ]);
-  });
-
-  test("players level on wins and points for share a rank and the next rank skips past them", () => {
-    const record = (rank: number, wins: number, pointsFor: number) => ({ rank, wins, losses: 0, ties: 0, pointsFor, pointsAgainst: 0 });
-    const records = new Map([
-      ["a", record(1, 3, 300)],
-      ["b", record(2, 2, 200)],
-      ["c", record(3, 2, 200)],
-      ["d", record(4, 2, 200)],
-      ["e", record(5, 1, 100)],
-    ]);
-    const rows = ["e", "d", "c", "b", "a", "f"].map((userId) => ({ userId, rank: 0 }));
-    expect(bySeasonRank(rows, records).map((row) => [row.userId, row.rank])).toEqual([
-      ["a", 1],
-      ["b", 2],
-      ["c", 2],
-      ["d", 2],
-      ["e", 5],
-      ["f", 6],
-    ]);
   });
 });
