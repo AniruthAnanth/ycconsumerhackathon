@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet } from "react-native";
 
 import { socialApi } from "@/components/social/contract";
 import { MatchupBody } from "@/components/social/matchup/MatchupBody";
-import { Button } from "@/components/ui";
+import { Button, useTabBarInset } from "@/components/ui";
 import { SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { Versus } from "./api";
@@ -20,12 +20,13 @@ export function VersusMatchup({ versus }: { versus: Versus }) {
     leagueId: versus.leagueId,
   });
   const router = useRouter();
+  const bottomInset = useTabBarInset();
   // A friend who just accepted has no lineup yet; drafting is the one thing left to do.
   const needsDraft =
     versus.status !== "settled" &&
     (matchup?.rows.every((row) => row.mine === undefined) ?? false);
   return (
-    <ScrollView>
+    <ScrollView contentContainerStyle={{ paddingBottom: bottomInset }} scrollIndicatorInsets={{ bottom: bottomInset }}>
       <VersusPot versus={versus} />
       {matchup ? (
         <>

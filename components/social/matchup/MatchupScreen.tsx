@@ -33,7 +33,7 @@ export default function MatchupScreen() {
     return (
       <>
         <ScreenState message="No matchup this week" />
-        <View style={styles.invite}>
+        <View style={[styles.invite, { paddingBottom: bottomInset }]}>
           <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
         </View>
       </>
@@ -49,8 +49,8 @@ export default function MatchupScreen() {
       />
       <ChallengeButton />
       <View style={styles.invite}>
-          <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
-        </View>
+        <InviteButton leagueId={leagueId} label="Invite a friend" variant="outlined" />
+      </View>
     </ScrollView>
   );
 }
