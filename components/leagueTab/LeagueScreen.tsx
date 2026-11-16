@@ -3,7 +3,7 @@ import { useQuery } from "convex/react";
 import { useMemo, type ReactNode } from "react";
 
 import { SeasonLink } from "@/components/league/SeasonLink";
-import { LeaderboardsStrip } from "@/components/leaderboards";
+import { LeaderboardsStrip, placeText, tiedRanks } from "@/components/leaderboards";
 import { LeagueDetails } from "@/components/leagueTab/LeagueDetails";
 import { LeagueInfo } from "@/components/leagueTab/LeagueInfo";
 import { PayoutRows } from "@/components/leagueTab/PayoutRows";
@@ -50,6 +50,10 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
   // The season is waited for too, so the table first draws in season order instead of re-sorting.
   if (!leagueId || !pot || !seasonTable || !league || !me) return <Screen edges={[]}>{null}</Screen>;
 
+  // YOUR RANK reads the same rows as the table, so the two can never disagree.
+  const mine = seasonTable.find((row) => row.userId === me._id);
+  const place = mine ? placeText(mine.rank, tiedRanks(seasonTable).has(mine.rank)) : undefined;
+
   return (
     <Screen edges={[]} scroll bottomInset={bottomInset}>
       {owesBuyIn ? <PayBanner leagueId={leagueId} stakeUsd={membership.stakeUsd} /> : null}
@@ -68,7 +72,7 @@ export function LeagueScreen({ escrow, aboveStandings = null }: Props = {}) {
         <SeasonLink leagueId={leagueId} />
         <NotificationSettings />
         {aboveStandings}
-        <LeaderboardsStrip leagueId={leagueId} />
+        <LeaderboardsStrip leagueId={leagueId} place={place} />
       </LeagueInfo>
     </Screen>
   );

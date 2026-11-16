@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { rankText, tiedRanks } from "@/components/leaderboards";
 import { LiveRow } from "@/components/live/LiveRow";
 import { rankChanges, ranksOf } from "@/components/live/rankChanges";
 import { CountUp, Entrance, PressScale } from "@/components/motion";
@@ -56,6 +57,8 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
     if (live.current.moved > 0) haptics.tap();
   }, [rows]);
 
+  const tied = tiedRanks(rows);
+
   return (
     <View>
       <View style={styles.header}>
@@ -69,7 +72,7 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
       {rows.map((row, index) => {
         const moved = rankMovement(baseline.current, row);
         const record = records?.get(row.userId);
-        const cutline = playoffSpots !== null && row.rank === playoffSpots && index < rows.length - 1;
+        const cutline = playoffSpots !== null && index + 1 === playoffSpots && index < rows.length - 1;
         return (
           // Keyed by player so a rank change slides the row to its new place instead of re-drawing it.
           <LiveRow key={row.userId} flash={live.current.flash[row.userId] ?? 0}>
@@ -78,10 +81,10 @@ export function StandingsTable({ rows, viewerId, records, playoffSpots = null, o
                 style={[styles.row, row.userId === viewerId && styles.viewer]}
                 onPress={() => onPressPlayer(row.userId)}
                 accessibilityRole="button"
-                accessibilityLabel={`Rank ${row.rank}, ${row.name}${row.paid ? "" : ", unpaid"}, ${row.slotsCleared} of 5 slots, ${formatScore(row.points)} points, streak ${row.streak}`}
+                accessibilityLabel={`Rank ${rankText(row.rank, tied.has(row.rank))}, ${row.name}${row.paid ? "" : ", unpaid"}, ${row.slotsCleared} of 5 slots, ${formatScore(row.points)} points, streak ${row.streak}`}
               >
                 <View style={[styles.rankCell, { width: COL.rank }]}>
-                  <Text style={styles.rank}>{row.rank}</Text>
+                  <Text style={styles.rank}>{rankText(row.rank, tied.has(row.rank))}</Text>
                   {moved === 0 ? null : (
                     <Text style={[styles.move, { color: moved > 0 ? colors.accent : colors.danger }]}>
                       {`${moved > 0 ? "▲" : "▼"}${Math.abs(moved)}`}

@@ -11,10 +11,14 @@ import { colors, font, fontFamily, hairline, layout, money, SCREEN_MARGIN } from
 import { isProjectedGain, placeLabel } from "./format";
 import { useProjection } from "./useProjection";
 
-/** One row for the League and Roster screens: where you stand this week, what you are projected to win, and a way in to the boards. */
-export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null }) {
+/**
+ * One row for the League and Roster screens: where you stand, what you are projected to win, and a
+ * way in to the boards. A screen that shows a standings table passes its own place, so the strip
+ * repeats the table's rank instead of the week board's.
+ */
+export function LeaderboardsStrip({ leagueId, place: given }: { leagueId: Id<"leagues"> | null; place?: string }) {
   const router = useRouter();
-  const week = useQuery(api.leaderboards.board, leagueId ? { leagueId, board: "week" } : "skip");
+  const week = useQuery(api.leaderboards.board, leagueId && given === undefined ? { leagueId, board: "week" } : "skip");
   const projection = useProjection(leagueId);
   // A weekly pot shows the Matchup card's own figure, so the two can never disagree; a season
   // payout or a settled week keeps the leaderboards projection, which knows about both.
@@ -24,7 +28,7 @@ export function LeaderboardsStrip({ leagueId }: { leagueId: Id<"leagues"> | null
   // above already says; repeated here it squeezed the rank into a narrow column.
   if (!leagueId) return null;
 
-  const place = week ? placeLabel(week.rows) : undefined;
+  const place = given ?? (week ? placeLabel(week.rows) : undefined);
   return (
     <Pressable style={styles.strip} onPress={() => router.push("/leaderboards")} accessibilityRole="button" accessibilityLabel="Open leaderboards">
       {/* Without a label the place read as a stray "1st" at the top of the League tab. */}
