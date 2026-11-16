@@ -10,10 +10,10 @@ const SHEET_DETENTS = [0.5, 1];
  * with the same grabber and corner radius, so task row → task sheet → capture
  * reads as one flow. app/_layout.tsx passes this to each sheet route.
  */
-export function sheetOptions() {
+export function sheetOptions(detents: number[] | "fitToContents" = SHEET_DETENTS) {
   return {
     presentation: "formSheet" as const,
-    sheetAllowedDetents: SHEET_DETENTS,
+    sheetAllowedDetents: detents,
     sheetGrabberVisible: true,
     sheetCornerRadius: radius.card,
   };
