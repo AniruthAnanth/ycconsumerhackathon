@@ -16,7 +16,7 @@ import { backend } from "@/lib/backend";
 import { formatUsd } from "@/lib/leagueText";
 import { SHEET_MS } from "@/lib/native/motion";
 import { shouldDismiss } from "@/lib/native/swipeDismiss";
-import { colors, duration, font, fontFamily, MIN_TARGET, radius, SCREEN_MARGIN, spacing, spring } from "@/theme";
+import { colors, duration, font, fontFamily, MIN_TARGET, money, radius, SCREEN_MARGIN, spacing, spring } from "@/theme";
 
 import { CheckoutFrame } from "./CheckoutFrame";
 
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   label: { fontFamily: fontFamily.bold, fontSize: font.label, color: colors.textMuted, letterSpacing: 0.6 },
   leagueName: { fontFamily: fontFamily.bold, fontSize: font.score, color: colors.text },
   muted: { fontFamily: fontFamily.regular, fontSize: font.meta, color: colors.textMuted },
-  amount: { fontFamily: fontFamily.extraBold, fontSize: font.total, color: colors.text, fontVariant: ["tabular-nums"] },
+  amount: { fontFamily: fontFamily.extraBold, fontSize: font.total, color: money.text, fontVariant: ["tabular-nums"] },
   form: { flex: 1, marginTop: spacing.md },
   loading: {
     position: "absolute",

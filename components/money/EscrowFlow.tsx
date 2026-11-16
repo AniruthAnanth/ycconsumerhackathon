@@ -7,7 +7,7 @@ import { CountUp, useReduceMotion } from "@/components/motion";
 import { Avatar } from "@/components/ui";
 import type { EscrowMember, EscrowPayout } from "@/lib/escrow";
 import { formatUsd } from "@/lib/leagueText";
-import { colors, font, fontFamily, radius, spacing } from "@/theme";
+import { colors, font, fontFamily, money, radius, spacing } from "@/theme";
 
 import { escrowLayout } from "./escrowLayout";
 import { DROP_SHARE } from "./escrowTimeline";
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: colors.accent,
   },
-  potLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: colors.lime, letterSpacing: 0.6 },
+  potLabel: { fontSize: font.label, fontFamily: fontFamily.bold, color: money.tint, letterSpacing: 0.6 },
   potTotal: { fontFamily: fontFamily.extraBold, color: colors.onAccent, fontVariant: ["tabular-nums"] },
   potTotalFull: { fontSize: font.pot, lineHeight: font.pot + 4 },
   potTotalSmall: { fontSize: font.total, lineHeight: font.total + 4 },
@@ -173,5 +173,5 @@ const styles = StyleSheet.create({
   },
   payoutCompact: { paddingVertical: spacing.sm },
   payoutLabel: { fontFamily: fontFamily.semiBold, fontSize: font.body, color: colors.text },
-  payoutAmount: { fontFamily: fontFamily.extraBold, fontSize: font.score, color: colors.accent, fontVariant: ["tabular-nums"] },
+  payoutAmount: { fontFamily: fontFamily.extraBold, fontSize: font.score, color: money.text, fontVariant: ["tabular-nums"] },
 });
