@@ -4,10 +4,10 @@ import { StyleSheet, View } from "react-native";
 import { TextField } from "@/components/ui";
 import { spacing } from "@/theme";
 
-type Props = { busy: boolean; onSend: (instruction: string) => Promise<boolean>; onFocus: () => void };
+type Props = { busy: boolean; onSend: (instruction: string) => Promise<boolean> };
 
 /** One line under the drafted lineup: type a change, press send, and the lineup is redrafted with it. As often as wanted before Lock. */
-export function RefineField({ busy, onSend, onFocus }: Props) {
+export function RefineField({ busy, onSend }: Props) {
   const [instruction, setInstruction] = useState("");
   const send = async () => {
     if (await onSend(instruction)) setInstruction("");
@@ -22,7 +22,6 @@ export function RefineField({ busy, onSend, onFocus }: Props) {
         returnKeyType="send"
         submitBehavior="submit"
         onSubmitEditing={() => void send()}
-        onFocus={onFocus}
         editable={!busy}
         testID="draft-refine"
       />
@@ -31,5 +30,5 @@ export function RefineField({ busy, onSend, onFocus }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingTop: spacing.lg },
+  container: { paddingBottom: spacing.xs },
 });
