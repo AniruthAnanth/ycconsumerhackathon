@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["convex/**/*.test.ts", "lib/**/*.test.ts", "components/**/*.test.ts"],
+    include: ["convex/**/*.test.ts", "lib/**/*.test.ts", "components/**/*.test.ts", "tests/**/*.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
     // The aggregate component ships its test registration as TypeScript source.
     server: { deps: { inline: ["@convex-dev/aggregate"] } },
