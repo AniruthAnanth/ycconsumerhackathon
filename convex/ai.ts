@@ -162,7 +162,7 @@ The roster has five slots, and a lineup needs exactly one task in each:
 - recharge: destress (read for 30 minutes, a long walk)
 - chores: life admin (laundry, clean the room)
 - people: connection (call mom, dinner with a friend)
-Anything more the player mentioned goes in the "flex" slot, at most three flex tasks. So a lineup has 5 to 8 tasks.
+A lineup may also hold one "flex" task: a bonus, only when the player named something beyond the five slots (a second gym day, a side project). Never invent a flex task, never repeat a slot task as one, and never more than one. So a lineup has 5 or 6 tasks.
 
 Rules:
 - First decide whether the player named at least one thing they mean to do this week. A greeting, small talk, a question, a mic test or a remark about their mood is not a plan: return an empty tasks list, whatever the notes say.
