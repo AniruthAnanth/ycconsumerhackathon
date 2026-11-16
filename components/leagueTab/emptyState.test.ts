@@ -15,12 +15,12 @@ describe("potEmptyText", () => {
 });
 
 describe("slotsText", () => {
-  it("asks for a lineup when nothing is cleared and no points", () => {
+  it("counts from zero before anything is cleared", () => {
     expect(slotsText({ slotsCleared: 0, paid: true })).toBe("0 of 5 slots");
   });
   it("shows the count once played", () => {
     expect(slotsText({ slotsCleared: 2, paid: true })).toBe("2 of 5 slots");
-      });
+  });
   it("keeps Unpaid", () => {
     expect(slotsText({ slotsCleared: 0, paid: false })).toBe("Unpaid");
   });
