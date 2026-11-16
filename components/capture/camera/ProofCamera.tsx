@@ -5,6 +5,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CoachTarget } from "@/components/coach";
 import { useSwipeDownToClose } from "@/components/motion/useSwipeDownToClose";
 import { confirmAction } from "@/components/social/notify";
 import { useDevFlags } from "@/lib/devFlags";
@@ -111,16 +112,18 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
             </Pressable>
           ) : null}
           {screen.live ? (
-            <ShutterBar
-              modes={modes}
-              mode={mode}
-              recording={capture.recording}
-              counter={counter}
-              busy={capture.busy}
-              onModeChange={setMode}
-              onShutter={() => void shutter()}
-              onFlip={() => setFacing(facing === "back" ? "front" : "back")}
-            />
+            <CoachTarget id="shutter">
+              <ShutterBar
+                modes={modes}
+                mode={mode}
+                recording={capture.recording}
+                counter={counter}
+                busy={capture.busy}
+                onModeChange={setMode}
+                onShutter={() => void shutter()}
+                onFlip={() => setFacing(facing === "back" ? "front" : "back")}
+              />
+            </CoachTarget>
           ) : null}
           {screen.samplesOnly ? <Text style={styles.hint}>Tap a photo to submit</Text> : null}
           {screen.samples ? <SampleTray disabled={capture.busy} onPick={capture.submitSample} bottomInset={insets.bottom} /> : null}

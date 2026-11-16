@@ -3,12 +3,15 @@
  * label. Each one calls the same backend function a real week would reach on its own schedule,
  * so what the audience sees is the product, only on demand.
  */
+import { useAuthActions } from "@convex-dev/auth/react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { useRef } from "react";
 import { ScrollView } from "react-native";
 
 import { capture } from "@/components/capture/backend";
+import { resetCoachMarks } from "@/components/coach";
 import { Header, Screen, SectionLabel } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { backend } from "@/lib/backend";
@@ -31,6 +34,7 @@ const PHONE_GPS: PhoneGps = {
 
 export function DemoControls() {
   const router = useRouter();
+  const { signOut } = useAuthActions();
   const { leagueId } = useCurrentLeague();
   const me = useQuery(backend.users.me);
   const players = useQuery(capture.seed.players);
@@ -111,8 +115,26 @@ export function DemoControls() {
         ))}
 
         <SectionLabel left="ONBOARDING" />
-        {/* The intro, then the sign-up and join steps, without signing out or changing this account. */}
-        <ActionRow label="Replay onboarding" run={async () => router.push({ pathname: "/how-it-works", params: { source: "replay" } })} />
+        {/* The intro, then the sign-up and join steps, without signing out or changing this account. The first-run tips show again too. */}
+        <ActionRow
+          label="Replay onboarding"
+          run={async () => {
+            await resetCoachMarks();
+            router.push({ pathname: "/how-it-works", params: { source: "replay" } });
+          }}
+        />
+        {/* A brand-new player on this phone: signing out drops the anonymous account, AuthGate signs in a fresh
+            one, and the tabs send a player with no name to the How Lineup works intro. Local storage goes too,
+            so every tip shows again. The old account stays in its leagues. */}
+        <ActionRow
+          label="Reset my account (demo)"
+          run={async () => {
+            await signOut();
+            await AsyncStorage.clear();
+            if (router.canDismiss()) router.dismissAll();
+            router.replace("/how-it-works");
+          }}
+        />
 
         <SectionLabel left="DEVELOPMENT" />
         <FlagRow label="Sample media" value={flags.sampleMedia} onChange={(on) => setDevFlag("sampleMedia", on)} />
