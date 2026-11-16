@@ -16,6 +16,7 @@ import {
   DECREE_INSTRUCTIONS,
   DECREE_SCHEMA,
   decreePrompt,
+  epithetOrFallback,
   statsHash,
   type DecreeStats,
 } from "./lib/decree";
@@ -225,7 +226,7 @@ export const generate = action({
       schema: DECREE_SCHEMA,
     });
     const text = cleanDecreeText(answer.proclamation);
-    const epithet = cleanDecreeText(answer.epithet);
+    const epithet = epithetOrFallback(cleanDecreeText(answer.epithet), stats.name);
     await ctx.runMutation(saveRef, { userId, statsHash: hash, text, epithet });
     return { text, epithet };
   },

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Swipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import Animated, { interpolate, useAnimatedStyle, type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { socialApi, type ChatPost, type LeagueMessageId } from "@/components/social/contract";
@@ -74,6 +75,7 @@ export function GroupChat() {
 
   const startReply = (post: ChatPost) => {
     haptics.select();
+    setPicking(null);
     setReplyTo({ _id: post._id, authorName: authorName(post), text: parseReply(post.text).text });
   };
 
@@ -161,7 +163,7 @@ const PostRow = memo(function PostRow({
     <Pressable
       onLongPress={onLongPress}
       delayLongPress={300}
-      accessibilityHint="Long press to react, swipe right to reply"
+      accessibilityHint="Long press to react or reply, swipe right to reply"
       style={[styles.bubble, post.mine ? styles.mine : sunny ? styles.sunny : styles.member]}
     >
       {post.replyTo ? (
@@ -185,11 +187,7 @@ const PostRow = memo(function PostRow({
       friction={2}
       leftThreshold={REPLY_SWIPE}
       overshootLeft={false}
-      renderLeftActions={() => (
-        <View style={styles.swipeAction}>
-          <Icon name="arrow-undo" size={20} color={colors.textMuted} />
-        </View>
-      )}
+      renderLeftActions={(progress) => <ReplyHint progress={progress} />}
       onSwipeableWillOpen={() => {
         onReply(post);
         swipeable.current?.close();
@@ -210,6 +208,9 @@ const PostRow = memo(function PostRow({
                     <Text style={styles.pickerText}>{emoji}</Text>
                   </Pressable>
                 ))}
+                <Pressable accessibilityRole="button" accessibilityLabel="Reply" onPress={() => onReply(post)} style={styles.pickerEmoji}>
+                  <Icon name="arrow-undo" size={20} color={colors.textMuted} />
+                </Pressable>
               </View>
           ) : null}
           {bubble}
@@ -241,6 +242,16 @@ const PostRow = memo(function PostRow({
     </Swipeable>
   );
 });
+
+/** The reply arrow behind a row: invisible at rest, fading in only as the row is dragged right. */
+function ReplyHint({ progress }: { progress: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({ opacity: interpolate(progress.value, [0, 1], [0, 1]) }));
+  return (
+    <Animated.View style={[styles.swipeAction, style]}>
+      <Icon name="arrow-undo" size={20} color={colors.textMuted} />
+    </Animated.View>
+  );
+}
 
 const styles = StyleSheet.create({
   body: { flex: 1 },

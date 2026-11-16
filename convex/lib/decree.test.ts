@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cleanDecreeText, statsHash, unmentionedStats, type DecreeStats } from "./decree";
+import { cleanDecreeText, decreeFacts, decreePrompt, epithetOrFallback, statsHash, unmentionedStats, type DecreeStats } from "./decree";
 
 const stats: DecreeStats = {
   name: "Aniruth",
@@ -24,6 +24,57 @@ describe("statsHash", () => {
     expect(statsHash({ ...stats })).toBe(statsHash(stats));
     expect(statsHash({ ...stats, proofsVerified: 28 })).not.toBe(statsHash(stats));
     expect(statsHash({ ...stats, rank: null })).not.toBe(statsHash(stats));
+  });
+});
+
+const rookie: DecreeStats = {
+  ...stats,
+  seasonPoints: 0,
+  wins: 0,
+  losses: 0,
+  streakDays: 1,
+  bestSlot: null,
+  weakestSlot: null,
+  proofsVerified: 1,
+  vetoesCast: 0,
+  vetoesSuffered: 0,
+  escrowUsd: 0,
+  leagues: 1,
+  rank: 1,
+  rankOf: 1,
+};
+
+describe("decreeFacts", () => {
+  it("phrases and pluralizes every stat that has something to say", () => {
+    expect(decreeFacts(stats)).toEqual([
+      "412 season points",
+      "a head to head record of 5 wins and 3 losses",
+      "a streak of 4 days",
+      "strongest at body tasks",
+      "weakest at chores tasks",
+      "27 proofs verified",
+      "2 vetoes cast on rivals",
+      "1 veto suffered",
+      "$12.50 up in escrow",
+      "playing in 2 leagues",
+      "ranked 3rd of 8",
+    ]);
+  });
+
+  it("uses the singular for one and leaves out zero or meaningless stats", () => {
+    expect(decreeFacts(rookie)).toEqual(["a streak of 1 day", "1 proof verified"]);
+    expect(decreePrompt(rookie)).not.toMatch(/league|1 days|\b0\b/);
+  });
+
+  it("gives the herald something to work with when there is nothing yet", () => {
+    expect(decreePrompt({ ...rookie, streakDays: 0, proofsVerified: 0 })).toContain("brand new");
+  });
+});
+
+describe("epithetOrFallback", () => {
+  it("keeps the model's epithet and fills a blank one", () => {
+    expect(epithetOrFallback("Sir Vee the Unvetoed", "Vee Alpha")).toBe("Sir Vee the Unvetoed");
+    expect(epithetOrFallback("  ", "Vee Alpha")).toBe("Sir Vee the Yet Undecreed");
   });
 });
 
@@ -57,6 +108,10 @@ describe("unmentionedStats", () => {
       { label: "Vetoes", value: "2 cast, 1 taken" },
       { label: "Leagues", value: "2" },
     ]);
+  });
+
+  it("leaves zero or meaningless stats out of the footer", () => {
+    expect(unmentionedStats("Hear ye.", rookie).map((s) => s.label)).toEqual(["Streak", "Proofs"]);
   });
 
   it("counts a missing slot as nothing to report", () => {
