@@ -66,6 +66,8 @@ export const colors = {
   glassEdge: "rgba(23, 43, 35, 0.08)",
   /** The selected tab's pill: a faint wash of the green accent. */
   glassPill: "rgba(21, 92, 64, 0.12)",
+  /** The band of light that sweeps a row when the perfect week lands: a wash of the lime highlight. */
+  shimmer: "rgba(216, 242, 154, 0.6)",
 } as const;
 
 /** The 4-point grid. Every padding, margin and gap comes from here or from layout below. */

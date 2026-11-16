@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { PressHighlight, PressRow } from "@/components/motion";
+import Animated from "react-native-reanimated";
+
+import { DonePoints, PressHighlight, PressRow, ShimmerSweep, StrikeThrough, useDoneDim, useDoneMoment } from "@/components/motion";
 import { haptics } from "@/lib/native/haptics";
 
 import { formatScore, taskPlaceLine, taskRowLabel, taskRowLine, type TaskRowData } from "@/lib/taskText";
-import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, spacing, TASK_TEXT_INSET, tabular } from "@/theme";
+import { colors, font, fontFamily, layout, ROW_HEIGHT, SCREEN_MARGIN, slotTint, spacing, TASK_TEXT_INSET, tabular } from "@/theme";
 
 import { PositionPill } from "./PositionPill";
 import { RowDivider } from "./Divider";
@@ -20,14 +22,20 @@ type Props = {
   right?: ReactNode;
   /** Lines the title may use; defaults to 2 when highlighted, else 1. */
   titleLines?: number;
+  /** All five starter slots are done, so this row turning done finishes the perfect week. */
+  perfectWeek?: boolean;
 };
 
 /**
  * One task as an ESPN player row: position pill, thumbnail, three lines of
  * text and the score. Roster and the task sheet both draw tasks with it.
+ * A done task is struck through and muted with a check and +points, and stays tappable so its
+ * proof can be opened; it plays the done sequence when it turns done on screen.
  */
-export function TaskRow({ task, highlighted = false, onPress, right, titleLines }: Props) {
+export function TaskRow({ task, highlighted = false, onPress, right, titleLines, perfectWeek = false }: Props) {
   const [pressed, setPressed] = useState(false);
+  const { done, animate } = useDoneMoment(task.status, { id: task.taskId, perfect: perfectWeek });
+  const dim = useDoneDim(done, animate);
   const place = taskPlaceLine(task);
   const label = taskRowLabel(task, highlighted);
   // A control in `right` takes the score column, so an unscored row carries its points in the subtitle instead.
@@ -36,23 +44,29 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
   const lead = (
     <>
       {/* The pill is the row's one slot cue: no slot icon and no slot name in the line under the title. */}
-      <PositionPill slot={task.slot} />
+      <Animated.View style={dim}>
+        <PositionPill slot={task.slot} />
+      </Animated.View>
       <View style={styles.text}>
         {/* Up Next shares its row with a button, so its tag sits above the title and the title may wrap: beside the title, the two left a narrow phone one letter of it. */}
         {highlighted ? <Text style={[styles.tag, styles.tagUpNext]}>UP NEXT</Text> : null}
-        <Text style={styles.title} numberOfLines={titleLines ?? 2}>
+        <StrikeThrough style={styles.title} numberOfLines={titleLines ?? 2} done={done} animate={animate}>
           {task.title}
-        </Text>
+        </StrikeThrough>
         {/* No empty meta line: it pushed a one-line title above the row's centre. */}
-        {line ? (
-          <Text style={styles.meta} numberOfLines={2}>
-            {line}
-          </Text>
-        ) : null}
-        {place ? (
-          <Text style={styles.meta} numberOfLines={2}>
-            {place}
-          </Text>
+        {line || place ? (
+          <Animated.View style={[styles.lines, dim]}>
+            {line ? (
+              <Text style={styles.meta} numberOfLines={2}>
+                {line}
+              </Text>
+            ) : null}
+            {place ? (
+              <Text style={styles.meta} numberOfLines={2}>
+                {place}
+              </Text>
+            ) : null}
+          </Animated.View>
         ) : null}
       </View>
     </>
@@ -79,12 +93,15 @@ export function TaskRow({ task, highlighted = false, onPress, right, titleLines 
         lead
       )}
       {right ??
-        (task.score == null ? (
+        (done ? (
+          <DonePoints points={task.score ?? task.points} animate={animate} color={slotTint[task.slot].fg} perfect={perfectWeek} />
+        ) : task.score == null ? (
           // Unscored: the points on offer, once, in one muted line.
           <Text style={styles.offer}>{`${formatScore(task.points)} pts`}</Text>
         ) : (
           <Score value={task.score} animated />
         ))}
+      <ShimmerSweep animate={animate && perfectWeek} />
       <RowDivider inset={TASK_TEXT_INSET} />
       <PressHighlight visible={pressed} />
     </View>
@@ -112,6 +129,7 @@ const styles = StyleSheet.create({
   // The same columns as the row itself, stretched to its full height so the whole left side takes the tap.
   lead: { flex: 1, alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: layout.columnGap },
   text: { flex: 1, gap: 1 },
+  lines: { gap: 1 },
   title: { fontSize: font.title, fontFamily: fontFamily.bold, color: colors.text },
   // Never shrinks: on the web a squeezed tag wraps onto a second line.
   tag: { flexShrink: 0, fontFamily: fontFamily.regular, fontSize: font.label, color: colors.textMuted },

@@ -62,7 +62,11 @@ export const haptics = {
   select() {
     fire(() => Haptics.selectionAsync());
   },
-  /** Something the player committed to went through: Lock Lineup, a payment, a check-in. */
+  /** All five starter slots done: one heavy landing, the biggest beat a task can give. */
+  perfect() {
+    fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+  },
+  /** Something the player committed to went through: Lock Lineup, a payment, a check-in, a task done. */
   success() {
     fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
   },

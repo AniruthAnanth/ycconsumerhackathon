@@ -35,7 +35,7 @@ describe("statusLine", () => {
   });
 
   it("flags held and failed tasks", () => {
-    expect(statusLine({ ...task, status: "held" })).toBe("Up for veto");
+    expect(statusLine({ ...task, status: "held" })).toBe("Reviewing");
     expect(statusLine({ ...task, status: "failed" })).toBe("Not verified");
   });
 });

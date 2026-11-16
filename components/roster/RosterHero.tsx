@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { CountUp, PressScale } from "@/components/motion";
+import { CountUp, PressScale, RollingNumber } from "@/components/motion";
 import { socialApi } from "@/components/social/contract";
 import { cardStyle, formatScore } from "@/components/ui";
 import type { Roster } from "@/lib/backend";
@@ -58,7 +58,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
       {matchup ? (
         <View style={styles.scores}>
           <View style={styles.side}>
-            <CountUp style={styles.myScore} value={matchup.me.total} format={formatScore} decimals={1} />
+            <RollingNumber style={styles.myScore} value={matchup.me.total} format={formatScore} ticks />
             <Text style={styles.name} numberOfLines={1}>
               You
             </Text>
@@ -72,7 +72,7 @@ export function RosterHero({ roster }: { roster: Roster | undefined }) {
         </View>
       ) : (
         <View style={styles.side}>
-          <CountUp style={styles.myScore} value={roster.total} format={formatScore} decimals={1} />
+          <RollingNumber style={styles.myScore} value={roster.total} format={formatScore} ticks />
           <Text style={styles.name}>points this week</Text>
         </View>
       )}

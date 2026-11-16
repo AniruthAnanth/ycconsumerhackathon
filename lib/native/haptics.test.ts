@@ -57,6 +57,13 @@ describe("haptics", () => {
     expect(calls).toEqual(["impact:rigid", "impact:rigid", "impact:rigid"]);
   });
 
+  it("lands the perfect week heavy", async () => {
+    const haptics = await load("ios");
+    haptics.perfect();
+    await Promise.resolve();
+    expect(calls).toEqual(["impact:heavy"]);
+  });
+
   it("gives shared presses a light or medium tap, and nothing for none", async () => {
     const haptics = await load("ios");
     haptics.press("light");
