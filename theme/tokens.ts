@@ -175,3 +175,55 @@ export const hairline = StyleSheet.hairlineWidth;
 export const BORDER = 1;
 
 export const tabUnderlineHeight = 3;
+
+/**
+ * Accent colours beyond the green. Each one means something and only ever paints a small
+ * element (an icon, a figure, a pill, a dot), never a large fill, so green stays the one
+ * primary and call-to-action colour. Yellow, warning, danger and the care/learn/play tints
+ * come from tokens.json; the streak orange, money gold, warm, sand and pink are additions.
+ */
+const accent = {
+  orange: "#E8792B",
+  orangeInk: "#A8481A",
+  orangeSoft: "#FCE7D6",
+  gold: "#C9971F",
+  goldInk: "#7F5C0E",
+  warm: "#FBE1D2",
+  warmInk: "#8F3B12",
+  lavenderInk: "#4A3D8F",
+  blueInk: "#1C5566",
+  pink: "#F8E0E8",
+  pinkInk: "#922E52",
+  redOrange: "#E0482B",
+} as const;
+
+/** Hot streaks, three weeks or more, sit on a soft orange chip. */
+export const HOT_STREAK = 3;
+
+export const accentSet = {
+  /** The flame and its count: the icon in streak orange, the figure in a deeper orange that passes AA as small text. */
+  streak: { icon: accent.orange, text: accent.orangeInk, chip: accent.orangeSoft },
+} as const;
+
+/** Buy-ins, pots, payouts, escrow coins and trophies. `text` passes AA on paper; `coin` is for icons and coins only. */
+export const money = { text: accent.goldInk, coin: accent.gold, tint: palette.yellow } as const;
+
+/** Each slot's own tint and the ink that sits on it (AA-checked in components/ui/slotTint.test.ts). */
+export const slotTint = {
+  body: { bg: accent.warm, fg: accent.warmInk },
+  mind: { bg: palette.learn, fg: accent.lavenderInk },
+  recharge: { bg: palette.care, fg: accent.blueInk },
+  chores: { bg: palette.play, fg: palette.warning },
+  people: { bg: accent.pink, fg: accent.pinkInk },
+  flex: { bg: palette.greenSoft, fg: palette.green },
+} as const;
+
+/** Small status marks. `pendingText` is the readable ink for pending; the yellow is for icons and dots. */
+export const status = {
+  verified: palette.green,
+  pending: palette.yellow,
+  pendingText: palette.warning,
+  danger: palette.danger,
+  live: accent.redOrange,
+} as const;
+

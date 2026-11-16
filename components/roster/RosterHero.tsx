@@ -12,7 +12,7 @@ import { useCurrentLeague } from "@/lib/currentLeague";
 import { formatCountdown } from "@/lib/leagueText";
 import { useNow } from "@/lib/useNow";
 import { planProgress, planProgressLabel } from "@/lib/weeklyPlan";
-import { BORDER, colors, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, type } from "@/theme";
+import { BORDER, colors, fontFamily, hairline, layout, radius, SCREEN_MARGIN, spacing, status, type } from "@/theme";
 
 /**
  * The top of Roster, laid out like a fantasy app's matchup card: the head-to-head score is the
@@ -138,5 +138,5 @@ const styles = StyleSheet.create({
   plan: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: hairline, borderTopColor: colors.divider },
   planLabel: { ...type.label, color: colors.text },
   chance: { ...type.caption, color: colors.accent },
-  pending: { ...type.small, color: colors.warning },
+  pending: { ...type.small, color: status.pendingText },
 });

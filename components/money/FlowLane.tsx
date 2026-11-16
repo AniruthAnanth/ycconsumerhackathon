@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import Animated, { Easing, type SharedValue, useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 
-import { BORDER, colors, fontFamily } from "@/theme";
+import { BORDER, fontFamily, money } from "@/theme";
 
 import { type Curve, curvePoint } from "./escrowLayout";
 import { coinProgress, COINS_PER_MEMBER, LANE_MS } from "./escrowTimeline";
@@ -82,10 +82,10 @@ const styles = StyleSheet.create({
     borderRadius: COIN_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.lime,
+    backgroundColor: money.tint,
     borderWidth: BORDER,
-    borderColor: colors.accent,
+    borderColor: money.coin,
     pointerEvents: "none",
   },
-  sign: { fontFamily: fontFamily.extraBold, fontSize: 10, lineHeight: 13, color: colors.accent },
+  sign: { fontFamily: fontFamily.extraBold, fontSize: 10, lineHeight: 13, color: money.text },
 });
