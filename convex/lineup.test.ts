@@ -253,6 +253,35 @@ describe("lineup.refine", () => {
   });
 });
 
+describe("lineup.reclassifyOpenTasks", () => {
+  it("gives real players' open tasks the current proof types and leaves seeded players alone", async () => {
+    const { t, userId } = await signedIn();
+    const [gym, read, done, seeded] = await t.run(async (ctx) => {
+      const seedId = await ctx.db.insert("users", { name: "Seed", isSeed: true });
+      const base = { weekStart: WEEK_START, points: 30, source: "draft" as const };
+      return Promise.all([
+        ctx.db.insert("tasks", { ...base, userId, slot: "body", title: "Gym session", proofType: "timelapse", targetMinutes: 40, status: "open" }),
+        ctx.db.insert("tasks", { ...base, userId, slot: "recharge", title: "Read", proofType: "timelapse", targetMinutes: 60, status: "open" }),
+        ctx.db.insert("tasks", { ...base, userId, slot: "chores", title: "Laundry", proofType: "timelapse", targetMinutes: 30, status: "verified" }),
+        ctx.db.insert("tasks", { ...base, userId: seedId, slot: "body", title: "Gym session", proofType: "timelapse", targetMinutes: 40, status: "open" }),
+      ]);
+    });
+    vi.mocked(refineLineup).mockResolvedValueOnce([
+      { slot: "body", title: "Gym session", points: 50, proofType: "photo_location" },
+      { slot: "recharge", title: "Read", points: 30, proofType: "timelapse", targetMinutes: 5 },
+    ]);
+
+    expect(await t.action(internal.lineup.reclassifyOpenTasks, {})).toEqual({ lineups: 1, tasks: 2 });
+
+    const rows = await t.run((ctx) => Promise.all([gym, read, done, seeded].map((id) => ctx.db.get("tasks", id))));
+    expect(rows[0]).toMatchObject({ proofType: "photo_location", points: 30 });
+    expect(rows[0]?.targetMinutes).toBeUndefined();
+    expect(rows[1]).toMatchObject({ proofType: "timelapse", targetMinutes: 5 });
+    expect(rows[2]).toMatchObject({ proofType: "timelapse", targetMinutes: 30 });
+    expect(rows[3]).toMatchObject({ proofType: "timelapse", targetMinutes: 40 });
+  });
+});
+
 describe("lineup.roster", () => {
   /** Marks a task verified the way proofs.record does. */
   async function verifyTask(t: Backend, taskId: Id<"tasks">, at: number) {
