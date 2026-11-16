@@ -416,6 +416,7 @@ const UNDERSTAND_INSTRUCTIONS = [
   "end the reply with exactly one tag on its own line: [action:swap] to swap a task the league struck, [action:nudge:<name>]",
   "to nudge a named league-mate (use their name as written in the table), or [action:veto] to veto a league-mate's task.",
   "Otherwise add no tag. Never add a tag in a text message.",
+  "Never use an em-dash; use a comma, a colon or a new sentence.",
 ].join(" ");
 
 const UNDERSTAND_SCHEMA = {
@@ -459,7 +460,9 @@ async function answerFreeText(ctx: ActionCtx, turn: KeikiTurn, player: Player, t
   }
   if (!understood.isSessionProposal) {
     // Action tags are buttons in the app's chat; a phone would show them as text.
-    const answer = onPhone(turn) ? withoutActionTag(understood.reply) : understood.reply;
+    const tagged = onPhone(turn) ? withoutActionTag(understood.reply) : understood.reply;
+    // The owner's rule: no em-dashes anywhere a player reads, the model's words included.
+    const answer = tagged.replace(/\s*\u2014\s*/g, ", ");
     return answer.trim() || reply.help;
   }
 
