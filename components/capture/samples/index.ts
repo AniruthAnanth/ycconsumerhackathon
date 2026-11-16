@@ -50,7 +50,7 @@ export const SAMPLE_MEDIA: SampleMedia[] = [
   // Four people, for a group session's head count.
   { key: "group", label: "Group", mediaType: "photo", source: require("../../../assets/demo/drops/group-session.jpg") },
   // Four stills of one reading session, which the camera spreads across the task's target as a timelapse.
-  { key: "reading", label: "Reading timelapse", mediaType: "photo", source: READING_FRAMES[0], frames: READING_FRAMES },
+  { key: "reading", label: "Reading", mediaType: "photo", source: READING_FRAMES[0], frames: READING_FRAMES },
   // A homework portal's "Submission received" page, for a screenshot task.
   { key: "screenshot", label: "Screenshot", mediaType: "photo", source: require("../../../assets/demo/samples/screenshot.jpg") },
   {

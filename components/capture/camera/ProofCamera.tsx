@@ -147,6 +147,7 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
           {screen.samples && !capture.recording ? (
             <SampleTray
               disabled={capture.busy}
+              timelapseFirst={target.proofType === "timelapse"}
               onPick={(sample) => {
                 if (sample.frames) return void capture.sampleTimelapse(sample);
                 if (sample.mediaType === "video") return void capture.sampleSurvey(sample);
@@ -165,8 +166,8 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
 const SAMPLE_HINT: Record<CaptureMode, string> = {
   photo: "Tap a sample to submit it",
   video: "Tap a sample to submit it",
-  timelapse: "Tap Reading timelapse for a sample that passes",
-  interval: "Tap Reading timelapse for a sample that passes",
+  timelapse: "Tap Reading for a sample timelapse of someone reading",
+  interval: "Tap Reading for a sample timelapse of someone reading",
   survey: "Tap the video for a sample 5-second video",
 };
 
