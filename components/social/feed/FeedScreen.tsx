@@ -23,7 +23,7 @@ const PostDivider = () => <Divider inset={SCREEN_MARGIN} />;
 /** One quiet text link in the shortcut row: the side features stay a tap away without leading the Feed. */
 function Shortcut({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={spacing.xs} style={styles.shortcut}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={spacing.xs} style={styles.shortcut}>
       <Icon name={icon} size={font.meta} color={colors.textMuted} />
       <Text style={styles.shortcutText}>{label}</Text>
     </Pressable>
