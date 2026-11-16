@@ -1,6 +1,6 @@
 import { useNavigation, usePreventRemove, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from "react-native";
 
 import { confirmAction } from "@/components/social/notify";
 import { Button, Header, Screen } from "@/components/ui";
@@ -23,7 +23,7 @@ export function VoiceDraftScreen() {
   const draft = useVoiceDraft();
   const { state } = draft;
   const [typedWeek, setTypedWeek] = useState(sampleVoice ? SAMPLE_TRANSCRIPT : "");
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   // The typed box and "Draft from text" are the last things on the page, so once the keyboard is
   // up the page scrolls to its end to keep them above it (ANI-52).
   const revealTypedWeek = () => {
