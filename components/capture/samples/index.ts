@@ -11,14 +11,23 @@
 import { Asset } from "expo-asset";
 
 export type SampleMedia = {
-  key: "gym" | "desk" | "clean_room" | "wrong" | "call_mom" | "pushups" | "group" | "video";
+  key: "gym" | "desk" | "clean_room" | "wrong" | "call_mom" | "pushups" | "group" | "video" | "reading" | "screenshot";
   label: string;
   mediaType: "photo" | "video";
   /** The bundled asset, as returned by require(). */
   source: number;
   /** Clip length: the verdict screen samples stills across a video and needs to know it. */
   durationMs?: number;
+  /** A timelapse sample: its stills in time order, from one fixed camera. `source` is the first. */
+  frames?: number[];
 };
+
+const READING_FRAMES = [
+  require("../../../assets/demo/samples/reading_1.jpg"),
+  require("../../../assets/demo/samples/reading_2.jpg"),
+  require("../../../assets/demo/samples/reading_3.jpg"),
+  require("../../../assets/demo/samples/reading_4.jpg"),
+];
 
 export const SAMPLE_MEDIA: SampleMedia[] = [
   { key: "gym", label: "Gym", mediaType: "photo", source: require("../../../assets/demo/samples/gym.jpg") },
@@ -40,6 +49,10 @@ export const SAMPLE_MEDIA: SampleMedia[] = [
   },
   // Four people, for a group session's head count.
   { key: "group", label: "Group", mediaType: "photo", source: require("../../../assets/demo/drops/group-session.jpg") },
+  // Four stills of one reading session, which the camera spreads across the task's target as a timelapse.
+  { key: "reading", label: "Reading timelapse", mediaType: "photo", source: READING_FRAMES[0], frames: READING_FRAMES },
+  // A homework portal's "Submission received" page, for a screenshot task.
+  { key: "screenshot", label: "Screenshot", mediaType: "photo", source: require("../../../assets/demo/samples/screenshot.jpg") },
   {
     key: "video",
     label: "Video",
