@@ -17,8 +17,10 @@ import { CameraPermissionPrompt } from "./CameraPermissionPrompt";
 import { cameraScreen } from "./cameraScreen";
 import { CameraUnavailable } from "./CameraUnavailable";
 import { requestLocationFor } from "./deviceLocation";
+import { GhostOverlay, GhostStep } from "./GhostOverlay";
 import { RecordingPanel } from "./RecordingPanel";
 import { SampleTray } from "./SampleTray";
+import { ScreenshotPicker } from "./ScreenshotPicker";
 import { modesFor, ShutterBar } from "./ShutterBar";
 import { TimelapseReview } from "./TimelapseReview";
 import { useDimWhileRecording } from "./useDimWhileRecording";
@@ -29,18 +31,16 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
   const { sampleMedia } = useDevFlags();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>("back");
-  // Every proof is a timelapse (owner's call, Nov 16). The photo, before/after and screenshot
-  // capture stay in the code base but are not offered.
-  const modes = modesFor();
-  const [mode, setMode] = useState<CaptureMode>(target.proofType === "survey_video" ? "survey" : modes[0]);
+  const modes = modesFor(target.proofType);
+  const [mode, setMode] = useState<CaptureMode>(modes[0]);
   const capture = useProofCapture(target);
-  // A running recording or a kept before shot is lost on the way out, so leaving then asks first.
-  const holdsWork = capture.recording || capture.review !== null;
+  // A running recording, a kept before shot or a proof under review is lost on the way out, so leaving then asks first.
+  const holdsWork = capture.recording || capture.review !== null || capture.before !== null;
   const dim = useDimWhileRecording(capture.elapsedMs !== null);
   const close = () => {
     if (!holdsWork) return leaveScreen("/(tabs)");
     confirmAction({
-      title: capture.recording ? "Stop and discard?" : "Discard this timelapse?",
+      title: capture.recording ? "Stop and discard?" : capture.before ? "Discard the before shot?" : "Discard this proof?",
       message: "Nothing is sent. You can prove this task later.",
       confirmLabel: "Discard",
       onConfirm: () => leaveScreen("/(tabs)"),
@@ -51,6 +51,17 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
   useEffect(() => {
     requestLocationFor(target.proofType);
   }, [target.proofType]);
+
+  if (target.proofType === "screenshot") {
+    return (
+      <GestureDetector gesture={swipe.gesture}>
+        <Animated.View style={[styles.screen, swipe.style]}>
+          <CameraOverlay target={target} onClose={close} />
+          <ScreenshotPicker busy={capture.busy} onPicked={(uri) => void capture.submitPicked(uri)} bottomInset={insets.bottom} />
+        </Animated.View>
+      </GestureDetector>
+    );
+  }
 
   const screen = cameraScreen({ sampleMedia, permission, cameraFailed: capture.cameraFailed });
   const start = {
@@ -85,11 +96,12 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
             ref={capture.camera}
             style={StyleSheet.absoluteFill}
             facing={facing}
-            mode={mode === "video" || mode === "timelapse" ? "video" : "picture"}
+            mode={mode === "video" || mode === "timelapse" || mode === "survey" ? "video" : "picture"}
             mute
             onMountError={capture.markCameraFailed}
           />
         ) : null}
+        {target.proofType === "before_after" ? <GhostOverlay beforeUri={capture.before?.uri ?? null} /> : null}
         {permission && screen.askPermission ? (
           <CameraPermissionPrompt canAskAgain={permission.canAskAgain} onRequest={requestPermission} />
         ) : null}
@@ -98,6 +110,12 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
         {dim.dimmed ? <View style={styles.dark} pointerEvents="none" testID="timelapse-dimmed" /> : null}
         {dim.dimmed ? null : <CameraOverlay target={target} onClose={close} />}
         <View style={[styles.bottom, { paddingBottom: screen.samples ? 0 : insets.bottom }]} pointerEvents="box-none">
+          {target.proofType === "before_after" && !capture.recording ? <GhostStep beforeUri={capture.before?.uri ?? null} /> : null}
+          {capture.before && !capture.busy ? (
+            <Pressable onPress={capture.retakeBefore} style={styles.retake} accessibilityRole="button" testID="camera-retake-before">
+              <Text style={[styles.hint, styles.retakeLabel]}>Retake before</Text>
+            </Pressable>
+          ) : null}
           {capture.recording && capture.secondsRemaining !== null ? (
             <Text style={styles.countdown} testID="survey-countdown">
               {capture.secondsRemaining}
@@ -122,11 +140,15 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
               onFlip={() => setFacing(facing === "back" ? "front" : "back")}
             />
           ) : null}
-          {screen.samplesOnly && !capture.recording ? <Text style={styles.hint}>Tap a photo for a sample timelapse, or Video for a 5 s video</Text> : null}
+          {screen.samplesOnly && !capture.recording ? <Text style={styles.hint}>{SAMPLE_HINT[modes[0]]}</Text> : null}
           {screen.samples && !capture.recording ? (
             <SampleTray
               disabled={capture.busy}
-              onPick={(sample) => void (sample.mediaType === "video" ? capture.sampleSurvey(sample) : capture.startSampleTimelapse(sample))}
+              onPick={(sample) => {
+                if (sample.mediaType === "video") return void capture.sampleSurvey(sample);
+                if (target.proofType === "timelapse") return void capture.startSampleTimelapse(sample);
+                void capture.submitSample(sample);
+              }}
               bottomInset={insets.bottom}
             />
           ) : null}
@@ -135,6 +157,14 @@ export function ProofCamera({ target }: { target: ProofTarget }) {
     </GestureDetector>
   );
 }
+
+const SAMPLE_HINT: Record<CaptureMode, string> = {
+  photo: "Tap a sample to submit it",
+  video: "Tap a sample to submit it",
+  timelapse: "Tap a photo for a sample timelapse",
+  interval: "Tap a photo for a sample timelapse",
+  survey: "Tap the video for a sample 5-second video",
+};
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.text },

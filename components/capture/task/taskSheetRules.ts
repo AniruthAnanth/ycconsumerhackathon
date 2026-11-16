@@ -2,7 +2,7 @@ import type { Href } from "expo-router";
 
 import type { Task } from "@/lib/backend";
 
-import { proofCameraHref, type ProofTarget } from "../proofRoute";
+import { proofCameraHref, verdictHref, type ProofTarget } from "../proofRoute";
 
 export function findTask(rows: Task[], taskId: string): Task | undefined {
   return rows.find((row) => row.taskId === taskId);
@@ -34,7 +34,8 @@ export function canSubmitProof(status: Task["status"]): boolean {
   return status === "open";
 }
 
-/** Every task, a Canvas one included, is proven with a timelapse (owner's call, Nov 16). */
+/** A Canvas task has nothing to film: the backend reads the submission itself. Every other task opens the capture its type names. */
 export function submitProofHref(task: Task): Href {
-  return proofCameraHref(toProofTarget(task));
+  const target = toProofTarget(task);
+  return task.proofType === "canvas" ? verdictHref(target, { mediaType: "canvas" }) : proofCameraHref(target);
 }
