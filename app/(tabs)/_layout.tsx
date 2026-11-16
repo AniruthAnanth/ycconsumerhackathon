@@ -66,15 +66,21 @@ export default function TabsLayout() {
           onTitlePress={() => router.push("/league-switcher")}
           onSettingsPress={() => router.push("/settings")}
           right={<SunnyButton />}
+          // One header row: the week sits beside the league name instead of a second bar under it.
+          // The Feed is not week-scoped, so it has no week.
+          accessory={
+            active.key === "feed" ? undefined : (
+              <WeekSelector
+                compact
+                label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
+                arrows={browsable}
+                onPrev={withSelectHaptic(showPreviousWeek)}
+                onNext={withSelectHaptic(showNextWeek)}
+                onLongPress={() => router.push("/demo")}
+              />
+            )
+          }
         />
-        {/* The Feed is not week-scoped, so it has no week bar. */}
-        {active.key === "feed" ? null : <WeekSelector
-          label={shownWeek === undefined ? "Week" : `Week ${shownWeek}`}
-          arrows={browsable}
-          onPrev={withSelectHaptic(showPreviousWeek)}
-          onNext={withSelectHaptic(showNextWeek)}
-          onLongPress={() => router.push("/demo")}
-        />}
       </SafeAreaView>
       {systemTabBar ? (
         // The system bar: its own liquid glass and selection pill, accent tint only, and it shrinks while a tab scrolls down.
