@@ -72,7 +72,7 @@ export function ChatScreen() {
           {state.messages.length === 0 ? (
             <View style={styles.suggestions}>
               <SunnyBreathe>
-                <SunnyAvatar size={72} />
+                <SunnyAvatar size={112} />
               </SunnyBreathe>
               <Text style={styles.intro}>{brief?.line ?? `${SUNNY.name}, your league's commissioner. Ask me anything about the week.`}</Text>
               {(brief?.chips ?? ["Who's on top of the league?"]).map((suggestion) => (
