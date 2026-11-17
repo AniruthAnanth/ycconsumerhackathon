@@ -2,9 +2,8 @@ import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Artwork } from "@/components/art";
+import { Sunny } from "@/components/art";
 import { ShareChallenge } from "@/components/invite";
-import { SunnyHop } from "@/components/motion";
 import { SunnyVerdictLine } from "@/components/social/sunny/SunnyVerdictLine";
 import { Button, Divider } from "@/components/ui";
 import { BORDER, colors, font, fontFamily, MIN_TARGET, SCREEN_MARGIN, spacing, type } from "@/theme";
@@ -88,9 +87,9 @@ export function VerdictPanel({ phase, onDone, onRetry, onClose, whileReviewing }
       ) : null}
       <FadeIn delay={POINTS_DELAY_MS}>
         {verdict.pass ? (
-          <SunnyHop size={104} style={styles.celebration}>
-            <Artwork name="sunny" size={104} />
-          </SunnyHop>
+          <View style={styles.celebration}>
+            <Sunny size={104} mood="success" delay={POINTS_DELAY_MS} entrance={false} />
+          </View>
         ) : null}
         {verdict.pass ? <SunnyVerdictLine points={verdict.points} /> : null}
         <Text style={[styles.reason, verdict.pass && styles.reasonPass]}>{verdict.reason}</Text>

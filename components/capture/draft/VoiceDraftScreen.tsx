@@ -5,8 +5,7 @@ import Animated from "react-native-reanimated";
 
 import { confirmAction } from "@/components/social/notify";
 import { Button, Header, LargeTitle, Screen, useCollapsingHeader } from "@/components/ui";
-import { Artwork } from "@/components/art";
-import { SunnyBreathe } from "@/components/motion";
+import { Sunny, type SunnyMood } from "@/components/art";
 import { SAMPLE_TRANSCRIPT, useDevFlags } from "@/lib/devFlags";
 import { leaveScreen } from "@/lib/leaveScreen";
 import { colors, fontFamily, hairline, MIN_TARGET, ROW_HEIGHT, SCREEN_MARGIN, spacing, type } from "@/theme";
@@ -36,6 +35,8 @@ export function VoiceDraftScreen() {
     });
   };
   const prompt = useSpeakingPrompt(state.phase === "idle");
+  const sunnyMood: SunnyMood =
+    state.phase === "recording" ? "listening" : state.phase === "drafting" || state.phase === "locking" ? "thinking" : state.phase === "review" ? "success" : state.phase === "idle" ? "waiting" : "idle";
   const navigation = useNavigation();
   const { scrollY, onScroll, contentInsetTop } = useCollapsingHeader();
 
@@ -91,9 +92,9 @@ export function VoiceDraftScreen() {
           scrollEventThrottle={16}
         >
           <LargeTitle title="Voice Draft" scrollY={scrollY} />
-          <SunnyBreathe style={styles.sunny}>
-            <Artwork name="sunny" size={80} />
-          </SunnyBreathe>
+          <View style={styles.sunny}>
+            <Sunny size={80} mood={sunnyMood} tappable />
+          </View>
           {draft.weekNote ? <Text style={styles.weekNote}>{draft.weekNote}</Text> : null}
           {state.manual ? <Text style={styles.weekNote}>Pick one task for each slot. Tap a title to change it.</Text> : null}
           {showsLineup ? null : (

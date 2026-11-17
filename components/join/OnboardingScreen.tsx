@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Artwork } from "@/components/art";
+import { Sunny } from "@/components/art";
 import { ErrorLine } from "@/components/join/ErrorLine";
 import { errorMessage } from "@/components/join/errorMessage";
 import { FormBody } from "@/components/join/FormBody";
@@ -66,7 +66,7 @@ export function OnboardingScreen() {
           What's your name?
         </Text>
         <View style={styles.sunny}>
-          <Artwork name="sunny" size={108} />
+          <Sunny size={108} tappable />
         </View>
         <View style={styles.fields}>
           <TextField

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Artwork } from "@/components/art";
+import { Sunny } from "@/components/art";
 import { colors, font, fontFamily, SCREEN_MARGIN, spacing } from "@/theme";
 
 import type { WrappedCard as WrappedCardData } from "../contract";
@@ -41,7 +41,7 @@ export function WrappedCard({
         </>
       ) : null}
       <View style={[styles.content, { paddingTop: topInset + spacing.xxl + spacing.lg }]} pointerEvents="none">
-        {card.kind === "your_week" ? <Artwork name="sunny" size={88} style={styles.sunny} /> : null}
+        {card.kind === "your_week" ? <View style={styles.sunny}><Sunny size={88} /></View> : null}
         <Text style={styles.label}>{KIND_LABEL[card.kind]}</Text>
         <Text style={styles.stat} numberOfLines={1} adjustsFontSizeToFit>
           {card.stat}
